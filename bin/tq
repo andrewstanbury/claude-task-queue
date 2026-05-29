@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# tq — claude-task-queue CLI. Project-scoped operations on the current cwd's
+# queue. Output is plain text for human use; jsonl piping uses `tq list`.
+#
+# Subcommands:
+#   list                       Print the queue as jsonl.
+#   get <id>                   Print one task as JSON.
+#   status                     One-line status (same as tq-status.sh).
+#   pause                      Pause autopilot for this project.
+#   resume                     Resume — clears the pause file.
+#   autopilot                  Enter autopilot (writes work without per-task
+#                              confirmation; destructive ops still pause).
+#   one-at-a-time              Exit autopilot (default).
+#   start <id>                 Mark a task in_progress.
+#   done <id>                  Mark a task completed.
+#   cancel <id>                Mark a task cancelled.
+#   add <subject> [est] [tokenEst]
+#                              Append a manual task.
+#   clear                      Delete the queue + pause + autopilot files
+#                              for this project. Confirm prompt.
+#   path                       Print the queue file path.
+#   --help | help              This message.
+
+set -euo pipefail
+
+THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
+# shellcheck source=../lib/queue.sh
+. "$PLUGIN_DIR/lib/queue.sh"
+
+usage() {
+  sed -n '3,25p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+cmd="${1:---help}"
+shift || true
+
+case "$cmd" in
+  list)
+    tq_list
+    ;;
+  get)
+    tq_get "${1:?id required}"
+    ;;
+  status)
+    exec "$PLUGIN_DIR/bin/tq-status.sh"
+    ;;
+  pause)
+    tq_ensure_state
+    : > "$(tq_pause_path)"
+    printf 'paused\n'
+    ;;
+  resume)
+    rm -f "$(tq_pause_path)"
+    printf 'resumed\n'
+    ;;
+  autopilot)
+    tq_ensure_state
+    : > "$(tq_autopilot_path)"
+    printf 'autopilot ON (destructive ops still pause)\n'
+    ;;
+  one-at-a-time)
+    rm -f "$(tq_autopilot_path)"
+    printf 'autopilot OFF\n'
+    ;;
+  start)
+    tq_update_status "${1:?id required}" in_progress
+    ;;
+  done)
+    tq_update_status "${1:?id required}" completed
+    ;;
+  cancel)
+    tq_cancel "${1:?id required}"
+    ;;
+  add)
+    subj="${1:?subject required}"
+    est="${2:-M}"
+    tok="${3:-0}"
+    tq_append "$subj" "$est" "$tok"
+    ;;
+  clear)
+    printf 'Clear queue for this project? [y/N] '
+    read -r ans
+    case "$ans" in
+      y|Y|yes|YES) tq_clear; printf 'cleared\n' ;;
+      *) printf 'aborted\n' ;;
+    esac
+    ;;
+  path)
+    tq_queue_path
+    ;;
+  -h|--help|help|"")
+    usage
+    ;;
+  *)
+    printf 'unknown command: %s\n\n' "$cmd" >&2
+    usage >&2
+    exit 64
+    ;;
+esac

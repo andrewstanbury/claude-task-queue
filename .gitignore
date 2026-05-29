@@ -1,0 +1,8 @@
+*.bak
+*.swp
+.DS_Store
+node_modules/
+dist/
+tmp/
+*.log
+.tq-sandbox/

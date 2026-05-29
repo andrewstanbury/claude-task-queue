@@ -1,0 +1,115 @@
+#!/usr/bin/env bats
+
+setup() {
+  export CLAUDE_TQ_STATE_DIR="$(mktemp -d)"
+  THIS_DIR="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  . "$THIS_DIR/lib/queue.sh"
+  # Pin cwd so the project key is stable across tests.
+  cd "$CLAUDE_TQ_STATE_DIR"
+}
+
+teardown() {
+  rm -rf "$CLAUDE_TQ_STATE_DIR"
+}
+
+@test "tq_state_dir respects CLAUDE_TQ_STATE_DIR" {
+  [ "$(tq_state_dir)" = "$CLAUDE_TQ_STATE_DIR" ]
+}
+
+@test "tq_project_key is stable for the same cwd" {
+  k1="$(tq_project_key "$PWD")"
+  k2="$(tq_project_key "$PWD")"
+  [ "$k1" = "$k2" ]
+  [ "${#k1}" -eq 12 ]
+}
+
+@test "tq_project_key differs across paths" {
+  k1="$(tq_project_key /tmp/a)"
+  k2="$(tq_project_key /tmp/b)"
+  [ "$k1" != "$k2" ]
+}
+
+@test "tq_next_id starts at 1 and increments" {
+  [ "$(tq_next_id)" = "1" ]
+  tq_append "first" >/dev/null
+  [ "$(tq_next_id)" = "2" ]
+  tq_append "second" >/dev/null
+  [ "$(tq_next_id)" = "3" ]
+}
+
+@test "tq_append writes a parseable JSON line" {
+  id="$(tq_append "build queue" S 1000)"
+  [ "$id" = "1" ]
+  line="$(tq_list)"
+  [ -n "$line" ]
+  status="$(printf '%s' "$line" | jq -r '.status')"
+  [ "$status" = "pending" ]
+}
+
+@test "tq_get returns the requested task only" {
+  tq_append "first" >/dev/null
+  tq_append "second" >/dev/null
+  got="$(tq_get 2)"
+  subj="$(printf '%s' "$got" | jq -r '.subject')"
+  [ "$subj" = "second" ]
+}
+
+@test "tq_update_status flips a task to in_progress" {
+  tq_append "x" >/dev/null
+  tq_update_status 1 in_progress
+  status="$(tq_get 1 | jq -r '.status')"
+  [ "$status" = "in_progress" ]
+}
+
+@test "tq_cancel marks task cancelled" {
+  tq_append "x" >/dev/null
+  tq_cancel 1
+  [ "$(tq_get 1 | jq -r '.status')" = "cancelled" ]
+}
+
+@test "tq_next returns the first unblocked pending task" {
+  tq_append "first" >/dev/null
+  tq_append "second" M 0 "1" >/dev/null  # blocked by 1
+  next="$(tq_next)"
+  [ "$(printf '%s' "$next" | jq -r '.id')" = "1" ]
+}
+
+@test "tq_next skips blocked tasks until prereqs complete" {
+  tq_append "first" >/dev/null
+  tq_append "second" M 0 "1" >/dev/null
+  tq_update_status 1 completed
+  next="$(tq_next)"
+  [ "$(printf '%s' "$next" | jq -r '.id')" = "2" ]
+}
+
+@test "tq_counts reflects completed/total" {
+  tq_append "a" >/dev/null
+  tq_append "b" >/dev/null
+  tq_append "c" >/dev/null
+  tq_update_status 1 completed
+  [ "$(tq_counts)" = "1/3" ]
+}
+
+@test "tq_clear deletes queue + pause + autopilot files" {
+  tq_append "x" >/dev/null
+  : > "$(tq_pause_path)"
+  : > "$(tq_autopilot_path)"
+  tq_clear
+  [ ! -f "$(tq_queue_path)" ]
+  [ ! -f "$(tq_pause_path)" ]
+  [ ! -f "$(tq_autopilot_path)" ]
+}
+
+@test "tq_is_paused detects the pause file" {
+  ! tq_is_paused
+  tq_ensure_state
+  : > "$(tq_pause_path)"
+  tq_is_paused
+}
+
+@test "tq_is_autopilot detects the autopilot file" {
+  ! tq_is_autopilot
+  tq_ensure_state
+  : > "$(tq_autopilot_path)"
+  tq_is_autopilot
+}
