@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Haiku triage caller. Sends the user prompt plus context (project profile,
-# active queue snapshot) to Claude Haiku via `claude -p --model haiku-4-5` and
+# active queue snapshot) to Claude Haiku via `claude -p --model haiku` and
 # parses an ordered list of tasks back.
 #
 # On any failure (timeout, bad JSON, non-zero exit) we fall back to a single
@@ -59,6 +59,21 @@ tq_project_profile() {
   printf '%s' "${out:-unknown stack}"
 }
 
+# Fallback when triage can't produce tasks (Haiku unreachable, timed out, or
+# unparseable output): append a single task that restates the prompt so the
+# queue is always populated and the user can refine it manually. Prints the new
+# id on success. This is the behaviour promised in the header comment — without
+# it, a failed Haiku call leaves the queue silently empty.
+tq_haiku_fallback() {
+  local user_prompt="$1" subject id
+  subject="$(printf '%s' "$user_prompt" | tr '\n' ' ' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+/ /g')"
+  [ -z "$subject" ] && return 1
+  [ "${#subject}" -gt 76 ] && subject="${subject:0:75}…"
+  id="$(tq_append "$subject" "M" 0 "" "" false)" || return 1
+  printf '%s\n' "$id"
+  return 0
+}
+
 # Call Haiku, append parsed tasks to the queue, print appended ids one per
 # line on stdout. Returns 0 on success (even partial), 1 on hard failure.
 tq_haiku_triage() {
@@ -83,11 +98,11 @@ tq_haiku_triage() {
     CLAUDE_INTENT_CONFIRM_DISABLED=1 \
     CLAUDE_AUDIT_RULES_DISABLED=1 \
     CLAUDE_STACK_LINT_DISABLED=1 \
-    timeout 45 claude -p "$triage_prompt" --model haiku-4-5 2>/dev/null || true
+    timeout 45 claude -p "$triage_prompt" --model haiku 2>/dev/null || true
   )"
 
   if [ -z "$response" ]; then
-    return 1
+    tq_haiku_fallback "$user_prompt"; return $?
   fi
 
   # The model occasionally wraps the array in ```json fences despite the
@@ -97,7 +112,7 @@ tq_haiku_triage() {
 
   # Validate top-level shape.
   if ! printf '%s' "$cleaned" | jq -e 'type == "array"' >/dev/null 2>&1; then
-    return 1
+    tq_haiku_fallback "$user_prompt"; return $?
   fi
 
   # Append each task. Map model-supplied blockedBy ints (1-indexed within the
@@ -143,7 +158,12 @@ tq_haiku_triage() {
     appended_any=1
   done < <(printf '%s' "$cleaned" | jq -c '.[]')
 
-  [ "$appended_any" -eq 1 ]
+  # Parsed an array but it yielded no usable tasks (empty array, or every
+  # element missing a subject) — fall back so the queue still gets populated.
+  if [ "$appended_any" -eq 1 ]; then
+    return 0
+  fi
+  tq_haiku_fallback "$user_prompt"; return $?
 }
 
 # When invoked directly, read prompt from stdin and triage.
