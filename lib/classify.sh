@@ -87,20 +87,25 @@ tq_plan_trigger() {
   return 1
 }
 
-# Decide whether to run the paid Haiku triage. Pure boolean logic over three
-# already-computed signals, so it's unit-testable without touching Haiku:
-#   $1 non_trivial    (1/0) — classifier said this is real work
-#   $2 plan_trigger   (1/0) — user prefixed "plan:"
-#   $3 has_actionable (1/0) — queue already has an unblocked pending task
+# Decide whether to run the paid Haiku triage. Pure boolean logic, unit-testable
+# without touching Haiku:
+#   $1 non_trivial  (1/0) — classifier said this is real work
+#   $2 plan_trigger (1/0) — user prefixed "plan:"
 #
-# Triage fires when the user explicitly asked to plan, OR the work is
-# non-trivial AND there's nothing actionable queued. This is the core fix for
-# "every non-trivial prompt forks Haiku and stacks more tasks": once a plan
-# exists, follow-up prompts no longer silently spawn work.
+# QUEUE-FIRST routing: triage fires whenever the user explicitly asked to plan,
+# OR the work is non-trivial — regardless of what's already queued. Every real
+# request is interpreted into tasks and added to the queue before it's worked,
+# so the queue is the single front door. (Earlier behavior gated triage on an
+# idle queue to save cost; the project deliberately trades that cost for the
+# always-on queue.) Trivial / conversational prompts still skip — the classifier
+# is the only gate.
+#
+# A third positional arg (formerly has_actionable) is accepted but ignored for
+# backward compatibility with older callers.
 tq_should_triage() {
-  local non_trivial="${1:-0}" plan_trigger="${2:-0}" has_actionable="${3:-0}"
+  local non_trivial="${1:-0}" plan_trigger="${2:-0}"
   [ "$plan_trigger" = "1" ] && return 0
-  [ "$non_trivial" = "1" ] && [ "$has_actionable" = "0" ] && return 0
+  [ "$non_trivial" = "1" ] && return 0
   return 1
 }
 

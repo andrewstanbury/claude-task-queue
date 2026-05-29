@@ -71,18 +71,20 @@ setup() {
 
 # --- tq_should_triage -------------------------------------------------------
 
-@test "triage fires on non-trivial with no actionable work" {
+@test "queue-first: triage fires on any non-trivial prompt (empty queue)" {
   tq_should_triage 1 0 0
 }
 
-@test "triage is skipped on non-trivial when actionable work exists" {
-  ! tq_should_triage 1 0 1
+@test "queue-first: triage still fires on non-trivial even when work is queued" {
+  # The legacy 3rd arg (has_actionable=1) is ignored — queue-first never skips.
+  tq_should_triage 1 0 1
 }
 
-@test "plan trigger forces triage even with actionable work" {
+@test "plan trigger forces triage regardless of queue state" {
   tq_should_triage 1 1 1
 }
 
 @test "trivial prompt never triages" {
   ! tq_should_triage 0 0 0
+  ! tq_should_triage 0 0 1
 }

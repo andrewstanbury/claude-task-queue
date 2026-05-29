@@ -39,12 +39,13 @@ case "$prompt" in
   !*) tq_log decompose --arg outcome "bang-skip"; exit 0 ;;
 esac
 
-# Decide whether to decompose. Trivial prompts skip Haiku but still get the
-# queue-snapshot system-reminder injected (so the assistant always knows where
-# it is). Crucially, even a *non-trivial* prompt skips the paid Haiku call when
-# the queue already has actionable work — otherwise every follow-up message
-# forks Haiku and stacks more tasks. The user can force a re-plan with a
-# "plan:" prefix (see tq_plan_trigger / tq_should_triage in lib/classify.sh).
+# Decide whether to decompose. QUEUE-FIRST: every non-trivial prompt (or any
+# "plan:"-prefixed one) is interpreted into tasks and added to the queue before
+# it's worked — the queue is the single front door, so we do NOT skip just
+# because work is already queued (follow-up requests are folded in). Trivial /
+# conversational prompts still skip Haiku but get the queue-snapshot reminder so
+# the assistant always knows where it is. (See tq_plan_trigger / tq_should_triage
+# in lib/classify.sh.)
 appended_count=0
 prompt_word_count="$(printf '%s' "$prompt" | wc -w | tr -d '[:space:]')"
 
@@ -63,11 +64,7 @@ else
   classification="trivial"
 fi
 
-# Is there already an unblocked pending task to work on?
-has_actionable=0
-[ -n "$(tq_next 2>/dev/null || true)" ] && has_actionable=1
-
-if tq_should_triage "$non_trivial" "$plan_trigger" "$has_actionable"; then
+if tq_should_triage "$non_trivial" "$plan_trigger"; then
   haiku_start_ns="$(date +%s%N 2>/dev/null || printf 0)"
   while IFS= read -r _id; do
     [ -n "$_id" ] && appended_count=$((appended_count + 1))
@@ -83,9 +80,6 @@ if tq_should_triage "$non_trivial" "$plan_trigger" "$has_actionable"; then
     --argjson appended "$appended_count" \
     --argjson plan_trigger "$([ "$plan_trigger" -eq 1 ] && echo true || echo false)" \
     --argjson latency_ms "$haiku_latency_ms"
-elif [ "$non_trivial" -eq 1 ] && [ "$has_actionable" -eq 1 ]; then
-  # Non-trivial, but actionable work already queued — skip the paid call.
-  tq_log decompose-skip --arg reason "actionable-task-present"
 fi
 
 # Build the system-reminder we inject for the next turn.
@@ -111,13 +105,11 @@ fi
 
 if [ "$appended_count" -gt 0 ]; then
   intro="claude-task-queue: appended $appended_count task(s) from this prompt."
-elif [ "$non_trivial" -eq 1 ] && [ "$has_actionable" -eq 1 ]; then
-  intro="claude-task-queue: did not auto-decompose (actionable work already queued; prefix a prompt with \"plan:\" to force a re-plan)."
 else
   intro="claude-task-queue: queue state for this project."
 fi
 
-msg="$intro $state_line. Pause = $paused; autopilot = $autopilot. Work the next pending task; before starting state its est; pause for confirmation unless autopilot. Always pause before destructive/irreversible steps regardless. Honor the task's bracketed metadata: apply every standard in [rules: ...] (e.g. OWASP for auth/input, WCAG for web a11y); do not start a task showing [blocked-by: ...] until those ids are done; a task marked [parallel-ok] may run alongside the one before it. The queue is durable across /clear — DO NOT recreate tasks from scratch on resume; read the existing queue with the \`tq\` CLI or by inspecting the queue file directly."
+msg="$intro $state_line. Pause = $paused; autopilot = $autopilot. QUEUE-FIRST: this prompt's work has been (or should be) interpreted into queued tasks — do not answer ad-hoc; work the queue. Work the next pending task; before starting state its est. At the first check-in of a session, offer the choice to proceed one task at a time (pausing before each for a go-ahead) or run all remaining without pausing (autopilot); honor that choice for the rest of the session unless told otherwise. Always pause before destructive/irreversible steps regardless of autopilot. Honor the task's bracketed metadata: apply every standard in [rules: ...] (e.g. OWASP for auth/input, WCAG for web a11y); do not start a task showing [blocked-by: ...] until those ids are done; a task marked [parallel-ok] may run alongside the one before it. The queue is durable across /clear — DO NOT recreate tasks from scratch on resume; read the existing queue with the \`tq\` CLI or by inspecting the queue file directly."
 
 jq -nc --arg m "$msg" '{
   hookSpecificOutput: {
