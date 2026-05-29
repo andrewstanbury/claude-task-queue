@@ -20,6 +20,8 @@ THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 # shellcheck source=../lib/queue.sh
 . "$PLUGIN_DIR/lib/queue.sh"
+# shellcheck source=../lib/log.sh
+. "$PLUGIN_DIR/lib/log.sh"
 
 payload="$(cat)"
 tool_name="$(printf '%s' "$payload" | jq -r '.tool_name // empty')"
@@ -46,8 +48,15 @@ case "$tool_name" in
     cmd="$(printf '%s' "$tool_input" | jq -r '.command // empty')"
     lower="$(printf '%s' "$cmd" | tr '[:upper:]' '[:lower:]')"
 
-    # Destructive matchers — irreversible state changes anywhere they hit.
-    if printf '%s' "$lower" | grep -qE '(\brm -rf\b|git push --force|git push -f|git reset --hard|git checkout --|drop table|drop database|truncate table|kill -9|shutdown\b|eas update|eas submit|gh pr merge|gh release create|npm publish|aws s3 rm.* --recursive)'; then
+    # Destructive matchers — irreversible state changes. Anchored at clause
+    # boundaries (start-of-string, or after &&/;/|) so substrings inside
+    # quoted args don't trigger false positives. The v0.1.0 release shipped
+    # an unanchored pattern that flagged "gh release create" inside a
+    # `gh pr create --body "..."` invocation (the destructive verb was in
+    # the PR body, not the executed command). See v0.1.1 release notes.
+    destructive_prefix='(^|[[:space:]]*[&;|]+[[:space:]]*)'
+    destructive_verbs='(rm -rf|git push --force|git push -f|git reset --hard|git checkout --|drop table|drop database|truncate table|kill -9|shutdown|eas update|eas submit|gh pr merge|gh release create|npm publish|aws s3 rm[^|;]*--recursive)'
+    if printf '%s' "$lower" | grep -qE "${destructive_prefix}${destructive_verbs}"; then
       destructive=1
       reason="destructive operation detected — autopilot must pause and confirm explicitly. Pattern matched in: $cmd"
     # Low-risk read-only shell.
@@ -68,6 +77,7 @@ esac
 
 # Destructive: always block. Autopilot does NOT override this.
 if [ "$destructive" -eq 1 ]; then
+  tq_log pretool --arg tool "$tool_name" --arg decision "block-destructive" --arg reason "$reason"
   jq -nc --arg r "$reason" '{
     decision: "block",
     reason: $r
@@ -77,20 +87,23 @@ fi
 
 # Low-risk: silent pass (the "fewer interruptions" vibe goal).
 if [ "$low_risk" -eq 1 ]; then
+  tq_log pretool --arg tool "$tool_name" --arg decision "allow-low-risk"
   exit 0
 fi
 
 # Write op: if paused, block; if autopilot, allow; else nudge via stderr.
 if [ "$write_op" -eq 1 ]; then
   if tq_is_paused; then
+    tq_log pretool --arg tool "$tool_name" --arg decision "block-paused"
     jq -nc '{
       decision: "block",
       reason: "claude-task-queue is paused for this project. Run `tq resume` (or `tq autopilot`) before continuing writes."
     }'
     exit 0
   fi
-  # Default = allow; the decompose hook already communicated queue state.
+  tq_log pretool --arg tool "$tool_name" --arg decision "allow-write"
   exit 0
 fi
 
+tq_log pretool --arg tool "$tool_name" --arg decision "allow-default"
 exit 0
