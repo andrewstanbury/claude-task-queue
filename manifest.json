@@ -1,6 +1,6 @@
 {
   "name": "claude-task-queue",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Durable, project-scoped task queue for Claude Code with prompt auto-decomposition (Haiku triage), Wi-Fi-warm ordering, and pause-resumable autopilot.",
   "homepage": "https://github.com/andrewstanbury/claude-task-queue",
   "license": "MIT",

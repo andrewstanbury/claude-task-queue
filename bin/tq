@@ -19,6 +19,7 @@
 #   clear                      Delete the queue + pause + autopilot files
 #                              for this project. Confirm prompt.
 #   path                       Print the queue file path.
+#   doctor                     Diagnose install + queue state.
 #   --help | help              This message.
 
 set -euo pipefail
@@ -27,6 +28,8 @@ THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 # shellcheck source=../lib/queue.sh
 . "$PLUGIN_DIR/lib/queue.sh"
+# shellcheck source=../lib/log.sh
+. "$PLUGIN_DIR/lib/log.sh"
 
 usage() {
   sed -n '3,25p' "$0" | sed 's/^# \{0,1\}//'
@@ -88,6 +91,78 @@ case "$cmd" in
     ;;
   path)
     tq_queue_path
+    ;;
+  doctor)
+    issues=0
+    print_section() { printf '\n== %s ==\n' "$1"; }
+
+    print_section "Plugin"
+    if [ -f "$PLUGIN_DIR/manifest.json" ]; then
+      version="$(jq -r '.version // "unknown"' "$PLUGIN_DIR/manifest.json")"
+      name="$(jq -r '.name // "unknown"' "$PLUGIN_DIR/manifest.json")"
+      printf '  %s v%s\n' "$name" "$version"
+      printf '  dir: %s\n' "$PLUGIN_DIR"
+    else
+      printf '  ⚠️  manifest.json missing\n'
+      issues=$((issues + 1))
+    fi
+
+    print_section "Dependencies"
+    for dep in jq sha1sum bash claude; do
+      if command -v "$dep" >/dev/null 2>&1; then
+        printf '  ✓ %s\n' "$dep"
+      else
+        printf '  ⚠️  %s not on PATH%s\n' "$dep" \
+          "$([ "$dep" = "claude" ] && printf ' (Haiku triage will fail; queue still works)' || printf '')"
+        issues=$((issues + 1))
+      fi
+    done
+
+    print_section "Settings.json hooks"
+    settings="${CLAUDE_HOME:-$HOME/.claude}/settings.json"
+    if [ -f "$settings" ]; then
+      printf '  file: %s\n' "$settings"
+      for event in UserPromptSubmit PreToolUse; do
+        entries="$(jq -r --arg e "$event" '(.hooks[$e] // []) | length' "$settings" 2>/dev/null || printf 0)"
+        has_tq="$(jq -r --arg e "$event" '(.hooks[$e] // []) | map(select((.id // "") == "claude-task-queue")) | length' "$settings" 2>/dev/null || printf 0)"
+        has_confirm="$(jq -r --arg e "$event" '(.hooks[$e] // []) | map(.hooks[]?.command? // "") | map(select(. | test("confirm-intent"))) | length' "$settings" 2>/dev/null || printf 0)"
+        printf '  %s: %d entries (claude-task-queue: %s)\n' "$event" "$entries" \
+          "$([ "$has_tq" -gt 0 ] && printf 'yes' || printf 'NO — install incomplete')"
+        if [ "$has_tq" -eq 0 ]; then issues=$((issues + 1)); fi
+        if [ "$has_confirm" -gt 0 ]; then
+          printf '  ⚠️  confirm-intent.sh still registered on %s — deprecated, see github.com/andrewstanbury/claude-task-queue\n' "$event"
+          issues=$((issues + 1))
+        fi
+      done
+    else
+      printf '  ⚠️  %s does not exist — run install.sh\n' "$settings"
+      issues=$((issues + 1))
+    fi
+
+    print_section "Queue (this project)"
+    qp="$(tq_queue_path)"
+    if [ -f "$qp" ] && [ -s "$qp" ]; then
+      printf '  path: %s\n' "$qp"
+      printf '  counts: %s\n' "$(tq_counts)"
+      tq_is_paused && printf '  paused: yes\n' || printf '  paused: no\n'
+      tq_is_autopilot && printf '  autopilot: yes\n' || printf '  autopilot: no\n'
+    else
+      printf '  (empty / not yet populated for this project)\n'
+    fi
+
+    print_section "Recent log (last 10 events)"
+    if tq_log_tail 10 2>/dev/null | head -10 | jq -r '"  " + .ts + " " + .event + (if .decision then " " + .decision else "" end) + (if .classification then " " + .classification else "" end)' 2>/dev/null; then
+      :
+    else
+      printf '  (no events yet)\n'
+    fi
+
+    printf '\n'
+    if [ "$issues" -eq 0 ]; then
+      printf '✓ All good. No issues detected.\n'
+    else
+      printf '⚠️  %d issue%s detected — review above.\n' "$issues" "$([ "$issues" -eq 1 ] && printf '' || printf 's')"
+    fi
     ;;
   -h|--help|help|"")
     usage
