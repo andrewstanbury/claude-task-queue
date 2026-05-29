@@ -97,12 +97,16 @@ autopilot="false"
 tq_is_paused && paused="true"
 tq_is_autopilot && autopilot="true"
 
+# Render the active/next task via tq_fmt_task_line so the reminder carries the
+# metadata Haiku attached (attachedRules / blockedBy / recommendedParallel)
+# instead of discarding it — this is what makes the OWASP/WCAG + parallelism
+# hints actually reach the assistant.
 state_line="queue=$counts paused=$paused autopilot=$autopilot"
 if [ -n "$in_progress_now" ]; then
-  state_line+=" in_progress=$(printf '%s' "$in_progress_now" | jq -r '.id + ": " + .subject')"
+  state_line+=" in_progress=$(tq_fmt_task_line "$in_progress_now")"
 fi
 if [ -n "$pending_next" ]; then
-  state_line+=" next=$(printf '%s' "$pending_next" | jq -r '.id + ": " + .subject + " (" + .est + ")"')"
+  state_line+=" next=$(tq_fmt_task_line "$pending_next")"
 fi
 
 if [ "$appended_count" -gt 0 ]; then
@@ -113,7 +117,7 @@ else
   intro="claude-task-queue: queue state for this project."
 fi
 
-msg="$intro $state_line. Pause = $paused; autopilot = $autopilot. Work the next pending task; before starting state its est; pause for confirmation unless autopilot. Always pause before destructive/irreversible steps regardless. The queue is durable across /clear — DO NOT recreate tasks from scratch on resume; read the existing queue with the \`tq\` CLI or by inspecting the queue file directly."
+msg="$intro $state_line. Pause = $paused; autopilot = $autopilot. Work the next pending task; before starting state its est; pause for confirmation unless autopilot. Always pause before destructive/irreversible steps regardless. Honor the task's bracketed metadata: apply every standard in [rules: ...] (e.g. OWASP for auth/input, WCAG for web a11y); do not start a task showing [blocked-by: ...] until those ids are done; a task marked [parallel-ok] may run alongside the one before it. The queue is durable across /clear — DO NOT recreate tasks from scratch on resume; read the existing queue with the \`tq\` CLI or by inspecting the queue file directly."
 
 jq -nc --arg m "$msg" '{
   hookSpecificOutput: {

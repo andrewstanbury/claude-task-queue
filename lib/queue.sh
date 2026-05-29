@@ -156,6 +156,25 @@ tq_in_progress() {
   jq -c 'select(.status == "in_progress")' "$path"
 }
 
+# Format a single task object (passed as $1) into a compact one-line label that
+# carries the metadata Haiku already attached — so the injected reminder
+# actually delivers it to the assistant instead of discarding it:
+#   "5: Wire engine (M)"                              (no metadata)
+#   "4: Add auth (M) [blocked-by: 3] [rules: OWASP]"  (blockers + rules)
+#   "5: Wire engine (M) [parallel-ok]"                (recommendedParallel)
+# Empty / null input → empty output (so callers can guard on a blank result).
+tq_fmt_task_line() {
+  local json="${1:-}"
+  [ -z "$json" ] && return 0
+  printf '%s' "$json" | jq -r '
+    if . == null then "" else
+      (.id) + ": " + (.subject) + " (" + (.est // "M") + ")"
+      + (if ((.blockedBy // [])    | length) > 0 then " [blocked-by: " + ((.blockedBy)    | join(",")) + "]" else "" end)
+      + (if ((.attachedRules // []) | length) > 0 then " [rules: "      + ((.attachedRules) | join(",")) + "]" else "" end)
+      + (if (.recommendedParallel // false)        then " [parallel-ok]" else "" end)
+    end'
+}
+
 tq_counts() {
   local path
   path="$(tq_queue_path)"
