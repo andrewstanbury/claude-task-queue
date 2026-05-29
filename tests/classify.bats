@@ -42,3 +42,47 @@ setup() {
 @test "review request is non-trivial" {
   tq_classify "review the PR I just opened"
 }
+
+# --- tq_plan_trigger --------------------------------------------------------
+
+@test "plan: prefix is a trigger and is stripped" {
+  run tq_plan_trigger "plan: build the auth flow"
+  [ "$status" -eq 0 ]
+  [ "$output" = "build the auth flow" ]
+}
+
+@test "bare 'plan ' prefix is a trigger and is stripped" {
+  run tq_plan_trigger "Plan the migration in three steps"
+  [ "$status" -eq 0 ]
+  [ "$output" = "the migration in three steps" ]
+}
+
+@test "no plan prefix is not a trigger and prompt passes through unchanged" {
+  run tq_plan_trigger "build the auth flow"
+  [ "$status" -eq 1 ]
+  [ "$output" = "build the auth flow" ]
+}
+
+@test "'planner' is not a false trigger" {
+  run tq_plan_trigger "planner component needs a test"
+  [ "$status" -eq 1 ]
+  [ "$output" = "planner component needs a test" ]
+}
+
+# --- tq_should_triage -------------------------------------------------------
+
+@test "triage fires on non-trivial with no actionable work" {
+  tq_should_triage 1 0 0
+}
+
+@test "triage is skipped on non-trivial when actionable work exists" {
+  ! tq_should_triage 1 0 1
+}
+
+@test "plan trigger forces triage even with actionable work" {
+  tq_should_triage 1 1 1
+}
+
+@test "trivial prompt never triages" {
+  ! tq_should_triage 0 0 0
+}
