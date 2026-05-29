@@ -16,13 +16,30 @@ tq_state_dir() {
   printf '%s' "${CLAUDE_TQ_STATE_DIR:-$HOME/.claude/state/task-queue}"
 }
 
-# Project key — sha1 of the absolute cwd so two checkouts of the same repo at
-# different paths get separate queues. Truncate to 12 chars for filename
-# readability; collisions across a single user's projects are vanishingly
-# unlikely at that length.
+# Project key — sha1 of the project root, truncated to 12 chars for filename
+# readability (collisions across one user's projects are vanishingly unlikely).
+#
+# The root is the git toplevel of the cwd when inside a repo, else the cwd
+# itself. Keying by repo root (not raw cwd) means every subdirectory of a repo
+# maps to the SAME queue — so `tq` from a subdir and the status bar from the
+# repo root agree, instead of silently splitting into per-directory queues.
+# Two checkouts of the same repo at different paths still get separate queues
+# (different toplevels). Non-git dirs fall back to cwd, preserving old behavior.
+#
+# Memoized per-cwd: this is called several times per hook/tool-gate fire (queue
+# + pause + autopilot paths), and resolving the root forks `git`, so we cache
+# the result for the duration of the process to keep it off the hot path.
 tq_project_key() {
   local cwd="${1:-$PWD}"
-  printf '%s' "$cwd" | sha1sum | cut -c1-12
+  if [ -n "${_TQ_KEY_CACHE_CWD:-}" ] && [ "$_TQ_KEY_CACHE_CWD" = "$cwd" ]; then
+    printf '%s' "$_TQ_KEY_CACHE_VAL"
+    return
+  fi
+  local root
+  root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || root=""
+  _TQ_KEY_CACHE_CWD="$cwd"
+  _TQ_KEY_CACHE_VAL="$(printf '%s' "${root:-$cwd}" | sha1sum | cut -c1-12)"
+  printf '%s' "$_TQ_KEY_CACHE_VAL"
 }
 
 tq_queue_path() {
