@@ -64,6 +64,46 @@ tq_classify() {
   return 1
 }
 
+# Detect an explicit planning trigger: a "plan:" or "plan " prefix means the
+# user is deliberately asking to (re)decompose, so triage should fire even when
+# actionable work already exists. Prints the prompt with the trigger stripped
+# on a match, or the prompt unchanged on no match — so the caller can capture
+# the text and the decision in one call:
+#
+#   if triage_text="$(tq_plan_trigger "$prompt")"; then plan_trigger=1; fi
+#
+# Returns 0 on a trigger match, 1 otherwise.
+tq_plan_trigger() {
+  local prompt="${1:-}"
+  local lower
+  lower="$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]')"
+  case "$lower" in
+    plan:*|"plan "*)
+      printf '%s' "$prompt" | sed -E 's/^[[:space:]]*[Pp][Ll][Aa][Nn][[:space:]:]+//'
+      return 0
+      ;;
+  esac
+  printf '%s' "$prompt"
+  return 1
+}
+
+# Decide whether to run the paid Haiku triage. Pure boolean logic over three
+# already-computed signals, so it's unit-testable without touching Haiku:
+#   $1 non_trivial    (1/0) — classifier said this is real work
+#   $2 plan_trigger   (1/0) — user prefixed "plan:"
+#   $3 has_actionable (1/0) — queue already has an unblocked pending task
+#
+# Triage fires when the user explicitly asked to plan, OR the work is
+# non-trivial AND there's nothing actionable queued. This is the core fix for
+# "every non-trivial prompt forks Haiku and stacks more tasks": once a plan
+# exists, follow-up prompts no longer silently spawn work.
+tq_should_triage() {
+  local non_trivial="${1:-0}" plan_trigger="${2:-0}" has_actionable="${3:-0}"
+  [ "$plan_trigger" = "1" ] && return 0
+  [ "$non_trivial" = "1" ] && [ "$has_actionable" = "0" ] && return 0
+  return 1
+}
+
 # Allow direct sourcing or invocation.
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
   prompt="$(cat)"
