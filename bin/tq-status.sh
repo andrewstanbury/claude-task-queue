@@ -11,7 +11,18 @@
 
 set -euo pipefail
 
-THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve symlinks so a PATH-installed entrypoint (e.g. ~/.local/bin/tq-status)
+# finds its libs in the real plugin dir. Portable plain-readlink loop (no
+# GNU-only `readlink -f`), so it works on macOS/BSD too.
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  link="$(readlink "$SELF")"
+  case "$link" in
+    /*) SELF="$link" ;;
+    *)  SELF="$(dirname "$SELF")/$link" ;;
+  esac
+done
+THIS_DIR="$(cd "$(dirname "$SELF")" && pwd)"
 PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 # shellcheck source=../lib/queue.sh
 . "$PLUGIN_DIR/lib/queue.sh"
