@@ -29,6 +29,22 @@ teardown() {
   [ "$k1" != "$k2" ]
 }
 
+@test "tq_project_key keys by git repo root: a subdir resolves to the root's key" {
+  repo="$(mktemp -d)"
+  git -C "$repo" init -q
+  mkdir -p "$repo/pkg/deep"
+  root_key="$(tq_project_key "$repo")"
+  sub_key="$(tq_project_key "$repo/pkg/deep")"
+  [ "$root_key" = "$sub_key" ]
+}
+
+@test "tq_project_key falls back to cwd outside a git repo" {
+  d1="$(mktemp -d)"
+  d2="$(mktemp -d)"
+  # Neither is a git repo → each keyed by its own path → distinct.
+  [ "$(tq_project_key "$d1")" != "$(tq_project_key "$d2")" ]
+}
+
 @test "tq_next_id starts at 1 and increments" {
   [ "$(tq_next_id)" = "1" ]
   tq_append "first" >/dev/null
