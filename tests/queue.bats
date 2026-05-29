@@ -113,3 +113,42 @@ teardown() {
   : > "$(tq_autopilot_path)"
   tq_is_autopilot
 }
+
+# --- tq_fmt_task_line -------------------------------------------------------
+
+@test "tq_fmt_task_line: bare task → id, subject, est" {
+  out="$(tq_fmt_task_line '{"id":"5","subject":"Wire engine","est":"M","blockedBy":[],"attachedRules":[],"recommendedParallel":false}')"
+  [ "$out" = "5: Wire engine (M)" ]
+}
+
+@test "tq_fmt_task_line: attached rules are surfaced" {
+  out="$(tq_fmt_task_line '{"id":"4","subject":"Add auth","est":"M","blockedBy":[],"attachedRules":["OWASP","WCAG"],"recommendedParallel":false}')"
+  [ "$out" = "4: Add auth (M) [rules: OWASP,WCAG]" ]
+}
+
+@test "tq_fmt_task_line: blockers and rules combine in order" {
+  out="$(tq_fmt_task_line '{"id":"4","subject":"Add auth","est":"M","blockedBy":["3"],"attachedRules":["OWASP"],"recommendedParallel":false}')"
+  [ "$out" = "4: Add auth (M) [blocked-by: 3] [rules: OWASP]" ]
+}
+
+@test "tq_fmt_task_line: parallel-ok flag is surfaced" {
+  out="$(tq_fmt_task_line '{"id":"5","subject":"Wire engine","est":"L","blockedBy":[],"attachedRules":[],"recommendedParallel":true}')"
+  [ "$out" = "5: Wire engine (L) [parallel-ok]" ]
+}
+
+@test "tq_fmt_task_line: missing est defaults to M" {
+  out="$(tq_fmt_task_line '{"id":"7","subject":"Cleanup","blockedBy":[],"attachedRules":[]}')"
+  [ "$out" = "7: Cleanup (M)" ]
+}
+
+@test "tq_fmt_task_line: empty input → empty output" {
+  out="$(tq_fmt_task_line "")"
+  [ -z "$out" ]
+}
+
+@test "tq_fmt_task_line: round-trips a real tq_append'd task" {
+  id="$(tq_append "Secure the login form" M 1200 "" "OWASP" true)"
+  task="$(tq_get "$id")"
+  out="$(tq_fmt_task_line "$task")"
+  [ "$out" = "${id}: Secure the login form (M) [rules: OWASP] [parallel-ok]" ]
+}
