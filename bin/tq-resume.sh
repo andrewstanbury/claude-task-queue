@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
-# SessionStart hook — the "resume bridge".
+# SessionStart hook — prime the session's task queue. The whole plugin.
 #
-# Claude Code's native task list is per-session working memory: a fresh session
-# starts empty and can't see tasks an earlier session left unfinished. This hook
-# reads the native task store, finds OPEN tasks from prior sessions rooted at the
-# SAME repo, and hands them to the model as SessionStart context so it can
-# re-adopt the relevant ones into its native list (via TaskCreate).
+# Does two cheap things ONCE per session (no per-prompt cost):
+#   1. Policy — tell the model to treat its native task list as the live work
+#      queue: capture described work with TaskCreate, work it in dependency
+#      order, batch related tasks, stay inline, advance without draining. Said
+#      once here, this governs the whole session — far cheaper than re-injecting
+#      every turn, and Claude Code's own task nudges reinforce it.
+#   2. Resume — surface this repo's still-open tasks from earlier sessions so the
+#      model re-adopts them into the (otherwise empty) native list.
 #
-# It only reads files the model already wrote — no parallel store, no second
-# source of truth. It spends tokens only on a short resume note, and nothing at
-# all when there is no carried-over open work (it prints nothing and exits 0).
+# Read-only: it never writes the native store. The model owns the tasks; we only
+# read them and state the policy. Claude Code renders the resulting task list as
+# the visible queue in the CLI — we add no UI of our own.
 #
-# Wire it up in ~/.claude/settings.json:
-#   "hooks": { "SessionStart": [ { "hooks": [
-#     { "type": "command", "command": ".../bin/tq-resume.sh" } ] } ] }
+# Wired by hooks/hooks.json on SessionStart; invoked as
+# "${CLAUDE_PLUGIN_ROOT}/bin/tq-resume.sh" with CLAUDE_TQ_STATE_DIR pointed at
+# "${CLAUDE_PLUGIN_DATA}" so the root cache survives plugin updates.
 
 set -euo pipefail
 
@@ -31,10 +34,11 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 # shellcheck source=../lib/tasks.sh
 . "$PLUGIN_DIR/lib/tasks.sh"
 
+POLICY='[task-queue] Treat your native task list as the live work queue. When a prompt describes a task, fix, or multi-step request, capture the items with TaskCreate before starting (skip trivial or conversational prompts) so they show up in the queue. Work the queue in dependency order (honor blockedBy), batch same-area tasks to save context, prefer inline over subagents, and advance as you go without draining the backlog unprompted.'
+
 # SessionStart hands us JSON on stdin: { session_id, cwd, source, ... }.
 input=""
 [ -t 0 ] || input="$(cat 2>/dev/null || true)"
-
 sid=""
 cwd=""
 if [ -n "$input" ]; then
@@ -44,10 +48,11 @@ fi
 [ -n "$cwd" ] || cwd="$PWD"
 
 root="$(tq_root_for_cwd "$cwd")"
-ctx="$(tq_resume_context "$root" "$sid" 2>/dev/null || true)"
-[ -n "$ctx" ] || exit 0
+resume="$(tq_resume_context "$root" "$sid" 2>/dev/null || true)"
 
-# Emit as SessionStart additionalContext (Claude Code adds it to the model's
-# context for this session).
+ctx="$POLICY"
+[ -n "$resume" ] && ctx="$ctx"$'\n\n'"$resume"
+
+# Emit as SessionStart additionalContext (added to the session's context once).
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'

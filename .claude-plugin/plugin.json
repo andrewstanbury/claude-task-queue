@@ -1,0 +1,11 @@
+{
+  "name": "task-queue",
+  "version": "0.4.0",
+  "description": "Makes Claude Code's native task list a live work queue, with one SessionStart hook and zero per-prompt cost: it primes the model to capture and order work as native tasks, and re-surfaces a repo's unfinished tasks from earlier sessions. Read-only over ~/.claude/tasks.",
+  "author": { "name": "Andrew Stanbury" },
+  "homepage": "https://github.com/andrewstanbury/claude-task-queue",
+  "repository": "https://github.com/andrewstanbury/claude-task-queue",
+  "license": "MIT",
+  "keywords": ["tasks", "todo", "session", "resume", "continuity", "hooks"],
+  "defaultEnabled": true
+}

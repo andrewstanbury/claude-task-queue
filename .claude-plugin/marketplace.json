@@ -1,0 +1,15 @@
+{
+  "name": "andrewstanbury",
+  "owner": { "name": "Andrew Stanbury" },
+  "metadata": {
+    "description": "Native-first companions to Claude Code's task list."
+  },
+  "plugins": [
+    {
+      "name": "task-queue",
+      "source": "./",
+      "description": "Resume bridge for Claude Code's native task list — re-surfaces a repo's unfinished tasks from earlier sessions.",
+      "version": "0.4.0"
+    }
+  ]
+}
