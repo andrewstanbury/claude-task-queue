@@ -9,7 +9,7 @@
       "name": "task-queue",
       "source": "./",
       "description": "Resume bridge + auto-advance for Claude Code's native task list — re-surfaces a repo's unfinished tasks from earlier sessions and points the model at the next unblocked task as each one completes.",
-      "version": "0.7.0"
+      "version": "0.7.1"
     }
   ]
 }

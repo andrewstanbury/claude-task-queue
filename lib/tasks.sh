@@ -225,14 +225,20 @@ tq_next_context() {
 
   # Slurp every task, treat done_id as closed, and pick the lowest-id pending
   # task whose blockedBy are all closed — unless something is still in_progress.
+  # A pending task is unblocked iff none of its blockedBy ids is a still-OPEN
+  # (pending/in_progress) task. Crucially we test against the open set, NOT a
+  # completed set: Claude Code REMOVES a task's file when it's completed, so a
+  # blocker that's done is simply absent — and an absent blocker can't block.
+  # (The just-completed $doneid is excluded from "open" so it stops blocking
+  # immediately, before its file is even gone.) See CONTRACT.md.
   jq -rs --arg doneid "$done_id" '
-    ( [ .[] | select(.status=="completed") | .id ] + ( $doneid | if . == "" then [] else [.] end ) ) as $closed
-    | { inprog: [ .[] | select(.status=="in_progress") | select(.id != $doneid) ],
-        open:   [ .[] | select(.status=="pending" or .status=="in_progress") | select(.id != $doneid) ],
+    [ .[] | select((.status=="pending" or .status=="in_progress") and .id != $doneid) ] as $openset
+    | ( [ $openset[] | .id ] ) as $openids
+    | { inprog: [ .[] | select(.status=="in_progress" and .id != $doneid) ],
+        open:   $openset,
         next:   ( [ .[]
-                    | select(.status=="pending")
-                    | select(.id != $doneid)
-                    | select(((.blockedBy // []) - $closed) | length == 0) ]
+                    | select(.status=="pending" and .id != $doneid)
+                    | select( [ (.blockedBy // [])[] | select(. as $b | $openids | index($b)) ] | length == 0 ) ]
                   | sort_by((.id | tonumber?) // 0)
                   | .[0] ) }
     | if (.inprog | length) > 0 or .next == null then empty
