@@ -1,19 +1,18 @@
 #!/usr/bin/env bash
-# Single-line status reader for the project's queue. Written for consumption
-# by claude-statusbar's status.sh and by terminal prompts. Always exits 0;
-# empty output when there is no queue.
+# Status-line entry point. Prints ONE line summarizing open work across all of
+# Claude Code's native task lists (every session / project), plus the current
+# "doing" task. Always exits 0; prints nothing when there is no open work.
 #
-# Output examples:
-#   ▶ 4/11 · auto · 5: Wire engine (M, ~4k tok)
-#   ⏸ 4/11 · paused · 5: Wire engine
-#   ▶ 0/3 · next 1: Audit repo (S)
-#   (empty if the queue is empty / not initialized)
+# Wire it up as your status line in ~/.claude/settings.json:
+#   "statusLine": { "type": "command", "command": ".../bin/tq-status.sh" }
+# or call its output from claude-statusbar's status.sh to compose with git/etc.
+#
+# This never enters the model's context, so it costs ZERO tokens per turn.
 
 set -euo pipefail
 
-# Resolve symlinks so a PATH-installed entrypoint (e.g. ~/.local/bin/tq-status)
-# finds its libs in the real plugin dir. Portable plain-readlink loop (no
-# GNU-only `readlink -f`), so it works on macOS/BSD too.
+# Resolve symlinks so a PATH-installed entrypoint finds lib/ in the real plugin
+# dir. Portable readlink loop (no GNU-only `readlink -f`).
 SELF="${BASH_SOURCE[0]}"
 while [ -L "$SELF" ]; do
   link="$(readlink "$SELF")"
@@ -24,42 +23,11 @@ while [ -L "$SELF" ]; do
 done
 THIS_DIR="$(cd "$(dirname "$SELF")" && pwd)"
 PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
-# shellcheck source=../lib/queue.sh
-. "$PLUGIN_DIR/lib/queue.sh"
+# shellcheck source=../lib/tasks.sh
+. "$PLUGIN_DIR/lib/tasks.sh"
 
-path="$(tq_queue_path)"
-[ -f "$path" ] || exit 0
-[ -s "$path" ] || exit 0
+# Drain any stdin the status-line host hands us (session JSON) — we render
+# globally and don't need it, but reading avoids a broken-pipe surprise.
+[ -t 0 ] || cat >/dev/null 2>&1 || true
 
-counts="$(tq_counts)"
-glyph="▶"
-mode=""
-if tq_is_paused; then
-  glyph="⏸"
-  mode="paused"
-elif tq_is_autopilot; then
-  mode="auto"
-fi
-
-# Prefer the in-progress task; fall back to the next pending one.
-current_json="$(tq_in_progress | head -n1 || true)"
-[ -z "$current_json" ] && current_json="$(tq_next 2>/dev/null || true)"
-
-label=""
-if [ -n "$current_json" ]; then
-  id="$(printf '%s' "$current_json" | jq -r '.id')"
-  subj="$(printf '%s' "$current_json" | jq -r '.subject')"
-  est="$(printf '%s' "$current_json" | jq -r '.est')"
-  tok="$(printf '%s' "$current_json" | jq -r '.tokenEst')"
-  if [ "${tok:-0}" -gt 0 ]; then
-    label="${id}: ${subj} (${est}, ~${tok} tok)"
-  else
-    label="${id}: ${subj} (${est})"
-  fi
-fi
-
-# Compose: glyph counts [· mode] [· label]
-out="${glyph} ${counts}"
-[ -n "$mode" ] && out+=" · ${mode}"
-[ -n "$label" ] && out+=" · ${label}"
-printf '%s\n' "$out"
+tq_status_line || true

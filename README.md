@@ -1,22 +1,48 @@
 # claude-task-queue
 
-Durable, project-scoped task queue for [Claude Code](https://docs.claude.com/en/docs/claude-code), with prompt auto-decomposition (Haiku triage), pause-resumable autopilot, and a status-bar reader.
+A **zero-token, read-only** view of [Claude Code](https://docs.claude.com/en/docs/claude-code)'s native task list — surfaced on your status line as **to-do / doing / done**, aggregated across every session and project.
 
-**Why:** Claude Code's `TaskCreate` / `TaskList` tools are session-scoped and the orchestration ("decompose, order, pause, autopilot, fold new requests in") has to be re-stated to the model in every prompt. This plugin makes that orchestration:
+## The idea
 
-- **Durable** — queue lives in `~/.claude/state/task-queue/<project>.jsonl`, survives `/clear` and machine restarts.
-- **Project-scoped** — each cwd hashes to its own queue, so two repos don't mix.
-- **Auto-decomposed** — a Haiku triage call breaks each non-trivial prompt into ordered tasks with size estimates, blockers, and parallelism hints.
-- **Pause-resumable** — pause / resume / autopilot are state files the model + CLI both read.
-- **Status-bar friendly** — `bin/tq-status.sh` emits a one-liner ready for [claude-statusbar](https://github.com/andrewstanbury/claude-statusbar) or your terminal prompt.
+Claude Code already maintains a task list. As the model works it calls its native task tools (`TaskCreate` / `TaskUpdate`), and Claude Code persists each task as a JSON file under `~/.claude/tasks/<session-id>/`:
 
-## Install
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/andrewstanbury/claude-task-queue/main/install.sh | bash
+```json
+{ "id": "55", "subject": "Wire engine", "status": "in_progress", "blockedBy": [] }
 ```
 
-Or clone + run locally:
+`status` is exactly the state model you want: `pending` = **to-do**, `in_progress` = **doing**, `completed` = **done**.
+
+Because the model writes those files as a normal part of working, **reading them costs nothing.** This plugin is *only* a reader: it scans the native task store, maps each task back to its project, and renders a one-liner to your status line. No second source of truth, no decomposition call, no hooks that enter the model's context — **0 tokens per turn.**
+
+> Earlier versions of this plugin shelled out to Haiku on every prompt to *build* a parallel queue. That was redundant with work the model already does — and the opposite of "minimal token usage." v0.2 deletes all of it.
+
+## What you see
+
+Status line (always visible, never enters context):
+
+```
+⚑ 3 proj · 7 todo · 2 doing — ▶ "Wire engine" [task-queue]
+```
+
+- `3 proj` — projects with open work
+- `7 todo · 2 doing` — open tasks across everything (done is omitted; lifetime totals are just noise on one line)
+- `▶ "…" [project]` — the most recently active *doing* task and which project it's in
+
+Full table in a terminal (also zero tokens):
+
+```
+$ tq
+task-queue  ·  5 todo · 1 doing · 12 done
+  ▶ Wire engine
+  ▢ Add the status renderer
+  ▢ Write the installer
+webapp  ·  3 todo · 0 doing · 8 done
+  ▢ …
+```
+
+Only open tasks are listed; done is shown as a count so the table stays bounded.
+
+## Install
 
 ```bash
 git clone https://github.com/andrewstanbury/claude-task-queue.git
@@ -24,7 +50,7 @@ cd claude-task-queue
 ./install.sh
 ```
 
-This copies the plugin to `~/.claude/plugins/task-queue/`, merges hook entries (`UserPromptSubmit`, `PreToolUse`) into `~/.claude/settings.json` keyed by `"id": "claude-task-queue"` so re-installs upsert cleanly, and creates the state directory.
+The installer copies the plugin to `~/.claude/plugins/task-queue/` and sets `statusLine` in `~/.claude/settings.json` — **only if you don't already have one** (it never clobbers an existing status line; see "Composing" below).
 
 Add the CLI to your PATH:
 
@@ -32,90 +58,52 @@ Add the CLI to your PATH:
 ln -sf "$HOME/.claude/plugins/task-queue/bin/tq" /usr/local/bin/tq
 ```
 
-Uninstall (keeps your queues by default):
+Uninstall (removes our status line only if it's still ours; never touches `~/.claude/tasks`):
 
 ```bash
-~/.claude/plugins/task-queue/uninstall.sh           # keep state
-~/.claude/plugins/task-queue/uninstall.sh --purge-state
+~/.claude/plugins/task-queue/uninstall.sh
+~/.claude/plugins/task-queue/uninstall.sh --purge-state   # also drop the label cache
 ```
+
+## CLI
+
+```
+tq            full to-do/doing/done table, grouped by project
+tq list       same
+tq status     the one-line status (same as the status line)
+tq path       print the native tasks directory being read
+tq help       help
+```
+
+All read-only. There are no add/start/done commands by design: the **model** owns the tasks, so the plugin never mutates them and never desyncs from what Claude sees. To change a task, just tell Claude.
+
+## Composing with an existing status line
+
+If you already run [claude-statusbar](https://github.com/andrewstanbury/claude-statusbar) or another status line, the installer leaves it alone. Add the queue segment yourself by calling:
+
+```bash
+~/.claude/plugins/task-queue/bin/tq-status.sh
+```
+
+from your own `status.sh` and appending its output next to git/branch/tokens.
 
 ## Requirements
 
 - Bash 4+
 - `jq`
-- `sha1sum` (coreutils — pre-installed on Linux; `brew install coreutils` on macOS)
-- `claude` CLI on `PATH` (Haiku triage shells out via `claude -p --model haiku-4-5`)
+- Claude Code 2.x (uses its native task store under `~/.claude/tasks`)
 
-## CLI
+## How project grouping works
 
-```
-tq list                   # the queue as jsonl
-tq get <id>               # one task as JSON
-tq status                 # one-line status
-tq pause                  # pause autopilot for this project
-tq resume                 # un-pause
-tq autopilot              # enter autopilot (writes ok, destructive still pauses)
-tq one-at-a-time          # exit autopilot
-tq start <id>             # mark in_progress
-tq done <id>              # mark completed
-tq cancel <id>            # mark cancelled
-tq add <subject> [est] [tokenEst]   # append a manual task
-tq clear                  # delete the queue + pause + autopilot files (confirms)
-tq path                   # print the queue file path
-```
-
-## Status line
-
-```bash
-~/.claude/plugins/task-queue/bin/tq-status.sh
-# → ▶ 4/11 · auto · 5: Wire engine (M, ~4k tok)
-```
-
-Drop into `claude-statusbar`'s `status.sh` to surface progress next to git branch + token use.
-
-## Behavior
-
-### Decomposition (UserPromptSubmit)
-
-On every prompt, `tq-decompose.sh` runs:
-
-1. **Skip** if disabled, blank, `/slash`, or `!bang`.
-2. **Classify** trivial vs non-trivial (length, action verbs, multi-and).
-3. **Non-trivial** → invoke `claude -p --model haiku-4-5` with the prompt + a small project profile + the existing queue. Haiku returns an ordered JSON array; the plugin appends each task to the queue.
-4. **Inject** a small system-reminder with the queue's current counts, next task, and pause/autopilot state.
-
-If Haiku is unreachable (timeout, no `claude` on PATH, malformed response), the plugin silently falls back to no-write — your conversation isn't blocked.
-
-### Pre-tool gate (PreToolUse)
-
-`tq-pretool.sh` classifies each tool call as low-risk / write / destructive:
-
-| Class | Examples | Behavior |
-|---|---|---|
-| Low-risk | `Read`, `TaskList`, `Bash` matching `ls / cat / git status / git diff / grep / find` | Silent pass |
-| Write | `Edit`, `Write`, other `Bash` | Allow when autopilot or no pause; block when paused |
-| Destructive | `rm -rf`, `git push --force`, `git reset --hard`, `gh pr merge`, `eas update`, `aws s3 rm --recursive`, etc. | **Always block** — autopilot never overrides |
-
-This is the "fewer interruptions for low-risk" + "always pause before irreversible" piece of the design.
+A task folder is named by session id. The plugin finds that session's transcript at `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`, reads its `cwd`, and labels it with the **git repo root's** basename (falling back to the cwd's own basename when the session didn't run inside a repo). A session's cwd never changes, so the mapping is cached in `~/.claude/state/task-queue/project-cache.tsv` (the plugin's only writable state).
 
 ## Environment overrides
 
 | Var | Effect |
 |---|---|
-| `CLAUDE_TQ_DISABLED=1` | Skip the UserPromptSubmit decompose hook entirely. |
-| `CLAUDE_TQ_PRETOOL_DISABLED=1` | Skip the PreToolUse gate (everything passes). |
-| `CLAUDE_TQ_HAIKU_DISABLED=1` | Skip the Haiku call; queue gets no entries from auto-decompose. |
-| `CLAUDE_TQ_STATE_DIR=...` | Move the state directory (used by tests). |
-| `CLAUDE_HOME=...` | Override the installer's target (default `~/.claude`). |
-| `CLAUDE_TQ_PLUGIN_DIR=...` | Override the installer's plugin destination. |
-
-## Roadmap
-
-- **v0.1** — queue + status bar + CLI + pause/resume + Haiku triage *(this release)*
-- **v0.2** — versioned rule library (OWASP, WCAG, stack-specific) auto-attached to relevant tasks
-- **v0.3** — autosnapshot (`git stash`-backed) + auto-rollback on test failure; explicit low-risk allowlist file
-- **v0.4** — parallel-agent recommender + cache-warm task reordering pass
-- **v1.0** — multi-user docs, signed-release tarball, plugin marketplace listing if applicable
+| `CLAUDE_TQ_TASKS_DIR=...` | Where native task folders live (default `~/.claude/tasks`). |
+| `CLAUDE_TQ_PROJECTS_DIR=...` | Where session transcripts live (default `~/.claude/projects`). |
+| `CLAUDE_TQ_STATE_DIR=...` | Where the label cache is written (default `~/.claude/state/task-queue`). |
 
 ## Tests
 
@@ -123,7 +111,7 @@ This is the "fewer interruptions for low-risk" + "always pause before irreversib
 bats tests/
 ```
 
-33 tests cover queue ops, classification heuristics, and CLI roundtrips. Haiku itself isn't unit-tested — it talks to the real API.
+The suite fakes a task store + transcripts via the `CLAUDE_TQ_*` overrides and asserts the status line and grouped table. No model calls — there's nothing to mock.
 
 ## License
 

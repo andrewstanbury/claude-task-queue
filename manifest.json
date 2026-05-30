@@ -1,28 +1,24 @@
 {
   "name": "claude-task-queue",
-  "version": "0.1.1",
-  "description": "Durable, project-scoped task queue for Claude Code with prompt auto-decomposition (Haiku triage), Wi-Fi-warm ordering, and pause-resumable autopilot.",
+  "version": "0.2.0",
+  "description": "Zero-token, read-only viewer for Claude Code's native task list — aggregates tasks across all sessions/projects and renders to-do/doing/done on the status line.",
   "homepage": "https://github.com/andrewstanbury/claude-task-queue",
   "license": "MIT",
   "author": "Andrew Stanbury",
-  "hooks": {
-    "UserPromptSubmit": "bin/tq-decompose.sh",
-    "PreToolUse": "bin/tq-pretool.sh"
-  },
+  "statusLine": "bin/tq-status.sh",
   "bin": {
     "tq": "bin/tq",
     "tq-status": "bin/tq-status.sh"
   },
-  "state_dir": "~/.claude/state/task-queue",
+  "reads": "~/.claude/tasks (Claude Code's native task store) + ~/.claude/projects (session→project mapping)",
+  "state_dir": "~/.claude/state/task-queue (project-label cache only)",
   "env_overrides": [
-    "CLAUDE_TQ_DISABLED",
-    "CLAUDE_TQ_PRETOOL_DISABLED",
-    "CLAUDE_TQ_HAIKU_DISABLED",
+    "CLAUDE_TQ_TASKS_DIR",
+    "CLAUDE_TQ_PROJECTS_DIR",
     "CLAUDE_TQ_STATE_DIR"
   ],
   "requires": {
     "bash": ">=4",
-    "jq": "any",
-    "sha1sum": "any"
+    "jq": "any"
   }
 }

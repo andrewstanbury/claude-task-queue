@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
-# claude-task-queue installer.
+# claude-task-queue installer (v0.2).
 #
-# Idempotent: re-running upgrades the plugin in place + merges hook entries
-# without clobbering anything else in ~/.claude/settings.json.
-#
-# Layout after install:
-#   ~/.claude/plugins/task-queue/   (this repo's contents)
-#   ~/.claude/state/task-queue/     (created on first hook fire)
-#   ~/.claude/settings.json         (hooks merged in)
+# This plugin is a READ-ONLY viewer over Claude Code's native task store. It
+# installs no hooks and spends no tokens. Install does two things:
+#   1. Copy the plugin to ~/.claude/plugins/task-queue/
+#   2. Set "statusLine" in ~/.claude/settings.json to our renderer —
+#      but ONLY if you don't already have a status line (we never clobber one;
+#      compose manually instead — see the note printed at the end).
 #
 # Override locations via:
 #   CLAUDE_HOME=/path           where settings.json lives (default ~/.claude)
-#   CLAUDE_TQ_PLUGIN_DIR=/path  where the plugin is copied (default $CLAUDE_HOME/plugins/task-queue)
+#   CLAUDE_TQ_PLUGIN_DIR=/path  where the plugin is copied
 
 set -euo pipefail
 
@@ -27,72 +26,60 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v sha1sum >/dev/null 2>&1; then
-  printf 'error: sha1sum is required. Install it (coreutils on Linux, brew install coreutils on macOS) and re-run.\n' >&2
-  exit 1
-fi
-
 mkdir -p "$CLAUDE_HOME" "$STATE_DIR" "$(dirname "$PLUGIN_DIR")"
 
-# Copy the plugin tree, excluding git internals and the user's state dir.
+# Copy the plugin tree, excluding git internals, tests, and scratch.
 rsync -a --delete \
   --exclude='.git/' \
   --exclude='tests/' \
   --exclude='*.bak' \
-  --exclude='.tq-sandbox/' \
   "$SRC_DIR/" "$PLUGIN_DIR/"
 
 chmod +x "$PLUGIN_DIR"/bin/* "$PLUGIN_DIR"/install.sh "$PLUGIN_DIR"/uninstall.sh
 
-# Merge hook entries into settings.json without clobbering existing keys.
-# settings.json hook contract used here:
-#   {
-#     "hooks": {
-#       "UserPromptSubmit": [ { "matcher": "*", "hooks": [ { "type": "command", "command": "..." } ] } ],
-#       "PreToolUse":       [ { "matcher": "*", "hooks": [ { "type": "command", "command": "..." } ] } ]
-#     }
-#   }
-# We add ONE entry per event tagged with "id": "claude-task-queue" so we can
-# upsert (replace by id on re-install) instead of duplicating.
-
+# Set our status line ONLY if none is configured — never overwrite an existing
+# one (you may be running claude-statusbar or another). settings.json contract:
+#   "statusLine": { "type": "command", "command": "<path>" }
 mkdir -p "$(dirname "$SETTINGS")"
 [ -f "$SETTINGS" ] || printf '{}' > "$SETTINGS"
 
-tmp="$(mktemp)"
-jq \
-  --arg decompose "$PLUGIN_DIR/bin/tq-decompose.sh" \
-  --arg pretool "$PLUGIN_DIR/bin/tq-pretool.sh" \
-  '
-  def upsert_hook(event; cmd):
-    .hooks //= {}
-    | .hooks[event] //= []
-    | .hooks[event] |= (
-        map(select((.id // "") != "claude-task-queue"))
-        + [{
-            id: "claude-task-queue",
-            matcher: "*",
-            hooks: [{ type: "command", command: cmd }]
-          }]
-      );
-  upsert_hook("UserPromptSubmit"; $decompose)
-  | upsert_hook("PreToolUse"; $pretool)
-  ' "$SETTINGS" > "$tmp"
-mv "$tmp" "$SETTINGS"
+existing="$(jq -r '.statusLine.command // .statusLine // empty' "$SETTINGS" 2>/dev/null || true)"
+status_cmd="$PLUGIN_DIR/bin/tq-status.sh"
+status_note=""
+
+if [ -z "$existing" ]; then
+  tmp="$(mktemp)"
+  jq --arg cmd "$status_cmd" \
+    '.statusLine = { type: "command", command: $cmd }' \
+    "$SETTINGS" > "$tmp"
+  mv "$tmp" "$SETTINGS"
+  status_note="statusLine set -> $status_cmd"
+elif [ "$existing" = "$status_cmd" ]; then
+  status_note="statusLine already points at this plugin (no change)."
+else
+  status_note=$(cat <<NOTE
+You already have a status line:
+    $existing
+  Left it untouched. To show the queue too, call this from your status script:
+    $status_cmd
+NOTE
+)
+fi
 
 cat <<EOF
-claude-task-queue installed.
+claude-task-queue v0.2 installed (read-only, zero-token).
   plugin:   $PLUGIN_DIR
-  state:    $STATE_DIR
-  settings: $SETTINGS (hooks merged with id "claude-task-queue")
+  reads:    $CLAUDE_HOME/tasks  (Claude Code's native task store)
+  cache:    $STATE_DIR          (session->project labels only)
+  $status_note
 
 Add the CLI to your PATH so 'tq' works from any shell:
   ln -sf "$PLUGIN_DIR/bin/tq" /usr/local/bin/tq
 
-Or use the full path:
-  $PLUGIN_DIR/bin/tq status
+Then:
+  tq            # full to-do/doing/done table, grouped by project
+  tq status     # the one-line status
 
-Disable temporarily:
-  CLAUDE_TQ_DISABLED=1            (skip decompose hook)
-  CLAUDE_TQ_PRETOOL_DISABLED=1    (skip pretool gate)
-  CLAUDE_TQ_HAIKU_DISABLED=1      (skip Haiku triage, fall back to single-task)
+Tasks are created by Claude itself (its native task tools) as it works — this
+plugin only reads them, so there is nothing to populate and no tokens spent.
 EOF

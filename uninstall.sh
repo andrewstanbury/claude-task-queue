@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Reverse of install.sh.
 #   - Removes the plugin directory.
-#   - Removes claude-task-queue hook entries from settings.json (leaves
-#     everything else untouched).
-#   - Does NOT delete the state directory by default — your queues are kept
-#     so you can re-install without losing work. Pass --purge-state to
-#     remove ~/.claude/state/task-queue as well.
+#   - Removes our "statusLine" from settings.json ONLY if it still points at
+#     this plugin (never touches a status line you've since changed).
+#   - Leaves the label cache by default (it's tiny and harmless). Pass
+#     --purge-state to remove ~/.claude/state/task-queue too.
+#
+# NOTE: this never deletes anything under ~/.claude/tasks — those are Claude
+# Code's own native task files, not ours.
 
 set -euo pipefail
 
@@ -22,28 +24,22 @@ for arg in "$@"; do
   esac
 done
 
+status_cmd="$PLUGIN_DIR/bin/tq-status.sh"
+
 rm -rf "$PLUGIN_DIR"
 
 if [ -f "$SETTINGS" ]; then
-  tmp="$(mktemp)"
-  jq '
-    if .hooks then
-      .hooks
-      |= (
-        with_entries(
-          .value |= map(select((.id // "") != "claude-task-queue"))
-        )
-        | with_entries(select(.value | length > 0))
-      )
-    else . end
-    | if .hooks == {} then del(.hooks) else . end
-  ' "$SETTINGS" > "$tmp"
-  mv "$tmp" "$SETTINGS"
+  current="$(jq -r '.statusLine.command // .statusLine // empty' "$SETTINGS" 2>/dev/null || true)"
+  if [ "$current" = "$status_cmd" ]; then
+    tmp="$(mktemp)"
+    jq 'del(.statusLine)' "$SETTINGS" > "$tmp"
+    mv "$tmp" "$SETTINGS"
+  fi
 fi
 
 if [ "$purge_state" -eq 1 ]; then
   rm -rf "$STATE_DIR"
-  printf 'claude-task-queue uninstalled (state purged).\n'
+  printf 'claude-task-queue uninstalled (label cache purged).\n'
 else
-  printf 'claude-task-queue uninstalled. State preserved at %s — pass --purge-state to remove.\n' "$STATE_DIR"
+  printf 'claude-task-queue uninstalled. Label cache kept at %s — pass --purge-state to remove.\n' "$STATE_DIR"
 fi
