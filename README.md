@@ -1,34 +1,42 @@
 # claude-task-queue
 
-A **zero-token, read-only** view of [Claude Code](https://docs.claude.com/en/docs/claude-code)'s native task list — surfaced on your status line as **to-do / doing / done**, aggregated across every session and project.
+A **native-first** companion to [Claude Code](https://docs.claude.com/en/docs/claude-code)'s built-in task list. It doesn't invent a queue, a status bar, or a second source of truth — it leans entirely on the tasks Claude already creates, and adds the one thing the native system doesn't do on its own: **carry your unfinished work across sessions.**
 
 ## The idea
 
-Claude Code already maintains a task list. As the model works it calls its native task tools (`TaskCreate` / `TaskUpdate`), and Claude Code persists each task as a JSON file under `~/.claude/tasks/<session-id>/`:
+As Claude Code works it maintains a real task list — it calls its native task tools (`TaskCreate` / `TaskUpdate`) and persists each task as a JSON file under `~/.claude/tasks/<session-id>/`:
 
 ```json
-{ "id": "55", "subject": "Wire engine", "status": "in_progress", "blockedBy": [] }
+{ "id": "55", "subject": "Wire engine", "activeForm": "Wiring engine",
+  "status": "in_progress", "blocks": [], "blockedBy": [] }
 ```
 
-`status` is exactly the state model you want: `pending` = **to-do**, `in_progress` = **doing**, `completed` = **done**.
+That list already gives you decomposition, `to-do / doing / done` (`pending` / `in_progress` / `completed`), dependency edges, and an inline render in the terminal — for free.
 
-Because the model writes those files as a normal part of working, **reading them costs nothing.** This plugin is *only* a reader: it scans the native task store, maps each task back to its project, and renders a one-liner to your status line. No second source of truth, no decomposition call, no hooks that enter the model's context — **0 tokens per turn.**
+But the native list is **per-session working memory**. Start a new session in the same repo tomorrow and yesterday's unfinished tasks are invisible to the model. That gap — *continuity* — is the only thing this project fills.
 
-> Earlier versions of this plugin shelled out to Haiku on every prompt to *build* a parallel queue. That was redundant with work the model already does — and the opposite of "minimal token usage." v0.2 deletes all of it.
+## What it does
+
+**1. Resume bridge** (a `SessionStart` hook). When a new session starts, it scans the native task store for **open tasks left by earlier sessions in the same repo** and hands them to Claude as a short note, so it can re-adopt the relevant ones into its native list. Everything you see stays native — there's no new UI.
+
+It's deliberately small: it lists the in-progress task(s) plus the most-recently-touched todos (capped), and skips sessions you haven't touched in a while so abandoned backlogs don't keep resurfacing. It's the only part of this plugin that enters Claude's context — and only when there's genuinely carried-over work.
+
+**2. `tq`** — a zero-token terminal reader of the native store, for when *you* want to eyeball what's open across every project. It never enters Claude's context.
 
 ## What you see
 
-Status line (always visible, never enters context):
+When you resume work in a repo with unfinished tasks, Claude receives a note like:
 
 ```
-⚑ 3 proj · 7 todo · 2 doing — ▶ "Wire engine" [task-queue]
+3 open tasks carry over from earlier Claude Code sessions in this project. If
+the user is continuing this work, recreate the relevant ones with TaskCreate —
+set the in-progress one to in_progress; otherwise ignore this note.
+  • [doing] Wire engine
+  • [todo]  Add the status renderer
+  • [todo]  Write the installer
 ```
 
-- `3 proj` — projects with open work
-- `7 todo · 2 doing` — open tasks across everything (done is omitted; lifetime totals are just noise on one line)
-- `▶ "…" [project]` — the most recently active *doing* task and which project it's in
-
-Full table in a terminal (also zero tokens):
+In a terminal, `tq` shows the full picture (zero tokens, grouped by project):
 
 ```
 $ tq
@@ -50,7 +58,7 @@ cd claude-task-queue
 ./install.sh
 ```
 
-The installer copies the plugin to `~/.claude/plugins/task-queue/` and sets `statusLine` in `~/.claude/settings.json` — **only if you don't already have one** (it never clobbers an existing status line; see "Composing" below).
+The installer copies the plugin to `~/.claude/plugins/task-queue/` and registers the `SessionStart` hook in `~/.claude/settings.json` (idempotently — it never duplicates itself and leaves any other hooks you have untouched).
 
 Add the CLI to your PATH:
 
@@ -58,11 +66,11 @@ Add the CLI to your PATH:
 ln -sf "$HOME/.claude/plugins/task-queue/bin/tq" /usr/local/bin/tq
 ```
 
-Uninstall (removes our status line only if it's still ours; never touches `~/.claude/tasks`):
+Uninstall (removes only our own hook entry; never touches `~/.claude/tasks`):
 
 ```bash
 ~/.claude/plugins/task-queue/uninstall.sh
-~/.claude/plugins/task-queue/uninstall.sh --purge-state   # also drop the label cache
+~/.claude/plugins/task-queue/uninstall.sh --purge-state   # also drop the caches
 ```
 
 ## CLI
@@ -70,22 +78,26 @@ Uninstall (removes our status line only if it's still ours; never touches `~/.cl
 ```
 tq            full to-do/doing/done table, grouped by project
 tq list       same
-tq status     the one-line status (same as the status line)
+tq status     one-line summary of open work across all projects
 tq path       print the native tasks directory being read
 tq help       help
 ```
 
-All read-only. There are no add/start/done commands by design: the **model** owns the tasks, so the plugin never mutates them and never desyncs from what Claude sees. To change a task, just tell Claude.
+All read-only. There are no add/start/done commands by design: **Claude** owns the tasks, so the plugin never mutates them and never desyncs. To change a task, just tell Claude.
 
-## Composing with an existing status line
+## How project grouping works
 
-If you already run [claude-statusbar](https://github.com/andrewstanbury/claude-statusbar) or another status line, the installer leaves it alone. Add the queue segment yourself by calling:
+A task folder is named by session id. The plugin finds that session's transcript at `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`, reads its `cwd`, and resolves the **git repo root** (falling back to the cwd itself when the session didn't run inside a repo). A session's cwd never changes, so the mapping is cached under `~/.claude/state/task-queue/`.
 
-```bash
-~/.claude/plugins/task-queue/bin/tq-status.sh
-```
+## Configuration
 
-from your own `status.sh` and appending its output next to git/branch/tokens.
+| Var | Effect |
+|---|---|
+| `CLAUDE_TQ_RESUME_MAX` | Max todos listed in the resume note (default `7`; in-progress tasks are always shown). |
+| `CLAUDE_TQ_RESUME_MAX_AGE_DAYS` | Skip sessions untouched longer than this in the resume note (default `14`). |
+| `CLAUDE_TQ_TASKS_DIR` | Where native task folders live (default `~/.claude/tasks`). |
+| `CLAUDE_TQ_PROJECTS_DIR` | Where session transcripts live (default `~/.claude/projects`). |
+| `CLAUDE_TQ_STATE_DIR` | Where the caches are written (default `~/.claude/state/task-queue`). |
 
 ## Requirements
 
@@ -93,25 +105,13 @@ from your own `status.sh` and appending its output next to git/branch/tokens.
 - `jq`
 - Claude Code 2.x (uses its native task store under `~/.claude/tasks`)
 
-## How project grouping works
-
-A task folder is named by session id. The plugin finds that session's transcript at `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`, reads its `cwd`, and labels it with the **git repo root's** basename (falling back to the cwd's own basename when the session didn't run inside a repo). A session's cwd never changes, so the mapping is cached in `~/.claude/state/task-queue/project-cache.tsv` (the plugin's only writable state).
-
-## Environment overrides
-
-| Var | Effect |
-|---|---|
-| `CLAUDE_TQ_TASKS_DIR=...` | Where native task folders live (default `~/.claude/tasks`). |
-| `CLAUDE_TQ_PROJECTS_DIR=...` | Where session transcripts live (default `~/.claude/projects`). |
-| `CLAUDE_TQ_STATE_DIR=...` | Where the label cache is written (default `~/.claude/state/task-queue`). |
-
 ## Tests
 
 ```bash
 bats tests/
 ```
 
-The suite fakes a task store + transcripts via the `CLAUDE_TQ_*` overrides and asserts the status line and grouped table. No model calls — there's nothing to mock.
+The suite fakes a task store + transcripts via the `CLAUDE_TQ_*` overrides and asserts both the `tq` output and the resume note the hook injects. No model calls — there's nothing to mock.
 
 ## License
 

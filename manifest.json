@@ -1,21 +1,25 @@
 {
   "name": "claude-task-queue",
-  "version": "0.2.0",
-  "description": "Zero-token, read-only viewer for Claude Code's native task list — aggregates tasks across all sessions/projects and renders to-do/doing/done on the status line.",
+  "version": "0.3.0",
+  "description": "Native-first companion to Claude Code's task list: a SessionStart resume bridge that re-surfaces a repo's unfinished tasks from earlier sessions so the model re-adopts them into its native list, plus a zero-token `tq` terminal reader of the native store.",
   "homepage": "https://github.com/andrewstanbury/claude-task-queue",
   "license": "MIT",
   "author": "Andrew Stanbury",
-  "statusLine": "bin/tq-status.sh",
+  "hooks": {
+    "SessionStart": "bin/tq-resume.sh"
+  },
   "bin": {
     "tq": "bin/tq",
-    "tq-status": "bin/tq-status.sh"
+    "tq-resume": "bin/tq-resume.sh"
   },
   "reads": "~/.claude/tasks (Claude Code's native task store) + ~/.claude/projects (session→project mapping)",
-  "state_dir": "~/.claude/state/task-queue (project-label cache only)",
+  "state_dir": "~/.claude/state/task-queue (session→project and session→root caches)",
   "env_overrides": [
     "CLAUDE_TQ_TASKS_DIR",
     "CLAUDE_TQ_PROJECTS_DIR",
-    "CLAUDE_TQ_STATE_DIR"
+    "CLAUDE_TQ_STATE_DIR",
+    "CLAUDE_TQ_RESUME_MAX",
+    "CLAUDE_TQ_RESUME_MAX_AGE_DAYS"
   ],
   "requires": {
     "bash": ">=4",

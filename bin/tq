@@ -7,7 +7,7 @@
 #
 #   tq            full grouped to-do/doing/done table (alias of `tq list`)
 #   tq list       same
-#   tq status     the one-line status (same as the status line)
+#   tq status     one-line summary of open work across all projects
 #   tq path       print the native tasks directory being read
 #   tq help       this help
 

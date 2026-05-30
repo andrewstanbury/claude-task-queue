@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# claude-task-queue installer (v0.2).
-#
-# This plugin is a READ-ONLY viewer over Claude Code's native task store. It
-# installs no hooks and spends no tokens. Install does two things:
+# claude-task-queue installer (v0.3). Two steps:
 #   1. Copy the plugin to ~/.claude/plugins/task-queue/
-#   2. Set "statusLine" in ~/.claude/settings.json to our renderer —
-#      but ONLY if you don't already have a status line (we never clobber one;
-#      compose manually instead — see the note printed at the end).
+#   2. Register the SessionStart "resume bridge" hook in settings.json
+#      (idempotent; leaves any other hooks you have untouched).
+#
+# The hook is the only thing that enters model context — and only with a short
+# note, and only when an earlier session left open tasks in the repo you start
+# in. The `tq` CLI reader stays zero-token.
 #
 # Override locations via:
 #   CLAUDE_HOME=/path           where settings.json lives (default ~/.claude)
@@ -37,41 +37,31 @@ rsync -a --delete \
 
 chmod +x "$PLUGIN_DIR"/bin/* "$PLUGIN_DIR"/install.sh "$PLUGIN_DIR"/uninstall.sh
 
-# Set our status line ONLY if none is configured — never overwrite an existing
-# one (you may be running claude-statusbar or another). settings.json contract:
-#   "statusLine": { "type": "command", "command": "<path>" }
 mkdir -p "$(dirname "$SETTINGS")"
 [ -f "$SETTINGS" ] || printf '{}' > "$SETTINGS"
 
-existing="$(jq -r '.statusLine.command // .statusLine // empty' "$SETTINGS" 2>/dev/null || true)"
-status_cmd="$PLUGIN_DIR/bin/tq-status.sh"
-status_note=""
-
-if [ -z "$existing" ]; then
-  tmp="$(mktemp)"
-  jq --arg cmd "$status_cmd" \
-    '.statusLine = { type: "command", command: $cmd }' \
-    "$SETTINGS" > "$tmp"
-  mv "$tmp" "$SETTINGS"
-  status_note="statusLine set -> $status_cmd"
-elif [ "$existing" = "$status_cmd" ]; then
-  status_note="statusLine already points at this plugin (no change)."
-else
-  status_note=$(cat <<NOTE
-You already have a status line:
-    $existing
-  Left it untouched. To show the queue too, call this from your status script:
-    $status_cmd
-NOTE
-)
-fi
+# Register the SessionStart "resume bridge" hook (idempotent). We drop any prior
+# copy of our own hook first so re-running install never duplicates it; any other
+# hooks you have are kept untouched.
+resume_cmd="$PLUGIN_DIR/bin/tq-resume.sh"
+tmp="$(mktemp)"
+jq --arg cmd "$resume_cmd" '
+  .hooks //= {}
+  | .hooks.SessionStart //= []
+  | .hooks.SessionStart |= map(select(
+      ((.hooks // []) | map(.command) | index($cmd)) | not
+    ))
+  | .hooks.SessionStart += [ { hooks: [ { type: "command", command: $cmd } ] } ]
+' "$SETTINGS" > "$tmp"
+mv "$tmp" "$SETTINGS"
+resume_note="SessionStart hook -> $resume_cmd"
 
 cat <<EOF
-claude-task-queue v0.2 installed (read-only, zero-token).
+claude-task-queue v0.3 installed (native-first: reader + resume bridge).
   plugin:   $PLUGIN_DIR
   reads:    $CLAUDE_HOME/tasks  (Claude Code's native task store)
-  cache:    $STATE_DIR          (session->project labels only)
-  $status_note
+  cache:    $STATE_DIR          (session->project / session->root caches)
+  $resume_note
 
 Add the CLI to your PATH so 'tq' works from any shell:
   ln -sf "$PLUGIN_DIR/bin/tq" /usr/local/bin/tq
@@ -80,6 +70,8 @@ Then:
   tq            # full to-do/doing/done table, grouped by project
   tq status     # the one-line status
 
-Tasks are created by Claude itself (its native task tools) as it works — this
-plugin only reads them, so there is nothing to populate and no tokens spent.
+Tasks are created by Claude itself (its native task tools) as it works. The
+'tq' reader stays zero-token. The SessionStart resume bridge is the one place
+that enters context — and only with a short note, and only when an earlier
+session left open tasks in the repo you're starting in.
 EOF
