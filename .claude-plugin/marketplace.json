@@ -10,6 +10,12 @@
       "source": "./plugins/task-queue",
       "description": "Resume bridge + auto-advance for Claude Code's native task list — re-surfaces a repo's unfinished tasks from earlier sessions and points the model at the next unblocked task as each one completes.",
       "version": "0.7.1"
+    },
+    {
+      "name": "tidy",
+      "source": "./plugins/tidy",
+      "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe) so an active project converges toward clean code over time, scoped to the touched file. MVP targets Go.",
+      "version": "0.1.0"
     }
   ]
 }
