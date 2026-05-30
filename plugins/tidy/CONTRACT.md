@@ -49,6 +49,9 @@ This plugin is deliberately conservative because it *mutates files*:
 - **Activity log** — `~/.claude/state/tidy/activity.log` (override
   `CLAUDE_TIDY_LOG_DIR`, disable `CLAUDE_TIDY_LOG_DISABLED`). Best-effort,
   append-only; never blocks a hook.
+- **TDD-nudge markers** — empty files under `~/.claude/state/tidy/nudged/`
+  (one per session+file) so the test nudge fires at most once per file per
+  session. Same fixed home as the log; safe to delete anytime.
 
 It writes **nothing** to Claude Code's own state.
 

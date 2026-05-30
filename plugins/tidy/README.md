@@ -6,13 +6,30 @@
 
 Two event-driven hooks, nothing else:
 
-**1. A standard, once per session (`SessionStart`).** Injects a concise *clean-as-you-go* policy — apply clean-code basics, respect clean-architecture boundaries, honor the project's own tools, and **only within the scope of your change**. Stated once; governs the session at no per-prompt cost.
+**1. A standard, once per session (`SessionStart`).** Injects a concise *clean-as-you-go* policy: work **test-first (TDD)**, apply clean-code basics, respect clean-architecture boundaries (don't grow god-files; characterization-test legacy before refactoring), honor the project's own tools — all **only within the scope of your change**. Stated once; governs the session at no per-prompt cost.
 
-**2. Format + lint on touch (`PostToolUse` on `Edit`/`Write`).** For each file you edit, it detects the language and:
-- **auto-applies the formatter** (Go: `goimports`, else `gofumpt`/`gofmt`) — these are behavior-preserving, so they're safe to apply silently;
-- **runs the linter** (Go: `golangci-lint`) and feeds back any findings **for that file**, so the model fixes them before moving on.
+**2. Format + lint + TDD on touch (`PostToolUse` on `Edit`/`Write`).** For each file you edit, it detects the language and:
+- **auto-applies the formatter** (Go: `goimports`, else `gofumpt`/`gofmt`) — behavior-preserving, so safe to apply silently;
+- **runs the linter** (Go: `golangci-lint`) and feeds back findings **for that file**;
+- **nudges for a test** — editing a Go source file with a missing or stale sibling `_test.go` surfaces a one-line TDD reminder (gentle: skips test/generated files, once per file per session).
 
 Unsupported file types and missing tools are a **silent no-op** — it never gets in your way.
+
+## The ratchet (gentle on legacy)
+
+Everything is **scoped to the file you touched** — linter findings are filtered to that file, so a crufty legacy *package* never floods you, and you converge it toward clean as you naturally revisit it. For the lint side, configure your project's `golangci-lint` to report only *new* issues, so the legacy backlog isn't thrown at you on every edit. A ratchet-friendly baseline to drop into your Go project:
+
+```yaml
+# .golangci.yml — strict but ratchet-friendly (the plugin honors this; it never imposes one)
+run:
+  timeout: 2m
+linters:
+  enable: [govet, staticcheck, errcheck, ineffassign, unused, gocyclo, dupl, revive, misspell]
+issues:
+  new-from-rev: HEAD~1   # the ratchet: flag only issues in your changes, not the legacy backlog
+  max-issues-per-linter: 0
+  max-same-issues: 0
+```
 
 ## A deliberately bounded responsibility
 

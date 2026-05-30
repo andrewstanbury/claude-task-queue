@@ -8,11 +8,11 @@
 
 set -euo pipefail
 
-STANDARD='[tidy] Clean-as-you-go standard for this session. When you edit a file, leave it cleaner than you found it — but ONLY within the scope of your change, never repo-wide:
-- Honor the project'"'"'s own formatter and linter on files you touch, and fix what they flag (this plugin auto-formats supported files and surfaces linter findings — address them before moving on).
-- Apply clean-code basics: small focused functions, clear names, no dead code, errors handled.
-- Respect clean-architecture boundaries: no new cross-layer or cyclic dependencies; keep modules cohesive.
-- Decompose a unit you are already editing if it has clearly outgrown its responsibility — but do not start unrelated refactors.'
+STANDARD='[tidy] Clean-as-you-go standard for this session. Improve code as you touch it, but ONLY within the scope of your change — ratchet, do not sweep:
+- Test-first (TDD): before changing logic, add or extend a failing test for the new behavior, then make it pass; ensure what you changed is covered. In legacy code, write a characterization test before refactoring.
+- Honor the project'"'"'s formatter and linter on files you touch (this plugin auto-formats supported files and surfaces findings). Treat findings in code you touched as must-fix; leave unrelated pre-existing issues alone.
+- Clean code: small focused functions, clear names, no dead code, errors handled.
+- Clean architecture: no new cross-layer or cyclic dependencies; keep modules cohesive; do not grow a god-file — extract new logic into a focused unit rather than appending to a bloated one.'
 
 jq -cn --arg c "$STANDARD" \
   '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'
