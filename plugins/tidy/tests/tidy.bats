@@ -8,6 +8,7 @@ setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   TOUCH="$ROOT/bin/tidy-touch.sh"
   STANDARD="$ROOT/bin/tidy-standard.sh"
+  DOCTOR="$ROOT/bin/tidy-doctor.sh"
   WORK="$(mktemp -d)"
   FAKEBIN="$(mktemp -d)"          # prepended to PATH; empty unless a test fills it
   export CLAUDE_TIDY_LOG_DIR="$WORK/log"
@@ -98,4 +99,30 @@ run_touch() {
   run run_touch "$WORK/gen.go"
   [ -z "$output" ]                            # silent
   [ "$(cksum "$WORK/gen.go")" = "$before" ]   # and untouched
+}
+
+# ---- payload-drift canary ---------------------------------------------------
+
+@test "a payload missing tool_input.file_path is logged as drift" {
+  run bash -c 'printf "{\"tool_name\":\"Edit\",\"tool_input\":{}}" | "$1"' _ "$TOUCH"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]                              # stays silent
+  grep -q "no tool_input.file_path" "$CLAUDE_TIDY_LOG_DIR/activity.log"
+}
+
+# ---- tidy-doctor ------------------------------------------------------------
+
+@test "doctor exits 0 (no hard failure) and reports OK" {
+  # jq + bash are always present, so there's no hard FAIL regardless of the Go
+  # toolchain — don't assume gofmt is absent (it ships with Go on most systems).
+  run "$DOCTOR"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"OK — tidy can run here."* ]]
+}
+
+@test "doctor reports goimports as the formatter when it's on PATH" {
+  fake_goimports
+  run env PATH="$FAKEBIN:$PATH" "$DOCTOR"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"formatter: goimports"* ]]   # goimports preferred over gofmt
 }

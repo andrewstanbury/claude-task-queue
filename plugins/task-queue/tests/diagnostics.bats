@@ -79,3 +79,18 @@ make_task() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"a-recent-log-entry"* ]]
 }
+
+# ---- schema-drift canary ----------------------------------------------------
+
+@test "tq_schema_status reports empty, ok, then drift" {
+  run bash -c '. "$1/lib/tasks.sh"; tq_schema_status' bash "$ROOT"
+  [ "$output" = "empty" ]                       # no task files yet
+
+  make_task sess 1 pending
+  run bash -c '. "$1/lib/tasks.sh"; tq_schema_status' bash "$ROOT"
+  [ "$output" = "ok" ]                          # a well-formed file
+
+  printf '{"subject":"no id or status"}\n' > "$CLAUDE_TQ_TASKS_DIR/sess/9.json"
+  run bash -c '. "$1/lib/tasks.sh"; tq_schema_status' bash "$ROOT"
+  [ "$output" = "drift" ]                       # a file missing the fields we read
+}

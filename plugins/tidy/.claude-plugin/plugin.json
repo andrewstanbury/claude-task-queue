@@ -1,6 +1,6 @@
 {
   "name": "tidy",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Tidy-as-you-touch: when you edit a file, format it and surface linter findings — fixing what's safe — so an actively-worked project converges toward clean code over time, scoped to the file you touched. MVP targets Go (goimports/gofumpt + golangci-lint); other languages no-op gracefully.",
   "author": { "name": "Andrew Stanbury" },
   "homepage": "https://github.com/andrewstanbury/claude-task-queue/tree/main/plugins/tidy",

@@ -51,6 +51,17 @@ Enabled by default. It only acts on files whose tooling is installed, so it's sa
 - Bash 4+ and `jq`
 - For Go: `goimports` (or `gofumpt`/`gofmt`) on `PATH`; `golangci-lint` optional (for findings)
 
+## Diagnostics
+
+When tidy seems to do nothing on a Go file, run the read-only health check:
+
+```bash
+bash bin/tidy-doctor.sh
+```
+
+It validates the [CONTRACT](./CONTRACT.md) against your environment — `jq`, a Go
+formatter, `golangci-lint` — and prints the activity-log tail.
+
 ## Tests
 
 ```bash

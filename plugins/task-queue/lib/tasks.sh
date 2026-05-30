@@ -40,6 +40,27 @@ tq_pause_dir()       { printf '%s' "${CLAUDE_TQ_PAUSE_DIR:-$HOME/.claude/state/t
 tq_pause_file()      { printf '%s/%s' "$(tq_pause_dir)" "$(printf '%s' "$1" | sed 's:/:-:g')"; }
 tq_is_paused()       { [ -n "${1:-}" ] && [ -f "$(tq_pause_file "$1")" ]; }
 
+# ---- drift canary -----------------------------------------------------------
+
+# Sample real task files and report whether they still match the schema we read
+# (see CONTRACT.md). This is how a never-reviewed install notices Claude Code
+# changing the store format — the SessionStart hook warns when it returns drift.
+#   "ok"    a sampled file has the expected id + status fields
+#   "drift" a file exists but is missing them — our parsing is out of date
+#   "empty" no task files to check (says nothing about the schema)
+tq_schema_status() {
+  local tdir f sample=0
+  tdir="$(tq_tasks_dir)"
+  [ -d "$tdir" ] || { printf 'empty'; return 0; }
+  for f in "$tdir"/*/*.json; do
+    [ -f "$f" ] || continue
+    sample=$((sample + 1))
+    jq -e 'has("id") and has("status")' "$f" >/dev/null 2>&1 || { printf 'drift'; return 0; }
+    [ "$sample" -ge 25 ] && break
+  done
+  [ "$sample" -gt 0 ] && printf 'ok' || printf 'empty'
+}
+
 # ---- observability ----------------------------------------------------------
 
 # Append one best-effort diagnostic line: "<iso-ts>\t<event>\t<sid8>\t<detail>".
