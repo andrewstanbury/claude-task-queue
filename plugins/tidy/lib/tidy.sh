@@ -83,3 +83,32 @@ tidy_handle_go() {
   tidy_log go "file=$file fmt=$tool changed=$changed lint=$( [ -n "$lint" ] && echo yes || echo no )"
   printf '%s\t%s' "$changed" "$lint"
 }
+
+# ---- TDD nudge --------------------------------------------------------------
+
+# Encourage a sibling test for a touched Go SOURCE file (test-first). Skips test
+# files and generated files, and is deduped per session+file (one nudge each) so
+# it stays gentle in a test-poor legacy repo — the ratchet, not a nag. Prints
+# the nudge line or nothing.
+#   $1 file   the edited file
+#   $2 sid    session id (optional; used to dedupe per session)
+tidy_tdd_nudge() {
+  local file="$1" sid="${2:-}"
+  [ "$(tidy_lang_for_file "$file")" = "go" ] || return 0
+  case "$file" in *_test.go) return 0 ;; esac
+  tidy_is_generated_go "$file" && return 0
+
+  local mdir mark
+  mdir="$(tidy_log_dir)/nudged"
+  mark="$mdir/$(printf '%s' "${sid:0:8}-$file" | sed 's:/:-:g')"
+  [ -f "$mark" ] && return 0                         # already nudged this file this session
+  { mkdir -p "$mdir" 2>/dev/null && : > "$mark"; } 2>/dev/null || true
+
+  local sibling; sibling="${file%.go}_test.go"
+  if [ -f "$sibling" ]; then
+    printf 'TDD: extend %s to cover this change before moving on.' "$(basename "$sibling")"
+  else
+    printf 'TDD: %s has no test — add %s covering this change (test-first).' \
+      "$(basename "$file")" "$(basename "$sibling")"
+  fi
+}

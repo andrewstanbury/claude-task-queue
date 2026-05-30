@@ -34,25 +34,33 @@ if [ -z "$file" ]; then
   exit 0
 fi
 [ -f "$file" ] || exit 0
+sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
 
 lang="$(tidy_lang_for_file "$file")"
 [ -n "$lang" ] || exit 0                       # unsupported type → silent
 
+result=""
+tdd=""
 case "$lang" in
-  go) result="$(tidy_handle_go "$file" 2>/dev/null || true)" ;;
-  *)  result="" ;;
+  go)
+    result="$(tidy_handle_go "$file" 2>/dev/null || true)"   # format + lint findings
+    tdd="$(tidy_tdd_nudge "$file" "$sid" 2>/dev/null || true)"
+    ;;
 esac
-[ -n "$result" ] || exit 0                     # nothing changed, nothing flagged
+[ -n "$result" ] || [ -n "$tdd" ] || exit 0    # nothing to format, flag, or nudge
 
-changed="${result%%$'\t'*}"
-lint="${result#*$'\t'}"
-[ "$lint" = "$result" ] && lint=""             # no tab → no lint section
-
-ctx="[tidy] ${file}"
-[ "$changed" = "1" ] && ctx="$ctx was auto-formatted — re-read it before further edits (formatting may have shifted line content)."
-if [ -n "$lint" ]; then
-  ctx="$ctx"$'\n'"Linter findings to address in this file before moving on:"$'\n'"$lint"
+changed=""
+lint=""
+if [ -n "$result" ]; then
+  changed="${result%%$'\t'*}"
+  lint="${result#*$'\t'}"
+  [ "$lint" = "$result" ] && lint=""           # no tab → no lint section
 fi
+
+ctx="[tidy] ${file}:"
+[ "$changed" = "1" ] && ctx="$ctx"$'\n'"• auto-formatted — re-read before further edits (line content may have shifted)."
+[ -n "$lint" ] && ctx="$ctx"$'\n'"• linter findings to fix in this file (leave unrelated pre-existing issues alone):"$'\n'"$lint"
+[ -n "$tdd" ] && ctx="$ctx"$'\n'"• $tdd"
 
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $c}}'
