@@ -63,8 +63,17 @@ if tq_is_paused "$root"; then
   ctx="$ctx"$'\n\n'"⏸ Auto-advance is currently PAUSED for this repo — completing a task will NOT surface the next one until you resume (bash \"$PLUGIN_DIR/bin/tq-pause.sh\" off)."
 fi
 
+# Drift canary: if the native task store no longer matches the schema we read,
+# say so once — this is how a never-reviewed install notices a Claude Code
+# format change instead of failing silently. Fires only on a real mismatch.
+drift=0
+if [ "$(tq_schema_status 2>/dev/null || true)" = "drift" ]; then
+  drift=1
+  ctx="$ctx"$'\n\n'"⚠️ [task-queue] The native task store no longer matches the expected schema — Claude Code may have changed it, so carry-over and auto-advance may be degraded. Run \"$PLUGIN_DIR/bin/tq-doctor.sh\" and check CONTRACT.md."
+fi
+
 tq_log "session-start" \
-  "$( [ -n "$resume" ] && printf 'resume surfaced' || printf 'policy only' )$( [ "$paused" -eq 1 ] && printf ', paused' )" \
+  "$( [ -n "$resume" ] && printf 'resume surfaced' || printf 'policy only' )$( [ "$paused" -eq 1 ] && printf ', paused' )$( [ "$drift" -eq 1 ] && printf ', SCHEMA DRIFT' )" \
   "$sid"
 
 # Emit as SessionStart additionalContext (added to the session's context once).

@@ -52,9 +52,14 @@ This plugin is deliberately conservative because it *mutates files*:
 
 It writes **nothing** to Claude Code's own state.
 
-## How this is tested
+## How this is verified
 
-`tests/tidy.bats` fakes the Go toolchain via stub executables on `PATH`, so the
-dispatch (format-applied, findings-scoped, generated-file skip, graceful no-op)
-is verified without installing `goimports`/`golangci-lint`. The real toolchain
-boundary is exercised by using the plugin on an actual Go project.
+- **`tests/tidy.bats`** fakes the Go toolchain via stub executables on `PATH`, so
+  the dispatch (format-applied, findings-scoped, generated-file skip, graceful
+  no-op, payload-drift canary) is verified without installing
+  `goimports`/`golangci-lint`.
+- **`bin/tidy-doctor.sh`** is the on-demand check: it validates the dependencies
+  above against the *live* environment (jq, a Go formatter, golangci-lint) and
+  prints the activity-log tail. Run it first when tidy seems to do nothing.
+- The real toolchain boundary is exercised by using the plugin on an actual Go
+  project.

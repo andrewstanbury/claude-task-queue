@@ -5,6 +5,16 @@ All notable changes to the **tidy** plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-05-30
+
+### Added
+- **`bin/tidy-doctor.sh`** — a manual, read-only health check that validates the
+  CONTRACT against the live environment (jq, a Go formatter, golangci-lint) and
+  prints the activity-log tail. Exits non-zero only on a hard failure.
+- **Payload-drift canary** in the PostToolUse hook: if a payload arrives but has
+  no `tool_input.file_path`, it's logged as `drift` (the shape we read may have
+  changed) and the hook stays silent.
+
 ## [0.1.0] — 2026-05-30
 
 ### Added
@@ -23,4 +33,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MVP targets **Go**; other languages no-op gracefully.
 - `bats` suite (Go tooling faked on `PATH`), README, CONTRACT.
 
+[0.2.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/tidy-v0.2.0
 [0.1.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/tidy-v0.1.0

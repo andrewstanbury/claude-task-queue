@@ -11,6 +11,25 @@ gate, a CLI, a status bar) into a featherweight **native-first** plugin: two
 event-driven hooks, **read-only** over Claude Code's own task store, with **zero
 per-prompt cost**. The breaking releases in that range reflect that rebuild.
 
+## [0.8.0] — 2026-05-30
+
+### Added
+- **SessionStart schema-drift canary.** `tq_schema_status()` samples real task
+  files; when one exists but lacks the `id`/`status` fields we read, the
+  SessionStart hook injects a one-line warning (and logs `SCHEMA DRIFT`). This
+  is how a never-reviewed install notices Claude Code changing the store format
+  instead of failing silently. Fires only on a real mismatch — otherwise silent.
+- **Real-captured test fixture** (`tests/fixtures/real-task.json`) plus a test
+  that resume + advance parse the true on-disk shape, not just hand-made fakes.
+
+### Fixed
+- **CONTRACT.md lifecycle note corrected.** The v0.7.1 note claimed Claude Code
+  removes a completed task's file individually; a real capture showed completed
+  entries actually **persist** while the list has open tasks (the folder clears
+  only when fully drained). The advance logic was already robust to both (it
+  judges "blocked" against the open set), so no code change — just an honest doc
+  fix.
+
 ## [0.7.1] — 2026-05-30
 
 ### Fixed
@@ -143,6 +162,7 @@ per-prompt cost**. The breaking releases in that range reflect that rebuild.
   status-bar reader. Queue persisted under `~/.claude/state/task-queue/`,
   surviving `/clear` and restarts.
 
+[0.8.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.8.0
 [0.7.1]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.7.1
 [0.7.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.7.0
 [0.6.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.6.0

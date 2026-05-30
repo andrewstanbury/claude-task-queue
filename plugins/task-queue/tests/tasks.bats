@@ -84,6 +84,21 @@ run_resume() {
   [ "$output" = "SessionStart" ]
 }
 
+@test "session start warns when the task store schema has drifted" {
+  mkdir -p "$CLAUDE_TQ_TASKS_DIR/old"
+  printf '{"subject":"no id/status — shape changed"}\n' > "$CLAUDE_TQ_TASKS_DIR/old/1.json"
+  run run_resume "s2" "/home/x/alpha"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no longer matches the expected schema"* ]]
+}
+
+@test "session start does not warn when the schema is intact" {
+  make_task s1 1 pending "Fine"
+  run run_resume "s2" "/home/x/alpha"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"no longer matches the expected schema"* ]]
+}
+
 # ---- resume (carried-over tasks) -------------------------------------------
 
 @test "resume surfaces a prior session's open tasks for the same repo" {
@@ -164,6 +179,18 @@ run_resume() {
   [ -f "$CLAUDE_TQ_STATE_DIR/root-cache.tsv" ]
   grep -q "s1" "$CLAUDE_TQ_STATE_DIR/root-cache.tsv"
   grep -q "alpha" "$CLAUDE_TQ_STATE_DIR/root-cache.tsv"
+}
+
+@test "a real-captured task file parses through resume and advance" {
+  # tests/fixtures/real-task.json is the exact key set Claude Code writes, so
+  # this guards our parsing against the true on-disk shape (not a hand-made fake).
+  make_session "s1" "/home/x/alpha"
+  mkdir -p "$CLAUDE_TQ_TASKS_DIR/s1"
+  cp "$ROOT/tests/fixtures/real-task.json" "$CLAUDE_TQ_TASKS_DIR/s1/7.json"
+  run run_resume "s2" "/home/x/alpha"
+  [[ "$output" == *"Wire the auth middleware"* ]]      # resume parses the real shape
+  run run_next "s1" "1"
+  [[ "$output" == *"#7 — Wire the auth middleware"* ]]  # advance parses blockedBy
 }
 
 # ---- auto-advance (TaskCompleted -> next unblocked task) -------------------
