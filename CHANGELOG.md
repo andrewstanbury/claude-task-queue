@@ -11,6 +11,20 @@ gate, a CLI, a status bar) into a featherweight **native-first** plugin: two
 event-driven hooks, **read-only** over Claude Code's own task store, with **zero
 per-prompt cost**. The breaking releases in that range reflect that rebuild.
 
+## [0.7.1] — 2026-05-30
+
+### Fixed
+- **Advance hook stranding tasks behind completed blockers.** Claude Code
+  removes a task's file when it's completed, so a finished blocker is *absent*
+  from the store — but the advance hook had compared `blockedBy` against a
+  "completed" set, so a task blocked by an earlier-completed (now-removed) task
+  was never surfaced as next. It now judges "blocked" against the set of
+  still-**open** tasks: an absent blocker can't block. Added a regression test.
+
+### Changed
+- CONTRACT.md documents the store's completion-removal lifecycle and the
+  absent-blocker-is-satisfied rule it implies.
+
 ## [0.7.0] — 2026-05-30
 
 ### Added
@@ -129,6 +143,7 @@ per-prompt cost**. The breaking releases in that range reflect that rebuild.
   status-bar reader. Queue persisted under `~/.claude/state/task-queue/`,
   surviving `/clear` and restarts.
 
+[0.7.1]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.7.1
 [0.7.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.7.0
 [0.6.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.6.0
 [0.5.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.5.0

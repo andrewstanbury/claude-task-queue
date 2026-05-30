@@ -32,6 +32,15 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
   We also use file **mtime** as a recency signal.
 - **Used by:** the resume bridge (open tasks from prior sessions) and the
   advance hook (next unblocked task).
+- **Lifecycle (observed 2026-05-30):** Claude Code **removes a task's file when
+  it is marked completed** — only *open* (pending/in_progress) tasks keep a file
+  on disk. (Older versions retained completed files; the current one does not.)
+  Two behaviors depend on this:
+  - The resume bridge naturally carries forward only *unfinished* work.
+  - The advance hook judges "blocked" against the set of still-OPEN tasks —
+    never a "completed" set — because a done blocker is simply *absent*, and an
+    absent blocker can't block. A `blockedBy` id with no task file is treated as
+    satisfied (it was either completed-and-removed or never existed).
 - **If it changes:** carry-over and/or auto-advance silently stop. The plugin
   degrades to policy-only injection — it does not error out.
 

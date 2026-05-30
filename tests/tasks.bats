@@ -205,12 +205,23 @@ run_resume() {
   [ -z "$output" ]
 }
 
-@test "advance stays silent when no pending task is unblocked" {
-  make_task         s1 1 completed "Done"
-  make_task_blocked s1 2 pending   "Still blocked" "9"
+@test "advance stays silent when every pending task is blocked by an open task" {
+  # Mutual block: both pending, each blocked by the other (still-open) task.
+  make_task_blocked s1 2 pending "Blocked by 3" "3"
+  make_task_blocked s1 3 pending "Blocked by 2" "2"
   run run_next "s1" "1"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
+}
+
+@test "advance surfaces a task whose blocker was completed earlier (file removed)" {
+  # Claude Code removes a completed task's file, so a done blocker is simply
+  # absent. #5 was blocked only by the now-gone #1; completing unrelated #2
+  # must surface #5 — an absent blocker can't block.
+  make_task_blocked s1 5 pending "Was blocked by removed 1" "1"
+  run run_next "s1" "2"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"#5 — Was blocked by removed 1"* ]]
 }
 
 @test "advance stays silent when the queue is drained" {
