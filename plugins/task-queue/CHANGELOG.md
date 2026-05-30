@@ -11,6 +11,20 @@ gate, a CLI, a status bar) into a featherweight **native-first** plugin: two
 event-driven hooks, **read-only** over Claude Code's own task store, with **zero
 per-prompt cost**. The breaking releases in that range reflect that rebuild.
 
+## [0.9.0] — 2026-05-30
+
+### Added
+- **Proactive capture — a conditional `UserPromptSubmit` hook** (`bin/tq-capture.sh`
+  + `lib/capture.sh`). It is **silent on almost every prompt**, speaking up only
+  when the prompt looks multi-step **and** the session queue is empty — exactly
+  when work should be captured but hasn't been. The checks are local bash/jq, so
+  it's **token-free unless it fires** — which is what makes it safe per-prompt,
+  unlike the unconditional `UserPromptSubmit` removed in 0.2.0. Disable with
+  `CLAUDE_TQ_CAPTURE_DISABLED=1`.
+- **Orientation nudge (token efficiency over time).** SessionStart now reminds
+  the model to record durable project structure/conventions in `CLAUDE.md`, so
+  future sessions orient cheaply instead of re-exploring the codebase each time.
+
 ## [0.8.0] — 2026-05-30
 
 ### Added
@@ -162,6 +176,7 @@ per-prompt cost**. The breaking releases in that range reflect that rebuild.
   status-bar reader. Queue persisted under `~/.claude/state/task-queue/`,
   surviving `/clear` and restarts.
 
+[0.9.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.9.0
 [0.8.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.8.0
 [0.7.1]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.7.1
 [0.7.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.7.0

@@ -99,6 +99,12 @@ run_resume() {
   [[ "$output" != *"no longer matches the expected schema"* ]]
 }
 
+@test "session start includes the orientation (CLAUDE.md) nudge" {
+  run run_resume "s2" "/home/x/alpha"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"record it concisely in CLAUDE.md"* ]]
+}
+
 # ---- resume (carried-over tasks) -------------------------------------------
 
 @test "resume surfaces a prior session's open tasks for the same repo" {

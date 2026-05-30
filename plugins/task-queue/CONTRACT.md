@@ -79,9 +79,19 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
 - **Output contract:** same shape as above, with
   `"hookEventName": "TaskCompleted"`.
 
-### 5. Hook wiring & env
+### 5. `UserPromptSubmit` hook payload (stdin)
 
-- `hooks/hooks.json` wires both entrypoints; Claude Code expands
+- **Fields read:** `prompt` (the user's text) and `session_id`.
+- **Behavior:** runs on every prompt but stays silent unless the prompt looks
+  multi-step *and* the session queue is empty (local bash/jq checks — no model
+  cost). Disabled with `CLAUDE_TQ_CAPTURE_DISABLED`.
+- **Output contract:** same shape, with `"hookEventName": "UserPromptSubmit"`.
+- **If it changes:** the proactive capture nudge silently stops; capture still
+  relies on the SessionStart policy.
+
+### 6. Hook wiring & env
+
+- `hooks/hooks.json` wires all entrypoints; Claude Code expands
   `${CLAUDE_PLUGIN_ROOT}` (plugin dir) and `${CLAUDE_PLUGIN_DATA}` (writable
   per-plugin state, used for the root cache).
 - Requires **Bash 4+** and **`jq`** on PATH.
