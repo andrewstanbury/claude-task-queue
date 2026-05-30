@@ -23,6 +23,18 @@ It's deliberately small: it lists the in-progress task(s) plus the most-recently
 
 **2. `tq`** — a zero-token terminal reader of the native store, for when *you* want to eyeball what's open across every project. It never enters Claude's context.
 
+## Read-only by design
+
+This plugin **never writes to Claude Code's task store.** `~/.claude/tasks` belongs to the model — it creates and updates tasks there as a normal part of working, and this plugin only ever *reads* those files.
+
+That's a deliberate boundary, not a limitation:
+
+- **No second source of truth.** There's no parallel queue, no database, no sync layer that could disagree with what Claude actually sees. The native store is the single source of truth; we render it.
+- **No desync.** Because we never mutate tasks, the plugin can't drift out of step with the model's own view. The `tq` reader and the resume note always reflect exactly what's on disk.
+- **The model stays in control.** Even the resume bridge doesn't write tasks — it hands Claude a short *note*, and Claude decides what to re-adopt via its own native `TaskCreate`. To change a task, you tell Claude; it updates the store; we read the result.
+
+The guiding rule for anything added here: **lean on native Claude Code features, and either read the store or feed the model context — never write task files directly.** It keeps the project small and impossible to desync.
+
 ## What you see
 
 When you resume work in a repo with unfinished tasks, Claude receives a note like:
@@ -83,7 +95,7 @@ tq path       print the native tasks directory being read
 tq help       help
 ```
 
-All read-only. There are no add/start/done commands by design: **Claude** owns the tasks, so the plugin never mutates them and never desyncs. To change a task, just tell Claude.
+All read-only — there are no add/start/done commands ([by design](#read-only-by-design)). To change a task, just tell Claude.
 
 ## How project grouping works
 
