@@ -26,7 +26,7 @@ tq_looks_multistep() {
   [ "$(printf '%s' "$p" | wc -w)" -ge 8 ] || return 1      # too short to be multi-step
   low="$(printf '%s' "$p" | tr '[:upper:]' '[:lower:]')"
   case "$low" in
-    *" and then "*|*" then "*|*", then "*|*" also "*|*" after that "*) return 0 ;;
+    *" then "*|*" also "*|*" after that "*) return 0 ;;   # " then " covers "and then" / ", then"
   esac
   printf '%s' "$p" | grep -qE '(^|[[:space:]])([0-9]+[.)]|[-*][[:space:]])' && return 0  # list markers
   for v in add fix implement refactor build create update remove rename migrate \
