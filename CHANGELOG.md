@@ -11,6 +11,28 @@ gate, a CLI, a status bar) into a featherweight **native-first** plugin: two
 event-driven hooks, **read-only** over Claude Code's own task store, with **zero
 per-prompt cost**. The breaking releases in that range reflect that rebuild.
 
+## [0.7.0] — 2026-05-30
+
+### Added
+- **Pause the backlog between tasks.** A per-repo pause suppresses the
+  `TaskCompleted` auto-advance so you can finish a task and stop, instead of
+  rolling into the next one.
+  - `bin/tq-pause.sh on|off|status` toggles a flag scoped to the repo root; the
+    pause **persists across sessions** until you resume.
+  - Natural-language control: the `SessionStart` hook injects the exact
+    `tq-pause.sh` command (with its resolved path) once per session, so "pause
+    the queue" / "resume the queue" works without a slash command.
+  - While paused, `TaskCompleted` stays silent (logged as `paused`), and
+    `SessionStart` surfaces a "PAUSED for this repo" banner so it's discoverable.
+  - `tq_pause_dir()` / `tq_pause_file()` / `tq_is_paused()` in `lib/tasks.sh`;
+    relocatable via `CLAUDE_TQ_PAUSE_DIR`.
+- `tests/pause.bats` — 8 cases (toggle, repo-root scoping, hook honoring the
+  pause, resume re-enabling, and the SessionStart hint + banner).
+
+### Changed
+- `TaskCompleted` now also reads `cwd` from its payload to resolve the repo root
+  for the pause check (falls back to the session transcript).
+
 ## [0.6.0] — 2026-05-30
 
 ### Added
@@ -107,6 +129,7 @@ per-prompt cost**. The breaking releases in that range reflect that rebuild.
   status-bar reader. Queue persisted under `~/.claude/state/task-queue/`,
   surviving `/clear` and restarts.
 
+[0.7.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.7.0
 [0.6.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.6.0
 [0.5.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.5.0
 [0.4.0]: https://github.com/andrewstanbury/claude-task-queue/commit/4b7b4f4

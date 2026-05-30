@@ -56,7 +56,9 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
 
 ### 4. `TaskCompleted` hook payload (stdin)
 
-- **Fields read:** `session_id`, `task_id` (the just-completed task).
+- **Fields read:** `session_id`, `task_id` (the just-completed task), and `cwd`
+  (used to resolve the repo root for the pause check; falls back to the session
+  transcript if absent).
 - **Timing is treated as unknown:** we do **not** assume the store file has been
   rewritten when the hook fires. The advance logic treats `task_id` as closed
   for `blockedBy` purposes, so it is correct whether the hook runs before or
@@ -93,7 +95,7 @@ The real boundary is therefore verified three other ways:
 
 ## Where the plugin writes (never the task store)
 
-Two small files, both outside `~/.claude/tasks`:
+Three small files, all outside `~/.claude/tasks`:
 
 - **Root cache** — `${CLAUDE_PLUGIN_DATA}/root-cache.tsv` (session→repo mapping;
   in plugin data so it survives updates).
@@ -101,6 +103,11 @@ Two small files, both outside `~/.claude/tasks`:
   `CLAUDE_TQ_LOG_DIR`, disabled via `CLAUDE_TQ_LOG_DISABLED`). A fixed home, so
   `tq-doctor` — run by hand with no plugin env — reads the same file the hooks
   write. Best-effort and append-only; it never blocks a hook.
+- **Pause flags** — `~/.claude/state/task-queue/paused/<encoded-repo-root>`
+  (overridable via `CLAUDE_TQ_PAUSE_DIR`). One empty file per paused repo; its
+  presence is the pause. A fixed home for the same reason as the log: the
+  `TaskCompleted` hook and `bin/tq-pause.sh` (run by the model in plain bash)
+  must resolve the identical path.
 
 If a dependency here drifts, prefer making the plugin **degrade quietly** (no
 output) over guessing — a missing nudge is invisible; a wrong one is noise.

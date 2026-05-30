@@ -35,9 +35,21 @@ input=""
 [ -t 0 ] || input="$(cat 2>/dev/null || true)"
 sid=""
 done_id=""
+cwd=""
 if [ -n "$input" ]; then
   sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
   done_id="$(printf '%s' "$input" | jq -r '.task_id // empty' 2>/dev/null || true)"
+  cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)"
+fi
+
+# Honor a per-repo pause: if auto-advance is paused for this repo, say nothing.
+# Resolve the repo from the payload cwd, falling back to the session transcript.
+root=""
+if [ -n "$cwd" ]; then root="$(tq_root_for_cwd "$cwd")"
+else root="$(tq_session_root "$sid" 2>/dev/null || true)"; fi
+if tq_is_paused "$root"; then
+  tq_log "advance" "silent (paused)" "$sid"
+  exit 0
 fi
 
 next="$(tq_next_context "$sid" "$done_id" 2>/dev/null || true)"

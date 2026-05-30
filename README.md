@@ -27,6 +27,12 @@ Injects a single block of context, once, when a session begins:
 
 Fires **only when the model marks a task done** — not per prompt — and, when there's a clear next step, injects a one-line note naming the next *unblocked* task (lowest id first, honoring `blockedBy`). That keeps the model moving down the queue in dependency order without being asked. It stays **silent** when another task is already `in_progress` (work is underway — a nudge would just distract) or when nothing is actionable (queue blocked, drained, or empty), so it never pushes the model to drain the backlog. To stay correct whether the hook fires before or after the native write, it treats the just-completed task as closed when checking dependencies.
 
+#### Pausing the backlog
+
+Sometimes you want to finish the current task and **stop** — not roll straight into the next one. Just say so in plain language ("pause the queue"); the model runs the bundled `bin/tq-pause.sh on` and auto-advance goes quiet. Say "resume the queue" (`off`) to turn it back on.
+
+The pause is a single flag file scoped to the **repo root**, so it **persists across sessions** — a paused repo stays paused until you resume. While paused, the `TaskCompleted` hook stays silent, and the next `SessionStart` reminds you the repo is paused so it's never a silent surprise. The `SessionStart` hook injects the exact command (with its resolved path) once per session, which is what makes the natural-language toggle work.
+
 After that, **Claude Code does the rest natively** — its task tools fill the queue, and its task view *is* the visible queue in the CLI. The plugin adds no UI, no second store, and nothing that runs per prompt: one short injection per session, plus one short note each time a task completes.
 
 ## Read-only by design
@@ -67,6 +73,7 @@ The resume note is tunable via environment variables (read by the `SessionStart`
 | `CLAUDE_TQ_RESUME_MAX_AGE_DAYS` | Skip sessions untouched longer than this (default `14`). |
 | `CLAUDE_TQ_LOG_DISABLED` | Set to `1` to turn off the activity log entirely. |
 | `CLAUDE_TQ_LOG_DIR` | Move the activity log (default `~/.claude/state/task-queue/`). |
+| `CLAUDE_TQ_PAUSE_DIR` | Move the per-repo pause flags (default `~/.claude/state/task-queue/paused/`). |
 
 The plugin caches each session's repo root under `${CLAUDE_PLUGIN_DATA}` so resolution stays fast across updates.
 
