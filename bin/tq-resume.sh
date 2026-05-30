@@ -53,6 +53,12 @@ resume="$(tq_resume_context "$root" "$sid" 2>/dev/null || true)"
 ctx="$POLICY"
 [ -n "$resume" ] && ctx="$ctx"$'\n\n'"$resume"
 
+if [ -n "$resume" ]; then
+  tq_log "session-start" "resume note surfaced" "$sid"
+else
+  tq_log "session-start" "policy only (no carry-over)" "$sid"
+fi
+
 # Emit as SessionStart additionalContext (added to the session's context once).
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'

@@ -78,14 +78,29 @@ The `bats` suite (`tests/tasks.bats`) **fakes** the layouts above via the
 **cannot detect a change in Claude Code's real format** — those tests would stay
 green while production silently broke.
 
-The real boundary is therefore verified two other ways:
+The real boundary is therefore verified three other ways:
 
 - **`tests/packaging.bats`** guards the shipped artifact (version sync, valid
   JSON, hook scripts exist) — see CI.
+- **`bin/tq-doctor.sh`** is the on-demand check: it validates every dependency
+  above against the *live* environment (not a fake), including a **schema
+  canary** that samples real task files and confirms they still carry the
+  `id`/`status` fields we read. Run it first when something stops working.
 - **Manual end-to-end:** after `claude plugin update task-queue`, start a fresh
   session, create two tasks, complete the first, and confirm the
   `Next unblocked task: #…` note appears. Run this whenever you bump the
   "observed against" version above.
+
+## Where the plugin writes (never the task store)
+
+Two small files, both outside `~/.claude/tasks`:
+
+- **Root cache** — `${CLAUDE_PLUGIN_DATA}/root-cache.tsv` (session→repo mapping;
+  in plugin data so it survives updates).
+- **Activity log** — `~/.claude/state/task-queue/activity.log` (overridable via
+  `CLAUDE_TQ_LOG_DIR`, disabled via `CLAUDE_TQ_LOG_DISABLED`). A fixed home, so
+  `tq-doctor` — run by hand with no plugin env — reads the same file the hooks
+  write. Best-effort and append-only; it never blocks a hook.
 
 If a dependency here drifts, prefer making the plugin **degrade quietly** (no
 output) over guessing — a missing nudge is invisible; a wrong one is noise.

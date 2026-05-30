@@ -41,10 +41,15 @@ if [ -n "$input" ]; then
 fi
 
 next="$(tq_next_context "$sid" "$done_id" 2>/dev/null || true)"
-[ -n "$next" ] || exit 0                 # nothing actionable — stay silent
+if [ -z "$next" ]; then
+  tq_log "advance" "silent (nothing actionable)" "$sid"   # in_progress or queue drained
+  exit 0
+fi
 
 IFS=$'\t' read -r nid nsubj nopen <<<"$next"
 ctx="[task-queue] Next unblocked task: #${nid} — ${nsubj} (${nopen} open). Pick it up next unless the user redirects."
+
+tq_log "advance" "-> #${nid} (${nopen} open)" "$sid"
 
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "TaskCompleted", additionalContext: $c}}'
