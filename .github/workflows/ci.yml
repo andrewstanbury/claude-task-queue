@@ -14,51 +14,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install bats
-        run: sudo apt-get update && sudo apt-get install -y bats
-        # jq and shellcheck are preinstalled on ubuntu-latest runners.
-
-      - name: Validate shipped JSON
+      - name: Install tools
         run: |
-          shopt -s nullglob
-          jq empty .claude-plugin/marketplace.json
-          for f in plugins/*/.claude-plugin/plugin.json plugins/*/hooks/hooks.json; do
-            echo "jq check: $f"; jq empty "$f"
-          done
-
-      - name: ShellCheck
-        # SC1091: libs are sourced by a computed path at runtime — expected.
-        run: |
-          shopt -s nullglob
-          files=(plugins/*/bin/*.sh plugins/*/lib/*.sh)
-          printf 'shellcheck: %s\n' "${files[@]}"
-          shellcheck -e SC1091 "${files[@]}"
-
-      - name: Secret scan (gitleaks)
-        run: |
+          sudo apt-get update && sudo apt-get install -y bats
           ver=8.21.2
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_linux_x64.tar.gz" \
             | tar -xz gitleaks
-          ./gitleaks detect --source . --no-git --redact
+          sudo mv gitleaks /usr/local/bin/gitleaks
+          # jq and shellcheck are preinstalled on ubuntu-latest runners.
 
-      - name: File-size guard
-        # Keep source files decomposable. Bump MAX deliberately, not by reflex.
-        run: |
-          shopt -s nullglob
-          MAX=300
-          fail=0
-          for f in plugins/*/bin/*.sh plugins/*/lib/*.sh; do
-            n=$(wc -l < "$f")
-            if [ "$n" -gt "$MAX" ]; then
-              echo "::error file=$f::$f has $n lines (> $MAX) — decompose it before growing further."
-              fail=1
-            fi
-          done
-          exit $fail
-
-      - name: Run bats suites
-        run: |
-          shopt -s nullglob
-          for d in plugins/*/tests; do
-            echo "== bats $d =="; bats "$d"
-          done
+      - name: Check
+        run: ./check.sh
