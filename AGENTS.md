@@ -11,7 +11,8 @@ A small **marketplace of self-contained Claude Code companion plugins**:
 
 - **`plugins/task-queue/`** — makes Claude Code's native task list a live work
   queue: a SessionStart policy + cross-session resume bridge + auto-advance to
-  the next unblocked task + a per-repo pause. **Read-only** over `~/.claude/tasks`.
+  the next unblocked task + a per-repo pause + a *conditional* (silent-unless-
+  needed) UserPromptSubmit capture nudge. **Read-only** over `~/.claude/tasks`.
 - **`plugins/tidy/`** — *tidy-as-you-touch*: formats and lint-checks the file you
   just edited (fixing only what's safe) so a project converges toward clean code
   over time, scoped to the touched file.

@@ -23,6 +23,12 @@ Injects a single block of context, once, when a session begins:
 
 **2. Resume.** It reads the native store for **open tasks left by earlier sessions in the same repo** and appends them, so the model re-adopts your unfinished work into the (otherwise empty) list. Capped and recency-bounded so it stays a brief note, not a dump.
 
+**3. Orientation nudge.** A one-liner asking the model to record durable project structure/conventions in `CLAUDE.md` — so future sessions orient cheaply instead of re-exploring, saving tokens over time.
+
+### A `UserPromptSubmit` hook — *capture* (silent unless needed)
+
+Runs on every prompt but is **silent on almost all of them**. It speaks up only when the prompt looks like **multi-step work** *and* your **task queue is empty** — exactly when work should be captured but hasn't been — nudging the model to `TaskCreate` the steps. The checks are local `bash`/`jq`, so it's **token-free unless it fires** (which is why it's safe to run per prompt, unlike the unconditional version this project removed long ago). Turn it off with `CLAUDE_TQ_CAPTURE_DISABLED=1`.
+
 ### A `TaskCompleted` hook — *advance*
 
 Fires **only when the model marks a task done** — not per prompt — and, when there's a clear next step, injects a one-line note naming the next *unblocked* task (lowest id first, honoring `blockedBy`). That keeps the model moving down the queue in dependency order without being asked. It stays **silent** when another task is already `in_progress` (work is underway — a nudge would just distract) or when nothing is actionable (queue blocked, drained, or empty), so it never pushes the model to drain the backlog. To stay correct whether the hook fires before or after the native write, it treats the just-completed task as closed when checking dependencies.
@@ -71,6 +77,7 @@ The resume note is tunable via environment variables (read by the `SessionStart`
 |---|---|
 | `CLAUDE_TQ_RESUME_MAX` | Max todos listed in the resume note (default `7`; in-progress tasks are always shown). |
 | `CLAUDE_TQ_RESUME_MAX_AGE_DAYS` | Skip sessions untouched longer than this (default `14`). |
+| `CLAUDE_TQ_CAPTURE_DISABLED` | Set to `1` to turn off the proactive `UserPromptSubmit` capture nudge. |
 | `CLAUDE_TQ_LOG_DISABLED` | Set to `1` to turn off the activity log entirely. |
 | `CLAUDE_TQ_LOG_DIR` | Move the activity log (default `~/.claude/state/task-queue/`). |
 | `CLAUDE_TQ_PAUSE_DIR` | Move the per-repo pause flags (default `~/.claude/state/task-queue/paused/`). |

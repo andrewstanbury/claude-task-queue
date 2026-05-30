@@ -54,7 +54,12 @@ resume="$(tq_resume_context "$root" "$sid" 2>/dev/null || true)"
 # model the exact command (with the resolved path) so "pause the queue" works.
 pause_hint="To pause or resume task auto-advance when the user asks, run: bash \"$PLUGIN_DIR/bin/tq-pause.sh\" on|off — it persists per repo."
 
-ctx="$POLICY"$'\n\n'"$pause_hint"
+# Orientation nudge: compounding token savings — if the model records durable
+# project knowledge in CLAUDE.md, future sessions orient cheaply instead of
+# re-exploring the codebase from scratch every time.
+orient_hint="If you learn something durable about this project's structure or conventions while working, record it concisely in CLAUDE.md — future sessions then orient without re-exploring, which saves tokens over time."
+
+ctx="$POLICY"$'\n\n'"$pause_hint"$'\n\n'"$orient_hint"
 [ -n "$resume" ] && ctx="$ctx"$'\n\n'"$resume"
 
 paused=0
