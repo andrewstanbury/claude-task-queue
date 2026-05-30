@@ -50,14 +50,22 @@ fi
 root="$(tq_root_for_cwd "$cwd")"
 resume="$(tq_resume_context "$root" "$sid" 2>/dev/null || true)"
 
-ctx="$POLICY"
+# One-line, once-per-session enabler for natural-language pause/resume: give the
+# model the exact command (with the resolved path) so "pause the queue" works.
+pause_hint="To pause or resume task auto-advance when the user asks, run: bash \"$PLUGIN_DIR/bin/tq-pause.sh\" on|off — it persists per repo."
+
+ctx="$POLICY"$'\n\n'"$pause_hint"
 [ -n "$resume" ] && ctx="$ctx"$'\n\n'"$resume"
 
-if [ -n "$resume" ]; then
-  tq_log "session-start" "resume note surfaced" "$sid"
-else
-  tq_log "session-start" "policy only (no carry-over)" "$sid"
+paused=0
+if tq_is_paused "$root"; then
+  paused=1
+  ctx="$ctx"$'\n\n'"⏸ Auto-advance is currently PAUSED for this repo — completing a task will NOT surface the next one until you resume (bash \"$PLUGIN_DIR/bin/tq-pause.sh\" off)."
 fi
+
+tq_log "session-start" \
+  "$( [ -n "$resume" ] && printf 'resume surfaced' || printf 'policy only' )$( [ "$paused" -eq 1 ] && printf ', paused' )" \
+  "$sid"
 
 # Emit as SessionStart additionalContext (added to the session's context once).
 jq -cn --arg c "$ctx" \

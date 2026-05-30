@@ -32,6 +32,14 @@ tq_root_cache_file() { printf '%s/root-cache.tsv' "$(tq_state_dir)"; }
 tq_log_dir()         { printf '%s' "${CLAUDE_TQ_LOG_DIR:-$HOME/.claude/state/task-queue}"; }
 tq_log_file()        { printf '%s/activity.log' "$(tq_log_dir)"; }
 
+# Pause flags share the same fixed-home rationale as the log: the TaskCompleted
+# hook (CLAUDE_TQ_STATE_DIR=CLAUDE_PLUGIN_DATA) and bin/tq-pause.sh (run by the
+# model in plain bash, no plugin env) must resolve the SAME path. One flag file
+# per repo, named by the encoded repo root, so pause persists across sessions.
+tq_pause_dir()       { printf '%s' "${CLAUDE_TQ_PAUSE_DIR:-$HOME/.claude/state/task-queue/paused}"; }
+tq_pause_file()      { printf '%s/%s' "$(tq_pause_dir)" "$(printf '%s' "$1" | sed 's:/:-:g')"; }
+tq_is_paused()       { [ -n "${1:-}" ] && [ -f "$(tq_pause_file "$1")" ]; }
+
 # ---- observability ----------------------------------------------------------
 
 # Append one best-effort diagnostic line: "<iso-ts>\t<event>\t<sid8>\t<detail>".
