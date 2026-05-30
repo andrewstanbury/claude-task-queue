@@ -50,7 +50,16 @@ run_touch() {
   [ "$output" = "SessionStart" ]
   run bash -c 'printf "{}" | "$1" | jq -r .hookSpecificOutput.additionalContext' _ "$STANDARD"
   [[ "$output" == *"Clean-as-you-go"* ]]
-  [[ "$output" == *"scope of your change"* ]]
+  [[ "$output" == *"scoped to what you touch"* ]]
+}
+
+@test "standard hook: full on startup, lean re-anchor on compact" {
+  run bash -c 'printf "{\"source\":\"startup\"}" | "$1" | jq -r .hookSpecificOutput.additionalContext' _ "$STANDARD"
+  [[ "$output" == *"ratchet, do not sweep"* ]]          # full standard
+  [[ "$output" != *"(reminder)"* ]]
+  run bash -c 'printf "{\"source\":\"compact\"}" | "$1" | jq -r .hookSpecificOutput.additionalContext' _ "$STANDARD"
+  [[ "$output" == *"(reminder)"* ]]                     # lean
+  [[ "$output" != *"ratchet, do not sweep"* ]]
 }
 
 # ---- no-op paths ------------------------------------------------------------

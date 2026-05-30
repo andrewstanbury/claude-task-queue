@@ -33,8 +33,9 @@ This plugin is deliberately conservative because it *mutates files*:
 
 ### 2. `SessionStart` hook payload (stdin)
 
-- Nothing read from it; emits the clean-as-you-go standard as
-  `additionalContext` with `hookEventName: "SessionStart"`.
+- Reads only `source`: the full standard on `startup`/`clear`/unknown, a lean
+  re-anchor on `compact`/`resume`. Emits `additionalContext` with
+  `hookEventName: "SessionStart"`.
 
 ### 3. The language toolchain (environment, optional)
 

@@ -34,53 +34,57 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 # shellcheck source=../lib/tasks.sh
 . "$PLUGIN_DIR/lib/tasks.sh"
 
-POLICY='[task-queue] Treat your native task list as the live work queue. When a prompt describes a task, fix, or multi-step request, capture the items with TaskCreate before starting (skip trivial or conversational prompts) so they show up in the queue. Work the queue in dependency order (honor blockedBy), batch same-area tasks to save context, prefer inline over subagents, and advance as you go without draining the backlog unprompted.'
+# Trimmed standing policy (re-injected on each fresh SessionStart, so kept lean).
+POLICY='[task-queue] Your native task list IS the live work queue. Capture multi-step work with TaskCreate (skip trivial/chat) before starting, work it in dependency order (honor blockedBy), and advance as you finish — without draining the backlog unprompted.'
 
 # SessionStart hands us JSON on stdin: { session_id, cwd, source, ... }.
 input=""
 [ -t 0 ] || input="$(cat 2>/dev/null || true)"
-sid=""
-cwd=""
+sid=""; cwd=""; src=""
 if [ -n "$input" ]; then
   sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
   cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)"
+  src="$(printf '%s' "$input" | jq -r '.source // empty' 2>/dev/null || true)"
 fi
 [ -n "$cwd" ] || cwd="$PWD"
-
 root="$(tq_root_for_cwd "$cwd")"
-resume="$(tq_resume_context "$root" "$sid" 2>/dev/null || true)"
+pause_cmd="bash \"$PLUGIN_DIR/bin/tq-pause.sh\""
 
-# One-line, once-per-session enabler for natural-language pause/resume: give the
-# model the exact command (with the resolved path) so "pause the queue" works.
-pause_hint="To pause or resume task auto-advance when the user asks, run: bash \"$PLUGIN_DIR/bin/tq-pause.sh\" on|off — it persists per repo."
+# Source-aware: inject the full block on a fresh context (startup / clear / and
+# any unknown source — the safe default), but only a lean one-line re-anchor on
+# compact / resume, where the model already saw the policy this session. The
+# pause command rides along in both so natural-language pause survives a compact.
+case "$src" in
+  compact|resume) lean=1 ;;
+  *)              lean=0 ;;
+esac
 
-# Orientation nudge: compounding token savings — if the model records durable
-# project knowledge in CLAUDE.md, future sessions orient cheaply instead of
-# re-exploring the codebase from scratch every time.
-orient_hint="If you learn something durable about this project's structure or conventions while working, record it concisely in CLAUDE.md — future sessions then orient without re-exploring, which saves tokens over time."
+if [ "$lean" -eq 1 ]; then
+  ctx="[task-queue] (reminder) native task list = live queue: capture work with TaskCreate, work in dependency order, advance as you finish. Pause/resume on request: $pause_cmd on|off."
+else
+  pause_hint="Pause/resume auto-advance on request: $pause_cmd on|off (per repo, persists)."
+  orient_hint="Learned something durable about this project's layout or conventions? Record it in CLAUDE.md so future sessions skip re-exploring (saves tokens over time)."
+  ctx="$POLICY"$'\n\n'"$pause_hint"$'\n\n'"$orient_hint"
+  resume="$(tq_resume_context "$root" "$sid" 2>/dev/null || true)"
+  [ -n "$resume" ] && ctx="$ctx"$'\n\n'"$resume"
+fi
 
-ctx="$POLICY"$'\n\n'"$pause_hint"$'\n\n'"$orient_hint"
-[ -n "$resume" ] && ctx="$ctx"$'\n\n'"$resume"
-
+# State signals — always shown, regardless of source.
 paused=0
 if tq_is_paused "$root"; then
   paused=1
-  ctx="$ctx"$'\n\n'"⏸ Auto-advance is currently PAUSED for this repo — completing a task will NOT surface the next one until you resume (bash \"$PLUGIN_DIR/bin/tq-pause.sh\" off)."
+  ctx="$ctx"$'\n\n'"⏸ Auto-advance is PAUSED for this repo — completing a task won't surface the next until you resume ($pause_cmd off)."
 fi
-
-# Drift canary: if the native task store no longer matches the schema we read,
-# say so once — this is how a never-reviewed install notices a Claude Code
-# format change instead of failing silently. Fires only on a real mismatch.
 drift=0
 if [ "$(tq_schema_status 2>/dev/null || true)" = "drift" ]; then
   drift=1
-  ctx="$ctx"$'\n\n'"⚠️ [task-queue] The native task store no longer matches the expected schema — Claude Code may have changed it, so carry-over and auto-advance may be degraded. Run \"$PLUGIN_DIR/bin/tq-doctor.sh\" and check CONTRACT.md."
+  ctx="$ctx"$'\n\n'"⚠️ [task-queue] The native task store no longer matches the expected schema — Claude Code may have changed it; carry-over/advance may be degraded. Run $PLUGIN_DIR/bin/tq-doctor.sh (see CONTRACT.md)."
 fi
 
 tq_log "session-start" \
-  "$( [ -n "$resume" ] && printf 'resume surfaced' || printf 'policy only' )$( [ "$paused" -eq 1 ] && printf ', paused' )$( [ "$drift" -eq 1 ] && printf ', SCHEMA DRIFT' )" \
+  "src=${src:-?} mode=$( [ "$lean" -eq 1 ] && printf 'lean' || printf 'full' )$( [ "$paused" -eq 1 ] && printf ', paused' )$( [ "$drift" -eq 1 ] && printf ', DRIFT' )" \
   "$sid"
 
-# Emit as SessionStart additionalContext (added to the session's context once).
+# Emit as SessionStart additionalContext.
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'

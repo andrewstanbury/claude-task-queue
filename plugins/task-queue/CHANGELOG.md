@@ -11,6 +11,19 @@ gate, a CLI, a status bar) into a featherweight **native-first** plugin: two
 event-driven hooks, **read-only** over Claude Code's own task store, with **zero
 per-prompt cost**. The breaking releases in that range reflect that rebuild.
 
+## [0.10.0] — 2026-05-31
+
+### Changed
+- **Leaner SessionStart injection (token efficiency).** Trimmed the standing
+  policy / pause / orientation text (dropped wording that duplicated Claude
+  Code's native task-nudging). The full block dropped from ~206 to ~141 tokens.
+- **Source-aware injection.** The `SessionStart` payload's `source` is now used:
+  the full block injects on `startup`/`clear` (and any unknown source — the safe
+  default), but only a **lean one-line re-anchor** on `compact`/`resume`, where
+  the model already saw the policy this session. The pause command and any
+  paused/drift state signals still ride along. On a compaction-heavy session
+  this cuts the per-injection cost to ~63 tokens.
+
 ## [0.9.0] — 2026-05-30
 
 ### Added
@@ -176,6 +189,7 @@ per-prompt cost**. The breaking releases in that range reflect that rebuild.
   status-bar reader. Queue persisted under `~/.claude/state/task-queue/`,
   surviving `/clear` and restarts.
 
+[0.10.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.10.0
 [0.9.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.9.0
 [0.8.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.8.0
 [0.7.1]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.7.1

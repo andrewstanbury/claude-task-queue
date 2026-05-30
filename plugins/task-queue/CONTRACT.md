@@ -62,10 +62,12 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
 
 ### 3. `SessionStart` hook payload (stdin)
 
-- **Fields read:** `session_id`, `cwd` (and `source` is present but unused).
+- **Fields read:** `session_id`, `cwd`, and `source` — `source` selects the full
+  policy block (`startup`/`clear`/unknown) vs. a lean re-anchor
+  (`compact`/`resume`). An unknown/missing source falls back to the full block.
 - **Output contract:** we emit
   `{ "hookSpecificOutput": { "hookEventName": "SessionStart", "additionalContext": "<text>" } }`
-  — injected into the session context once.
+  — injected into the session context.
 
 ### 4. `TaskCompleted` hook payload (stdin)
 
