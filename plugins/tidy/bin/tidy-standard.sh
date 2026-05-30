@@ -1,18 +1,29 @@
 #!/usr/bin/env bash
 # SessionStart hook — set the clean-as-you-go standard, once per session.
 #
-# A standing instruction (judgment guidance a hook can't enforce): leave files
-# you touch cleaner than you found them, scoped to your change. Said once, it
-# governs the session at no per-prompt cost. The deterministic half — format +
-# lint on every edit — is the PostToolUse hook (bin/tidy-touch.sh).
+# Judgment guidance a hook can't enforce: leave files you touch cleaner than you
+# found them, scoped to your change. Source-aware — the full standard on a fresh
+# context (startup/clear/unknown), a lean re-anchor on compact/resume where the
+# model already saw it this session. The deterministic half (format + lint + TDD
+# nudge on every edit) is the PostToolUse hook (bin/tidy-touch.sh).
 
 set -euo pipefail
 
-STANDARD='[tidy] Clean-as-you-go standard for this session. Improve code as you touch it, but ONLY within the scope of your change — ratchet, do not sweep:
-- Test-first (TDD): before changing logic, add or extend a failing test for the new behavior, then make it pass; ensure what you changed is covered. In legacy code, write a characterization test before refactoring.
-- Honor the project'"'"'s formatter and linter on files you touch (this plugin auto-formats supported files and surfaces findings). Treat findings in code you touched as must-fix; leave unrelated pre-existing issues alone.
-- Clean code: small focused functions, clear names, no dead code, errors handled.
-- Clean architecture: no new cross-layer or cyclic dependencies; keep modules cohesive; do not grow a god-file — extract new logic into a focused unit rather than appending to a bloated one.'
+input=""
+[ -t 0 ] || input="$(cat 2>/dev/null || true)"
+src=""
+[ -n "$input" ] && src="$(printf '%s' "$input" | jq -r '.source // empty' 2>/dev/null || true)"
 
-jq -cn --arg c "$STANDARD" \
+case "$src" in
+  compact|resume)
+    ctx='[tidy] (reminder) clean-as-you-go, scoped to your change: test-first; fix linter findings in code you touched; do not grow god-files.' ;;
+  *)
+    ctx='[tidy] Clean-as-you-go, scoped to what you touch — ratchet, do not sweep:
+- TDD: add or extend a failing test before changing logic, then make it pass, and cover what you changed. Characterization-test legacy code before refactoring.
+- Fix linter findings in code you touched (the plugin auto-formats supported files and surfaces findings); leave unrelated pre-existing issues alone.
+- Clean code: small focused functions, clear names, no dead code, handled errors.
+- Clean architecture: no new cross-layer or cyclic dependencies; do not grow a god-file — extract new logic into a focused unit.' ;;
+esac
+
+jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'

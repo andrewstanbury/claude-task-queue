@@ -102,7 +102,26 @@ run_resume() {
 @test "session start includes the orientation (CLAUDE.md) nudge" {
   run run_resume "s2" "/home/x/alpha"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"record it concisely in CLAUDE.md"* ]]
+  [[ "$output" == *"Record it in CLAUDE.md"* ]]
+}
+
+# run_resume sets source:"startup" → full block. Helper for other sources:
+resume_with_source() {
+  local src="$1" json
+  json="$(jq -nc --arg c "/home/x/alpha" --arg s "$src" \
+            '{session_id:"s2", cwd:$c, source:$s}')"
+  printf '%s' "$json" | "$RESUME" | jq -r '.hookSpecificOutput.additionalContext'
+}
+
+@test "source-aware: full policy on startup, lean re-anchor on compact" {
+  run resume_with_source "startup"
+  [[ "$output" == *"without draining the backlog"* ]]   # full policy
+  [[ "$output" != *"(reminder)"* ]]
+
+  run resume_with_source "compact"
+  [[ "$output" == *"(reminder)"* ]]                      # lean re-anchor
+  [[ "$output" != *"without draining the backlog"* ]]
+  [[ "$output" == *"tq-pause.sh"* ]]                     # pause command still rides along
 }
 
 # ---- resume (carried-over tasks) -------------------------------------------

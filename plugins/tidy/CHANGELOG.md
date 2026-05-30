@@ -5,6 +5,14 @@ All notable changes to the **tidy** plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-05-31
+
+### Changed
+- **Leaner, source-aware SessionStart standard (token efficiency).** Trimmed the
+  standard (~214 → ~149 tokens) and made it source-aware: the full standard
+  injects on `startup`/`clear`, a lean one-line re-anchor (~33 tokens) on
+  `compact`/`resume` where the model already saw it this session.
+
 ## [0.3.0] — 2026-05-30
 
 ### Added
@@ -52,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MVP targets **Go**; other languages no-op gracefully.
 - `bats` suite (Go tooling faked on `PATH`), README, CONTRACT.
 
+[0.4.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/tidy-v0.4.0
 [0.3.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/tidy-v0.3.0
 [0.2.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/tidy-v0.2.0
 [0.1.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/tidy-v0.1.0
