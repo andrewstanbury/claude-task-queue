@@ -2,12 +2,12 @@
   "name": "andrewstanbury",
   "owner": { "name": "Andrew Stanbury" },
   "metadata": {
-    "description": "Native-first companions to Claude Code's task list."
+    "description": "Native-first, low-friction companion plugins for Claude Code."
   },
   "plugins": [
     {
       "name": "task-queue",
-      "source": "./",
+      "source": "./plugins/task-queue",
       "description": "Resume bridge + auto-advance for Claude Code's native task list — re-surfaces a repo's unfinished tasks from earlier sessions and points the model at the next unblocked task as each one completes.",
       "version": "0.7.1"
     }

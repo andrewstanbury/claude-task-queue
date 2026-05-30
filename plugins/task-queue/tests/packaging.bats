@@ -6,22 +6,22 @@
 # manifests, or a hooks.json entry pointing at a script that doesn't exist.
 
 setup() {
-  ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"      # this plugin's root
+  REPO_ROOT="$(cd "$ROOT/../.." && pwd)"           # monorepo root: plugins/<name>/ -> repo
+  MARKETPLACE="$REPO_ROOT/.claude-plugin/marketplace.json"
 }
 
-@test "plugin.json and marketplace.json declare the same version" {
+@test "plugin.json version matches this plugin's marketplace entry" {
   plugin_v="$(jq -r '.version' "$ROOT/.claude-plugin/plugin.json")"
-  market_v="$(jq -r '.plugins[] | select(.name=="task-queue") | .version' \
-                "$ROOT/.claude-plugin/marketplace.json")"
+  market_v="$(jq -r '.plugins[] | select(.name=="task-queue") | .version' "$MARKETPLACE")"
   [ -n "$plugin_v" ]
   [ "$plugin_v" = "$market_v" ]
 }
 
 @test "all shipped JSON is valid" {
-  for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json hooks/hooks.json; do
-    run jq empty "$ROOT/$f"
-    [ "$status" -eq 0 ]
-  done
+  run jq empty "$ROOT/.claude-plugin/plugin.json" ; [ "$status" -eq 0 ]
+  run jq empty "$ROOT/hooks/hooks.json"           ; [ "$status" -eq 0 ]
+  run jq empty "$MARKETPLACE"                      ; [ "$status" -eq 0 ]
 }
 
 @test "every script referenced in hooks.json exists and is executable" {

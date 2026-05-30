@@ -20,15 +20,19 @@ jobs:
 
       - name: Validate shipped JSON
         run: |
-          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json hooks/hooks.json; do
-            echo "jq check: $f"
-            jq empty "$f"
+          shopt -s nullglob
+          jq empty .claude-plugin/marketplace.json
+          for f in plugins/*/.claude-plugin/plugin.json plugins/*/hooks/hooks.json; do
+            echo "jq check: $f"; jq empty "$f"
           done
 
       - name: ShellCheck
-        # SC1091: lib/tasks.sh is sourced by a computed path at runtime, so
-        # shellcheck can't statically follow it — that's expected, not a defect.
-        run: shellcheck -e SC1091 bin/*.sh lib/*.sh
+        # SC1091: libs are sourced by a computed path at runtime — expected.
+        run: |
+          shopt -s nullglob
+          files=(plugins/*/bin/*.sh plugins/*/lib/*.sh)
+          printf 'shellcheck: %s\n' "${files[@]}"
+          shellcheck -e SC1091 "${files[@]}"
 
       - name: Secret scan (gitleaks)
         run: |
@@ -40,9 +44,10 @@ jobs:
       - name: File-size guard
         # Keep source files decomposable. Bump MAX deliberately, not by reflex.
         run: |
+          shopt -s nullglob
           MAX=300
           fail=0
-          for f in bin/*.sh lib/*.sh; do
+          for f in plugins/*/bin/*.sh plugins/*/lib/*.sh; do
             n=$(wc -l < "$f")
             if [ "$n" -gt "$MAX" ]; then
               echo "::error file=$f::$f has $n lines (> $MAX) — decompose it before growing further."
@@ -51,5 +56,9 @@ jobs:
           done
           exit $fail
 
-      - name: Run bats suite
-        run: bats tests/
+      - name: Run bats suites
+        run: |
+          shopt -s nullglob
+          for d in plugins/*/tests; do
+            echo "== bats $d =="; bats "$d"
+          done
