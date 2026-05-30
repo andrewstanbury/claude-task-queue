@@ -1,6 +1,6 @@
 # claude-task-queue
 
-A **native-first** Claude Code plugin that makes your task queue *live* — with a single, once-per-session hook and **zero per-prompt cost**. It doesn't invent a queue, a database, or a status bar. It leans entirely on the task list Claude Code already maintains (and already renders in the CLI), and just primes the model to keep that list filled, ordered, and carried across sessions.
+A **native-first** Claude Code plugin that makes your task queue *live* — with a couple of event-driven hooks and **zero per-prompt cost**. It doesn't invent a queue, a database, or a status bar. It leans entirely on the task list Claude Code already maintains (and already renders in the CLI), and just primes the model to keep that list filled, ordered, carried across sessions, and moving.
 
 ## The idea
 
@@ -11,21 +11,27 @@ As Claude Code works it maintains a real task list — it calls its native task 
   "status": "in_progress", "blocks": [], "blockedBy": [] }
 ```
 
-When the model creates or updates tasks, Claude Code **renders that list live in the terminal**. That's the queue — it already exists and already renders. The catches are: the model only fills it when *it* decides to, and the list is per-session working memory that starts empty every time. This plugin nudges both, with two hooks and nothing else.
+When the model creates or updates tasks, Claude Code **renders that list live in the terminal**. That's the queue — it already exists and already renders. The catches are: the model only fills it when *it* decides to, the list is per-session working memory that starts empty every time, and once it's filled the model can lose momentum and let it stall. This plugin nudges all three, with two event-driven hooks and nothing else.
 
 ## What it does
 
-The whole plugin is **one `SessionStart` hook** that injects a single block of context, once, when a session begins:
+### A `SessionStart` hook — *fill and resume*
+
+Injects a single block of context, once, when a session begins:
 
 **1. Queue policy (a standing instruction).** It tells the model to treat its native task list as the live work queue: capture described work with `TaskCreate` so it shows in the queue, work the queue in dependency order (honoring `blockedBy`), batch same-area tasks, prefer inline over subagents, and advance as you go without draining the backlog. Stated *once*, this governs the whole session — so population and ordering happen with **no per-prompt token cost**, reinforced by Claude Code's own built-in task nudges.
 
 **2. Resume.** It reads the native store for **open tasks left by earlier sessions in the same repo** and appends them, so the model re-adopts your unfinished work into the (otherwise empty) list. Capped and recency-bounded so it stays a brief note, not a dump.
 
-After that, **Claude Code does the rest natively** — its task tools fill the queue, and its task view *is* the visible queue in the CLI. The plugin adds no UI, no second store, and nothing that runs per prompt. The only token cost is one short injection per session.
+### A `TaskCompleted` hook — *advance*
+
+Fires **only when the model marks a task done** — not per prompt — and, when there's a clear next step, injects a one-line note naming the next *unblocked* task (lowest id first, honoring `blockedBy`). That keeps the model moving down the queue in dependency order without being asked. It stays **silent** when another task is already `in_progress` (work is underway — a nudge would just distract) or when nothing is actionable (queue blocked, drained, or empty), so it never pushes the model to drain the backlog. To stay correct whether the hook fires before or after the native write, it treats the just-completed task as closed when checking dependencies.
+
+After that, **Claude Code does the rest natively** — its task tools fill the queue, and its task view *is* the visible queue in the CLI. The plugin adds no UI, no second store, and nothing that runs per prompt: one short injection per session, plus one short note each time a task completes.
 
 ## Read-only by design
 
-This plugin **never writes to Claude Code's task store.** `~/.claude/tasks` belongs to the model — it creates and updates tasks there, and this plugin only ever *reads* (the resume bridge) or *nudges the model* (the live-queue hook). It never calls `TaskCreate` itself.
+This plugin **never writes to Claude Code's task store.** `~/.claude/tasks` belongs to the model — it creates and updates tasks there, and this plugin only ever *reads* it (the resume bridge and the advance hook both scan task files) or *nudges the model* (every hook just injects context). It never calls `TaskCreate`/`TaskUpdate` itself.
 
 That's a deliberate boundary:
 
@@ -42,10 +48,9 @@ This is a native Claude Code plugin (requires Claude Code 2.x with the plugin sy
 ```bash
 claude plugin marketplace add andrewstanbury/claude-task-queue
 claude plugin install task-queue@andrewstanbury
-claude plugin enable task-queue
 ```
 
-The plugin ships **disabled by default** (`defaultEnabled: false`) because its hooks add a small amount to the model's context — you opt in with `enable`. Restart Claude Code (or start a new session) for the hooks to take effect.
+The plugin is **enabled by default** (`defaultEnabled: true`) — installing it is enough, no separate `enable` step. Its hooks are event-driven and add only a short injection per session (plus one short note per task completion), so the cost is minimal. Restart Claude Code (or start a new session) for the hooks to take effect. To opt out without uninstalling, run `claude plugin disable task-queue`.
 
 - **Update:** `claude plugin update task-queue`
 - **Disable / uninstall:** `claude plugin disable task-queue` · `claude plugin uninstall task-queue`
