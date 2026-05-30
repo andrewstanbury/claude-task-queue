@@ -72,6 +72,8 @@ The plugin caches each session's repo root under `${CLAUDE_PLUGIN_DATA}` so reso
 
 A task folder is keyed by session id. The resume bridge finds that session's transcript at `~/.claude/projects/<encoded-cwd>/<session-id>.jsonl`, reads its `cwd`, and resolves the **git repo root** (falling back to the cwd itself outside a repo). Only tasks rooted at the repo you're starting in are carried over.
 
+The plugin reads a handful of Claude Code's **internal** files and hook payloads to do this. Exactly which ones — and how the plugin degrades if they change — is documented in [CONTRACT.md](./CONTRACT.md).
+
 ## Requirements
 
 - Claude Code 2.x (native plugin system + task store under `~/.claude/tasks`)
@@ -83,7 +85,7 @@ A task folder is keyed by session id. The resume bridge finds that session's tra
 bats tests/
 ```
 
-The suite fakes a task store + transcripts via `CLAUDE_TQ_*` overrides and asserts what each hook injects. No model calls — there's nothing to mock.
+`tasks.bats` fakes a task store + transcripts via `CLAUDE_TQ_*` overrides and asserts what each hook injects (no model calls — nothing to mock); `packaging.bats` guards the shipped artifact (version sync, valid JSON, hook scripts exist). Both run in CI on every push and PR, alongside `shellcheck`. Because the suite *fakes* Claude Code's file layout, it can't catch a change in those internals — that boundary is covered by [CONTRACT.md](./CONTRACT.md) and the manual end-to-end check it describes.
 
 ## License
 
