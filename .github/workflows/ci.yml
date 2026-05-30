@@ -26,7 +26,8 @@ jobs:
           done
 
       - name: ShellCheck
-        run: shellcheck bin/*.sh lib/*.sh
+        # -x follows the `# shellcheck source=` directives into lib/tasks.sh.
+        run: shellcheck -x bin/*.sh lib/*.sh
 
       - name: Run bats suite
         run: bats tests/
