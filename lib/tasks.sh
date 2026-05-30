@@ -191,13 +191,13 @@ tq_next_context() {
 
   # Slurp every task, treat done_id as closed, and pick the lowest-id pending
   # task whose blockedBy are all closed — unless something is still in_progress.
-  jq -rs --arg done "$done_id" '
-    ( [ .[] | select(.status=="completed") | .id ] + ( $done | if . == "" then [] else [.] end ) ) as $closed
-    | { inprog: [ .[] | select(.status=="in_progress") | select(.id != $done) ],
-        open:   [ .[] | select(.status=="pending" or .status=="in_progress") | select(.id != $done) ],
+  jq -rs --arg doneid "$done_id" '
+    ( [ .[] | select(.status=="completed") | .id ] + ( $doneid | if . == "" then [] else [.] end ) ) as $closed
+    | { inprog: [ .[] | select(.status=="in_progress") | select(.id != $doneid) ],
+        open:   [ .[] | select(.status=="pending" or .status=="in_progress") | select(.id != $doneid) ],
         next:   ( [ .[]
                     | select(.status=="pending")
-                    | select(.id != $done)
+                    | select(.id != $doneid)
                     | select(((.blockedBy // []) - $closed) | length == 0) ]
                   | sort_by((.id | tonumber?) // 0)
                   | .[0] ) }

@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+        # jq and shellcheck are preinstalled on ubuntu-latest runners.
+
+      - name: Validate shipped JSON
+        run: |
+          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json hooks/hooks.json; do
+            echo "jq check: $f"
+            jq empty "$f"
+          done
+
+      - name: ShellCheck
+        # SC1091: lib/tasks.sh is sourced by a computed path at runtime, so
+        # shellcheck can't statically follow it — that's expected, not a defect.
+        run: shellcheck -e SC1091 bin/*.sh lib/*.sh
+
+      - name: Run bats suite
+        run: bats tests/
