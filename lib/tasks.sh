@@ -159,3 +159,49 @@ tq_resume_context() {
       if (more > 0) printf "  …and %d more todo%s.\n", more, (more==1?"":"s")
     }'
 }
+
+# ---- auto-advance ------------------------------------------------------------
+
+# Build the "next task" note for a TaskCompleted event: name the next unblocked
+# pending task in the CURRENT session's native list so the model keeps moving
+# down the queue in dependency order without being asked. Read-only — it never
+# writes the store; the model still owns advancing via its own task tools.
+#
+# Stays SILENT (prints nothing) unless there's a clear single next step:
+#   - nothing if another task is already in_progress (work is already underway —
+#     a nudge would just distract), or
+#   - nothing if no pending task is unblocked (queue blocked, drained, or empty).
+# Picks the lowest-numbered unblocked pending task, matching the "work in ID
+# order" convention. The just-completed id is treated as closed even if the
+# store file hasn't been rewritten yet, so the result is correct regardless of
+# whether TaskCompleted fires before or after the native write.
+#
+#   $1  sid      the session whose native task folder to read
+#   $2  done_id  the id of the task just marked completed (may be empty)
+tq_next_context() {
+  local sid="$1" done_id="${2:-}"
+  [ -n "$sid" ] || return 0
+  local dir; dir="$(tq_tasks_dir)/$sid"
+  [ -d "$dir" ] || return 0
+
+  # Any task file present? (avoid jq on an empty glob)
+  local f has=0
+  for f in "$dir"/*.json; do [ -f "$f" ] && { has=1; break; }; done
+  [ "$has" -eq 1 ] || return 0
+
+  # Slurp every task, treat done_id as closed, and pick the lowest-id pending
+  # task whose blockedBy are all closed — unless something is still in_progress.
+  jq -rs --arg done "$done_id" '
+    ( [ .[] | select(.status=="completed") | .id ] + ( $done | if . == "" then [] else [.] end ) ) as $closed
+    | { inprog: [ .[] | select(.status=="in_progress") | select(.id != $done) ],
+        open:   [ .[] | select(.status=="pending" or .status=="in_progress") | select(.id != $done) ],
+        next:   ( [ .[]
+                    | select(.status=="pending")
+                    | select(.id != $done)
+                    | select(((.blockedBy // []) - $closed) | length == 0) ]
+                  | sort_by((.id | tonumber?) // 0)
+                  | .[0] ) }
+    | if (.inprog | length) > 0 or .next == null then empty
+      else [ .next.id, (.next.subject // ""), (.open | length | tostring) ] | @tsv end
+  ' "$dir"/*.json 2>/dev/null || true
+}

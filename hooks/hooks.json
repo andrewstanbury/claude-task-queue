@@ -9,6 +9,16 @@
           }
         ]
       }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/tq-next.sh\""
+          }
+        ]
+      }
     ]
   }
 }
