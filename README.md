@@ -65,8 +65,32 @@ The resume note is tunable via environment variables (read by the `SessionStart`
 |---|---|
 | `CLAUDE_TQ_RESUME_MAX` | Max todos listed in the resume note (default `7`; in-progress tasks are always shown). |
 | `CLAUDE_TQ_RESUME_MAX_AGE_DAYS` | Skip sessions untouched longer than this (default `14`). |
+| `CLAUDE_TQ_LOG_DISABLED` | Set to `1` to turn off the activity log entirely. |
+| `CLAUDE_TQ_LOG_DIR` | Move the activity log (default `~/.claude/state/task-queue/`). |
 
 The plugin caches each session's repo root under `${CLAUDE_PLUGIN_DATA}` so resolution stays fast across updates.
+
+## Diagnostics
+
+Each hook appends a one-line, best-effort entry to an **activity log** at
+`~/.claude/state/task-queue/activity.log` — what was injected, and when:
+
+```
+2026-05-30T18:52:49+0100	advance	a1b2c3d4	-> #2 (1 open)
+2026-05-30T19:01:12+0100	session-start	e5f6a7b8	resume note surfaced
+```
+
+It's disk-only (no model-context cost) and never blocks a hook. When carry-over
+or auto-advance stops working, run the read-only health check:
+
+```bash
+bash bin/tq-doctor.sh
+```
+
+It validates every assumption in [CONTRACT.md](./CONTRACT.md) — `jq` present, the
+native task store and transcripts exist, task files still carry the `id`/`status`
+fields we read — and prints the tail of the activity log. It exits non-zero only
+on a hard failure, turning "mysteriously silent" into "this assumption broke."
 
 ## How it stays scoped to a repo
 
@@ -85,7 +109,7 @@ The plugin reads a handful of Claude Code's **internal** files and hook payloads
 bats tests/
 ```
 
-`tasks.bats` fakes a task store + transcripts via `CLAUDE_TQ_*` overrides and asserts what each hook injects (no model calls — nothing to mock); `packaging.bats` guards the shipped artifact (version sync, valid JSON, hook scripts exist). Both run in CI on every push and PR, alongside `shellcheck`. Because the suite *fakes* Claude Code's file layout, it can't catch a change in those internals — that boundary is covered by [CONTRACT.md](./CONTRACT.md) and the manual end-to-end check it describes.
+`tasks.bats` fakes a task store + transcripts via `CLAUDE_TQ_*` overrides and asserts what each hook injects (no model calls — nothing to mock); `packaging.bats` guards the shipped artifact (version sync, valid JSON, hook scripts exist); `diagnostics.bats` covers the activity log and `tq-doctor`. All run in CI on every push and PR, alongside `shellcheck`. Because the suite *fakes* Claude Code's file layout, it can't catch a change in those internals — that boundary is covered by [CONTRACT.md](./CONTRACT.md), `tq-doctor`'s schema canary, and the manual end-to-end check.
 
 ## License
 

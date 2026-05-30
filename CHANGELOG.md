@@ -11,6 +11,25 @@ gate, a CLI, a status bar) into a featherweight **native-first** plugin: two
 event-driven hooks, **read-only** over Claude Code's own task store, with **zero
 per-prompt cost**. The breaking releases in that range reflect that rebuild.
 
+## [0.6.0] — 2026-05-30
+
+### Added
+- **Observability log** (`tq_log` in `lib/tasks.sh`): each hook appends a
+  best-effort, tab-separated line to `~/.claude/state/task-queue/activity.log`
+  (`session-start` / `advance` events). Disk-only (no model-context cost), never
+  blocks a hook, disabled via `CLAUDE_TQ_LOG_DISABLED`, relocatable via
+  `CLAUDE_TQ_LOG_DIR`.
+- **`bin/tq-doctor.sh`**: a manual, read-only health check that validates the
+  CONTRACT.md assumptions against the live environment (`jq`, the native task
+  store + transcripts, and a **schema canary** sampling real task files for the
+  `id`/`status` fields) and prints the activity-log tail. Exits non-zero only on
+  a hard failure.
+- `tests/diagnostics.bats` covering the log and the doctor.
+
+### Changed
+- CONTRACT.md now documents the two files the plugin writes (root cache,
+  activity log) and names `tq-doctor` as the on-demand boundary check.
+
 ## [0.5.0] — 2026-05-30
 
 ### Added
@@ -88,6 +107,7 @@ per-prompt cost**. The breaking releases in that range reflect that rebuild.
   status-bar reader. Queue persisted under `~/.claude/state/task-queue/`,
   surviving `/clear` and restarts.
 
+[0.6.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.6.0
 [0.5.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.5.0
 [0.4.0]: https://github.com/andrewstanbury/claude-task-queue/commit/4b7b4f4
 [0.3.0]: https://github.com/andrewstanbury/claude-task-queue/commit/59969ca

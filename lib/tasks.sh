@@ -26,6 +26,32 @@ tq_projects_dir()    { printf '%s' "${CLAUDE_TQ_PROJECTS_DIR:-$HOME/.claude/proj
 tq_state_dir()       { printf '%s' "${CLAUDE_TQ_STATE_DIR:-$HOME/.claude/state/task-queue}"; }
 tq_root_cache_file() { printf '%s/root-cache.tsv' "$(tq_state_dir)"; }
 
+# The activity log lives at a FIXED home (independent of the hook-only
+# CLAUDE_TQ_STATE_DIR=CLAUDE_PLUGIN_DATA override) so that tq-doctor, run by
+# hand with no plugin env, reads exactly the file the hooks write.
+tq_log_dir()         { printf '%s' "${CLAUDE_TQ_LOG_DIR:-$HOME/.claude/state/task-queue}"; }
+tq_log_file()        { printf '%s/activity.log' "$(tq_log_dir)"; }
+
+# ---- observability ----------------------------------------------------------
+
+# Append one best-effort diagnostic line: "<iso-ts>\t<event>\t<sid8>\t<detail>".
+# Logging must never break a hook, so every failure is swallowed. Disabled
+# entirely with CLAUDE_TQ_LOG_DISABLED=1.
+#   $1 event   short tag (session-start | advance | …)
+#   $2 detail  free text (optional)
+#   $3 sid     session id (optional; truncated to 8 chars)
+tq_log() {
+  [ -n "${CLAUDE_TQ_LOG_DISABLED:-}" ] && return 0
+  local event="$1" detail="${2:-}" sid="${3:-}" ts dir
+  ts="$(date '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null || printf '?')"
+  dir="$(tq_log_dir)"
+  {
+    mkdir -p "$dir" 2>/dev/null \
+      && printf '%s\t%s\t%s\t%s\n' "$ts" "$event" "${sid:0:8}" "$detail" >> "$(tq_log_file)"
+  } 2>/dev/null || true
+  return 0
+}
+
 # ---- helpers ----------------------------------------------------------------
 
 # Portable mtime (seconds). GNU stat then BSD/macOS stat then 0.
