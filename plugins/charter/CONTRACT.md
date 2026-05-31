@@ -25,6 +25,13 @@ Code internals below are observed behaviour, not documented APIs.
   `docs/adrs/`, or a *quality attribute* / *non-functional* / *NFR* mention in
   `CLAUDE.md` / `AGENTS.md` / `docs/CLAUDE.md` / `README.md`. Override via
   `CLAUDE_CHARTER_QA_FILE`.
+- **Roadmap/backlog file:** one of `docs/ROADMAP.md`, `ROADMAP.md`,
+  `docs/BACKLOG.md`, `BACKLOG.md`. Override via `CLAUDE_CHARTER_ROADMAP_FILE`.
+  This is the committed, Claude-facing record of what's-next — the coordination
+  point across sessions and across engineers on separate machines (git history
+  of the file is the shared audit trail). **Detect, not author:** when it's
+  missing the hook *instructs the model to generate it* from git history + the
+  codebase; the hook itself still writes nothing to your project.
 - **Repo root:** resolved with `git rev-parse --show-toplevel`, falling back to
   walking for `.git`, then the cwd. (Self-contained — charter does not depend on
   any other plugin; see AGENTS.md on the install boundary.)
@@ -41,11 +48,12 @@ It writes **nothing** to your project and nothing to Claude Code's state.
 ## How this is verified
 
 - `tests/charter.bats` fakes a project via a temp git repo and `CLAUDE_CHARTER_*`
-  overrides — QA-status detection, the full/lean nudge by source, and the doctor.
+  overrides — QA-status + roadmap-status detection, the full/lean nudge by
+  source, and the doctor.
 - `bin/charter-doctor.sh` checks the same against a live project on demand.
 
 ## Not yet (see docs/ROADMAP.md)
 
-Maintaining the project map / stack notes and consolidating the orientation
-nudge (currently in task-queue) are planned; the MVP is the quality-attributes
-gate.
+Stack/architecture notes and richer reconciliation (e.g. auto-detecting which
+roadmap items merged) are planned. Shipped so far: the quality-attributes gate,
+the orientation nudge, and the roadmap/backlog awareness above.

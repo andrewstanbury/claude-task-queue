@@ -30,6 +30,15 @@ else
   printf '         (QUALITY.md, docs/QUALITY.md, an ADR, or a "Quality Attributes" section of CLAUDE.md)\n'
 fi
 
+printf '\nRoadmap / backlog\n'
+rpath="$(charter_roadmap_path "$root")"
+if [ -n "$rpath" ]; then
+  printf '  [OK]   %s — the cross-session, cross-engineer backlog\n' "$rpath"
+else
+  printf '  [TODO] no roadmap/backlog file — charter will nudge to generate docs/ROADMAP.md\n'
+  printf '         from git history + code, so work resumes across sessions and engineers\n'
+fi
+
 printf '\nProject manual\n'
 if [ -f "$root/CLAUDE.md" ] || [ -f "$root/AGENTS.md" ]; then
   printf '  [OK]   a Claude manual exists (CLAUDE.md / AGENTS.md)\n'

@@ -55,3 +55,25 @@ charter_qa_status() {
   done
   printf 'missing'
 }
+
+# The project's committed, Claude-facing backlog: a roadmap/backlog file that
+# travels with the repo so work can be picked up, resumed, and coordinated
+# across engineers on separate machines (git history = the cross-dev audit
+# trail). Prints the relative path if one exists, else nothing. Override the
+# accepted path via CLAUDE_CHARTER_ROADMAP_FILE (relative to root).
+charter_roadmap_path() {
+  local root="$1" f
+  [ -n "$root" ] || return 0
+  if [ -n "${CLAUDE_CHARTER_ROADMAP_FILE:-}" ]; then
+    [ -f "$root/$CLAUDE_CHARTER_ROADMAP_FILE" ] && printf '%s' "$CLAUDE_CHARTER_ROADMAP_FILE"
+    return 0
+  fi
+  for f in docs/ROADMAP.md ROADMAP.md docs/BACKLOG.md BACKLOG.md; do
+    [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
+  done
+}
+
+# "present" if a roadmap/backlog file exists, else "missing".
+charter_roadmap_status() {
+  [ -n "$(charter_roadmap_path "${1:-}")" ] && printf 'present' || printf 'missing'
+}

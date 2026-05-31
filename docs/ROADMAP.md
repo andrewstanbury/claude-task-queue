@@ -101,10 +101,21 @@ it's *temporal* and model-knowledge-driven, so it gets named explicitly.
   attributes** (e.g. `QUALITY.md` / NFRs / ADRs), **nudge to document them before
   substantive changes** (source-aware, lean on compact); honor-reminder when
   documented; `charter-doctor`.
+- **Shipped (roadmap/backlog):** charter now maintains a committed,
+  **Claude-facing roadmap/backlog file** (`docs/ROADMAP.md` / `ROADMAP.md` /
+  `docs/BACKLOG.md`, override `CLAUDE_CHARTER_ROADMAP_FILE`) — the cross-session,
+  cross-engineer record of *what's next*. **Missing →** instruct the model to
+  generate it from git history + the codebase (assumptions flagged); **present →**
+  read it and reconcile against recent git history before substantive changes.
+  The team isn't on GitHub Issues/Projects, so this committed file (versioned by
+  git = the shared audit trail) is the coordination point across machines.
+  *Detect-not-author:* the hook stays read-only; the model writes the file.
 - **Done:** consolidated the orientation nudge here from task-queue (charter
   owns project-knowledge) — a local integration shakeout found it duplicated
   charter's documentation nudge at SessionStart.
-- **Planned:** bootstrap/maintain the project map + architecture/stack notes.
+- **Planned:** stack/architecture notes; richer reconciliation (auto-detect
+  which roadmap items merged); task-queue hydrating the roadmap's open items
+  into the live session task list.
 
 ## Honest limits (what hooks can and can't do)
 
@@ -131,7 +142,10 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.11.0**, **tidy 0.4.0**, **charter 0.2.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.11.0**, **tidy 0.4.0**, **charter 0.3.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line, criterion 6 "show the
-  tasks") added. Next: **Phase 2** (task-queue smart backlog + agent-mode), then
-  **Phase 3** (tidy blast-radius + size-vs-complexity + currency/modernization).
+  tasks") added; **charter 0.3.0** adds the committed Claude-facing
+  roadmap/backlog file (cross-session/cross-engineer coordination). Next:
+  **task-queue hydrating the roadmap's open items into the live task list**, then
+  **Phase 2** (task-queue smart backlog + agent-mode), then **Phase 3** (tidy
+  blast-radius + size-vs-complexity + currency/modernization).

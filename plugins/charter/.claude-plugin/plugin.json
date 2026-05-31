@@ -1,11 +1,11 @@
 {
   "name": "charter",
-  "version": "0.2.0",
-  "description": "Know the project: gates substantive work on documented quality attributes (nudges to capture perf/security/a11y/reliability/maintainability targets if missing) and keeps the project's Claude manual in view, so a vibe-coded project stays oriented and quality-driven. Read-only over the project.",
+  "version": "0.3.0",
+  "description": "Know the project: gates substantive work on documented quality attributes and maintains a committed, Claude-facing roadmap/backlog file (generated from git history if missing, reconciled against it if present) so what's-next resumes and coordinates across sessions and engineers, with the Claude manual kept in view. Read-only over the project (the hook detects; the model authors the file).",
   "author": { "name": "Andrew Stanbury" },
   "homepage": "https://github.com/andrewstanbury/claude-task-queue/tree/main/plugins/charter",
   "repository": "https://github.com/andrewstanbury/claude-task-queue",
   "license": "MIT",
-  "keywords": ["quality-attributes", "nfr", "architecture", "hooks", "claude-md", "orientation"],
+  "keywords": ["quality-attributes", "nfr", "architecture", "hooks", "claude-md", "orientation", "roadmap", "backlog"],
   "defaultEnabled": true
 }

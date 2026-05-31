@@ -82,6 +82,48 @@ run_standard() {
   [[ "$output" == *"quality attributes are documented"* ]]
 }
 
+@test "roadmap-status: missing, then present via docs/ROADMAP.md" {
+  src='. "$1/lib/charter.sh";'
+  run bash -c "$src"' charter_roadmap_status "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "missing" ]
+
+  mkdir -p "$REPO/docs"; : > "$REPO/docs/ROADMAP.md"
+  run bash -c "$src"' charter_roadmap_status "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "present" ]
+
+  run bash -c "$src"' charter_roadmap_path "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "docs/ROADMAP.md" ]
+}
+
+@test "nudges to generate a roadmap/backlog file when missing (startup)" {
+  run run_standard startup
+  [[ "$output" == *"docs/ROADMAP.md"* ]]
+  [[ "$output" == *"backlog"* ]]
+  [[ "$output" == *"git history"* ]]   # generate from git history + codebase
+}
+
+@test "surfaces the roadmap to read + reconcile when present (startup)" {
+  mkdir -p "$REPO/docs"; printf '# Roadmap\n## Next\n- ship it\n' > "$REPO/docs/ROADMAP.md"
+  run run_standard startup
+  [[ "$output" == *"docs/ROADMAP.md"* ]]
+  [[ "$output" == *"reconcile"* ]]
+  [[ "$output" != *"generate"* ]]      # present → no generate instruction
+}
+
+@test "omits the roadmap nudge in lean mode (token-light)" {
+  run run_standard compact                      # QA + roadmap missing → lean QA reminder only
+  [[ "$output" != *"ROADMAP.md"* ]]
+  [[ "$output" != *"backlog"* ]]
+}
+
+@test "doctor reports roadmap status (missing then present)" {
+  run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
+  [[ "$output" == *"no roadmap/backlog file"* ]]
+  mkdir -p "$REPO/docs"; : > "$REPO/docs/ROADMAP.md"
+  run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
+  [[ "$output" == *"docs/ROADMAP.md"* ]]
+}
+
 @test "SessionStart output is valid JSON with the SessionStart event name" {
   json="$(jq -nc --arg c "$REPO" '{cwd:$c, source:"startup"}')"
   run bash -c 'printf "%s" "$1" | "$2" | jq -r .hookSpecificOutput.hookEventName' _ "$json" "$STANDARD"
