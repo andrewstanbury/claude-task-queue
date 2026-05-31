@@ -40,6 +40,13 @@ tq_pause_dir()       { printf '%s' "${CLAUDE_TQ_PAUSE_DIR:-$HOME/.claude/state/t
 tq_pause_file()      { printf '%s/%s' "$(tq_pause_dir)" "$(printf '%s' "$1" | sed 's:/:-:g')"; }
 tq_is_paused()       { [ -n "${1:-}" ] && [ -f "$(tq_pause_file "$1")" ]; }
 
+# Agent-mode: an opt-in, per-repo flag (same scheme as pause). When ON, the
+# SessionStart policy permits fanning independent tasks out to subagents; OFF by
+# default for token efficiency. Set with bin/tq-agent.sh.
+tq_agent_dir()       { printf '%s' "${CLAUDE_TQ_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}"; }
+tq_agent_file()      { printf '%s/%s' "$(tq_agent_dir)" "$(printf '%s' "$1" | sed 's:/:-:g')"; }
+tq_is_agent_mode()   { [ -n "${1:-}" ] && [ -f "$(tq_agent_file "$1")" ]; }
+
 # ---- drift canary -----------------------------------------------------------
 
 # Sample real task files and report whether they still match the schema we read

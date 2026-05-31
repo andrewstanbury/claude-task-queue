@@ -62,9 +62,12 @@ plugin stays independently installable (the install boundary forbids shared code
   resume bridge nudges the model to adopt its open Now/Next items into the live
   task list — the orchestration half of charter's roadmap file; read-only, no
   parsing, full-context only).
-- **Planned (Phase 2):** smarter backlog — detect independent vs chained tasks;
-  an **opt-in agent-mode toggle** (like pause) that fans parallel tasks out to
-  subagents when beneficial, defaulting to inline for token efficiency.
+- **Shipped (Phase 2 — agent-mode, 0.14.0):** an **opt-in agent-mode toggle**
+  (`tq-agent.sh on|off`, mirroring pause) — when ON, the SessionStart policy
+  permits fanning **independent** tasks (unblocked, no shared `blockedBy`,
+  non-conflicting files) out to subagents via the Task tool; OFF by default for
+  token efficiency. The independent-vs-chained detection is the model's, from its
+  task list's `blockedBy`. State signal + command discovery ride along.
 
 ### tidy — *change safely & cleanly* (shipped)
 - **Now:** format + lint + TDD nudge on touch, ratchet posture, tidy-doctor,
@@ -221,7 +224,7 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.13.0**, **tidy 0.11.0**, **charter 0.6.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.14.0**, **tidy 0.11.0**, **charter 0.6.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the

@@ -9,14 +9,16 @@ setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   RESUME="$ROOT/bin/tq-resume.sh"
   NEXT="$ROOT/bin/tq-next.sh"
+  AGENT="$ROOT/bin/tq-agent.sh"
 
   export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
   export CLAUDE_TQ_PROJECTS_DIR="$(mktemp -d)"
   export CLAUDE_TQ_STATE_DIR="$(mktemp -d)"
+  export CLAUDE_TQ_AGENT_DIR="$(mktemp -d)"
 }
 
 teardown() {
-  rm -rf "$CLAUDE_TQ_TASKS_DIR" "$CLAUDE_TQ_PROJECTS_DIR" "$CLAUDE_TQ_STATE_DIR"
+  rm -rf "$CLAUDE_TQ_TASKS_DIR" "$CLAUDE_TQ_PROJECTS_DIR" "$CLAUDE_TQ_STATE_DIR" "$CLAUDE_TQ_AGENT_DIR"
 }
 
 # Register a fake session -> project (cwd) mapping.
@@ -118,6 +120,35 @@ run_resume() {
   run run_resume "s2" "/home/x/alpha"
   [[ "$output" == *"without draining"* ]]        # full policy present
   [[ "$output" == *"claude-companion"* ]]        # tip names the marker
+}
+
+@test "tq-agent toggles opt-in agent-mode on/off/status (per repo)" {
+  local repo; repo="$(mktemp -d)"
+  run bash -c 'cd "$1" && bash "$2" status' _ "$repo" "$AGENT"
+  [[ "$output" == on\ * || "$output" == off\ * ]]; [[ "$output" == off* ]]
+  run bash -c 'cd "$1" && bash "$2" on' _ "$repo" "$AGENT"
+  [[ "$output" == *"agent-mode ON"* ]]
+  run bash -c 'cd "$1" && bash "$2" status' _ "$repo" "$AGENT"
+  [[ "$output" == on* ]]
+  run bash -c 'cd "$1" && bash "$2" off' _ "$repo" "$AGENT"
+  [[ "$output" == *"agent-mode OFF"* ]]
+  rm -rf "$repo"
+}
+
+@test "session start shows the agent-mode policy only when enabled" {
+  local repo; repo="$(mktemp -d)"
+  run run_resume "sA" "$repo"                        # default: off
+  [[ "$output" != *"Agent-mode is ON"* ]]
+  ( cd "$repo" && bash "$AGENT" on >/dev/null )
+  run run_resume "sA" "$repo"
+  [[ "$output" == *"Agent-mode is ON"* ]]
+  [[ "$output" == *"subagents"* ]]
+  rm -rf "$repo"
+}
+
+@test "session start advertises the agent-mode command (discoverable)" {
+  run run_resume "s2" "/home/x/alpha"
+  [[ "$output" == *"tq-agent.sh"* ]]
 }
 
 @test "hook output is valid SessionStart hook JSON" {
