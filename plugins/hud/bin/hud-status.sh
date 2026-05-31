@@ -28,9 +28,9 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/hud.sh"
 
 if [ -n "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ]; then
-  R=""; Y=""; G=""; C=""; B=""; D=""; X=""
+  Y=""; G=""; C=""; B=""; D=""; X=""
 else
-  R=$'\033[31m'; Y=$'\033[33m'; G=$'\033[32m'; C=$'\033[36m'
+  Y=$'\033[33m'; G=$'\033[32m'; C=$'\033[36m'
   B=$'\033[1m'; D=$'\033[2m'; X=$'\033[0m'
 fi
 SEP="  "
