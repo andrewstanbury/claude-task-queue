@@ -1,7 +1,7 @@
 {
   "name": "charter",
-  "version": "0.7.0",
-  "description": "Know the project: gates substantive work on documented quality attributes (web projects get Lighthouse-aligned defaults \u2014 CWV, a11y, print CSS, progressive enhancement, components-by-default), maintains a committed Claude-facing roadmap/backlog file (cross-session/engineer coordination), keeps a project map (file\u2192responsibility index) so a session orients from the map instead of re-scanning the tree, and tracks decisions/ADRs so past choices aren't re-litigated. Generates the docs from the codebase/git history when missing, reconciles them when present, and goes quiet once the policy is summarised in CLAUDE.md (claude-companion marker). Surfaces recently-merged commits next to the roadmap so reconciliation is concrete. Read-only over the project (the hook detects; the model authors the files).",
+  "version": "0.8.0",
+  "description": "Know the project: gates substantive work on documented quality attributes (web projects get Lighthouse-aligned defaults \u2014 CWV, a11y, print CSS, progressive enhancement, components-by-default), maintains a committed Claude-facing roadmap/backlog file (cross-session/engineer coordination), keeps a project map (file\u2192responsibility index) so a session orients from the map instead of re-scanning the tree, tracks decisions/ADRs so past choices aren't re-litigated, and records stack notes (languages/frameworks/versions) for modernization context. Generates the docs from the codebase/git history when missing, reconciles them when present, and goes quiet once the policy is summarised in CLAUDE.md (claude-companion marker). Surfaces recently-merged commits next to the roadmap so reconciliation is concrete. Read-only over the project (the hook detects; the model authors the files).",
   "author": {
     "name": "Andrew Stanbury"
   },
@@ -23,7 +23,8 @@
     "performance",
     "lighthouse",
     "adr",
-    "decisions"
+    "decisions",
+    "stack"
   ],
   "defaultEnabled": true
 }

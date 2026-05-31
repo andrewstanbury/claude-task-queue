@@ -151,6 +151,31 @@ charter_map_status() {
   [ -n "$(charter_map_path "${1:-}")" ] && printf 'present' || printf 'missing'
 }
 
+# Does the project document its tech stack — languages, frameworks, key deps and
+# versions? Distinct from the file-map (structure) and the QA gate (targets): the
+# stack is the durable context that modernization/currency judgments lean on.
+# Prints the relative path / matched doc, else nothing. Override via
+# CLAUDE_CHARTER_STACK_FILE.
+charter_stack_path() {
+  local root="$1" f
+  [ -n "$root" ] || return 0
+  if [ -n "${CLAUDE_CHARTER_STACK_FILE:-}" ]; then
+    [ -f "$root/$CLAUDE_CHARTER_STACK_FILE" ] && printf '%s' "$CLAUDE_CHARTER_STACK_FILE"
+    return 0
+  fi
+  for f in STACK.md docs/STACK.md docs/stack.md; do
+    [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
+  done
+  for f in CLAUDE.md AGENTS.md docs/CLAUDE.md README.md; do
+    [ -f "$root/$f" ] && grep -qiE '^#+[[:space:]]*(tech[[:space:]-]*stack|stack)[[:space:]]*$' "$root/$f" 2>/dev/null \
+      && { printf '%s' "$f"; return 0; }
+  done
+}
+
+charter_stack_status() {
+  [ -n "$(charter_stack_path "${1:-}")" ] && printf 'present' || printf 'missing'
+}
+
 # Is this a web project? Lets charter seed Lighthouse-aligned quality-attribute
 # defaults (CWV, a11y, print CSS, progressive enhancement, components-by-default)
 # so web best practices are designed-in, not audited after. Prints "web" or "no".

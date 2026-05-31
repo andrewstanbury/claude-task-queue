@@ -53,6 +53,15 @@ else
   printf '         (DECISIONS.md or docs/adr/) so past choices are not re-litigated\n'
 fi
 
+printf '\nStack notes\n'
+spath="$(charter_stack_path "$root")"
+if [ -n "$spath" ]; then
+  printf '  [OK]   %s — documented stack (languages/frameworks/versions)\n' "$spath"
+else
+  printf '  [TODO] no stack notes — charter will nudge to capture STACK.md\n'
+  printf '         so modernization/currency judgments have durable context\n'
+fi
+
 printf '\nProject map\n'
 mpath="$(charter_map_path "$root")"
 if [ -n "$mpath" ]; then

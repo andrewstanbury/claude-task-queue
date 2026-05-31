@@ -172,7 +172,9 @@ it's *temporal* and model-knowledge-driven, so it gets named explicitly.
   surfaces the last few **non-merge commit subjects** next to it so reconciliation
   is concrete ("recently merged: … — mark done what landed") rather than an
   abstract "reconcile against git history."
-- **Planned:** stack/architecture notes.
+- **Shipped (stack notes, 0.8.0):** a **stack dimension** — detect STACK.md / a
+  "## Stack" section; missing → capture languages/frameworks/versions from the
+  manifests, present → consult. Durable context for currency/modernization.
 
 ## Strategic direction — the subtractive force + quiet hooks
 
@@ -227,7 +229,7 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.14.0**, **tidy 0.11.0**, **charter 0.7.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.14.0**, **tidy 0.11.0**, **charter 0.8.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the
@@ -241,6 +243,6 @@ build it all at once.
   web edit-time linters, **0.10.0** currency/modernization, **0.11.0**
   blast-radius (Phase 3); **task-queue 0.14.0** opt-in agent-mode (Phase 2); and
   **charter 0.7.0** roadmap reconcile. **The planned roadmap is essentially
-  complete.** Remaining nice-to-haves only: stack/architecture notes, broader
+  complete.** Remaining nice-to-haves only: broader
   multi-stack pattern linting, and a language-aware blast-radius (e.g. `go list`)
   over today's grep heuristic.
