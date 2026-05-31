@@ -176,6 +176,28 @@ it's *temporal* and model-knowledge-driven, so it gets named explicitly.
   "## Stack" section; missing → capture languages/frameworks/versions from the
   manifests, present → consult. Durable context for currency/modernization.
 
+## Design model (challenged + chosen 2026-05-31)
+
+TDD / DDD / SOLID are different levels, not alternatives. For LLM-written code
+owned by **non-technical** people, the leverage is **verification + simplicity**,
+not methodology labels. Chosen model (tidy 0.12.0):
+
+- **Tests are a safety net, not a ritual** — "cover changed behavior with a
+  passing test; nothing's done until the suite is green" (test-first is a default,
+  not a gate). The verification floor (run the project's checks) enforces green.
+- **SOLID's essence, not the label** — already in tidy's clean-code/architecture
+  clause; no OO-shaped formalism.
+- **DDD's ubiquitous language only** — name code/docs in the owner's domain words
+  so non-technical contributors can follow; skip bounded-contexts/aggregates.
+- **Complexity-proportional simplicity** — the simplest maintainable solution the
+  requirement demands; no speculative patterns/layers (counters methodology
+  theater and nudge-sprawl).
+
+Open design critiques to act on: replace per-language tidy handlers with a
+**project-checks runner** (run the project's own declared lint/test/build —
+subsumes verification + multi-stack); consider **consolidating the 4 plugins into
+1** (kill duplication); exempt test files from the size nudge.
+
 ## Strategic direction — the subtractive force + quiet hooks
 
 The system optimises for *Claude to read & maintain* a project at low token cost
