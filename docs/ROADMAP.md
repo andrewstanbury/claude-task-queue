@@ -100,9 +100,10 @@ it's *temporal* and model-knowledge-driven, so it gets named explicitly.
   attributes** (e.g. `QUALITY.md` / NFRs / ADRs), **nudge to document them before
   substantive changes** (source-aware, lean on compact); honor-reminder when
   documented; `charter-doctor`.
-- **Planned:** bootstrap/maintain the project map + architecture/stack notes;
-  consolidate the orientation nudge (currently in task-queue) here, since charter
-  owns project-knowledge.
+- **Done:** consolidated the orientation nudge here from task-queue (charter
+  owns project-knowledge) — a local integration shakeout found it duplicated
+  charter's documentation nudge at SessionStart.
+- **Planned:** bootstrap/maintain the project map + architecture/stack notes.
 
 ## Honest limits (what hooks can and can't do)
 

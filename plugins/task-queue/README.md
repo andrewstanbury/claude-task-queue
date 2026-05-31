@@ -23,7 +23,7 @@ Injects a single block of context, once, when a session begins:
 
 **2. Resume.** It reads the native store for **open tasks left by earlier sessions in the same repo** and appends them, so the model re-adopts your unfinished work into the (otherwise empty) list. Capped and recency-bounded so it stays a brief note, not a dump.
 
-**3. Orientation nudge.** A one-liner asking the model to record durable project structure/conventions in `CLAUDE.md` — so future sessions orient cheaply instead of re-exploring, saving tokens over time.
+*(Project-orientation nudges — "record durable knowledge in `CLAUDE.md`" — live in the [charter](../charter) plugin, which owns project-knowledge, so they're not duplicated here.)*
 
 ### A `UserPromptSubmit` hook — *capture* (silent unless needed)
 

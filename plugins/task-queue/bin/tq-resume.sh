@@ -63,8 +63,9 @@ if [ "$lean" -eq 1 ]; then
   ctx="[task-queue] (reminder) native task list = live queue: capture work with TaskCreate, work in dependency order, advance as you finish. Pause/resume on request: $pause_cmd on|off."
 else
   pause_hint="Pause/resume auto-advance on request: $pause_cmd on|off (per repo, persists)."
-  orient_hint="Learned something durable about this project's layout or conventions? Record it in CLAUDE.md so future sessions skip re-exploring (saves tokens over time)."
-  ctx="$POLICY"$'\n\n'"$pause_hint"$'\n\n'"$orient_hint"
+  # Orientation/project-knowledge nudges live in the charter plugin (know-the-project),
+  # so they're not duplicated here.
+  ctx="$POLICY"$'\n\n'"$pause_hint"
   resume="$(tq_resume_context "$root" "$sid" 2>/dev/null || true)"
   [ -n "$resume" ] && ctx="$ctx"$'\n\n'"$resume"
 fi

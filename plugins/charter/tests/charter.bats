@@ -43,6 +43,19 @@ run_standard() {
   [ -z "$output" ]
 }
 
+@test "includes the orientation (CLAUDE.md) nudge on a fresh context" {
+  run run_standard startup                      # QA missing
+  [[ "$output" == *"record it in CLAUDE.md"* ]]
+  printf '# Quality Attributes\n' > "$REPO/QUALITY.md"
+  run run_standard startup                      # QA documented
+  [[ "$output" == *"record it in CLAUDE.md"* ]]
+}
+
+@test "omits orientation in lean mode (token-light)" {
+  run run_standard compact                      # QA missing → lean reminder only
+  [[ "$output" != *"record it in CLAUDE.md"* ]]
+}
+
 @test "qa-status: missing, then documented via QUALITY.md / ADR / CLAUDE.md section" {
   src='. "$1/lib/charter.sh";'
   run bash -c "$src"' charter_qa_status "$2"' bash "$ROOT" "$REPO"
