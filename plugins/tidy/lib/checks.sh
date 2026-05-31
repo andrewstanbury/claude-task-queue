@@ -38,6 +38,12 @@ tidy_test_command() {
      && grep -qE '^test:' "$root/Makefile" 2>/dev/null; then
     printf 'make test'; return 0
   fi
+  # Make-free fallback: a conventional root check/test script (covers repos like
+  # this one that gate with ./check.sh, and anything without a package manifest).
+  local s
+  for s in check.sh test.sh scripts/test scripts/test.sh; do
+    [ -x "$root/$s" ] && { printf './%s' "$s"; return 0; }
+  done
 }
 
 # Run CMD in ROOT, print a bounded tail of combined output, and return its exit
