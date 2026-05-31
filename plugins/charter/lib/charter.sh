@@ -77,3 +77,26 @@ charter_roadmap_path() {
 charter_roadmap_status() {
   [ -n "$(charter_roadmap_path "${1:-}")" ] && printf 'present' || printf 'missing'
 }
+
+# The project map — a compact, committed, Claude-facing `file → responsibility`
+# index (plus key entry points) so a session orients from the map instead of
+# re-scanning the tree (the biggest token lever for an AI maintainer: a map
+# grows sublinearly, the tree doesn't). Recognises common existing conventions
+# (ARCHITECTURE.md) so we don't nag a project that already keeps one. Prints the
+# relative path if found, else nothing. Override via CLAUDE_CHARTER_MAP_FILE.
+charter_map_path() {
+  local root="$1" f
+  [ -n "$root" ] || return 0
+  if [ -n "${CLAUDE_CHARTER_MAP_FILE:-}" ]; then
+    [ -f "$root/$CLAUDE_CHARTER_MAP_FILE" ] && printf '%s' "$CLAUDE_CHARTER_MAP_FILE"
+    return 0
+  fi
+  for f in docs/MAP.md MAP.md docs/ARCHITECTURE.md ARCHITECTURE.md; do
+    [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
+  done
+}
+
+# "present" if a project map exists, else "missing".
+charter_map_status() {
+  [ -n "$(charter_map_path "${1:-}")" ] && printf 'present' || printf 'missing'
+}

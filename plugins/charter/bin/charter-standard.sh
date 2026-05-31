@@ -69,9 +69,19 @@ else
   roadmap="[charter] $rpath is this project's backlog — read it for what's next, and reconcile it against recent git history before substantive changes (mark merged items done, append a dated changelog entry, flag drift). Keep it committed so other engineers resume from the same state."
 fi
 
-# Orientation belongs to charter (know-the-project) — appended on a fresh context
-# so future sessions orient cheaply.
-orient="If you learn something durable about this project's structure or conventions, record it in CLAUDE.md so future sessions skip re-exploring."
+# Orientation = the project map (charter owns know-the-project). The map is the
+# durable structural record, so the orientation line points at it rather than at
+# a generic "record learnings" nudge — keeping SessionStart from growing. Missing
+# → instruct the model to generate it from the codebase (hook detects, model
+# authors). Present → consult it instead of re-scanning the tree, and keep it
+# current. Full-context only; the lean path above stays silent on this.
+mstatus="$(charter_map_status "$root" 2>/dev/null || printf 'missing')"
+if [ "$mstatus" = "missing" ]; then
+  orient="[charter] No project map. Generate docs/MAP.md — a compact file→responsibility index plus the key entry points — from the codebase, so future sessions (and other engineers) orient from the map instead of re-scanning the tree. Keep durable structure recorded there as you learn it."
+else
+  mpath="$(charter_map_path "$root")"
+  orient="[charter] Consult $mpath to orient instead of re-scanning the tree, and keep it current as structure changes — it's how a session loads the project cheaply."
+fi
 
-charter_log "session-start" "qa=$status roadmap=$rstatus src=${src:-?} mode=full"
+charter_log "session-start" "qa=$status roadmap=$rstatus map=$mstatus src=${src:-?} mode=full"
 emit "$qa"$'\n\n'"$roadmap"$'\n\n'"$orient"

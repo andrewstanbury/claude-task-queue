@@ -32,6 +32,14 @@ Code internals below are observed behaviour, not documented APIs.
   of the file is the shared audit trail). **Detect, not author:** when it's
   missing the hook *instructs the model to generate it* from git history + the
   codebase; the hook itself still writes nothing to your project.
+- **Project map:** one of `docs/MAP.md`, `MAP.md`, `docs/ARCHITECTURE.md`,
+  `ARCHITECTURE.md` (recognises the common `ARCHITECTURE.md` convention so an
+  existing map isn't re-nagged). Override via `CLAUDE_CHARTER_MAP_FILE`. A
+  compact `file → responsibility` index + entry points so a session orients from
+  the map instead of re-scanning the tree. Same **detect-not-author** boundary:
+  missing → the hook instructs the model to generate it from the codebase. The
+  orientation nudge points at this map (it replaces the old generic "record
+  learnings in CLAUDE.md" line, keeping SessionStart from growing).
 - **Repo root:** resolved with `git rev-parse --show-toplevel`, falling back to
   walking for `.git`, then the cwd. (Self-contained — charter does not depend on
   any other plugin; see AGENTS.md on the install boundary.)
@@ -48,12 +56,13 @@ It writes **nothing** to your project and nothing to Claude Code's state.
 ## How this is verified
 
 - `tests/charter.bats` fakes a project via a temp git repo and `CLAUDE_CHARTER_*`
-  overrides — QA-status + roadmap-status detection, the full/lean nudge by
+  overrides — QA-, roadmap-, and map-status detection, the full/lean nudge by
   source, and the doctor.
 - `bin/charter-doctor.sh` checks the same against a live project on demand.
 
 ## Not yet (see docs/ROADMAP.md)
 
-Stack/architecture notes and richer reconciliation (e.g. auto-detecting which
-roadmap items merged) are planned. Shipped so far: the quality-attributes gate,
-the orientation nudge, and the roadmap/backlog awareness above.
+A **subtractive/prune force** (dead-code, duplication, size-vs-complexity) and
+shifting hooks from per-session re-injection toward *bootstrap-once +
+drift-detect* are the next direction. Shipped so far: the quality-attributes
+gate, the roadmap/backlog awareness, and the project map (orientation).

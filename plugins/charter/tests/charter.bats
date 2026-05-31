@@ -43,17 +43,19 @@ run_standard() {
   [ -z "$output" ]
 }
 
-@test "includes the orientation (CLAUDE.md) nudge on a fresh context" {
-  run run_standard startup                      # QA missing
-  [[ "$output" == *"record it in CLAUDE.md"* ]]
+@test "orientation points at the project map on a fresh context" {
+  run run_standard startup                      # QA + map missing
+  [[ "$output" == *"docs/MAP.md"* ]]
+  [[ "$output" == *"re-scanning"* ]]
   printf '# Quality Attributes\n' > "$REPO/QUALITY.md"
-  run run_standard startup                      # QA documented
-  [[ "$output" == *"record it in CLAUDE.md"* ]]
+  run run_standard startup                      # QA documented, map still missing
+  [[ "$output" == *"docs/MAP.md"* ]]
 }
 
-@test "omits orientation in lean mode (token-light)" {
+@test "omits orientation/map nudge in lean mode (token-light)" {
   run run_standard compact                      # QA missing → lean reminder only
-  [[ "$output" != *"record it in CLAUDE.md"* ]]
+  [[ "$output" != *"MAP.md"* ]]
+  [[ "$output" != *"re-scanning"* ]]
 }
 
 @test "qa-status: missing, then documented via QUALITY.md / ADR / CLAUDE.md section" {
@@ -122,6 +124,44 @@ run_standard() {
   mkdir -p "$REPO/docs"; : > "$REPO/docs/ROADMAP.md"
   run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
   [[ "$output" == *"docs/ROADMAP.md"* ]]
+}
+
+@test "map-status: missing, then present via docs/MAP.md (and ARCHITECTURE.md)" {
+  src='. "$1/lib/charter.sh";'
+  run bash -c "$src"' charter_map_status "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "missing" ]
+
+  mkdir -p "$REPO/docs"; : > "$REPO/docs/MAP.md"
+  run bash -c "$src"' charter_map_status "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "present" ]
+  run bash -c "$src"' charter_map_path "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "docs/MAP.md" ]
+
+  rm "$REPO/docs/MAP.md"; : > "$REPO/ARCHITECTURE.md"   # recognise an existing convention
+  run bash -c "$src"' charter_map_status "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "present" ]
+}
+
+@test "nudges to generate a project map from the codebase when missing (startup)" {
+  run run_standard startup
+  [[ "$output" == *"docs/MAP.md"* ]]
+  [[ "$output" == *"file"*"responsibility"* ]]   # file->responsibility index
+}
+
+@test "consults the existing map (no generate) when present (startup)" {
+  printf '# Architecture\n- bin/ — entrypoints\n' > "$REPO/ARCHITECTURE.md"
+  run run_standard startup
+  [[ "$output" == *"ARCHITECTURE.md"* ]]
+  [[ "$output" == *"Consult"* ]]
+  [[ "$output" != *"Generate docs/MAP.md"* ]]
+}
+
+@test "doctor reports project-map status (missing then present)" {
+  run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
+  [[ "$output" == *"no project map"* ]]
+  : > "$REPO/ARCHITECTURE.md"
+  run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
+  [[ "$output" == *"ARCHITECTURE.md"* ]]
 }
 
 @test "SessionStart output is valid JSON with the SessionStart event name" {

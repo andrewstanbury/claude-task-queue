@@ -46,7 +46,7 @@ already-lean plugins.
 |---|---|---|
 | **task-queue** (shipped) | **Orchestrate the work** — capture, order, advance, pause, show tasks | 6 |
 | **tidy** (shipped) | **Make each change safely & cleanly** — format/lint/TDD on touch, ratchet | 3, 5, TDD, blast-radius, tech-debt |
-| **charter** (shipped, MVP) | **Maintain the project's Claude manual** — quality-attributes gate now; map/architecture/stack notes planned | 1, 4 (feeds 2, 3, 5) |
+| **charter** (shipped) | **Maintain the project's Claude manual** — quality-attributes gate, roadmap/backlog file, project map; stack notes + prune force planned | 1, 4 (feeds 2, 3, 5) |
 | **hud** (shipped, MVP) | **Show what's happening** — a consolidated, read-only status line over the other plugins' state | 6 (the "show the tasks" half) |
 
 Single responsibility: **orchestrate / change-safely / know-the-project.** Each
@@ -110,12 +110,43 @@ it's *temporal* and model-knowledge-driven, so it gets named explicitly.
   The team isn't on GitHub Issues/Projects, so this committed file (versioned by
   git = the shared audit trail) is the coordination point across machines.
   *Detect-not-author:* the hook stays read-only; the model writes the file.
+- **Shipped (project map):** charter maintains a compact, committed
+  **`file → responsibility` map** (`docs/MAP.md` / `MAP.md` /
+  `ARCHITECTURE.md`, override `CLAUDE_CHARTER_MAP_FILE`) so a session **orients
+  from the map instead of re-scanning the tree** — the biggest token lever for an
+  AI maintainer (the map grows sublinearly, the tree doesn't). The orientation
+  nudge now points at the map (it *replaced* the old generic "record learnings"
+  line, so SessionStart didn't grow). Recognises an existing `ARCHITECTURE.md`
+  rather than re-nagging. Same detect-not-author boundary.
 - **Done:** consolidated the orientation nudge here from task-queue (charter
   owns project-knowledge) — a local integration shakeout found it duplicated
   charter's documentation nudge at SessionStart.
 - **Planned:** stack/architecture notes; richer reconciliation (auto-detect
   which roadmap items merged); task-queue hydrating the roadmap's open items
   into the live session task list.
+
+## Strategic direction — the subtractive force + quiet hooks
+
+The system optimises for *Claude to read & maintain* a project at low token cost
+**over time**. The gap (surfaced 2026-05-31): every mechanism so far is
+**additive and reactive-on-touch** — it makes changes cleanly but never makes the
+project *smaller*. For "a project sheds cruft as requirements grow," two missing
+primitives, now the priority ahead of the older Phase 2/3 sequencing:
+
+1. **A maintained project map** (✅ shipped above) — so growth is visible and
+   loading stays cheap. The other two read from it.
+2. **A subtractive *prune* force** — on touch (tidy: flag now-dead code,
+   duplication, "X makes Y redundant", riding the planned blast-radius) and
+   on demand (a `/distill` whole-project health pass: dead code, file-count /
+   size-vs-complexity budget, doc↔code drift). This is what turns *add
+   requirement → add code* into *add requirement → net surface flat or smaller*.
+3. **Hooks: re-injection → bootstrap-once + drift-detect.** Bake standing policy
+   into the project's own `CLAUDE.md` (always loaded); hooks then mostly verify
+   the durable docs exist and are current, and otherwise **stay quiet** — so the
+   companion itself stops being a per-session token tax.
+
+Invariants hold throughout: zero per-prompt cost, self-contained plugins,
+native-first, conservative mutation.
 
 ## Honest limits (what hooks can and can't do)
 
@@ -142,10 +173,11 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.11.0**, **tidy 0.4.0**, **charter 0.3.0**, **hud 0.1.0** — shipped.
-- **Phase 1 (charter MVP)** done; **hud** (status line, criterion 6 "show the
-  tasks") added; **charter 0.3.0** adds the committed Claude-facing
-  roadmap/backlog file (cross-session/cross-engineer coordination). Next:
-  **task-queue hydrating the roadmap's open items into the live task list**, then
-  **Phase 2** (task-queue smart backlog + agent-mode), then **Phase 3** (tidy
+- **task-queue 0.11.0**, **tidy 0.4.0**, **charter 0.4.0**, **hud 0.1.0** — shipped.
+- **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
+  added the roadmap/backlog file and **0.4.0** the project map (orientation →
+  map). Next, per the strategic direction above: the **subtractive prune force**
+  and **bootstrap-then-quiet hooks**, plus **task-queue hydrating the roadmap's
+  open items into the live task list**; then the older **Phase 2** (task-queue
+  smart backlog + agent-mode) and **Phase 3** (tidy
   blast-radius + size-vs-complexity + currency/modernization).

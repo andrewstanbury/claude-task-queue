@@ -39,6 +39,15 @@ else
   printf '         from git history + code, so work resumes across sessions and engineers\n'
 fi
 
+printf '\nProject map\n'
+mpath="$(charter_map_path "$root")"
+if [ -n "$mpath" ]; then
+  printf '  [OK]   %s — sessions orient from the map instead of re-scanning the tree\n' "$mpath"
+else
+  printf '  [TODO] no project map — charter will nudge to generate docs/MAP.md\n'
+  printf '         (a compact file->responsibility index) so loading the project stays cheap\n'
+fi
+
 printf '\nProject manual\n'
 if [ -f "$root/CLAUDE.md" ] || [ -f "$root/AGENTS.md" ]; then
   printf '  [OK]   a Claude manual exists (CLAUDE.md / AGENTS.md)\n'
