@@ -80,9 +80,10 @@ run_standard() {
   [[ "$output" == *"reuse before create"* ]]            # short form survives in lean
 }
 
-@test "standard: tests are the safety net (covered+passing), plus simplicity + domain naming" {
+@test "standard: verification is the floor (test where it earns keep), plus simplicity + domain naming" {
   run run_standard startup
-  [[ "$output" == *"passing test"* ]]
+  [[ "$output" == *"Verify the behavior you change"* ]]
+  [[ "$output" == *"earns its keep"* ]]                 # judicious tests, not test-everything
   [[ "$output" == *"green"* ]]                          # nothing done until green
   [[ "$output" == *"simplest design that fits"* ]]      # complexity-proportional simplicity
   [[ "$output" == *"domain language"* ]]                # ubiquitous language
