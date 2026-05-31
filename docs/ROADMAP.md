@@ -221,8 +221,8 @@ project-checks runner that subsumes per-language test integration. (Per-language
 duplication isn't yet painful and the migration would disrupt a working install;
 revisit only if the duplication bites.
 
-Still open:
-exempt test files from the size nudge; the plugin **consolidation** decision (4→1).
+Still open: the plugin **consolidation** decision (4→1). *(Test-file exemption
+shipped — tidy 0.15.0 for the size nudge, 0.23.0 for the light-distill.)*
 
 **Shipped (non-technical posture, tidy 0.14.0 + charter 0.9.0):** resolve
 technical findings autonomously (apply safe patch/minor upgrades behind passing
@@ -259,6 +259,58 @@ primitives, now the priority ahead of the older Phase 2/3 sequencing:
 Invariants hold throughout: zero per-prompt cost, self-contained plugins,
 native-first, conservative mutation.
 
+## The next layer — direction & signal (2026-05-31)
+
+The strategic gap above (additive/reactive) is closed: the system now changes
+cleanly *and* sheds cruft. What it still can't guarantee is that a change is the
+**right** change and that the **signal** steering it is high-quality. Three
+disciplines, in priority order:
+
+### 1. Alignment — clean ≠ correct
+
+Every force so far makes a change *clean* (tested, small, documented, current);
+none checks it's *aligned with intent*. A well-made change can still be the wrong
+thing, contradict a past decision, or drift from what's-next. The missing force
+routes charter's project-knowledge (quality attributes, **decisions/ADRs**,
+roadmap) into the orchestration loop: **as work is captured and picked up, weigh
+it against the documented direction** — surface drift and decision-contradictions
+*before* the work is done, not at review. This is "know the project" (charter)
+feeding "orchestrate" (task-queue); the two open arms are charter's
+CONTEXT/ADR/decisions awareness and alignment-aware capture in task-queue. Same
+boundaries: read-only detection, model judgment, zero per-prompt cost.
+
+### 2. Feedback-loop disciplines — tighten the loop, audit the skills
+
+The suite is a stack of feedback loops at different latencies: **per-touch**
+(format/lint/currency/blast-radius), **on-stop** (the verification floor — tests
+must pass), **on-demand** (`/tidy:audit` assess, `/tidy:distill` cut), and **CI**
+(the backstop). The discipline: *the fastest loop that can catch a class of
+problem owns it* — push signal as close to the change as it'll go
+(touch > stop > on-demand > CI), so nothing waits for review that a hook could
+have said at edit time.
+
+Skills audit (the on-demand `/` commands, 2026-05-31): **tidy** ships `audit`
+(read-only assess) and `distill` (subtractive, edits) — they share the
+weight-report header but differ in mandate, so not redundant; **hud** ships
+`setup`; **charter** and **task-queue** ship none. Gap surfaced: no on-demand
+**alignment check** (a `/charter:*` that reconciles open work against
+decisions/roadmap) — it pairs with discipline 1. Keep the set small and
+non-overlapping: each command earns its slot the same way each nudge earns its
+tokens.
+
+### 3. Refined token philosophy — earn the token, don't just save it
+
+"Token efficiency #1" was read too literally as *fewest tokens* (which argues for
+cutting every nudge). Refit: **every token must earn its keep, in proportion to
+its leverage over the project's life.** The wins were never about saying less —
+they were about the *highest-leverage* tokens: the **project map** (sublinear,
+replaces re-scanning the tree), **policy-stated-once** (not re-injected per turn),
+**conditional/silent hooks** (cost zero unless they fire), and **quiet-mode**
+(drop the prose once it's in CLAUDE.md — never the live state). This dissolves the
+efficiency-vs-build-everything tension: build what raises signal-per-token over
+time; cut what raises cost without raising signal. Proportionality (above) is the
+same rule applied to docs, nudges, and scope.
+
 ## Honest limits (what hooks can and can't do)
 
 - Hooks **nudge; they don't enforce.** The QA "gate" is a strong instruction,
@@ -284,7 +336,7 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.14.0**, **tidy 0.11.0**, **charter 0.8.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.15.0**, **tidy 0.24.0**, **charter 0.11.0**, **hud 0.2.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the
@@ -301,3 +353,9 @@ build it all at once.
   complete.** Remaining nice-to-haves only: broader
   multi-stack pattern linting, and a language-aware blast-radius (e.g. `go list`)
   over today's grep heuristic.
+- **What's next** is the new strategic layer above (*The next layer — direction &
+  signal*): **alignment** (clean ≠ correct — charter's decisions/roadmap feeding
+  task-queue capture), **feedback-loop disciplines** (tighten the loop; close the
+  on-demand alignment-check gap the skills audit found), and the **refined token
+  philosophy** (earn the token, don't just save it). The mechanism is mostly
+  built; this layer is about steering it.
