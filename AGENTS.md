@@ -23,10 +23,12 @@ A small **marketplace of self-contained Claude Code companion plugins**:
   renderer (no hooks) that reads the other plugins' on-disk state read-only and
   prints one line. Wired via the user's `statusLine` config.
 
-Each plugin has its own `README.md` (what/why) and `CONTRACT.md` (the
-**undocumented Claude Code internals it depends on** — read it before changing
-any hook input/output). The system's direction (the 3-plugin vision and phased
-plan) lives in [docs/ROADMAP.md](./docs/ROADMAP.md).
+Each plugin has a `CONTRACT.md` (the **undocumented Claude Code internals it
+depends on** — read it before changing any hook input/output); its `plugin.json`
+`description` says what it does. The system's direction lives in
+[docs/ROADMAP.md](./docs/ROADMAP.md). **No per-plugin READMEs or CHANGELOGs** —
+this is a personal, Claude-run repo: git history is the changelog, and these
+Claude-facing docs (this file, each CONTRACT, the ROADMAP) are the manual.
 
 ## The one rule that drives the architecture: the install boundary
 
@@ -45,17 +47,18 @@ own subdirectory exists** (reachable via `${CLAUDE_PLUGIN_ROOT}`). Therefore:
 
 ```
 .claude-plugin/marketplace.json   # lists every plugin (name, source, version)
-.github/workflows/ci.yml          # provisions tools, then runs ./check.sh
+.github/workflows/ci.yml          # runs ./check.sh on push (the backstop)
 check.sh                          # single source of truth for "what we check"
 .editorconfig
-AGENTS.md  CLAUDE.md  LICENSE  README.md
+AGENTS.md  CLAUDE.md  LICENSE  README.md   # README is a one-line stub → AGENTS.md
+docs/ROADMAP.md
 plugins/<name>/
   .claude-plugin/plugin.json      # version MUST equal the marketplace entry
-  hooks/hooks.json                # wires the hooks
+  hooks/hooks.json                # wires the hooks (absent for hud — it's a statusLine)
   bin/*.sh                        # thin entrypoints: parse stdin, emit JSON
   lib/*.sh                        # the logic
   tests/*.bats                    # hermetic; fake state via CLAUDE_*_DIR overrides
-  README.md  CONTRACT.md  CHANGELOG.md
+  CONTRACT.md
 ```
 
 ## Conventions (mirror these in any new plugin)
@@ -87,19 +90,25 @@ plugins/<name>/
 in CI**: `.github/workflows/ci.yml` installs every tool and runs the same script,
 so green locally means green in CI (modulo locally-skipped tools).
 
+## Workflow (personal, Claude-run — no human ceremony)
+
+- **Change → `./check.sh` → commit to `main`.** No branches, no PRs, no
+  per-change tags or changelogs: a human won't review, and git history is the
+  record. CI re-runs `check.sh` on push as the backstop.
+- **`./check.sh` is the gate** — it's the only error-catcher, since no human
+  reviews. It can't run `shellcheck`/`gitleaks` locally (not installed), so for
+  shell-heavy changes CI may catch what local can't; if CI reddens, **fix
+  forward** with another commit (brief red `main` is fine — no other consumers).
+- **Versions** in `plugin.json` + the marketplace entry must match (a packaging
+  test enforces it); bump only when it's meaningful, not every change.
+
 ## Add a plugin
 
 1. Copy an existing plugin's structure into `plugins/<name>/`.
-2. Mirror the conventions above; include `README.md`, `CONTRACT.md`, and tests.
-3. Add an entry to `.claude-plugin/marketplace.json` (`"source": "./plugins/<name>"`).
-4. Keep `plugin.json` version **equal to** the marketplace entry (a packaging
-   test enforces it).
-5. `./check.sh` must pass.
-
-## Release a plugin
-
-Bump `plugins/<name>/.claude-plugin/plugin.json` **and** its marketplace entry
-(they must match — enforced), update that plugin's `CHANGELOG.md`, then tag.
+2. Mirror the conventions above; include a `CONTRACT.md` and tests.
+3. Add an entry to `.claude-plugin/marketplace.json` (`"source": "./plugins/<name>"`)
+   with a version equal to the plugin's `plugin.json`.
+4. `./check.sh` must pass, then commit to `main`.
 
 ## Don't
 
@@ -107,6 +116,7 @@ Bump `plugins/<name>/.claude-plugin/plugin.json` **and** its marketplace entry
 - Don't add anything that runs per prompt.
 - Don't re-introduce the heavyweight features the project deliberately dropped
   (a bespoke task store, Haiku auto-decompose, autopilot, a destructive-action
-  gate, a CLI, a status bar). The project's whole arc was *removing* these — see
-  `plugins/task-queue/CHANGELOG.md` for the why.
+  gate, a CLI, a status bar). The project's whole arc was *removing* these
+  because they cost tokens, duplicated native Claude Code behavior, or couldn't
+  be owned reliably by a plugin (git history has the details).
 - Don't decompose preemptively; let the 300-line guard decide.
