@@ -47,6 +47,17 @@ tidy_is_generated_go() {
   head -n 10 "$1" 2>/dev/null | grep -qE '^// Code generated .* DO NOT EDIT\.$'
 }
 
+# Is this a test file? Test suites legitimately grow, so they're exempt from the
+# size nudge (the repo's own CI size guard exempts them too).
+tidy_is_test_file() {
+  case "$1" in
+    *_test.go|*_test.py|*.bats|*.spec.*|*.test.*) return 0 ;;
+    */test_*.py|test_*.py)                        return 0 ;;
+    */tests/*|*/test/*|*/__tests__/*|*/spec/*)    return 0 ;;
+  esac
+  return 1
+}
+
 # Content fingerprint, to tell whether a formatter actually changed the file.
 tidy_hash() { cksum "$1" 2>/dev/null | awk '{print $1"-"$2}'; }
 
@@ -170,6 +181,7 @@ tidy_size_nudge() {
   LC_ALL=C grep -Iq . "$file" 2>/dev/null || return 0       # skip binaries
   case "$file" in *.lock|*-lock.json|*.min.*|*.map|*.svg|*.snap) return 0 ;; esac
   tidy_is_generated_go "$file" && return 0
+  tidy_is_test_file "$file" && return 0                     # test suites grow; exempt
   budget="$(tidy_size_budget)"
   n="$(wc -l < "$file" 2>/dev/null || printf 0)"; n="${n//[^0-9]/}"; [ -n "$n" ] || n=0
   [ "$n" -gt "$budget" ] || return 0
