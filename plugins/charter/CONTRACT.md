@@ -58,6 +58,9 @@ Code internals below are observed behaviour, not documented APIs.
 - **Repo root:** resolved with `git rev-parse --show-toplevel`, falling back to
   walking for `.git`, then the cwd. (Self-contained — charter does not depend on
   any other plugin; see AGENTS.md on the install boundary.)
+- **Recent history (read-only):** when a roadmap is present, `git log --no-merges
+  --format=%s -n 5` supplies recently-merged subjects next to the reconcile
+  reminder. A repo with no commits (git log exits 128) degrades to silence.
 
 ## Where the plugin writes
 

@@ -78,7 +78,10 @@ rstatus="$(charter_roadmap_status "$root" 2>/dev/null || printf 'missing')"
 if [ "$rstatus" = "missing" ]; then
   parts+=("[charter] No committed roadmap/backlog file. Generate docs/ROADMAP.md as a Claude-facing backlog — a terse Now/Next/Later list plus a dated changelog — inferred from git history and the codebase (flag any assumptions for review), then commit it. It is how work is picked up, resumed, and coordinated across engineers on separate machines; git history is the shared audit trail.")
 elif [ "$documented" -eq 0 ]; then
-  parts+=("[charter] $(charter_roadmap_path "$root") is this project's backlog — read it for what's next, and reconcile it against recent git history before substantive changes (mark merged items done, append a dated changelog entry, flag drift). Keep it committed so other engineers resume from the same state.")
+  roadmap_line="[charter] $(charter_roadmap_path "$root") is this project's backlog — read it for what's next, and reconcile it against recent git history before substantive changes (mark merged items done, append a dated changelog entry, flag drift). Keep it committed so other engineers resume from the same state."
+  recent="$(charter_recent_commits "$root" 5 2>/dev/null | awk 'NF{printf "%s%s", sep, $0; sep="; "}')"
+  [ -n "$recent" ] && roadmap_line="$roadmap_line"$'\n'"  recently merged (reconcile the roadmap against these — mark done what landed): $recent"
+  parts+=("$roadmap_line")
 fi
 
 # Decisions/ADRs — so Claude doesn't re-litigate or contradict past choices.

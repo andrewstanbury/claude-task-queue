@@ -168,8 +168,11 @@ it's *temporal* and model-knowledge-driven, so it gets named explicitly.
 - **Done:** consolidated the orientation nudge here from task-queue (charter
   owns project-knowledge) — a local integration shakeout found it duplicated
   charter's documentation nudge at SessionStart.
-- **Planned:** stack/architecture notes; richer reconciliation (auto-detect
-  which roadmap items merged).
+- **Shipped (roadmap reconcile, 0.7.0):** when a roadmap is present, charter
+  surfaces the last few **non-merge commit subjects** next to it so reconciliation
+  is concrete ("recently merged: … — mark done what landed") rather than an
+  abstract "reconcile against git history."
+- **Planned:** stack/architecture notes.
 
 ## Strategic direction — the subtractive force + quiet hooks
 
@@ -224,7 +227,7 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.14.0**, **tidy 0.11.0**, **charter 0.6.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.14.0**, **tidy 0.11.0**, **charter 0.7.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the
@@ -234,7 +237,10 @@ build it all at once.
   CLAUDE.md → one-line re-anchor); **tidy 0.7.0** adds `/tidy:distill` and
   **tidy 0.8.0** makes size-vs-complexity automatic (per-touch + a light distill
   at session start — no manual trigger); **charter 0.6.0** adds the decisions/ADR
-  dimension and quiet-mode. Next, the larger items: tidy web edit-time linters +
-  currency, blast-radius, and **Phase 2** (task-queue
-  smart backlog + agent-mode) and **Phase 3** (tidy
-  blast-radius + size-vs-complexity + currency/modernization).
+  dimension and quiet-mode. Then the rest of the roadmap landed: **tidy 0.9.0**
+  web edit-time linters, **0.10.0** currency/modernization, **0.11.0**
+  blast-radius (Phase 3); **task-queue 0.14.0** opt-in agent-mode (Phase 2); and
+  **charter 0.7.0** roadmap reconcile. **The planned roadmap is essentially
+  complete.** Remaining nice-to-haves only: stack/architecture notes, broader
+  multi-stack pattern linting, and a language-aware blast-radius (e.g. `go list`)
+  over today's grep heuristic.

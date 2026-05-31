@@ -96,6 +96,16 @@ charter_policy_documented() {
   return 1
 }
 
+# Recent non-merge commit subjects (default 5), newest first — the raw material
+# for reconciling the roadmap against what actually landed. Empty outside a git
+# repo. Used to make "reconcile the roadmap" concrete rather than abstract.
+charter_recent_commits() {
+  local root="$1" n="${2:-5}"
+  [ -n "$root" ] || return 0
+  # `|| true` so a repo with no commits (git log exits 128) never fails callers.
+  git -C "$root" log --no-merges --format='%s' -n "$n" 2>/dev/null || true
+}
+
 # The project's committed, Claude-facing backlog: a roadmap/backlog file that
 # travels with the repo so work can be picked up, resumed, and coordinated
 # across engineers on separate machines (git history = the cross-dev audit
