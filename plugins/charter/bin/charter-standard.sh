@@ -51,8 +51,15 @@ if [ "$lean" -eq 1 ]; then
 fi
 
 # Full context (startup/clear/unknown): QA gate + roadmap awareness + orientation.
+# Web projects get Lighthouse-aligned defaults so best practices are designed-in
+# (not audited after) — the cheapest way to "score well without running it".
+web="$(charter_is_web "$root" 2>/dev/null || printf 'no')"
 if [ "$status" = "missing" ]; then
-  qa="[charter] This project has no documented quality attributes. Before substantive changes, capture them — performance, security, accessibility, reliability, maintainability targets — in QUALITY.md (or a \"Quality Attributes\" section of CLAUDE.md). Changes should then honor them."
+  if [ "$web" = "web" ]; then
+    qa="[charter] This is a web project with no documented quality attributes. Capture them in QUALITY.md before substantive changes and bake in web best practices so they're designed-in, not audited after: Core Web Vitals budgets (LCP/CLS/INP), accessibility (WCAG AA, semantic HTML, jsx-a11y/stylelint at edit time), SEO/meta, responsive + print styles, progressive enhancement (works without JS, enhance up), and components-by-default (prefer components over raw elements; reuse existing before creating new). Honor them on every change; Lighthouse/CI is a backstop, not the rework loop."
+  else
+    qa="[charter] This project has no documented quality attributes. Before substantive changes, capture them — performance, security, accessibility, reliability, maintainability targets — in QUALITY.md (or a \"Quality Attributes\" section of CLAUDE.md). Changes should then honor them."
+  fi
 else
   qa="[charter] This project documents its quality attributes — honor them when changing code, and surface the relevant one when you touch related areas."
 fi
@@ -83,5 +90,5 @@ else
   orient="[charter] Consult $mpath to orient instead of re-scanning the tree, and keep it current as structure changes — it's how a session loads the project cheaply."
 fi
 
-charter_log "session-start" "qa=$status roadmap=$rstatus map=$mstatus src=${src:-?} mode=full"
+charter_log "session-start" "qa=$status roadmap=$rstatus map=$mstatus web=$web src=${src:-?} mode=full"
 emit "$qa"$'\n\n'"$roadmap"$'\n\n'"$orient"

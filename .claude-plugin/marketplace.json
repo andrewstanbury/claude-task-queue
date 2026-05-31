@@ -20,8 +20,8 @@
     {
       "name": "charter",
       "source": "./plugins/charter",
-      "description": "Know the project: gates substantive work on documented quality attributes, maintains a committed Claude-facing roadmap/backlog file (cross-session/engineer coordination), and keeps a project map (file→responsibility index) so a session orients from the map instead of re-scanning the tree. Generates the docs from the codebase/git history when missing.",
-      "version": "0.4.0"
+      "description": "Know the project: gates substantive work on documented quality attributes (web projects get Lighthouse-aligned defaults — CWV, a11y, print CSS, progressive enhancement, components-by-default), maintains a committed Claude-facing roadmap/backlog file (cross-session/engineer coordination), and keeps a project map (file→responsibility index) so a session orients from the map instead of re-scanning the tree. Generates the docs from the codebase/git history when missing.",
+      "version": "0.5.0"
     },
     {
       "name": "hud",

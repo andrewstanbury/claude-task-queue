@@ -164,6 +164,57 @@ run_standard() {
   [[ "$output" == *"ARCHITECTURE.md"* ]]
 }
 
+@test "is-web: no by default; web via index.html / package.json dep; env override wins" {
+  src='. "$1/lib/charter.sh";'
+  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "no" ]
+
+  : > "$REPO/index.html"
+  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "web" ]
+
+  rm "$REPO/index.html"; printf '{"dependencies":{"react":"^18.0.0"}}\n' > "$REPO/package.json"
+  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "web" ]
+
+  CLAUDE_CHARTER_WEB=0 run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "no" ]                           # override forces non-web
+
+  rm "$REPO/package.json"
+  CLAUDE_CHARTER_WEB=1 run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "web" ]                          # override forces web
+}
+
+@test "web project + missing QA: nudge bakes in Lighthouse-aligned defaults (startup)" {
+  : > "$REPO/index.html"
+  run run_standard startup
+  [[ "$output" == *"web project"* ]]
+  [[ "$output" == *"Core Web Vitals"* ]]
+  [[ "$output" == *"progressive enhancement"* ]]
+  [[ "$output" == *"print"* ]]
+  [[ "$output" == *"reuse existing before creating"* ]]   # components-by-default principle
+}
+
+@test "non-web project gets the generic QA nudge (no web specifics)" {
+  run run_standard startup
+  [[ "$output" == *"no documented quality attributes"* ]]
+  [[ "$output" != *"progressive enhancement"* ]]
+  [[ "$output" != *"Core Web Vitals"* ]]
+}
+
+@test "CLAUDE_CHARTER_WEB=0 suppresses the web template even with index.html" {
+  : > "$REPO/index.html"
+  CLAUDE_CHARTER_WEB=0 run run_standard startup
+  [[ "$output" != *"progressive enhancement"* ]]
+  [[ "$output" == *"no documented quality attributes"* ]]
+}
+
+@test "doctor flags a web project's best-practice defaults" {
+  printf '{"dependencies":{"vue":"^3.0.0"}}\n' > "$REPO/package.json"
+  run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
+  [[ "$output" == *"web project"* ]]
+}
+
 @test "SessionStart output is valid JSON with the SessionStart event name" {
   json="$(jq -nc --arg c "$REPO" '{cwd:$c, source:"startup"}')"
   run bash -c 'printf "%s" "$1" | "$2" | jq -r .hookSpecificOutput.hookEventName' _ "$json" "$STANDARD"

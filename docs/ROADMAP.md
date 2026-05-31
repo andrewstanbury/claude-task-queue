@@ -110,6 +110,17 @@ it's *temporal* and model-knowledge-driven, so it gets named explicitly.
   The team isn't on GitHub Issues/Projects, so this committed file (versioned by
   git = the shared audit trail) is the coordination point across machines.
   *Detect-not-author:* the hook stays read-only; the model writes the file.
+- **Shipped (web best-practices, "shift the audit left"):** when charter detects
+  a **web project** (framework dep / `index.html` / web config; override
+  `CLAUDE_CHARTER_WEB=1|0`) and QA is undocumented, the nudge seeds
+  **Lighthouse-aligned defaults** — Core Web Vitals budgets, accessibility
+  (WCAG AA, jsx-a11y/stylelint at edit time), SEO, responsive + **print CSS**,
+  **progressive enhancement**, and **components-by-default** (prefer components
+  over raw elements; reuse existing before creating new). Best practices become
+  *designed-in*, not audited after — Lighthouse/CI is a backstop, not the rework
+  loop. (This realises the "a11y/perf/security are quality attributes" stance
+  below.) The library-agnostic component principle also feeds the **prune force**
+  (reuse-before-create = anti-duplication).
 - **Shipped (project map):** charter maintains a compact, committed
   **`file → responsibility` map** (`docs/MAP.md` / `MAP.md` /
   `ARCHITECTURE.md`, override `CLAUDE_CHARTER_MAP_FILE`) so a session **orients
@@ -173,10 +184,11 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.11.0**, **tidy 0.4.0**, **charter 0.4.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.11.0**, **tidy 0.4.0**, **charter 0.5.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
-  added the roadmap/backlog file and **0.4.0** the project map (orientation →
-  map). Next, per the strategic direction above: the **subtractive prune force**
+  added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
+  and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the
+  audit left"). Next, per the strategic direction above: the **subtractive prune force**
   and **bootstrap-then-quiet hooks**, plus **task-queue hydrating the roadmap's
   open items into the live task list**; then the older **Phase 2** (task-queue
   smart backlog + agent-mode) and **Phase 3** (tidy

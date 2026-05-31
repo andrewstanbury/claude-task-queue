@@ -100,3 +100,28 @@ charter_map_path() {
 charter_map_status() {
   [ -n "$(charter_map_path "${1:-}")" ] && printf 'present' || printf 'missing'
 }
+
+# Is this a web project? Lets charter seed Lighthouse-aligned quality-attribute
+# defaults (CWV, a11y, print CSS, progressive enhancement, components-by-default)
+# so web best practices are designed-in, not audited after. Prints "web" or "no".
+# CLAUDE_CHARTER_WEB=1|0 overrides; else infer from a web framework dep in
+# package.json, an index.html, or a known web config file.
+charter_is_web() {
+  local root="$1" f
+  case "${CLAUDE_CHARTER_WEB:-}" in
+    1) printf 'web'; return 0 ;;
+    0) printf 'no';  return 0 ;;
+  esac
+  [ -n "$root" ] || { printf 'no'; return 0; }
+  [ -f "$root/index.html" ] && { printf 'web'; return 0; }
+  for f in next.config.js next.config.mjs next.config.ts nuxt.config.js nuxt.config.ts \
+           vite.config.js vite.config.ts astro.config.mjs svelte.config.js angular.json \
+           gatsby-config.js remix.config.js; do
+    [ -f "$root/$f" ] && { printf 'web'; return 0; }
+  done
+  if [ -f "$root/package.json" ]; then
+    grep -qiE '"(react|react-dom|vue|svelte|preact|solid-js|astro|next|nuxt|gatsby|lit|vite|@angular/core|@remix-run/react)"[[:space:]]*:' \
+      "$root/package.json" 2>/dev/null && { printf 'web'; return 0; }
+  fi
+  printf 'no'
+}

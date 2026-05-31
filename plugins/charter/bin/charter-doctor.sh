@@ -30,6 +30,11 @@ else
   printf '         (QUALITY.md, docs/QUALITY.md, an ADR, or a "Quality Attributes" section of CLAUDE.md)\n'
 fi
 
+if [ "$(charter_is_web "$root")" = "web" ]; then
+  printf '  [web]  web project — QA defaults bake in Core Web Vitals, a11y (WCAG AA),\n'
+  printf '         print CSS, progressive enhancement, and components-by-default\n'
+fi
+
 printf '\nRoadmap / backlog\n'
 rpath="$(charter_roadmap_path "$root")"
 if [ -n "$rpath" ]; then

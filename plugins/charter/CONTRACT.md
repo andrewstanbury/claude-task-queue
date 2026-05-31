@@ -25,6 +25,13 @@ Code internals below are observed behaviour, not documented APIs.
   `docs/adrs/`, or a *quality attribute* / *non-functional* / *NFR* mention in
   `CLAUDE.md` / `AGENTS.md` / `docs/CLAUDE.md` / `README.md`. Override via
   `CLAUDE_CHARTER_QA_FILE`.
+- **Web-project detection:** a web framework dep in `package.json` (react/vue/
+  svelte/preact/solid/astro/next/nuxt/gatsby/lit/vite/angular/remix), an
+  `index.html`, or a known web config (`next.config.*`, `vite.config.*`, …).
+  Force on/off via `CLAUDE_CHARTER_WEB=1|0`. When web + QA undocumented, the
+  nudge seeds Lighthouse-aligned defaults (CWV, WCAG AA, print CSS, progressive
+  enhancement, components-by-default) so best practices are designed-in rather
+  than audited after.
 - **Roadmap/backlog file:** one of `docs/ROADMAP.md`, `ROADMAP.md`,
   `docs/BACKLOG.md`, `BACKLOG.md`. Override via `CLAUDE_CHARTER_ROADMAP_FILE`.
   This is the committed, Claude-facing record of what's-next — the coordination
