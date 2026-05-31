@@ -263,6 +263,29 @@ run_standard() {
   [[ "$output" == *"claude-companion"* ]]
 }
 
+@test "recent-commits: returns non-merge commit subjects newest-first" {
+  printf 'x\n' > "$REPO/a"; git -C "$REPO" add -A
+  git -C "$REPO" -c user.email=t@t -c user.name=t commit -q -m "first subject"
+  src='. "$1/lib/charter.sh";'
+  run bash -c "$src"' charter_recent_commits "$2" 5' bash "$ROOT" "$REPO"
+  [[ "$output" == *"first subject"* ]]
+}
+
+@test "roadmap reconcile: surfaces recently-merged commits when a roadmap is present" {
+  mkdir -p "$REPO/docs"; printf '# Roadmap\n' > "$REPO/docs/ROADMAP.md"
+  git -C "$REPO" add -A
+  git -C "$REPO" -c user.email=t@t -c user.name=t commit -q -m "feat: do the thing"
+  run run_standard startup
+  [[ "$output" == *"recently merged"* ]]
+  [[ "$output" == *"do the thing"* ]]
+}
+
+@test "roadmap reconcile: no recently-merged line in a repo with no commits" {
+  mkdir -p "$REPO/docs"; printf '# Roadmap\n' > "$REPO/docs/ROADMAP.md"
+  run run_standard startup                      # REPO inited but no commits
+  [[ "$output" != *"recently merged"* ]]
+}
+
 @test "SessionStart output is valid JSON with the SessionStart event name" {
   json="$(jq -nc --arg c "$REPO" '{cwd:$c, source:"startup"}')"
   run bash -c 'printf "%s" "$1" | "$2" | jq -r .hookSpecificOutput.hookEventName' _ "$json" "$STANDARD"
