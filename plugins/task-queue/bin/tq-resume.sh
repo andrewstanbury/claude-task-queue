@@ -68,6 +68,11 @@ else
   ctx="$POLICY"$'\n\n'"$pause_hint"
   resume="$(tq_resume_context "$root" "$sid" 2>/dev/null || true)"
   [ -n "$resume" ] && ctx="$ctx"$'\n\n'"$resume"
+  # Hydrate the live queue from the repo's committed backlog (charter surfaces it
+  # for project-knowledge; here it's the orchestration action: pull its open
+  # items into the native task list). Full context only — token-light.
+  roadmap="$(tq_roadmap_path "$root" 2>/dev/null || true)"
+  [ -n "$roadmap" ] && ctx="$ctx"$'\n\n'"[task-queue] This repo has a committed backlog at $roadmap — adopt its open (Now/Next) items into your task list with TaskCreate so the live queue reflects the shared backlog, and reflect finished work back to it as you go."
 fi
 
 # State signals — always shown, regardless of source.

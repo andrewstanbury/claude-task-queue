@@ -102,6 +102,24 @@ tq_root_for_cwd() {
   printf '%s' "$cwd"
 }
 
+# A repo's committed, Claude-facing backlog file (if any) — the cross-session,
+# cross-engineer record of what's next. The resume bridge points the model at it
+# so the live task list is hydrated from the shared backlog. Prints the relative
+# path or nothing. Override via CLAUDE_TQ_ROADMAP_FILE. (Detection is duplicated
+# from the charter plugin on purpose: the install boundary keeps each plugin
+# self-contained — see AGENTS.md.)
+tq_roadmap_path() {
+  local root="$1" f
+  [ -n "$root" ] || return 0
+  if [ -n "${CLAUDE_TQ_ROADMAP_FILE:-}" ]; then
+    [ -f "$root/$CLAUDE_TQ_ROADMAP_FILE" ] && printf '%s' "$CLAUDE_TQ_ROADMAP_FILE"
+    return 0
+  fi
+  for f in docs/ROADMAP.md ROADMAP.md docs/BACKLOG.md BACKLOG.md; do
+    [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
+  done
+}
+
 # session id -> absolute repo root. Cached (a session's cwd never changes).
 # Returns non-zero and prints nothing when the transcript or its cwd can't be
 # resolved (e.g. the session's transcript hasn't been written yet).

@@ -8,8 +8,8 @@
     {
       "name": "task-queue",
       "source": "./plugins/task-queue",
-      "description": "Resume bridge + auto-advance for Claude Code's native task list — re-surfaces a repo's unfinished tasks from earlier sessions and points the model at the next unblocked task as each one completes.",
-      "version": "0.11.0"
+      "description": "Resume bridge + auto-advance for Claude Code's native task list — re-surfaces a repo's unfinished tasks from earlier sessions, hydrates the queue from a committed roadmap/backlog file when present, and points the model at the next unblocked task as each one completes.",
+      "version": "0.12.0"
     },
     {
       "name": "tidy",

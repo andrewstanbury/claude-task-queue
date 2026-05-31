@@ -57,7 +57,11 @@ plugin stays independently installable (the install boundary forbids shared code
 
 ### task-queue — *orchestrate* (shipped)
 - **Now:** SessionStart policy + cross-session resume + auto-advance + per-repo
-  pause + conditional capture nudge + schema-drift canary + orientation nudge.
+  pause + conditional capture nudge + schema-drift canary + **roadmap/backlog
+  hydration** (when the repo has a committed `docs/ROADMAP.md`/`BACKLOG.md`, the
+  resume bridge nudges the model to adopt its open Now/Next items into the live
+  task list — the orchestration half of charter's roadmap file; read-only, no
+  parsing, full-context only).
 - **Planned (Phase 2):** smarter backlog — detect independent vs chained tasks;
   an **opt-in agent-mode toggle** (like pause) that fans parallel tasks out to
   subagents when beneficial, defaulting to inline for token efficiency.
@@ -184,12 +188,12 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.11.0**, **tidy 0.4.0**, **charter 0.5.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.12.0**, **tidy 0.4.0**, **charter 0.5.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the
-  audit left"). Next, per the strategic direction above: the **subtractive prune force**
-  and **bootstrap-then-quiet hooks**, plus **task-queue hydrating the roadmap's
-  open items into the live task list**; then the older **Phase 2** (task-queue
+  audit left"). **task-queue 0.12.0** hydrates the live queue from the committed
+  roadmap/backlog. Next, per the strategic direction above: the **subtractive
+  prune force** and **bootstrap-then-quiet hooks**; then the older **Phase 2** (task-queue
   smart backlog + agent-mode) and **Phase 3** (tidy
   blast-radius + size-vs-complexity + currency/modernization).

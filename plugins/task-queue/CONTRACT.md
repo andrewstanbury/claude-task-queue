@@ -60,6 +60,17 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
   stops surfacing tasks. Advance is unaffected (it uses the session id from the
   hook payload directly).
 
+### 2b. Committed roadmap/backlog file (read-only, optional)
+
+- **Path:** one of `docs/ROADMAP.md`, `ROADMAP.md`, `docs/BACKLOG.md`,
+  `BACKLOG.md` at the repo root. Override via `CLAUDE_TQ_ROADMAP_FILE`.
+- **Use:** on a fresh SessionStart, if present, the resume bridge adds a nudge to
+  *hydrate the live task list* from the backlog's open items. We only check the
+  file **exists** — we don't parse it; the model reads it. Detection is duplicated
+  from the charter plugin on purpose (the install boundary keeps plugins
+  self-contained — see AGENTS.md).
+- **If it's absent:** no hydration nudge; everything else is unchanged.
+
 ### 3. `SessionStart` hook payload (stdin)
 
 - **Fields read:** `session_id`, `cwd`, and `source` — `source` selects the full

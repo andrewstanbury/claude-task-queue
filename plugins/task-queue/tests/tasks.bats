@@ -77,6 +77,31 @@ run_resume() {
   [[ "$output" != *"carry over"* ]]
 }
 
+@test "session start hydrates the live queue from a committed roadmap/backlog file" {
+  local repo; repo="$(mktemp -d)"
+  mkdir -p "$repo/docs"; printf '# Roadmap\n## Next\n- ship it\n' > "$repo/docs/ROADMAP.md"
+  run run_resume "s9" "$repo"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"committed backlog at docs/ROADMAP.md"* ]]
+  [[ "$output" == *"adopt its open"* ]]
+  rm -rf "$repo"
+}
+
+@test "no roadmap file -> no hydration nudge" {
+  run run_resume "s9" "/home/x/no-roadmap"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"committed backlog"* ]]
+}
+
+@test "hydration nudge is omitted in lean mode (compact)" {
+  local repo; repo="$(mktemp -d)"
+  printf '# Backlog\n' > "$repo/ROADMAP.md"
+  json="$(jq -nc --arg cwd "$repo" '{session_id:"s9", cwd:$cwd, source:"compact"}')"
+  run bash -c 'printf "%s" "$1" | "$0" | jq -r .hookSpecificOutput.additionalContext' "$RESUME" "$json"
+  [[ "$output" != *"committed backlog"* ]]
+  rm -rf "$repo"
+}
+
 @test "hook output is valid SessionStart hook JSON" {
   json="$(jq -nc '{session_id:"s2", cwd:"/home/x/alpha", source:"startup"}')"
   run bash -c 'printf "%s" "$1" | "$0" | jq -r .hookSpecificOutput.hookEventName' "$RESUME" "$json"
