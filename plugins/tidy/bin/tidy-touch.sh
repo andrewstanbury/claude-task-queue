@@ -41,6 +41,11 @@ sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
 # every edit (no manual trigger).
 size="$(tidy_size_nudge "$file" "$sid" 2>/dev/null || true)"
 
+# Currency/modernization: surface the nearest manifest's pinned versions once per
+# session so the model can judge what's deprecated/behind latest. Stack-level, so
+# deduped per manifest per session (not per edit).
+currency="$(tidy_currency_nudge "$file" "$sid" 2>/dev/null || true)"
+
 lang="$(tidy_lang_for_file "$file")"
 result=""
 tdd=""
@@ -53,7 +58,7 @@ case "$lang" in
     result="$(tidy_handle_web "$file" 2>/dev/null || true)"  # eslint/stylelint findings
     ;;
 esac
-[ -n "$result" ] || [ -n "$tdd" ] || [ -n "$size" ] || exit 0   # nothing to say
+[ -n "$result" ] || [ -n "$tdd" ] || [ -n "$size" ] || [ -n "$currency" ] || exit 0   # nothing to say
 
 changed=""
 lint=""
@@ -68,6 +73,7 @@ ctx="[tidy] ${file}:"
 [ -n "$lint" ] && ctx="$ctx"$'\n'"• linter findings to fix in this file (leave unrelated pre-existing issues alone):"$'\n'"$lint"
 [ -n "$tdd" ] && ctx="$ctx"$'\n'"• $tdd"
 [ -n "$size" ] && ctx="$ctx"$'\n'"• $size"
+[ -n "$currency" ] && ctx="$ctx"$'\n'"• $currency"
 
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $c}}'

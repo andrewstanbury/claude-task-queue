@@ -84,12 +84,15 @@ plugin stays independently installable (the install boundary forbids shared code
   only, no `--fix`* — shifting Lighthouse's a11y/best-practices audit to edit
   time. Acts only when the project has the linter; silent otherwise. This is the
   enforcement layer behind charter's web quality-attribute defaults.
+- **Shipped (currency/modernization, 0.10.0):** on touch, surface the nearest
+  manifest's **pinned versions** (package.json/go.mod/…) once per manifest per
+  session, with a nudge to flag deprecated/behind-latest tech — facts from the
+  hook, judgment from the model, **never an auto-upgrade**. `CLAUDE_TIDY_CURRENCY=0`
+  to disable.
 - **Planned (Phase 3):** **blast-radius awareness** (surface a symbol's
-  dependents before you change it, so TDD covers the affected surface);
-  broader multi-stack pattern linting; and
-  **currency/modernization** — flag deprecated/outdated tech in the touched
-  scope. Identity going forward: *no change lands without a test and an
-  understanding of what it can break.*
+  dependents before you change it, so TDD covers the affected surface) and
+  broader multi-stack pattern linting. Identity going forward: *no change lands
+  without a test and an understanding of what it can break.*
 
 #### Currency / modernization (how it works)
 
@@ -215,7 +218,7 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.13.0**, **tidy 0.9.0**, **charter 0.6.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.13.0**, **tidy 0.10.0**, **charter 0.6.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the

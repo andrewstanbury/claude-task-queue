@@ -1,6 +1,8 @@
 {
   "name": "andrewstanbury",
-  "owner": { "name": "Andrew Stanbury" },
+  "owner": {
+    "name": "Andrew Stanbury"
+  },
   "metadata": {
     "description": "Native-first, low-friction companion plugins for Claude Code."
   },
@@ -8,25 +10,25 @@
     {
       "name": "task-queue",
       "source": "./plugins/task-queue",
-      "description": "Resume bridge + auto-advance for Claude Code's native task list — re-surfaces a repo's unfinished tasks from earlier sessions, hydrates the queue from a committed roadmap/backlog file when present, and points the model at the next unblocked task as each one completes. Goes quiet once the policy is recorded in CLAUDE.md.",
+      "description": "Resume bridge + auto-advance for Claude Code's native task list \u2014 re-surfaces a repo's unfinished tasks from earlier sessions, hydrates the queue from a committed roadmap/backlog file when present, and points the model at the next unblocked task as each one completes. Goes quiet once the policy is recorded in CLAUDE.md.",
       "version": "0.13.0"
     },
     {
       "name": "tidy",
       "source": "./plugins/tidy",
-      "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe), flags it for decomposition when it grows past a size budget, and holds a subtractive posture (reuse before create, delete what a change makes redundant) so an active project trends down in complexity over time, scoped to the touched file. Over-budget files also surface automatically at session start; no manual trigger. Goes quiet once the standard is recorded in CLAUDE.md. /tidy:distill runs the full whole-project weight report on demand. Targets Go and web (eslint incl. jsx-a11y, stylelint).",
-      "version": "0.9.0"
+      "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe), flags it for decomposition when it grows past a size budget, and holds a subtractive posture (reuse before create, delete what a change makes redundant) so an active project trends down in complexity over time, scoped to the touched file. Over-budget files also surface automatically at session start; no manual trigger. Goes quiet once the standard is recorded in CLAUDE.md. /tidy:distill runs the full whole-project weight report on demand. Targets Go and web (eslint incl. jsx-a11y, stylelint); surfaces manifest version pins on touch to flag outdated tech.",
+      "version": "0.10.0"
     },
     {
       "name": "charter",
       "source": "./plugins/charter",
-      "description": "Know the project: gates substantive work on documented quality attributes (web projects get Lighthouse-aligned defaults), maintains a committed Claude-facing roadmap/backlog file, keeps a project map (file→responsibility index) so a session orients from the map instead of re-scanning the tree, and tracks decisions/ADRs so past choices aren't re-litigated. Generates the docs from the codebase/git history when missing; goes quiet once the policy is summarised in CLAUDE.md.",
+      "description": "Know the project: gates substantive work on documented quality attributes (web projects get Lighthouse-aligned defaults), maintains a committed Claude-facing roadmap/backlog file, keeps a project map (file\u2192responsibility index) so a session orients from the map instead of re-scanning the tree, and tracks decisions/ADRs so past choices aren't re-litigated. Generates the docs from the codebase/git history when missing; goes quiet once the policy is summarised in CLAUDE.md.",
       "version": "0.6.0"
     },
     {
       "name": "hud",
       "source": "./plugins/hud",
-      "description": "A consolidated status line: animated beacon, open tasks + in-progress, paused state, quality-attributes status, last tidy action, tokens up/down, git branch, and model — read-only from existing plugin state, zero model-token cost.",
+      "description": "A consolidated status line: animated beacon, open tasks + in-progress, paused state, quality-attributes status, last tidy action, tokens up/down, git branch, and model \u2014 read-only from existing plugin state, zero model-token cost.",
       "version": "0.1.0"
     }
   ]
