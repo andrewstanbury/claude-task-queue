@@ -39,3 +39,29 @@ tq_roadmap_path() {
     [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
   done
 }
+
+# A repo's committed decisions/ADR record (DECISIONS.md or docs/adr|adrs|decisions/),
+# if any — the recorded choices that newly-captured work must not silently
+# contradict. Lets the capture nudge weigh work against the project's direction
+# at capture time (the alignment anchor, mirroring charter). Self-contained
+# detection (duplicated from charter on purpose — the install boundary keeps each
+# plugin standalone; see AGENTS.md). Prints a relative path/dir or nothing.
+# Override via CLAUDE_TQ_DECISIONS_FILE.
+tq_decisions_path() {
+  local root="$1" f g rel
+  [ -n "$root" ] || return 0
+  if [ -n "${CLAUDE_TQ_DECISIONS_FILE:-}" ]; then
+    [ -f "$root/$CLAUDE_TQ_DECISIONS_FILE" ] && printf '%s' "$CLAUDE_TQ_DECISIONS_FILE"
+    return 0
+  fi
+  for f in DECISIONS.md docs/DECISIONS.md; do
+    [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
+  done
+  for g in "$root"/docs/adr/*.md "$root"/docs/adrs/*.md "$root"/docs/decisions/*.md; do
+    if [ -f "$g" ]; then
+      rel="${g#"$root"/}"            # e.g. docs/adr/0001-foo.md
+      printf '%s/' "${rel%/*}"       # → docs/adr/
+      return 0
+    fi
+  done
+}
