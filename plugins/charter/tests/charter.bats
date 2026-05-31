@@ -236,12 +236,31 @@ run_standard() {
 
 @test "decisions: scale-up mention when missing (not demanded), consult when present" {
   run run_standard startup
-  [[ "$output" == *"decisions (DECISIONS.md/ADRs)"* ]]   # mentioned as scale-up, not a gap nag
+  [[ "$output" == *"capture the evident decisions (DECISIONS.md/ADRs)"* ]]  # scale-up, not a gap nag
   [[ "$output" != *"No decision record"* ]]
+  [[ "$output" != *"alignment anchor"* ]]               # no anchor when there are no decisions
   printf '# Decisions\n- chose X over Y\n' > "$REPO/DECISIONS.md"
   run run_standard startup
   [[ "$output" == *"consult as relevant"* ]]
   [[ "$output" == *"decisions"* ]]
+}
+
+@test "decisions are the alignment anchor: present brief says consult before reversing" {
+  printf '# Decisions\n- chose X over Y\n' > "$REPO/DECISIONS.md"
+  run run_standard startup
+  [[ "$output" == *"alignment anchor"* ]]
+  [[ "$output" == *"reverse or contradict"* ]]
+}
+
+@test "alignment anchor is dropped under the claude-companion quiet marker" {
+  # decisions present + marker -> the consult brief (incl. the anchor) goes quiet,
+  # the standing policy lives in CLAUDE.md instead.
+  printf '# Decisions\n- chose X over Y\n' > "$REPO/DECISIONS.md"
+  printf '%s\n' '<!-- claude-companion -->' > "$REPO/CLAUDE.md"
+  printf '# MAP\n' > "$REPO/docs/MAP.md" 2>/dev/null || { mkdir -p "$REPO/docs"; printf '# MAP\n' > "$REPO/docs/MAP.md"; }
+  printf '# ROADMAP\n' > "$REPO/docs/ROADMAP.md"
+  run run_standard startup
+  [[ "$output" != *"alignment anchor"* ]]
 }
 
 @test "quiet mode: claude-companion marker drops the consult brief, keeps baseline gaps" {
