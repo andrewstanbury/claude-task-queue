@@ -261,6 +261,16 @@ fake_web_linter() {
   [[ "$output" != *"lines (budget"* ]]          # under budget → silent
 }
 
+@test "size: test files are exempt (suites legitimately grow)" {
+  export CLAUDE_TIDY_SIZE_BUDGET=5
+  seq 1 12 > "$WORK/widget_test.go"
+  run run_touch "$WORK/widget_test.go"
+  [[ "$output" != *"is 12 lines"* ]]
+  seq 1 12 > "$WORK/suite.bats"
+  run run_touch "$WORK/suite.bats"
+  [[ "$output" != *"is 12 lines"* ]]
+}
+
 @test "size: CLAUDE_TIDY_SIZE_CHECK=0 disables the touch nudge" {
   export CLAUDE_TIDY_SIZE_BUDGET=5 CLAUDE_TIDY_SIZE_CHECK=0
   seq 1 12 > "$WORK/big.txt"
