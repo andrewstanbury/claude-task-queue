@@ -16,6 +16,9 @@ A small **marketplace of self-contained Claude Code companion plugins**:
 - **`plugins/tidy/`** — *tidy-as-you-touch*: formats and lint-checks the file you
   just edited (fixing only what's safe) so a project converges toward clean code
   over time, scoped to the touched file.
+- **`plugins/charter/`** — *know the project*: gates substantive work on
+  documented quality attributes (nudges to capture them if missing) and keeps the
+  project's Claude manual in view. Read-only over the project.
 
 Each plugin has its own `README.md` (what/why) and `CONTRACT.md` (the
 **undocumented Claude Code internals it depends on** — read it before changing

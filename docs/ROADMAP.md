@@ -16,7 +16,10 @@ constrain everything below.
 3. **File sizes that match the complexity** of the product requirements.
 4. **Follow the project's Quality Attributes**; if none are documented, document
    them *before* working on the project.
-5. **Follow the recommended patterns** of the tech stack / frameworks in use.
+5. **Follow the recommended patterns** of the tech stack / frameworks in use —
+   and **flag outdated/deprecated tech within the touched scope** (versions
+   behind latest stable, deprecated APIs/architecture, stale tests) so cruft is
+   modernized as you go, not left to rot.
 6. **Streamlined plugins** — seamless, pausable, show the tasks being worked on,
    and process the backlog optimally (fan out to agents *or* auto-order the work).
 
@@ -43,7 +46,7 @@ already-lean plugins.
 |---|---|---|
 | **task-queue** (shipped) | **Orchestrate the work** — capture, order, advance, pause, show tasks | 6 |
 | **tidy** (shipped) | **Make each change safely & cleanly** — format/lint/TDD on touch, ratchet | 3, 5, TDD, blast-radius, tech-debt |
-| **charter** (planned) | **Maintain the project's Claude manual** — map, quality attributes, architecture, stack patterns | 1, 4 (feeds 2, 3, 5) |
+| **charter** (shipped, MVP) | **Maintain the project's Claude manual** — quality-attributes gate now; map/architecture/stack notes planned | 1, 4 (feeds 2, 3, 5) |
 
 Single responsibility: **orchestrate / change-safely / know-the-project.** Each
 plugin stays independently installable (the install boundary forbids shared code
@@ -63,16 +66,43 @@ plugin stays independently installable (the install boundary forbids shared code
   payload-drift canary.
 - **Planned (Phase 3):** **blast-radius awareness** (surface a symbol's
   dependents before you change it, so TDD covers the affected surface);
-  file-size-vs-complexity nudge; multi-stack pattern linting. Identity going
-  forward: *no change lands without a test and an understanding of what it can
-  break.*
+  file-size-vs-complexity nudge; multi-stack pattern linting; and
+  **currency/modernization** — flag deprecated/outdated tech in the touched
+  scope. Identity going forward: *no change lands without a test and an
+  understanding of what it can break.*
 
-### charter — *know the project* (planned, Phase 1)
-- **MVP:** at SessionStart, if the project has no documented **quality
+#### Currency / modernization (how it works)
+
+Detecting "this is outdated" is **the model's job, not the hook's** — it's world
+knowledge (e.g. "RN's old architecture is deprecated," "this version is behind")
+that a hook can't reliably know offline. So:
+- **Judgment (engine):** a *currency* clause in tidy's standard — when you touch
+  code, notice deprecated patterns / behind-latest versions / stale tests in
+  scope and flag modernization.
+- **Facts (assist):** on touch, surface the **declared versions from the nearest
+  manifest** (`package.json`, `go.mod`, …) so the model judges against what's
+  actually pinned. **Scoped to the touched area — never a whole-project scan.**
+- **Guardrails:** **nudge, never auto-upgrade** (a framework/dep bump is the
+  highest-blast-radius change there is — hence its pairing with blast-radius);
+  scoped; deduped once per concern per session.
+- **Limit:** "latest stable" leans on the model's training-cutoff knowledge
+  (approximate); an optional network check (`npm view …`) is deferred.
+- **charter** holds the persistent stack + modernization notes so this judgment
+  has durable context.
+
+Other "industry best practice" axes — **security, accessibility, performance** —
+are *not* separate mechanisms: they're **quality attributes**, documented and
+honored via `charter` (criterion 4). Currency is the one that's distinct because
+it's *temporal* and model-knowledge-driven, so it gets named explicitly.
+
+### charter — *know the project* (MVP shipped, Phase 1)
+- **Shipped (MVP):** at SessionStart, if the project has no documented **quality
   attributes** (e.g. `QUALITY.md` / NFRs / ADRs), **nudge to document them before
-  substantive changes**; bootstrap and surface a lean **project manual**
-  (map + architecture + stack patterns); prompt Claude to keep it current as it
-  learns the project — so future sessions orient cheaply.
+  substantive changes** (source-aware, lean on compact); honor-reminder when
+  documented; `charter-doctor`.
+- **Planned:** bootstrap/maintain the project map + architecture/stack notes;
+  consolidate the orientation nudge (currently in task-queue) here, since charter
+  owns project-knowledge.
 
 ## Honest limits (what hooks can and can't do)
 
@@ -88,7 +118,7 @@ plugin stays independently installable (the install boundary forbids shared code
 
 ## Phased plan (in priority order)
 
-1. **Phase 1 — `charter` MVP** (criteria 1 + 4). The root that unlocks 1–5. ← next
+1. **Phase 1 — `charter` MVP** (criteria 1 + 4). The root that unlocks 1–5. ✅ **done** (charter 0.1.0)
 2. **Phase 2 — task-queue smart backlog + agent-mode toggle** (criterion 6).
 3. **Phase 3 — tidy blast-radius + size-vs-complexity + multi-stack patterns**
    (criteria 3, 5, and the through-line).
@@ -99,5 +129,7 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.10.0**, **tidy 0.4.0** — shipped.
-- **charter** — not started (Phase 1).
+- **task-queue 0.10.0**, **tidy 0.4.0**, **charter 0.1.0** — shipped.
+- **Phase 1 (charter MVP)** done. Next: **Phase 2** (task-queue smart backlog +
+  agent-mode), then **Phase 3** (tidy blast-radius + size-vs-complexity +
+  currency/modernization).
