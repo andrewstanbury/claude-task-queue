@@ -50,6 +50,18 @@ This plugin is deliberately conservative because it *mutates files*:
 - The plugin **does not install tools**; it detects them with `command -v` and
   honors the project's own config (e.g. `.golangci.yml`).
 
+### 4. The `/tidy:distill` command (user-invoked)
+
+- **Files:** `commands/distill.md` (auto-discovered, namespaced `/tidy:distill`)
+  inlines the stdout of `bin/tidy-distill.sh` via the `!` prefix, then instructs
+  the model to run the subtractive pass (dead code, duplication, doc↔code drift).
+- **`bin/tidy-distill.sh`** is **read-only** and language-agnostic: it enumerates
+  files with `git ls-files --cached --others --exclude-standard` (fallback
+  `find`) and reports file/line counts, the heaviest + over-budget files, cruft
+  markers, and junk artefacts. Tunables: `CLAUDE_TIDY_SIZE_BUDGET` (default 400),
+  `CLAUDE_TIDY_DISTILL_TOP` (default 10). It never writes and never hard-fails.
+  The *judgment* (what to actually delete) is the model's, gated on confirmation.
+
 ## Where the plugin writes
 
 - **Your source files** — formatter output, in place, for the touched file only.

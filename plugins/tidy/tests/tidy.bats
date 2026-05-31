@@ -188,6 +188,40 @@ run_standard() {
   grep -q "no tool_input.file_path" "$CLAUDE_TIDY_LOG_DIR/activity.log"
 }
 
+# ---- tidy-distill (whole-project weight report) -----------------------------
+
+@test "distill: flags over-budget files, junk, and cruft markers (git repo)" {
+  local repo="$WORK/proj"; mkdir -p "$repo"; git -C "$repo" init -q
+  printf 'package main\n' > "$repo/small.go"
+  printf 'a\nb\nc\nd\ne\nf\n# TODO: trim\n' > "$repo/big.txt"
+  : > "$repo/scratch.bak"
+  git -C "$repo" add -A
+  run env CLAUDE_TIDY_SIZE_BUDGET=5 bash "$ROOT/bin/tidy-distill.sh" "$repo"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"weight report"* ]]
+  [[ "$output" == *"big.txt"* ]]
+  [[ "$output" == *"over budget"* ]]
+  [[ "$output" == *"scratch.bak"* ]]             # junk artefact
+  [[ "$output" == *"TODO/FIXME/HACK/XXX"* ]]
+  [[ "$output" == *"subtractive pass"* ]]        # hands off to model judgment
+}
+
+@test "distill: works on a non-git directory (find fallback), exits 0" {
+  local dir="$WORK/plain"; mkdir -p "$dir"
+  printf 'x\ny\n' > "$dir/a.txt"
+  run bash "$ROOT/bin/tidy-distill.sh" "$dir"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"weight report"* ]]
+  [[ "$output" == *"a.txt"* ]]
+}
+
+@test "distill: empty repo reports zero files and exits 0" {
+  local repo="$WORK/empty"; mkdir -p "$repo"; git -C "$repo" init -q
+  run bash "$ROOT/bin/tidy-distill.sh" "$repo"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"0 text files"* ]]
+}
+
 # ---- tidy-doctor ------------------------------------------------------------
 
 @test "doctor exits 0 (no hard failure) and reports OK" {

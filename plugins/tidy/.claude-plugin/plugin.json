@@ -1,11 +1,11 @@
 {
   "name": "tidy",
-  "version": "0.6.0",
-  "description": "Tidy-as-you-touch: when you edit a file, format it and surface linter findings — fixing what's safe — and hold a subtractive posture (reuse before create, delete what a change makes redundant) so an actively-worked project converges toward clean code and trends down in complexity over time, scoped to the file you touched. The standard goes quiet (one-line re-anchor) once it's recorded in the project's CLAUDE.md. MVP targets Go (goimports/gofumpt + golangci-lint); other languages no-op gracefully.",
+  "version": "0.7.0",
+  "description": "Tidy-as-you-touch: when you edit a file, format it and surface linter findings — fixing what's safe — and hold a subtractive posture (reuse before create, delete what a change makes redundant) so an actively-worked project converges toward clean code and trends down in complexity over time, scoped to the file you touched. The standard goes quiet (one-line re-anchor) once it's recorded in the project's CLAUDE.md. The /tidy:distill command runs a read-only whole-project weight report and drives an on-demand prune pass. MVP targets Go (goimports/gofumpt + golangci-lint); other languages no-op gracefully.",
   "author": { "name": "Andrew Stanbury" },
   "homepage": "https://github.com/andrewstanbury/claude-task-queue/tree/main/plugins/tidy",
   "repository": "https://github.com/andrewstanbury/claude-task-queue",
   "license": "MIT",
-  "keywords": ["lint", "format", "clean-code", "hooks", "go", "goimports", "golangci-lint", "prune", "dead-code"],
+  "keywords": ["lint", "format", "clean-code", "hooks", "go", "goimports", "golangci-lint", "prune", "dead-code", "distill"],
   "defaultEnabled": true
 }

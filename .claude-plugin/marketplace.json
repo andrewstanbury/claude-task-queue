@@ -14,8 +14,8 @@
     {
       "name": "tidy",
       "source": "./plugins/tidy",
-      "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe) and holds a subtractive posture (reuse before create, delete what a change makes redundant) so an active project trends down in complexity over time, scoped to the touched file. Goes quiet once the standard is recorded in CLAUDE.md. MVP targets Go.",
-      "version": "0.6.0"
+      "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe) and holds a subtractive posture (reuse before create, delete what a change makes redundant) so an active project trends down in complexity over time, scoped to the touched file. Goes quiet once the standard is recorded in CLAUDE.md. Adds /tidy:distill — a read-only whole-project weight report that drives an on-demand prune pass. MVP targets Go.",
+      "version": "0.7.0"
     },
     {
       "name": "charter",

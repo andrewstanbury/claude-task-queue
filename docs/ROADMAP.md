@@ -71,8 +71,10 @@ plugin stays independently installable (the install boundary forbids shared code
   payload-drift canary, and the **subtractive posture** (prune force, touch-time
   half): *subtract as you add* — delete what a change makes redundant, **reuse
   before create**, prefer the smaller surface so net complexity trends down. The
-  on-demand whole-project pass (`/distill`: dead-code sweep, file-count /
-  size-vs-complexity budget, doc↔code drift) is the deferred other half.
+  on-demand whole-project pass (**`/tidy:distill`**: a read-only weight report —
+  file/line counts, heaviest + over-budget files, cruft markers, junk artefacts —
+  that drives the model's subtractive judgment on dead code, duplication, and
+  doc↔code drift) is now shipped too.
 - **Planned (Phase 3):** **blast-radius awareness** (surface a symbol's
   dependents before you change it, so TDD covers the affected surface);
   file-size-vs-complexity nudge; multi-stack pattern linting; and
@@ -153,11 +155,10 @@ primitives, now the priority ahead of the older Phase 2/3 sequencing:
 
 1. **A maintained project map** (✅ shipped above) — so growth is visible and
    loading stays cheap. The other two read from it.
-2. **A subtractive *prune* force** — touch-time half ✅ shipped (tidy 0.5.0:
-   *subtract as you add* — delete what a change makes redundant, reuse before
-   create, smaller surface). Deferred: the on-demand `/distill` whole-project
-   pass (dead-code sweep, file-count / size-vs-complexity budget, doc↔code
-   drift) and richer per-touch surfacing once blast-radius lands. This turns
+2. **A subtractive *prune* force** — ✅ shipped, both halves: touch-time (tidy
+   0.5.0: *subtract as you add*) and on-demand (**`/tidy:distill`**, tidy 0.7.0:
+   read-only whole-project weight report → model's subtractive judgment).
+   Deferred: richer per-touch surfacing once blast-radius lands. This turns
    *add requirement → add code* into *add requirement → net surface flat or smaller*.
 3. **Hooks: re-injection → bootstrap-once + drift-detect** — ✅ MVP shipped for
    the two pure-policy re-injectors (task-queue 0.13.0, tidy 0.6.0). Convention:
@@ -197,14 +198,15 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.13.0**, **tidy 0.6.0**, **charter 0.5.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.13.0**, **tidy 0.7.0**, **charter 0.5.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the
   audit left"). **task-queue 0.12.0** hydrates the live queue from the committed
   roadmap/backlog; **tidy 0.5.0** added the prune force's touch-time half; and
   **task-queue 0.13.0 + tidy 0.6.0** add bootstrap-then-quiet hooks (policy in
-  CLAUDE.md → one-line re-anchor). Next: the deferred `/distill` pass and
-  extending quiet mode to charter; then the older **Phase 2** (task-queue
+  CLAUDE.md → one-line re-anchor); **tidy 0.7.0** adds `/tidy:distill` (the prune
+  force's on-demand half). Next: extend quiet mode to charter; then the older
+  **Phase 2** (task-queue
   smart backlog + agent-mode) and **Phase 3** (tidy
   blast-radius + size-vs-complexity + currency/modernization).
