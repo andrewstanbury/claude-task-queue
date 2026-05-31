@@ -71,6 +71,14 @@ if [ "$rc" -eq 0 ]; then
   allow
 fi
 
+if [ "$rc" -eq 124 ]; then                            # timed out — can't verify; don't loop on it
+  rm -f "$cfile" 2>/dev/null || true
+  tidy_log verify "timeout cmd=$cmd"
+  jq -cn --arg m "⚠️ Tests timed out (> ${CLAUDE_TIDY_VERIFY_TIMEOUT:-180}s, \`$cmd\`) — couldn't verify this change; run them manually if needed." \
+    '{systemMessage: $m}'
+  exit 0
+fi
+
 max="${CLAUDE_TIDY_VERIFY_MAX:-3}"
 count=0
 [ -f "$cfile" ] && count="$(cat "$cfile" 2>/dev/null || printf 0)"

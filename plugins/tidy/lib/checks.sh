@@ -42,9 +42,17 @@ tidy_test_command() {
 
 # Run CMD in ROOT, print a bounded tail of combined output, and return its exit
 # code. Best-effort: a runner that isn't found just exits non-zero like a failure.
+# Bounded so a slow/hanging test command can never stall Claude Code's turn
+# completion. `timeout` exit 124 propagates so the caller can treat it as "could
+# not verify" rather than a failure to loop on. CLAUDE_TIDY_VERIFY_TIMEOUT secs
+# (default 180); if `timeout` isn't installed, runs unbounded (best-effort).
 tidy_run_checks() {
-  local root="$1" cmd="$2" out rc
-  out="$(cd "$root" 2>/dev/null && sh -c "$cmd" 2>&1)"; rc=$?
+  local root="$1" cmd="$2" out rc t="${CLAUDE_TIDY_VERIFY_TIMEOUT:-180}"
+  if command -v timeout >/dev/null 2>&1; then
+    out="$(cd "$root" 2>/dev/null && timeout "$t" sh -c "$cmd" 2>&1)"; rc=$?
+  else
+    out="$(cd "$root" 2>/dev/null && sh -c "$cmd" 2>&1)"; rc=$?
+  fi
   printf '%s' "$out" | tail -n 30
   return "$rc"
 }
