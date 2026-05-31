@@ -86,6 +86,8 @@ run_standard() {
   [[ "$output" == *"green"* ]]                          # nothing done until green
   [[ "$output" == *"Right-size the design"* ]]          # complexity-proportional simplicity
   [[ "$output" == *"domain language"* ]]                # ubiquitous language
+  [[ "$output" == *"non-technical"* ]]                  # owner-aware posture
+  [[ "$output" == *"plain language"* ]]                 # ask outcomes in plain terms
   [[ "$output" != *"failing test before changing"* ]]   # rigid test-first ritual dropped
 }
 
@@ -328,7 +330,7 @@ fake_web_linter() {
   printf 'hello\n' > "$WORK/notes.txt"
   run run_touch "$WORK/notes.txt"
   [[ "$output" == *"react@^17.0.0"* ]]
-  [[ "$output" == *"do not auto-upgrade"* ]]
+  [[ "$output" == *"safe (patch/minor) upgrades"* ]]
   run run_touch "$WORK/notes.txt"               # same manifest, same session
   [[ "$output" != *"react@"* ]]                 # deduped
 }
@@ -338,7 +340,7 @@ fake_web_linter() {
   printf 'note\n' > "$WORK/readme.txt"
   run run_touch "$WORK/readme.txt"
   [[ "$output" == *"go 1.19"* ]]
-  [[ "$output" == *"do not auto-upgrade"* ]]
+  [[ "$output" == *"safe (patch/minor) upgrades"* ]]
 }
 
 @test "currency: silent when there is no manifest, and when disabled" {

@@ -65,6 +65,7 @@ else
 - Name things in the project'"'"'s own domain language (the words the product owner uses), not generic tech abstractions, so non-technical contributors can follow the code.
 - Clean architecture: no new cross-layer or cyclic dependencies; do not grow a god-file — extract new logic into a focused unit.
 - Subtract as you add: when a change makes code redundant, delete it; reuse an existing function/component before creating a new one; prefer the smaller surface. Net complexity should trend down over time, not only up.
+- Owner may be non-technical: resolve technical findings yourself (lint, size, blast-radius; apply safe patch/minor dependency upgrades when tests cover the area) rather than escalating them. Only ask about product/outcome choices, in plain language. When you finish a unit of work, recap what changed in plain, non-technical terms.
 - To make this nudge re-anchor in one line each session, record this standard in your CLAUDE.md and mark it "claude-companion".'
 fi
 

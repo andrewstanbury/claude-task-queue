@@ -21,9 +21,12 @@ pass**, which is your judgment to make (the script can't):
 3. **Delete the junk artefacts** if they truly shouldn't be tracked.
 
 Rules of engagement:
-- **Confirm before deleting** anything non-obvious; show what you'd remove and why.
-- Keep each change **scoped and test-covered** — characterize before refactoring,
-  and run the project's checks after.
+- **Delete provably-unused code yourself** — tests are the guardrail (characterize
+  first if needed, then confirm the suite stays green). The owner may be
+  non-technical, so don't ask them to validate a technical removal.
+- For a **genuinely ambiguous** removal (you can't tell if it's still needed), ask
+  in **plain language** what the thing is for — not with a technical diff.
+- Keep each change **scoped and test-covered**; run the project's checks after.
 - Success = **net complexity down**, not files merely shuffled.
 
 If `$ARGUMENTS` named a subpath, focus the pass there; otherwise cover the repo,
