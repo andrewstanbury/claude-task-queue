@@ -88,13 +88,18 @@ parts=()
 if [ "${#gaps[@]}" -gt 0 ]; then
   body=""
   for g in "${gaps[@]}"; do body="$body"$'\n'"  • $g"; done
-  parts+=("[charter] Generate the missing baseline docs from the codebase/git (apply sensible defaults, note assumptions plainly), then commit — Claude can't infer these:$body"$'\n'"Document proportionally to complexity: add decisions (DECISIONS.md/ADRs), stack notes (STACK.md), and — for non-web — quality-attribute targets only as the project's size or risk makes them earn their keep. Don't over-document a small project.")
+  parts+=("[charter] Generate the missing baseline docs from the codebase/git (apply sensible defaults, note assumptions plainly), then commit — Claude can't infer these:$body"$'\n'"Document proportionally to complexity: capture the evident decisions (DECISIONS.md/ADRs) so they aren't re-litigated, add stack notes (STACK.md), and — for non-web — quality-attribute targets only as the project's size or risk makes them earn their keep. Don't over-document a small project.")
 fi
 
 if [ "$documented" -eq 0 ] && [ "${#present[@]}" -gt 0 ]; then
   list=""
   for p in "${present[@]}"; do [ -z "$list" ] && list="$p" || list="$list, $p"; done
   brief="[charter] Project docs — consult as relevant before substantive changes: $list."
+  # Decisions are the alignment anchor: clean ≠ correct — a well-made change can
+  # still contradict a recorded choice. Restore the explicit "consult before
+  # reversing" instruction (genericized away in 0.10.0); this is what
+  # alignment-aware capture weighs work against.
+  [ "$dstatus" != "missing" ] && brief="$brief"$' '"Recorded decisions are the alignment anchor — don't reverse or contradict one without consulting it first."
   if [ "$rstatus" != "missing" ]; then
     recent="$(charter_recent_commits "$root" 5 2>/dev/null | awk 'NF{printf "%s%s", sep, $0; sep="; "}')"
     [ -n "$recent" ] && brief="$brief"$' '"Reconcile the backlog against recent commits (mark done what landed): $recent."
