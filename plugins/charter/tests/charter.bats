@@ -58,7 +58,7 @@ run_standard() {
   [[ "$output" != *"re-scanning"* ]]
 }
 
-@test "qa-status: missing, then documented via QUALITY.md / ADR / CLAUDE.md section" {
+@test "qa-status: missing, then documented via QUALITY.md / CLAUDE.md section (ADRs do NOT count)" {
   src='. "$1/lib/charter.sh";'
   run bash -c "$src"' charter_qa_status "$2"' bash "$ROOT" "$REPO"
   [ "$output" = "missing" ]
@@ -69,7 +69,7 @@ run_standard() {
 
   rm "$REPO/QUALITY.md"; mkdir -p "$REPO/docs/adr"; : > "$REPO/docs/adr/0001-x.md"
   run bash -c "$src"' charter_qa_status "$2"' bash "$ROOT" "$REPO"
-  [ "$output" = "documented" ]
+  [ "$output" = "missing" ]                       # ADRs are decisions, not QA (untangled)
 
   rm -rf "$REPO/docs"; printf '## Non-functional requirements\n' > "$REPO/CLAUDE.md"
   run bash -c "$src"' charter_qa_status "$2"' bash "$ROOT" "$REPO"
@@ -213,6 +213,54 @@ run_standard() {
   printf '{"dependencies":{"vue":"^3.0.0"}}\n' > "$REPO/package.json"
   run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
   [[ "$output" == *"web project"* ]]
+}
+
+@test "decisions-status: missing, then present via DECISIONS.md / docs/adr/" {
+  src='. "$1/lib/charter.sh";'
+  run bash -c "$src"' charter_decisions_status "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "missing" ]
+
+  printf '# Decisions\n' > "$REPO/DECISIONS.md"
+  run bash -c "$src"' charter_decisions_status "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "present" ]
+  run bash -c "$src"' charter_decisions_path "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "DECISIONS.md" ]
+
+  rm "$REPO/DECISIONS.md"; mkdir -p "$REPO/docs/adr"; : > "$REPO/docs/adr/0001-x.md"
+  run bash -c "$src"' charter_decisions_path "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "docs/adr/" ]
+}
+
+@test "decisions: nudge to capture when missing, consult when present (startup)" {
+  run run_standard startup
+  [[ "$output" == *"No decision record"* ]]
+  [[ "$output" == *"DECISIONS.md"* ]]
+  printf '# Decisions\n- chose X over Y\n' > "$REPO/DECISIONS.md"
+  run run_standard startup
+  [[ "$output" == *"records this project's decisions"* ]]
+  [[ "$output" != *"No decision record"* ]]
+}
+
+@test "quiet mode: claude-companion marker drops honor/consult lines, keeps gap nudges" {
+  # all docs present + marker -> charter is silent
+  : > "$REPO/QUALITY.md"
+  mkdir -p "$REPO/docs"; : > "$REPO/docs/ROADMAP.md"; : > "$REPO/docs/MAP.md"; : > "$REPO/DECISIONS.md"
+  printf '# CLAUDE.md\nsummary <!-- claude-companion -->\n' > "$REPO/CLAUDE.md"
+  run run_standard startup
+  [ -z "$output" ]                                 # fully documented + marked → silent
+
+  # remove the map only -> just the map gap nudge survives, honor lines stay quiet
+  rm "$REPO/docs/MAP.md"
+  run run_standard startup
+  [[ "$output" == *"No project map"* ]]            # gap nudge kept
+  [[ "$output" != *"documents its quality attributes"* ]]   # honor reminder dropped
+  [[ "$output" != *"records this project's decisions"* ]]   # decisions consult dropped
+}
+
+@test "bootstrap tip points at the claude-companion marker when unmarked but docs exist" {
+  : > "$REPO/QUALITY.md"
+  run run_standard startup
+  [[ "$output" == *"claude-companion"* ]]
 }
 
 @test "SessionStart output is valid JSON with the SessionStart event name" {

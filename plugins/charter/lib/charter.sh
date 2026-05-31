@@ -35,8 +35,9 @@ charter_root_for_cwd() {
 }
 
 # Does the project document its quality attributes? Prints "documented" or
-# "missing". Accepts a dedicated file, ADRs, or a QA section in a manual doc.
-# Override the accepted file via CLAUDE_CHARTER_QA_FILE (path relative to root).
+# "missing". Accepts a dedicated file or a QA section in a manual doc. (ADRs are
+# NOT counted here — they're *decisions*, a separate dimension; see
+# charter_decisions_status.) Override the file via CLAUDE_CHARTER_QA_FILE.
 charter_qa_status() {
   local root="$1" f
   [ -n "$root" ] || { printf 'missing'; return 0; }
@@ -46,14 +47,53 @@ charter_qa_status() {
   for f in QUALITY.md docs/QUALITY.md QUALITY.adoc docs/quality-attributes.md; do
     [ -f "$root/$f" ] && { printf 'documented'; return 0; }
   done
-  for f in "$root"/docs/adr/*.md "$root"/docs/adrs/*.md; do
-    [ -f "$f" ] && { printf 'documented'; return 0; }
-  done
   for f in CLAUDE.md AGENTS.md docs/CLAUDE.md README.md; do
     [ -f "$root/$f" ] && grep -qiE 'quality attribute|non-functional|\bnfrs?\b' "$root/$f" 2>/dev/null \
       && { printf 'documented'; return 0; }
   done
   printf 'missing'
+}
+
+# Does the project record its decisions (ADRs / DECISIONS.md)? Prints the
+# relative path/dir if so, else nothing. Decisions are distinct from quality
+# attributes: re-litigating or contradicting a past choice is an expensive
+# AI-maintainer failure mode, so they get their own dimension. Override via
+# CLAUDE_CHARTER_DECISIONS_FILE.
+charter_decisions_path() {
+  local root="$1" f
+  [ -n "$root" ] || return 0
+  if [ -n "${CLAUDE_CHARTER_DECISIONS_FILE:-}" ]; then
+    [ -f "$root/$CLAUDE_CHARTER_DECISIONS_FILE" ] && printf '%s' "$CLAUDE_CHARTER_DECISIONS_FILE"
+    return 0
+  fi
+  for f in DECISIONS.md docs/DECISIONS.md; do
+    [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
+  done
+  local g rel
+  for g in "$root"/docs/adr/*.md "$root"/docs/adrs/*.md "$root"/docs/decisions/*.md; do
+    if [ -f "$g" ]; then
+      rel="${g#"$root"/}"            # e.g. docs/adr/0001-foo.md
+      printf '%s/' "${rel%/*}"       # → docs/adr/
+      return 0
+    fi
+  done
+}
+
+charter_decisions_status() {
+  [ -n "$(charter_decisions_path "${1:-}")" ] && printf 'present' || printf 'missing'
+}
+
+# Has the project baked the companion's standing policy into its own Claude
+# manual (the "claude-companion" marker)? If so, charter drops its recurring
+# "honor/consult" reminders (the manual is always loaded) and emits only the
+# drift nudges for genuinely-missing docs. Shared token convention; self-contained.
+charter_policy_documented() {
+  local root="$1" f
+  [ -n "$root" ] || return 1
+  for f in CLAUDE.md AGENTS.md docs/CLAUDE.md; do
+    [ -f "$root/$f" ] && grep -q 'claude-companion' "$root/$f" 2>/dev/null && return 0
+  done
+  return 1
 }
 
 # The project's committed, Claude-facing backlog: a roadmap/backlog file that

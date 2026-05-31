@@ -21,10 +21,18 @@ Code internals below are observed behaviour, not documented APIs.
 ### 2. The project's own files (read-only)
 
 - **Quality-attributes doc:** one of `QUALITY.md`, `docs/QUALITY.md`,
-  `docs/quality-attributes.md`, `QUALITY.adoc`, an ADR under `docs/adr/` or
-  `docs/adrs/`, or a *quality attribute* / *non-functional* / *NFR* mention in
-  `CLAUDE.md` / `AGENTS.md` / `docs/CLAUDE.md` / `README.md`. Override via
-  `CLAUDE_CHARTER_QA_FILE`.
+  `docs/quality-attributes.md`, `QUALITY.adoc`, or a *quality attribute* /
+  *non-functional* / *NFR* mention in `CLAUDE.md` / `AGENTS.md` / `docs/CLAUDE.md`
+  / `README.md`. Override via `CLAUDE_CHARTER_QA_FILE`. (ADRs are **not** counted
+  here — they're decisions, a separate dimension below.)
+- **Decisions record:** `DECISIONS.md`, `docs/DECISIONS.md`, or any file under
+  `docs/adr/`, `docs/adrs/`, `docs/decisions/`. Override via
+  `CLAUDE_CHARTER_DECISIONS_FILE`. Present → consult-before-reversing reminder;
+  missing → a nudge to capture key decisions (so past choices aren't re-litigated).
+- **Policy marker:** the `claude-companion` token in `CLAUDE.md` / `AGENTS.md` /
+  `docs/CLAUDE.md`. When present, charter drops its recurring *honor/consult*
+  reminders (the manual is always loaded) and emits only the drift nudges for
+  genuinely-missing docs — going fully silent when everything is present + marked.
 - **Web-project detection:** a web framework dep in `package.json` (react/vue/
   svelte/preact/solid/astro/next/nuxt/gatsby/lit/vite/angular/remix), an
   `index.html`, or a known web config (`next.config.*`, `vite.config.*`, …).

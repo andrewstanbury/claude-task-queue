@@ -143,6 +143,14 @@ it's *temporal* and model-knowledge-driven, so it gets named explicitly.
   nudge now points at the map (it *replaced* the old generic "record learnings"
   line, so SessionStart didn't grow). Recognises an existing `ARCHITECTURE.md`
   rather than re-nagging. Same detect-not-author boundary.
+- **Shipped (decisions + quiet, 0.6.0):** a **decisions/ADR dimension**
+  (`DECISIONS.md` / `docs/adr/` / `docs/decisions/`) — present → consult before
+  reversing a choice, missing → capture the evident ones — so Claude doesn't
+  re-litigate or contradict past decisions; **ADRs untangled from the QA gate**
+  (they're decisions, not quality attributes). **Quiet-mode:** the
+  `claude-companion` marker drops charter's recurring honor/consult reminders
+  (keeping the gap nudges), so charter goes silent once the docs are summarised
+  in CLAUDE.md.
 - **Done:** consolidated the orientation nudge here from task-queue (charter
   owns project-knowledge) — a local integration shakeout found it duplicated
   charter's documentation nudge at SessionStart.
@@ -170,9 +178,9 @@ primitives, now the priority ahead of the older Phase 2/3 sequencing:
    mark it `claude-companion`; the hook then re-anchors in **one line** instead
    of re-injecting the full policy — **state (carryover, hydration, drift) is
    never suppressed**, only the policy prose. When the marker is absent, the full
-   nudge carries a one-line tip to bootstrap it. Deferred: extend the same marker
-   to charter's honor-reminders (charter is already mostly drift-detect, so the
-   marginal tax there is small).
+   nudge carries a one-line tip to bootstrap it. Now extended to **charter**
+   (0.6.0) too — the marker drops its honor/consult reminders and it goes silent
+   when everything is documented. All three SessionStart re-injectors are quiet-able.
 
 Invariants hold throughout: zero per-prompt cost, self-contained plugins,
 native-first, conservative mutation.
@@ -202,7 +210,7 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.13.0**, **tidy 0.8.0**, **charter 0.5.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.13.0**, **tidy 0.8.0**, **charter 0.6.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the
@@ -211,7 +219,8 @@ build it all at once.
   **task-queue 0.13.0 + tidy 0.6.0** add bootstrap-then-quiet hooks (policy in
   CLAUDE.md → one-line re-anchor); **tidy 0.7.0** adds `/tidy:distill` and
   **tidy 0.8.0** makes size-vs-complexity automatic (per-touch + a light distill
-  at session start — no manual trigger). Next: extend quiet mode to charter; then
-  the older **Phase 2** (task-queue
+  at session start — no manual trigger); **charter 0.6.0** adds the decisions/ADR
+  dimension and quiet-mode. Next, the larger items: tidy web edit-time linters +
+  currency, blast-radius, and **Phase 2** (task-queue
   smart backlog + agent-mode) and **Phase 3** (tidy
   blast-radius + size-vs-complexity + currency/modernization).

@@ -27,7 +27,7 @@ if [ "$(charter_qa_status "$root")" = "documented" ]; then
   printf '  [OK]   quality attributes are documented\n'
 else
   printf '  [TODO] not documented — charter will nudge to capture them before substantive changes\n'
-  printf '         (QUALITY.md, docs/QUALITY.md, an ADR, or a "Quality Attributes" section of CLAUDE.md)\n'
+  printf '         (QUALITY.md, docs/QUALITY.md, or a "Quality Attributes" section of CLAUDE.md)\n'
 fi
 
 if [ "$(charter_is_web "$root")" = "web" ]; then
@@ -42,6 +42,15 @@ if [ -n "$rpath" ]; then
 else
   printf '  [TODO] no roadmap/backlog file — charter will nudge to generate docs/ROADMAP.md\n'
   printf '         from git history + code, so work resumes across sessions and engineers\n'
+fi
+
+printf '\nDecisions\n'
+dpath="$(charter_decisions_path "$root")"
+if [ -n "$dpath" ]; then
+  printf '  [OK]   %s — recorded decisions; consult before reversing a past choice\n' "$dpath"
+else
+  printf '  [TODO] no decision record — charter will nudge to capture key decisions\n'
+  printf '         (DECISIONS.md or docs/adr/) so past choices are not re-litigated\n'
 fi
 
 printf '\nProject map\n'
