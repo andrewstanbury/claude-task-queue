@@ -16,6 +16,12 @@
       "source": "./plugins/tidy",
       "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe) so an active project converges toward clean code over time, scoped to the touched file. MVP targets Go.",
       "version": "0.4.0"
+    },
+    {
+      "name": "charter",
+      "source": "./plugins/charter",
+      "description": "Know the project: gates substantive work on documented quality attributes (nudges to capture perf/security/a11y/reliability/maintainability targets if missing) and keeps the project's Claude manual in view, so a vibe-coded project stays oriented and quality-driven.",
+      "version": "0.1.0"
     }
   ]
 }
