@@ -237,9 +237,9 @@ tidy_currency_nudge() {
 
   tidy_log currency "manifest=$manifest"
   if [ -n "$pins" ]; then
-    printf 'currency: nearest manifest %s pins %s — judge whether any are behind latest stable or deprecated and flag modernization in the touched scope (do not auto-upgrade).' "$kind" "$pins"
+    printf 'currency: nearest manifest %s pins %s — apply safe (patch/minor) upgrades when tests cover the area and the suite stays green; surface only risky majors, in plain language for the owner.' "$kind" "$pins"
   else
-    printf 'currency: nearest manifest is %s — check whether its pinned tech is behind latest stable or deprecated and flag modernization in the touched scope (do not auto-upgrade).' "$kind"
+    printf 'currency: nearest manifest is %s — apply safe (patch/minor) upgrades behind passing tests; surface only risky majors, in plain language for the owner.' "$kind"
   fi
 }
 

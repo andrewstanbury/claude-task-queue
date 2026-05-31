@@ -202,8 +202,14 @@ project-checks runner that subsumes per-language test integration. (Per-language
 *lint* handlers beyond Go/web remain superseded by this discover-and-run posture.)
 
 Still open: consider **consolidating the 4 plugins into 1** (kill duplication);
-exempt test files from the size nudge; decide-with-defaults + plain-language layer
-for non-technical owners.
+exempt test files from the size nudge; the plugin **consolidation** decision (4→1).
+
+**Shipped (non-technical posture, tidy 0.14.0 + charter 0.9.0):** resolve
+technical findings autonomously (apply safe patch/minor upgrades behind passing
+tests; delete provably-dead code with tests as the guardrail; charter applies
+sensible defaults instead of 'flag for review'); only ask the owner about
+product/outcome choices, in plain language; recap each unit of work in
+non-technical terms.
 
 ## Strategic direction — the subtractive force + quiet hooks
 
