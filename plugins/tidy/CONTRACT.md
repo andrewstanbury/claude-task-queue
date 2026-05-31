@@ -56,8 +56,14 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
 
 - **Go:** `goimports` (preferred) / `gofumpt` / `gofmt` for formatting;
   `golangci-lint` for findings. All optional — absence → silent no-op.
-- The plugin **does not install tools**; it detects them with `command -v` and
-  honors the project's own config (e.g. `.golangci.yml`).
+- **Web:** `eslint` (incl. `eslint-plugin-jsx-a11y`) for JS/TS/JSX/TSX/Vue/Svelte,
+  `stylelint` for CSS/SCSS/Less — **findings only, no `--fix`** (read-only;
+  `--fix` can change behavior). Resolved project-local (`node_modules/.bin`,
+  walking up from the file) before PATH. Linter exit 1 = problems surfaced; 0 =
+  clean; 2+ = config/crash → no-op. This shifts much of Lighthouse's
+  accessibility / best-practices audit to edit time.
+- The plugin **does not install tools**; it detects them and honors the project's
+  own config (e.g. `.golangci.yml`, `eslint.config.js`, `.stylelintrc`).
 
 ### 4. The `/tidy:distill` command (user-invoked)
 

@@ -188,6 +188,46 @@ run_standard() {
   grep -q "no tool_input.file_path" "$CLAUDE_TIDY_LOG_DIR/activity.log"
 }
 
+# ---- web edit-time linters (shift the Lighthouse audit left) ----------------
+
+# A linter stub that reports one problem on stdout and exits 1 (eslint/stylelint
+# "problems found"). $1 = tool name.
+fake_web_linter() {
+  printf '#!/usr/bin/env bash\necho "$1: 3:5  error  <button> has no accessible label (jsx-a11y/control-has-associated-label)"\nexit 1\n' \
+    > "$FAKEBIN/$1"
+  chmod +x "$FAKEBIN/$1"
+}
+
+@test "web: surfaces project eslint findings for a touched JSX file" {
+  fake_web_linter eslint
+  printf '<button></button>\n' > "$WORK/Button.jsx"
+  run run_touch "$WORK/Button.jsx"
+  [[ "$output" == *"jsx-a11y"* ]]
+  [[ "$output" == *"linter findings"* ]]
+}
+
+@test "web: surfaces project stylelint findings for a touched CSS file" {
+  fake_web_linter stylelint
+  printf 'a{color:red}\n' > "$WORK/styles.css"
+  run run_touch "$WORK/styles.css"
+  [[ "$output" == *"styles.css"* ]]
+  [[ "$output" == *"linter findings"* ]]
+}
+
+@test "web: silent when the linter reports no problems (exit 0)" {
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$FAKEBIN/eslint"; chmod +x "$FAKEBIN/eslint"
+  printf 'const ok = 1\n' > "$WORK/clean.tsx"
+  run run_touch "$WORK/clean.tsx"
+  [ -z "$output" ]
+}
+
+@test "web: silent when the project has no linter available" {
+  command -v eslint >/dev/null 2>&1 && skip "eslint present on PATH"
+  printf 'const x = 1\n' > "$WORK/y.jsx"
+  run run_touch "$WORK/y.jsx"
+  [ -z "$output" ]
+}
+
 # ---- size-vs-complexity (automatic, no manual trigger) ----------------------
 
 @test "size: a touched file over budget is flagged for decomposition (any language)" {
