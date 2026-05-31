@@ -47,6 +47,7 @@ already-lean plugins.
 | **task-queue** (shipped) | **Orchestrate the work** — capture, order, advance, pause, show tasks | 6 |
 | **tidy** (shipped) | **Make each change safely & cleanly** — format/lint/TDD on touch, ratchet | 3, 5, TDD, blast-radius, tech-debt |
 | **charter** (shipped, MVP) | **Maintain the project's Claude manual** — quality-attributes gate now; map/architecture/stack notes planned | 1, 4 (feeds 2, 3, 5) |
+| **hud** (shipped, MVP) | **Show what's happening** — a consolidated, read-only status line over the other plugins' state | 6 (the "show the tasks" half) |
 
 Single responsibility: **orchestrate / change-safely / know-the-project.** Each
 plugin stays independently installable (the install boundary forbids shared code
@@ -130,7 +131,7 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.10.0**, **tidy 0.4.0**, **charter 0.1.0** — shipped.
-- **Phase 1 (charter MVP)** done. Next: **Phase 2** (task-queue smart backlog +
-  agent-mode), then **Phase 3** (tidy blast-radius + size-vs-complexity +
-  currency/modernization).
+- **task-queue 0.11.0**, **tidy 0.4.0**, **charter 0.2.0**, **hud 0.1.0** — shipped.
+- **Phase 1 (charter MVP)** done; **hud** (status line, criterion 6 "show the
+  tasks") added. Next: **Phase 2** (task-queue smart backlog + agent-mode), then
+  **Phase 3** (tidy blast-radius + size-vs-complexity + currency/modernization).

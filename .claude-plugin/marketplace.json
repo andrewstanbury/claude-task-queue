@@ -22,6 +22,12 @@
       "source": "./plugins/charter",
       "description": "Know the project: gates substantive work on documented quality attributes (nudges to capture perf/security/a11y/reliability/maintainability targets if missing) and keeps the project's Claude manual in view, so a vibe-coded project stays oriented and quality-driven.",
       "version": "0.2.0"
+    },
+    {
+      "name": "hud",
+      "source": "./plugins/hud",
+      "description": "A consolidated status line: animated beacon, open tasks + in-progress, paused state, quality-attributes status, last tidy action, tokens up/down, git branch, and model — read-only from existing plugin state, zero model-token cost.",
+      "version": "0.1.0"
     }
   ]
 }
