@@ -1,7 +1,7 @@
 {
   "name": "task-queue",
-  "version": "0.15.0",
-  "description": "Makes Claude Code's native task list a live work queue with two event-driven hooks and zero per-prompt cost: a SessionStart hook primes the model to capture and order work as native tasks, re-surfaces a repo's unfinished tasks from earlier sessions, and hydrates the queue from a committed roadmap/backlog file when present; a TaskCompleted hook advances the queue to the next unblocked task. Goes quiet (one-line re-anchor) once the standing policy is recorded in the project's CLAUDE.md. Adds opt-in agent-mode (tq-agent.sh on|off): when on, the policy permits fanning independent, non-conflicting tasks out to subagents. Read-only over ~/.claude/tasks.",
+  "version": "0.16.0",
+  "description": "Makes Claude Code's native task list a live work queue with two event-driven hooks and zero per-prompt cost: a SessionStart hook primes the model to capture and order work as native tasks, re-surfaces a repo's unfinished tasks from earlier sessions, and hydrates the queue from a committed roadmap/backlog file when present; a TaskCompleted hook advances the queue to the next unblocked task. The conditional capture nudge also weighs new work against the project's recorded direction (decisions/ADRs, roadmap) at capture time — alignment, so a task doesn't silently contradict a past decision. Goes quiet (one-line re-anchor) once the standing policy is recorded in the project's CLAUDE.md. Adds opt-in agent-mode (tq-agent.sh on|off): when on, the policy permits fanning independent, non-conflicting tasks out to subagents. Read-only over ~/.claude/tasks.",
   "author": {
     "name": "Andrew Stanbury"
   },

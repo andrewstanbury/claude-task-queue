@@ -9,10 +9,13 @@ setup() {
   CAPTURE="$ROOT/bin/tq-capture.sh"
   export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
   export CLAUDE_TQ_LOG_DIR="$(mktemp -d)"
+  # Isolated repo for cwd so the alignment clause keys off fixture docs, not this
+  # repo's own ROADMAP/decisions. Tests that want the clause drop docs into REPO.
+  REPO="$(mktemp -d)/proj"; mkdir -p "$REPO"; git -C "$REPO" init -q
   unset CLAUDE_TQ_CAPTURE_DISABLED
 }
 
-teardown() { rm -rf "$CLAUDE_TQ_TASKS_DIR" "$CLAUDE_TQ_LOG_DIR"; }
+teardown() { rm -rf "$CLAUDE_TQ_TASKS_DIR" "$CLAUDE_TQ_LOG_DIR" "$(dirname "$REPO")"; }
 
 make_task() {
   mkdir -p "$CLAUDE_TQ_TASKS_DIR/$1"
@@ -22,13 +25,46 @@ make_task() {
 
 run_capture() {
   local prompt="$1" sid="${2:-sess}" json
-  json="$(jq -nc --arg p "$prompt" --arg s "$sid" '{prompt:$p, session_id:$s}')"
+  json="$(jq -nc --arg p "$prompt" --arg s "$sid" --arg c "$REPO" '{prompt:$p, session_id:$s, cwd:$c}')"
   printf '%s' "$json" | "$CAPTURE" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null || true
 }
 
 @test "nudges on a multi-step prompt when the queue is empty" {
   run run_capture "Add the login form and then wire the auth endpoint and update the tests"
   [[ "$output" == *"capture the steps with TaskCreate"* ]]
+}
+
+@test "no alignment clause when the project records no direction" {
+  run run_capture "Add the login form and then wire the auth endpoint and update the tests"
+  [[ "$output" == *"capture the steps with TaskCreate"* ]]
+  [[ "$output" != *"weigh it against"* ]]   # bare repo → nothing to align to
+}
+
+@test "alignment clause names decisions + backlog when the project records them" {
+  printf '# Decisions\n- chose X over Y\n' > "$REPO/DECISIONS.md"
+  mkdir -p "$REPO/docs"; printf '# ROADMAP\n' > "$REPO/docs/ROADMAP.md"
+  run run_capture "Add the login form and then wire the auth endpoint and update the tests"
+  [[ "$output" == *"weigh it against recorded decisions (DECISIONS.md)"* ]]
+  [[ "$output" == *"backlog (docs/ROADMAP.md)"* ]]
+  [[ "$output" == *"don't reverse a recorded decision"* ]]
+}
+
+@test "alignment clause covers ADR dirs and a backlog-only project" {
+  mkdir -p "$REPO/docs/adr"; : > "$REPO/docs/adr/0001-x.md"
+  run run_capture "Add the login form and then wire the auth endpoint and update the tests"
+  [[ "$output" == *"recorded decisions (docs/adr/)"* ]]
+  # backlog-only (decisions absent): the clause still fires, naming just the backlog
+  rm -r "$REPO/docs/adr"; printf '# BACKLOG\n' > "$REPO/BACKLOG.md"
+  run run_capture "Add the login form and then wire the auth endpoint and update the tests"
+  [[ "$output" == *"weigh it against the backlog (BACKLOG.md)"* ]]
+  [[ "$output" != *"recorded decisions"* ]]
+}
+
+@test "alignment is silent on the non-firing path (queue already has work)" {
+  printf '# Decisions\n' > "$REPO/DECISIONS.md"
+  make_task sess 1 pending
+  run run_capture "Add the login form and then wire the auth endpoint and update tests"
+  [ -z "$output" ]                          # no nudge at all → no alignment cost
 }
 
 @test "silent when the queue already has an open task" {
