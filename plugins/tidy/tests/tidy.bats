@@ -188,6 +188,57 @@ run_standard() {
   grep -q "no tool_input.file_path" "$CLAUDE_TIDY_LOG_DIR/activity.log"
 }
 
+# ---- size-vs-complexity (automatic, no manual trigger) ----------------------
+
+@test "size: a touched file over budget is flagged for decomposition (any language)" {
+  export CLAUDE_TIDY_SIZE_BUDGET=5
+  seq 1 12 > "$WORK/big.md"
+  run run_touch "$WORK/big.md"
+  [[ "$output" == *"big.md is 12 lines"* ]]
+  [[ "$output" == *"extract a focused unit"* ]]
+}
+
+@test "size: nudges at most once per file per session, and stays under budget silently" {
+  export CLAUDE_TIDY_SIZE_BUDGET=5
+  seq 1 12 > "$WORK/big.txt"
+  run run_touch "$WORK/big.txt"
+  [[ "$output" == *"big.txt is 12 lines"* ]]
+  run run_touch "$WORK/big.txt"                 # same file, same session
+  [[ "$output" != *"is 12 lines"* ]]            # deduped
+  printf 'a\nb\n' > "$WORK/small.txt"
+  run run_touch "$WORK/small.txt"
+  [[ "$output" != *"lines (budget"* ]]          # under budget → silent
+}
+
+@test "size: CLAUDE_TIDY_SIZE_CHECK=0 disables the touch nudge" {
+  export CLAUDE_TIDY_SIZE_BUDGET=5 CLAUDE_TIDY_SIZE_CHECK=0
+  seq 1 12 > "$WORK/big.txt"
+  run run_touch "$WORK/big.txt"
+  [[ "$output" != *"is 12 lines"* ]]
+}
+
+@test "session start auto-surfaces files over the size budget (light distill)" {
+  export CLAUDE_TIDY_SIZE_BUDGET=5
+  seq 1 12 > "$WORK/huge.txt"
+  run run_standard startup
+  [[ "$output" == *"over the 5-line budget"* ]]
+  [[ "$output" == *"huge.txt"* ]]
+  [[ "$output" == *"decomposition candidates"* ]]
+}
+
+@test "session start stays quiet about size when nothing is over budget" {
+  printf 'a\nb\n' > "$WORK/small.txt"
+  run run_standard startup                      # default budget 400
+  [[ "$output" != *"decomposition candidates"* ]]
+}
+
+@test "session start: light distill is omitted on compact (token-light)" {
+  export CLAUDE_TIDY_SIZE_BUDGET=5
+  seq 1 12 > "$WORK/huge.txt"
+  run run_standard compact
+  [[ "$output" != *"decomposition candidates"* ]]
+}
+
 # ---- tidy-distill (whole-project weight report) -----------------------------
 
 @test "distill: flags over-budget files, junk, and cruft markers (git repo)" {

@@ -7,7 +7,20 @@
 # model already saw it this session. The deterministic half (format + lint + TDD
 # nudge on every edit) is the PostToolUse hook (bin/tidy-touch.sh).
 
-set -euo pipefail
+set -uo pipefail
+
+# Resolve symlinks so a relocated entrypoint still finds lib/ (for the size lib).
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  link="$(readlink "$SELF")"
+  case "$link" in
+    /*) SELF="$link" ;;
+    *)  SELF="$(dirname "$SELF")/$link" ;;
+  esac
+done
+PLUGIN_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
+# shellcheck source=../lib/tidy.sh
+. "$PLUGIN_DIR/lib/tidy.sh"
 
 input=""
 [ -t 0 ] || input="$(cat 2>/dev/null || true)"
@@ -51,6 +64,21 @@ else
 - Clean architecture: no new cross-layer or cyclic dependencies; do not grow a god-file — extract new logic into a focused unit.
 - Subtract as you add: when a change makes code redundant, delete it; reuse an existing function/component before creating a new one; prefer the smaller surface. Net complexity should trend down over time, not only up.
 - To make this nudge re-anchor in one line each session, record this standard in your CLAUDE.md and mark it "claude-companion".'
+fi
+
+# Light distill (auto, no manual trigger): on a fresh context, surface files over
+# the size budget so decomposition candidates show up on their own — quiet unless
+# there's drift. This is STATE, not policy, so it appends even in quiet mode; it's
+# omitted on compact/resume (already seen) to stay token-light.
+if [ "$src" != "compact" ] && [ "$src" != "resume" ]; then
+  over="$(tidy_oversized_files "$root" 2>/dev/null || true)"
+  if [ -n "$over" ]; then
+    budget="$(tidy_size_budget)"
+    n="$(printf '%s\n' "$over" | grep -c .)"
+    list="$(printf '%s\n' "$over" | head -n 5 | awk -F'\t' '{printf "%s (%d), ", $2, $1}')"
+    list="${list%, }"
+    ctx="$ctx"$'\n\n'"[tidy] $n file(s) over the $budget-line budget — decomposition candidates: $list. Run /tidy:distill for the full prune pass."
+  fi
 fi
 
 jq -cn --arg c "$ctx" \

@@ -112,3 +112,48 @@ tidy_tdd_nudge() {
       "$(basename "$file")" "$(basename "$sibling")"
   fi
 }
+
+# ---- size-vs-complexity (the auto, no-trigger size check) -------------------
+#
+# The line budget over which a file is a decomposition candidate. A nudge, not a
+# rule — a long-but-cohesive file can be fine; the model judges size-vs-complexity.
+tidy_size_budget() { printf '%s' "${CLAUDE_TIDY_SIZE_BUDGET:-400}"; }
+
+# Per-touch (PostToolUse): if the just-edited file is over budget, return a one-
+# line nudge — once per file per session (deduped like the TDD nudge), skipping
+# binaries and obvious non-handwritten files. Empty when fine or disabled.
+tidy_size_nudge() {
+  local file="$1" sid="${2:-}" budget n mdir mark
+  [ "${CLAUDE_TIDY_SIZE_CHECK:-1}" = "0" ] && return 0
+  [ -f "$file" ] || return 0
+  LC_ALL=C grep -Iq . "$file" 2>/dev/null || return 0       # skip binaries
+  case "$file" in *.lock|*-lock.json|*.min.*|*.map|*.svg|*.snap) return 0 ;; esac
+  tidy_is_generated_go "$file" && return 0
+  budget="$(tidy_size_budget)"
+  n="$(wc -l < "$file" 2>/dev/null || printf 0)"; n="${n//[^0-9]/}"; [ -n "$n" ] || n=0
+  [ "$n" -gt "$budget" ] || return 0
+  mdir="$(tidy_log_dir)/nudged"
+  mark="$mdir/size-$(printf '%s' "${sid:0:8}-$file" | sed 's:/:-:g')"
+  [ -f "$mark" ] && return 0
+  { mkdir -p "$mdir" 2>/dev/null && : > "$mark"; } 2>/dev/null || true
+  printf 'size: %s is %d lines (budget %d) — if it now covers more than one responsibility, extract a focused unit.' \
+    "$(basename "$file")" "$n" "$budget"
+}
+
+# Whole-project (SessionStart light distill): print "<lines>\t<path>" for each
+# text file over budget, heaviest first. One wc -l pass; read-only. Empty when
+# nothing is over budget or the check is disabled.
+tidy_oversized_files() {
+  local root="$1" budget="${2:-$(tidy_size_budget)}" listing
+  [ "${CLAUDE_TIDY_SIZE_CHECK:-1}" = "0" ] && return 0
+  [ -d "$root" ] || return 0
+  if git -C "$root" rev-parse >/dev/null 2>&1; then
+    listing="$(cd "$root" && git ls-files -z --cached --others --exclude-standard 2>/dev/null | xargs -0 wc -l 2>/dev/null)"
+  else
+    listing="$(cd "$root" && find . -type f -not -path '*/.git/*' -print0 2>/dev/null | xargs -0 wc -l 2>/dev/null)"
+  fi
+  printf '%s\n' "$listing" | awk -v b="$budget" '
+    { n=$1+0; $1=""; sub(/^[ \t]+/,""); p=$0 }
+    p != "total" && p != "" && n > b { printf "%d\t%s\n", n, p }
+  ' | sort -rn -k1,1
+}

@@ -74,10 +74,14 @@ plugin stays independently installable (the install boundary forbids shared code
   on-demand whole-project pass (**`/tidy:distill`**: a read-only weight report —
   file/line counts, heaviest + over-budget files, cruft markers, junk artefacts —
   that drives the model's subtractive judgment on dead code, duplication, and
-  doc↔code drift) is now shipped too.
+  doc↔code drift) is now shipped too. **Size-vs-complexity is automatic** (no
+  manual trigger): a touched file over the line budget (`CLAUDE_TIDY_SIZE_BUDGET`,
+  default 400) is flagged for decomposition on edit, and over-budget files also
+  surface on their own at session start (a *light distill*, quiet unless there's
+  drift). Disable with `CLAUDE_TIDY_SIZE_CHECK=0`.
 - **Planned (Phase 3):** **blast-radius awareness** (surface a symbol's
   dependents before you change it, so TDD covers the affected surface);
-  file-size-vs-complexity nudge; multi-stack pattern linting; and
+  multi-stack pattern linting; and
   **currency/modernization** — flag deprecated/outdated tech in the touched
   scope. Identity going forward: *no change lands without a test and an
   understanding of what it can break.*
@@ -198,15 +202,16 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.13.0**, **tidy 0.7.0**, **charter 0.5.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.13.0**, **tidy 0.8.0**, **charter 0.5.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the
   audit left"). **task-queue 0.12.0** hydrates the live queue from the committed
   roadmap/backlog; **tidy 0.5.0** added the prune force's touch-time half; and
   **task-queue 0.13.0 + tidy 0.6.0** add bootstrap-then-quiet hooks (policy in
-  CLAUDE.md → one-line re-anchor); **tidy 0.7.0** adds `/tidy:distill` (the prune
-  force's on-demand half). Next: extend quiet mode to charter; then the older
-  **Phase 2** (task-queue
+  CLAUDE.md → one-line re-anchor); **tidy 0.7.0** adds `/tidy:distill` and
+  **tidy 0.8.0** makes size-vs-complexity automatic (per-touch + a light distill
+  at session start — no manual trigger). Next: extend quiet mode to charter; then
+  the older **Phase 2** (task-queue
   smart backlog + agent-mode) and **Phase 3** (tidy
   blast-radius + size-vs-complexity + currency/modernization).

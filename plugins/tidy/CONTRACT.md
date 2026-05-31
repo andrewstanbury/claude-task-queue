@@ -28,14 +28,23 @@ This plugin is deliberately conservative because it *mutates files*:
   on disk when the hook runs.
 - **Output contract:** `{ "hookSpecificOutput": { "hookEventName":
   "PostToolUse", "additionalContext": "<text>" } }` — injected before the next
-  model turn. Emitted only when the file was formatted or has findings.
+  model turn. Emitted when the file was formatted, has findings, **or is over the
+  size budget** (a language-agnostic decomposition nudge, deduped once per file
+  per session, skipping binaries / lockfiles / generated files).
 - **If it changes:** the format/lint-on-touch silently stops.
+
+**Size-check tunables** (both hooks): `CLAUDE_TIDY_SIZE_BUDGET` (lines/file,
+default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
 
 ### 2. `SessionStart` hook payload (stdin)
 
 - Reads `source` (full standard on `startup`/`clear`/unknown, lean re-anchor on
   `compact`/`resume`) and `cwd` (to resolve the repo root). Emits
   `additionalContext` with `hookEventName: "SessionStart"`.
+- **Light distill (auto, no manual trigger):** on a fresh context it lists files
+  over the size budget (one read-only `wc -l` pass over `git ls-files`, fallback
+  `find`) as decomposition candidates — quiet when nothing is over. This is state,
+  so it appends even in quiet mode; omitted on `compact`/`resume`.
 - **Quiet mode (bootstrap-once + drift-detect):** if the repo root's `CLAUDE.md`
   / `AGENTS.md` / `docs/CLAUDE.md` carries the `claude-companion` marker, the
   full standard is replaced by a one-line re-anchor (the manual is always

@@ -36,9 +36,12 @@ fi
 [ -f "$file" ] || exit 0
 sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
 
-lang="$(tidy_lang_for_file "$file")"
-[ -n "$lang" ] || exit 0                       # unsupported type → silent
+# The size-vs-complexity check is language-agnostic — it runs for any text file,
+# independent of the language dispatch below, so size is flagged automatically on
+# every edit (no manual trigger).
+size="$(tidy_size_nudge "$file" "$sid" 2>/dev/null || true)"
 
+lang="$(tidy_lang_for_file "$file")"
 result=""
 tdd=""
 case "$lang" in
@@ -47,7 +50,7 @@ case "$lang" in
     tdd="$(tidy_tdd_nudge "$file" "$sid" 2>/dev/null || true)"
     ;;
 esac
-[ -n "$result" ] || [ -n "$tdd" ] || exit 0    # nothing to format, flag, or nudge
+[ -n "$result" ] || [ -n "$tdd" ] || [ -n "$size" ] || exit 0   # nothing to say
 
 changed=""
 lint=""
@@ -61,6 +64,7 @@ ctx="[tidy] ${file}:"
 [ "$changed" = "1" ] && ctx="$ctx"$'\n'"• auto-formatted — re-read before further edits (line content may have shifted)."
 [ -n "$lint" ] && ctx="$ctx"$'\n'"• linter findings to fix in this file (leave unrelated pre-existing issues alone):"$'\n'"$lint"
 [ -n "$tdd" ] && ctx="$ctx"$'\n'"• $tdd"
+[ -n "$size" ] && ctx="$ctx"$'\n'"• $size"
 
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $c}}'
