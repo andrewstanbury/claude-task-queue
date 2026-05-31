@@ -179,6 +179,19 @@ it's *temporal* and model-knowledge-driven, so it gets named explicitly.
   "## Stack" section; missing → capture languages/frameworks/versions from the
   manifests, present → consult. Durable context for currency/modernization.
 
+## Proportionality over maximalism (2026-05-31)
+
+The deepest bias found: applying good practices *exhaustively* instead of *in
+proportion to complexity/risk* — "test everything", "document everything" (five
+charter docs for any repo), "nudge on everything", "build everything". The fix is
+to generalise the complexity-proportional-simplicity principle to docs, nudges,
+and scope. Shipped: charter 0.10.0 emits one **compact, proportional brief** —
+baseline (map + what's-next) always, quality attributes only for web, decisions/
+stack left to the model's judgment ("don't over-document a small project"); the
+tidy standard was trimmed to anchors (inform, don't teach) and reframed tests as
+"verify where it earns its keep". Advisory per-touch nudges stay on but terser,
+failures first.
+
 ## Design model (challenged + chosen 2026-05-31)
 
 TDD / DDD / SOLID are different levels, not alternatives. For LLM-written code

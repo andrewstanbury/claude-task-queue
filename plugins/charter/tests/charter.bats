@@ -20,9 +20,12 @@ run_standard() {
   printf '%s' "$json" | "$STANDARD" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null || true
 }
 
-@test "nudges to document quality attributes when none exist (startup)" {
-  run run_standard startup
-  [[ "$output" == *"no documented quality attributes"* ]]
+@test "non-web project: QA is not a baseline nudge; it scales up by complexity" {
+  run run_standard startup                        # bare non-web repo
+  [[ "$output" == *"Generate the missing baseline docs"* ]]
+  [[ "$output" == *"Document proportionally to complexity"* ]]
+  [[ "$output" == *"quality-attribute targets"* ]]   # mentioned as scale-up, not demanded
+  [[ "$output" != *"no documented quality attributes"* ]]
 }
 
 @test "lean reminder on compact when QA is missing" {
@@ -31,10 +34,11 @@ run_standard() {
   [[ "$output" != *"no documented quality attributes"* ]]
 }
 
-@test "honor-reminder when QA is documented via QUALITY.md (startup)" {
+@test "QA documented: appears in the consult brief (startup)" {
   printf '# Quality Attributes\n- perf: p95 < 200ms\n' > "$REPO/QUALITY.md"
   run run_standard startup
-  [[ "$output" == *"documents its quality attributes"* ]]
+  [[ "$output" == *"consult as relevant"* ]]
+  [[ "$output" == *"quality attributes"* ]]
 }
 
 @test "silent on compact when QA is documented" {
@@ -101,15 +105,15 @@ run_standard() {
   run run_standard startup
   [[ "$output" == *"docs/ROADMAP.md"* ]]
   [[ "$output" == *"backlog"* ]]
-  [[ "$output" == *"git history"* ]]   # generate from git history + codebase
+  [[ "$output" == *"Now/Next/Later"* ]]   # baseline gap, generated from the codebase/git
 }
 
-@test "surfaces the roadmap to read + reconcile when present (startup)" {
+@test "surfaces the roadmap in the consult brief when present (startup)" {
   mkdir -p "$REPO/docs"; printf '# Roadmap\n## Next\n- ship it\n' > "$REPO/docs/ROADMAP.md"
   run run_standard startup
   [[ "$output" == *"docs/ROADMAP.md"* ]]
-  [[ "$output" == *"reconcile"* ]]
-  [[ "$output" != *"generate"* ]]      # present → no generate instruction
+  [[ "$output" == *"consult as relevant"* ]]
+  [[ "$output" == *"backlog"* ]]
 }
 
 @test "omits the roadmap nudge in lean mode (token-light)" {
@@ -152,8 +156,8 @@ run_standard() {
   printf '# Architecture\n- bin/ — entrypoints\n' > "$REPO/ARCHITECTURE.md"
   run run_standard startup
   [[ "$output" == *"ARCHITECTURE.md"* ]]
-  [[ "$output" == *"Consult"* ]]
-  [[ "$output" != *"Generate docs/MAP.md"* ]]
+  [[ "$output" == *"consult as relevant"* ]]
+  [[ "$output" != *"project map (docs/MAP.md)"* ]]   # not in the baseline gap list
 }
 
 @test "doctor reports project-map status (missing then present)" {
@@ -195,18 +199,17 @@ run_standard() {
   [[ "$output" == *"reuse existing before creating"* ]]   # components-by-default principle
 }
 
-@test "non-web project gets the generic QA nudge (no web specifics)" {
+@test "non-web project: no web QA specifics in the brief" {
   run run_standard startup
-  [[ "$output" == *"no documented quality attributes"* ]]
   [[ "$output" != *"progressive enhancement"* ]]
   [[ "$output" != *"Core Web Vitals"* ]]
 }
 
-@test "CLAUDE_CHARTER_WEB=0 suppresses the web template even with index.html" {
+@test "CLAUDE_CHARTER_WEB=0 suppresses the web QA gap even with index.html" {
   : > "$REPO/index.html"
   CLAUDE_CHARTER_WEB=0 run run_standard startup
   [[ "$output" != *"progressive enhancement"* ]]
-  [[ "$output" == *"no documented quality attributes"* ]]
+  [[ "$output" != *"Core Web Vitals"* ]]
 }
 
 @test "doctor flags a web project's best-practice defaults" {
@@ -231,30 +234,28 @@ run_standard() {
   [ "$output" = "docs/adr/" ]
 }
 
-@test "decisions: nudge to capture when missing, consult when present (startup)" {
+@test "decisions: scale-up mention when missing (not demanded), consult when present" {
   run run_standard startup
-  [[ "$output" == *"No decision record"* ]]
-  [[ "$output" == *"DECISIONS.md"* ]]
+  [[ "$output" == *"decisions (DECISIONS.md/ADRs)"* ]]   # mentioned as scale-up, not a gap nag
+  [[ "$output" != *"No decision record"* ]]
   printf '# Decisions\n- chose X over Y\n' > "$REPO/DECISIONS.md"
   run run_standard startup
-  [[ "$output" == *"records this project's decisions"* ]]
-  [[ "$output" != *"No decision record"* ]]
+  [[ "$output" == *"consult as relevant"* ]]
+  [[ "$output" == *"decisions"* ]]
 }
 
-@test "quiet mode: claude-companion marker drops honor/consult lines, keeps gap nudges" {
-  # all docs present + marker -> charter is silent
-  : > "$REPO/QUALITY.md"; : > "$REPO/STACK.md"
-  mkdir -p "$REPO/docs"; : > "$REPO/docs/ROADMAP.md"; : > "$REPO/docs/MAP.md"; : > "$REPO/DECISIONS.md"
+@test "quiet mode: claude-companion marker drops the consult brief, keeps baseline gaps" {
+  # baseline present + marker -> charter is silent
+  mkdir -p "$REPO/docs"; : > "$REPO/docs/ROADMAP.md"; : > "$REPO/docs/MAP.md"
   printf '# CLAUDE.md\nsummary <!-- claude-companion -->\n' > "$REPO/CLAUDE.md"
   run run_standard startup
-  [ -z "$output" ]                                 # fully documented + marked → silent
+  [ -z "$output" ]                                 # baseline present + marked → silent
 
-  # remove the map only -> just the map gap nudge survives, honor lines stay quiet
+  # remove the map only -> the map baseline gap survives; the consult brief stays dropped
   rm "$REPO/docs/MAP.md"
   run run_standard startup
-  [[ "$output" == *"No project map"* ]]            # gap nudge kept
-  [[ "$output" != *"documents its quality attributes"* ]]   # honor reminder dropped
-  [[ "$output" != *"records this project's decisions"* ]]   # decisions consult dropped
+  [[ "$output" == *"project map (docs/MAP.md)"* ]]  # baseline gap kept
+  [[ "$output" != *"consult as relevant"* ]]        # consult brief dropped (marked)
 }
 
 @test "bootstrap tip points at the claude-companion marker when unmarked but docs exist" {
@@ -276,14 +277,14 @@ run_standard() {
   git -C "$REPO" add -A
   git -C "$REPO" -c user.email=t@t -c user.name=t commit -q -m "feat: do the thing"
   run run_standard startup
-  [[ "$output" == *"recently merged"* ]]
+  [[ "$output" == *"recent commits"* ]]
   [[ "$output" == *"do the thing"* ]]
 }
 
-@test "roadmap reconcile: no recently-merged line in a repo with no commits" {
+@test "roadmap reconcile: no reconcile line in a repo with no commits" {
   mkdir -p "$REPO/docs"; printf '# Roadmap\n' > "$REPO/docs/ROADMAP.md"
   run run_standard startup                      # REPO inited but no commits
-  [[ "$output" != *"recently merged"* ]]
+  [[ "$output" != *"Reconcile the backlog"* ]]
 }
 
 @test "stack-status: missing, then present via STACK.md / a Stack heading" {
@@ -302,13 +303,14 @@ run_standard() {
   [ "$output" = "present" ]
 }
 
-@test "stack: nudge to capture when missing, consult when present (startup)" {
+@test "stack: scale-up mention when missing (not demanded), consult when present" {
   run run_standard startup
-  [[ "$output" == *"No stack notes"* ]]
+  [[ "$output" == *"stack notes (STACK.md)"* ]]   # mentioned as scale-up, not a gap nag
+  [[ "$output" != *"No stack notes"* ]]
   printf '# Stack\n- Go 1.22\n' > "$REPO/STACK.md"
   run run_standard startup
-  [[ "$output" == *"documents the stack"* ]]
-  [[ "$output" != *"No stack notes"* ]]
+  [[ "$output" == *"consult as relevant"* ]]
+  [[ "$output" == *"stack"* ]]
 }
 
 @test "SessionStart output is valid JSON with the SessionStart event name" {

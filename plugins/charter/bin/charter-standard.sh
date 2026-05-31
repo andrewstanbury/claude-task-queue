@@ -50,76 +50,57 @@ if [ "$lean" -eq 1 ]; then
   exit 0
 fi
 
-# Full context (startup/clear/unknown). For each project-knowledge dimension:
-# a MISSING doc → a drift nudge (always shown); a PRESENT doc → a recurring
-# "honor/consult" reminder UNLESS the policy is recorded in CLAUDE.md (the
-# claude-companion marker), in which case it's dropped (bootstrap-once + quiet).
-# When everything is present and marked, charter stays silent.
+# Full context (startup/clear/unknown): a compact, PROPORTIONAL project brief.
+# Baseline docs Claude can't infer (map + what's-next) are nudged when missing;
+# quality attributes only for web projects; decisions/stack are left to the
+# model's judgment (scale up with complexity, don't over-document a small repo).
+# PRESENT docs collapse into one "consult" line, dropped when the policy is marked
+# in CLAUDE.md. Everything present + marked → silent.
 web="$(charter_is_web "$root" 2>/dev/null || printf 'no')"
 documented=0
 charter_policy_documented "$root" && documented=1
 
-parts=()
-
-# Quality attributes (web projects get Lighthouse-aligned defaults so best
-# practices are designed-in, not audited after).
-if [ "$status" = "missing" ]; then
-  if [ "$web" = "web" ]; then
-    parts+=("[charter] This is a web project with no documented quality attributes. Capture them in QUALITY.md before substantive changes and bake in web best practices so they're designed-in, not audited after: Core Web Vitals budgets (LCP/CLS/INP), accessibility (WCAG AA, semantic HTML, jsx-a11y/stylelint at edit time), SEO/meta, responsive + print styles, progressive enhancement (works without JS, enhance up), and components-by-default (prefer components over raw elements; reuse existing before creating new). Honor them on every change; Lighthouse/CI is a backstop, not the rework loop.")
-  else
-    parts+=("[charter] This project has no documented quality attributes. Before substantive changes, capture them — performance, security, accessibility, reliability, maintainability targets — in QUALITY.md (or a \"Quality Attributes\" section of CLAUDE.md). Changes should then honor them.")
-  fi
-elif [ "$documented" -eq 0 ]; then
-  parts+=("[charter] This project documents its quality attributes — honor them when changing code, and surface the relevant one when you touch related areas.")
-fi
-
-# Roadmap/backlog — the cross-session, cross-engineer record of what's next.
 rstatus="$(charter_roadmap_status "$root" 2>/dev/null || printf 'missing')"
-if [ "$rstatus" = "missing" ]; then
-  parts+=("[charter] No committed roadmap/backlog file. Generate docs/ROADMAP.md as a Claude-facing backlog — a terse Now/Next/Later list plus a dated changelog — inferred from git history and the codebase (apply sensible defaults; note any assumptions plainly for the owner), then commit it. It is how work is picked up, resumed, and coordinated across engineers on separate machines; git history is the shared audit trail.")
-elif [ "$documented" -eq 0 ]; then
-  roadmap_line="[charter] $(charter_roadmap_path "$root") is this project's backlog — read it for what's next, and reconcile it against recent git history before substantive changes (mark merged items done, append a dated changelog entry, flag drift). Keep it committed so other engineers resume from the same state."
-  recent="$(charter_recent_commits "$root" 5 2>/dev/null | awk 'NF{printf "%s%s", sep, $0; sep="; "}')"
-  [ -n "$recent" ] && roadmap_line="$roadmap_line"$'\n'"  recently merged (reconcile the roadmap against these — mark done what landed): $recent"
-  parts+=("$roadmap_line")
-fi
-
-# Decisions/ADRs — so Claude doesn't re-litigate or contradict past choices.
 dstatus="$(charter_decisions_status "$root" 2>/dev/null || printf 'missing')"
-if [ "$dstatus" = "missing" ]; then
-  parts+=("[charter] No decision record. Capture key architectural decisions in DECISIONS.md (or docs/adr/) — infer the major ones already evident in the code and git history, applying sensible defaults and noting assumptions plainly, and add new ones as you decide. This stops Claude re-litigating or contradicting past choices.")
-elif [ "$documented" -eq 0 ]; then
-  parts+=("[charter] $(charter_decisions_path "$root") records this project's decisions — consult it before substantive changes and honor/extend it; don't reverse a recorded decision without updating the record.")
-fi
-
-# Orientation = the project map. Missing → generate it from the codebase; present
-# → consult it instead of re-scanning the tree (dropped when marked).
 mstatus="$(charter_map_status "$root" 2>/dev/null || printf 'missing')"
-if [ "$mstatus" = "missing" ]; then
-  parts+=("[charter] No project map. Generate docs/MAP.md — a compact file→responsibility index plus the key entry points — from the codebase, so future sessions (and other engineers) orient from the map instead of re-scanning the tree. Keep durable structure recorded there as you learn it.")
-elif [ "$documented" -eq 0 ]; then
-  parts+=("[charter] Consult $(charter_map_path "$root") to orient instead of re-scanning the tree, and keep it current as structure changes — it's how a session loads the project cheaply.")
-fi
-
-# Stack/architecture notes — the durable record of languages/frameworks/versions
-# that modernization & currency judgments lean on. Missing → capture it from the
-# manifests; present → consult (dropped when marked).
 sstatus="$(charter_stack_status "$root" 2>/dev/null || printf 'missing')"
-if [ "$sstatus" = "missing" ]; then
-  parts+=("[charter] No stack notes. Capture the tech stack — languages, frameworks, key dependencies and their versions, and build/test tooling — in STACK.md (or a \"## Stack\" section of CLAUDE.md), inferred from the manifests. It's the durable context modernization and dependency judgments rely on.")
-elif [ "$documented" -eq 0 ]; then
-  parts+=("[charter] $(charter_stack_path "$root") documents the stack — consult it (and keep it current) when adding dependencies or judging what's outdated.")
-fi
-
-# Bootstrap tip: if policy isn't marked yet but some docs exist (so there are
-# honor-reminders to quiet), point at the marker once.
-if [ "$documented" -eq 0 ] && { [ "$status" != "missing" ] || [ "$rstatus" != "missing" ] || [ "$mstatus" != "missing" ] || [ "$dstatus" != "missing" ] || [ "$sstatus" != "missing" ]; }; then
-  parts+=("[charter] Tip: once these project docs are summarised in CLAUDE.md, mark it \"claude-companion\" and charter's honor-reminders go silent (the gap nudges stay).")
-fi
-
 charter_log "session-start" "qa=$status roadmap=$rstatus decisions=$dstatus map=$mstatus stack=$sstatus web=$web marked=$documented src=${src:-?} mode=full"
 
-# Join non-empty parts; stay silent if there's nothing to say (fully documented + marked).
+# Baseline gaps (always actionable); QA gap only for web projects.
+gaps=()
+[ "$mstatus" = "missing" ] && gaps+=("project map (docs/MAP.md) — a file→responsibility index so sessions orient without re-scanning the tree")
+[ "$rstatus" = "missing" ] && gaps+=("roadmap/backlog (docs/ROADMAP.md) — a Now/Next/Later list + dated changelog, the cross-session record of what's next")
+[ "$status" = "missing" ] && [ "$web" = "web" ] && gaps+=("quality attributes (QUALITY.md) — web project, so Lighthouse-aligned: Core Web Vitals, accessibility (WCAG AA, jsx-a11y/stylelint at edit time), SEO, responsive + print styles, progressive enhancement, components-by-default (reuse existing before creating new)")
+
+# Present docs → one consult list.
+present=()
+[ "$status" != "missing" ]  && present+=("quality attributes")
+[ "$rstatus" != "missing" ] && present+=("backlog → $(charter_roadmap_path "$root")")
+[ "$dstatus" != "missing" ] && present+=("decisions → $(charter_decisions_path "$root")")
+[ "$mstatus" != "missing" ] && present+=("map → $(charter_map_path "$root")")
+[ "$sstatus" != "missing" ] && present+=("stack → $(charter_stack_path "$root")")
+
+parts=()
+
+if [ "${#gaps[@]}" -gt 0 ]; then
+  body=""
+  for g in "${gaps[@]}"; do body="$body"$'\n'"  • $g"; done
+  parts+=("[charter] Generate the missing baseline docs from the codebase/git (apply sensible defaults, note assumptions plainly), then commit — Claude can't infer these:$body"$'\n'"Document proportionally to complexity: add decisions (DECISIONS.md/ADRs), stack notes (STACK.md), and — for non-web — quality-attribute targets only as the project's size or risk makes them earn their keep. Don't over-document a small project.")
+fi
+
+if [ "$documented" -eq 0 ] && [ "${#present[@]}" -gt 0 ]; then
+  list=""
+  for p in "${present[@]}"; do [ -z "$list" ] && list="$p" || list="$list, $p"; done
+  brief="[charter] Project docs — consult as relevant before substantive changes: $list."
+  if [ "$rstatus" != "missing" ]; then
+    recent="$(charter_recent_commits "$root" 5 2>/dev/null | awk 'NF{printf "%s%s", sep, $0; sep="; "}')"
+    [ -n "$recent" ] && brief="$brief"$' '"Reconcile the backlog against recent commits (mark done what landed): $recent."
+  fi
+  parts+=("$brief")
+  parts+=("[charter] Summarise these in CLAUDE.md and mark it \"claude-companion\" to make this brief go silent.")
+fi
+
+# Join non-empty parts; silent when there's nothing to say (baseline present + marked).
 ctx=""
 if [ "${#parts[@]}" -gt 0 ]; then
   for p in "${parts[@]}"; do
