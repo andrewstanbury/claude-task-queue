@@ -312,6 +312,18 @@ fake_web_linter() {
   [[ "$output" == *"Page.tsx"* ]]
 }
 
+@test "blast-radius: Go uses the package import path, not the basename" {
+  local repo="$WORK/gobr"; mkdir -p "$repo/pkg"; git -C "$repo" init -q
+  printf 'module example.com/proj\n\ngo 1.21\n' > "$repo/go.mod"
+  printf 'package pkg\nfunc F() {}\n' > "$repo/pkg/foo.go"
+  printf 'package main\nimport "example.com/proj/pkg"\nfunc main() { pkg.F() }\n' > "$repo/main.go"
+  git -C "$repo" add -A
+  run run_touch "$repo/pkg/foo.go"
+  [[ "$output" == *"blast-radius"* ]]
+  [[ "$output" == *"example.com/proj/pkg"* ]]   # import path, not "foo"
+  [[ "$output" == *"main.go"* ]]
+}
+
 @test "blast-radius: skips generic basenames" {
   local repo="$WORK/br2"; mkdir -p "$repo"; git -C "$repo" init -q
   printf 'x\n' > "$repo/index.ts"
