@@ -21,6 +21,8 @@ THIS_DIR="$(cd "$(dirname "$SELF")" && pwd)"
 PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 # shellcheck source=../lib/tidy.sh
 . "$PLUGIN_DIR/lib/tidy.sh"
+# shellcheck source=../lib/blast.sh
+. "$PLUGIN_DIR/lib/blast.sh"
 
 # PostToolUse hands us { tool_name, tool_input: { file_path, ... }, ... }.
 input=""

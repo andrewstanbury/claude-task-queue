@@ -97,8 +97,11 @@ plugin stays independently installable (the install boundary forbids shared code
   change's affected surface gets test coverage — a grep heuristic, guarded and
   deduped. `CLAUDE_TIDY_BLAST=0` to disable. Realises *no change lands without a
   test and an understanding of what it can break.*
-- **Planned (Phase 3):** broader multi-stack pattern linting; tighter
-  language-aware blast-radius (e.g. `go list`) over the grep heuristic.
+- - **Shipped (Go-aware blast-radius, 0.16.0):** for Go files the blast-radius keys
+  on the **package import path** (module from go.mod + relative dir), not the
+  basename — what other packages actually import. Non-Go keeps the basename
+  heuristic.
+- **Planned (Phase 3):** broader multi-stack pattern linting.
 
 #### Currency / modernization (how it works)
 
@@ -201,7 +204,11 @@ warning. This is the safety net a non-technical owner can't produce, and it's th
 project-checks runner that subsumes per-language test integration. (Per-language
 *lint* handlers beyond Go/web remain superseded by this discover-and-run posture.)
 
-Still open: consider **consolidating the 4 plugins into 1** (kill duplication);
+**Decided against (2026-05-31):** consolidating the 4 plugins into 1 — the
+duplication isn't yet painful and the migration would disrupt a working install;
+revisit only if the duplication bites.
+
+Still open:
 exempt test files from the size nudge; the plugin **consolidation** decision (4→1).
 
 **Shipped (non-technical posture, tidy 0.14.0 + charter 0.9.0):** resolve
