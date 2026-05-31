@@ -84,7 +84,7 @@ run_standard() {
   run run_standard startup
   [[ "$output" == *"passing test"* ]]
   [[ "$output" == *"green"* ]]                          # nothing done until green
-  [[ "$output" == *"Right-size the design"* ]]          # complexity-proportional simplicity
+  [[ "$output" == *"simplest design that fits"* ]]      # complexity-proportional simplicity
   [[ "$output" == *"domain language"* ]]                # ubiquitous language
   [[ "$output" == *"non-technical"* ]]                  # owner-aware posture
   [[ "$output" == *"plain language"* ]]                 # ask outcomes in plain terms

@@ -49,7 +49,7 @@ for f in CLAUDE.md AGENTS.md docs/CLAUDE.md; do
   [ -f "$root/$f" ] && grep -q 'claude-companion' "$root/$f" 2>/dev/null && { documented=1; break; }
 done
 
-lean_msg='[tidy] (reminder) clean-as-you-go, scoped to your change: cover changes with passing tests; fix linter findings you touched; simplest design that fits; name things in the domain'"'"'s language; do not grow god-files; subtract as you add — reuse before create, delete what your change makes redundant.'
+lean_msg='[tidy] (reminder) clean-as-you-go: cover changes with passing tests (suite green before done); subtract as you add — reuse before create, simplest fit; resolve findings yourself, ask outcomes in plain language.'
 
 if [ "$src" = "compact" ] || [ "$src" = "resume" ]; then
   ctx="$lean_msg"
@@ -57,16 +57,11 @@ elif [ "$documented" -eq 1 ]; then
   # Quiet: the standard lives in CLAUDE.md, so re-anchor lean even on a fresh context.
   ctx='[tidy] (standard in CLAUDE.md) clean-as-you-go, scoped to your change: cover changes with passing tests; fix linter findings you touched; simplest design that fits; subtract as you add — reuse before create, delete what a change makes redundant.'
 else
-  ctx='[tidy] Clean-as-you-go, scoped to what you touch — ratchet, do not sweep:
-- Tests are the safety net: cover the behavior you change with a passing test (write it first when it helps pin the spec). Nothing is done until the suite is green. Characterization-test legacy code before refactoring.
-- Fix linter findings in code you touched (the plugin auto-formats supported files and surfaces findings); leave unrelated pre-existing issues alone.
-- Clean code: small focused functions, clear names, no dead code, handled errors.
-- Right-size the design to the requirement: the simplest maintainable solution, no speculative layers or patterns — let complexity earn its keep.
-- Name things in the project'"'"'s own domain language (the words the product owner uses), not generic tech abstractions, so non-technical contributors can follow the code.
-- Clean architecture: no new cross-layer or cyclic dependencies; do not grow a god-file — extract new logic into a focused unit.
-- Subtract as you add: when a change makes code redundant, delete it; reuse an existing function/component before creating a new one; prefer the smaller surface. Net complexity should trend down over time, not only up.
-- Owner may be non-technical: resolve technical findings yourself (lint, size, blast-radius; apply safe patch/minor dependency upgrades when tests cover the area) rather than escalating them. Only ask about product/outcome choices, in plain language. When you finish a unit of work, recap what changed in plain, non-technical terms.
-- To make this nudge re-anchor in one line each session, record this standard in your CLAUDE.md and mark it "claude-companion".'
+  ctx='[tidy] Clean-as-you-go, scoped to what you touch — ratchet, do not sweep. You already know good engineering; these are the anchors that matter most here (the format/lint/size/test feedback you get as you work carries the rest):
+- Tests are the floor: cover the behavior you change with a passing test; the suite must be green before you'"'"'re done (the verification hook enforces this).
+- Subtract as you add: reuse before create, delete what a change makes redundant, simplest design that fits — net complexity should trend down, not up.
+- Name things in the owner'"'"'s domain language; the owner may be non-technical, so resolve technical findings yourself (only ask about product/outcome choices, in plain language) and recap each unit of work in plain terms.
+- Record this in your CLAUDE.md and mark it "claude-companion" to make it re-anchor in one line each session.'
 fi
 
 # Light distill (auto, no manual trigger): on a fresh context, surface files over
