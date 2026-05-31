@@ -67,6 +67,16 @@ run_verify() {
   [ -z "$output" ]                                                    # disabled
 }
 
+@test "verify: a slow test command times out (allows the stop, doesn't loop)" {
+  command -v timeout >/dev/null 2>&1 || skip "timeout not installed"
+  local repo="$WORK/vt"; mkdir -p "$repo"; git -C "$repo" init -q
+  : > "$repo/x.txt"
+  export CLAUDE_TIDY_TEST_CMD='sleep 5' CLAUDE_TIDY_VERIFY_TIMEOUT=1
+  run run_verify "$repo" t1
+  [[ "$output" == *"timed out"* ]]
+  [[ "$output" != *"decision"* ]]          # not a block; no fix-loop
+}
+
 @test "verify: gives up (allows the stop) after the attempt cap, with a warning" {
   local repo="$WORK/v6"; mkdir -p "$repo"; git -C "$repo" init -q
   : > "$repo/x.txt"

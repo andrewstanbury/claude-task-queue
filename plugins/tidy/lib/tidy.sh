@@ -129,8 +129,13 @@ tidy_handle_web() {
   esac
   bin="$(tidy_node_bin "$file" "$tool")" || return 0
   [ -n "$bin" ] || return 0
-  out="$("$bin" "$file" 2>/dev/null)"; rc=$?
-  [ "$rc" -eq 1 ] || return 0
+  # Bounded so a wedged linter can't stall the edit's PostToolUse hook.
+  if command -v timeout >/dev/null 2>&1; then
+    out="$(timeout "${CLAUDE_TIDY_LINT_TIMEOUT:-30}" "$bin" "$file" 2>/dev/null)"; rc=$?
+  else
+    out="$("$bin" "$file" 2>/dev/null)"; rc=$?
+  fi
+  [ "$rc" -eq 1 ] || return 0                         # 0 clean / 2+ config / 124 timeout → no-op
   [ -n "$out" ] || return 0
   tidy_log web "file=$file tool=$tool findings=yes"
   printf '0\t%s' "$(printf '%s\n' "$out" | head -n 25)"
