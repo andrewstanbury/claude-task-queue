@@ -19,7 +19,8 @@ A small **marketplace of self-contained Claude Code companion plugins**:
 
 Each plugin has its own `README.md` (what/why) and `CONTRACT.md` (the
 **undocumented Claude Code internals it depends on** — read it before changing
-any hook input/output).
+any hook input/output). The system's direction (the 3-plugin vision and phased
+plan) lives in [docs/ROADMAP.md](./docs/ROADMAP.md).
 
 ## The one rule that drives the architecture: the install boundary
 
