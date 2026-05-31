@@ -36,6 +36,8 @@ tidy_log() {
 tidy_lang_for_file() {
   case "$1" in
     *.go) printf 'go' ;;
+    *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs|*.vue|*.svelte|*.css|*.scss|*.sass|*.less)
+          printf 'web' ;;
     *)    printf '' ;;
   esac
 }
@@ -82,6 +84,45 @@ tidy_handle_go() {
   [ "$changed" -eq 0 ] && [ -z "$lint" ] && return 0
   tidy_log go "file=$file fmt=$tool changed=$changed lint=$( [ -n "$lint" ] && echo yes || echo no )"
   printf '%s\t%s' "$changed" "$lint"
+}
+
+# ---- web handler (shift the Lighthouse audit left) -------------------------
+
+# Resolve a node CLI for the touched file: prefer the project-local
+# node_modules/.bin/<tool> (walking up from the file), else PATH. Prints the
+# path, or nothing.
+tidy_node_bin() {
+  local file="$1" tool="$2" dir
+  dir="$(cd "$(dirname "$file")" 2>/dev/null && pwd)" || return 1
+  while [ -n "$dir" ] && [ "$dir" != "/" ]; do
+    [ -x "$dir/node_modules/.bin/$tool" ] && { printf '%s' "$dir/node_modules/.bin/$tool"; return 0; }
+    dir="$(dirname "$dir")"
+  done
+  command -v "$tool" 2>/dev/null
+}
+
+# Surface the project's OWN web-linter findings for the touched file — eslint
+# (incl. eslint-plugin-jsx-a11y) for JS/TS/JSX/TSX/Vue/Svelte, stylelint for
+# CSS/SCSS/Less. This shifts much of Lighthouse's accessibility / best-practices
+# audit to edit time. Read-only: no `--fix` (it can change behavior); we only
+# report. Acts only when the project actually has the linter; silent otherwise.
+# Prints "0\t<findings>" (changed=0, so the touch hook renders it like a lint
+# block) or nothing. Exit 1 from the linter = problems found; 0 = clean; 2+ =
+# config/crash → treated as no-op.
+tidy_handle_web() {
+  local file="$1" tool bin out rc
+  case "$file" in
+    *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs|*.vue|*.svelte) tool=eslint ;;
+    *.css|*.scss|*.sass|*.less)                       tool=stylelint ;;
+    *) return 0 ;;
+  esac
+  bin="$(tidy_node_bin "$file" "$tool")" || return 0
+  [ -n "$bin" ] || return 0
+  out="$("$bin" "$file" 2>/dev/null)"; rc=$?
+  [ "$rc" -eq 1 ] || return 0
+  [ -n "$out" ] || return 0
+  tidy_log web "file=$file tool=$tool findings=yes"
+  printf '0\t%s' "$(printf '%s\n' "$out" | head -n 25)"
 }
 
 # ---- TDD nudge --------------------------------------------------------------

@@ -79,9 +79,14 @@ plugin stays independently installable (the install boundary forbids shared code
   default 400) is flagged for decomposition on edit, and over-budget files also
   surface on their own at session start (a *light distill*, quiet unless there's
   drift). Disable with `CLAUDE_TIDY_SIZE_CHECK=0`.
+- **Shipped (web edit-time linters, 0.9.0):** on touch, surface the project's own
+  **eslint** (incl. jsx-a11y) / **stylelint** findings for web files — *findings
+  only, no `--fix`* — shifting Lighthouse's a11y/best-practices audit to edit
+  time. Acts only when the project has the linter; silent otherwise. This is the
+  enforcement layer behind charter's web quality-attribute defaults.
 - **Planned (Phase 3):** **blast-radius awareness** (surface a symbol's
   dependents before you change it, so TDD covers the affected surface);
-  multi-stack pattern linting; and
+  broader multi-stack pattern linting; and
   **currency/modernization** — flag deprecated/outdated tech in the touched
   scope. Identity going forward: *no change lands without a test and an
   understanding of what it can break.*
@@ -210,7 +215,7 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.13.0**, **tidy 0.8.0**, **charter 0.6.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.13.0**, **tidy 0.9.0**, **charter 0.6.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the

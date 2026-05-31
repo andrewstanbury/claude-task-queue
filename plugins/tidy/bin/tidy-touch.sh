@@ -49,6 +49,9 @@ case "$lang" in
     result="$(tidy_handle_go "$file" 2>/dev/null || true)"   # format + lint findings
     tdd="$(tidy_tdd_nudge "$file" "$sid" 2>/dev/null || true)"
     ;;
+  web)
+    result="$(tidy_handle_web "$file" 2>/dev/null || true)"  # eslint/stylelint findings
+    ;;
 esac
 [ -n "$result" ] || [ -n "$tdd" ] || [ -n "$size" ] || exit 0   # nothing to say
 

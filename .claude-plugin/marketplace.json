@@ -14,8 +14,8 @@
     {
       "name": "tidy",
       "source": "./plugins/tidy",
-      "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe), flags it for decomposition when it grows past a size budget, and holds a subtractive posture (reuse before create, delete what a change makes redundant) so an active project trends down in complexity over time, scoped to the touched file. Over-budget files also surface automatically at session start; no manual trigger. Goes quiet once the standard is recorded in CLAUDE.md. /tidy:distill runs the full whole-project weight report on demand. MVP targets Go.",
-      "version": "0.8.0"
+      "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe), flags it for decomposition when it grows past a size budget, and holds a subtractive posture (reuse before create, delete what a change makes redundant) so an active project trends down in complexity over time, scoped to the touched file. Over-budget files also surface automatically at session start; no manual trigger. Goes quiet once the standard is recorded in CLAUDE.md. /tidy:distill runs the full whole-project weight report on demand. Targets Go and web (eslint incl. jsx-a11y, stylelint).",
+      "version": "0.9.0"
     },
     {
       "name": "charter",
