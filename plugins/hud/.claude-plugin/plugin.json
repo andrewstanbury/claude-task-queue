@@ -1,11 +1,20 @@
 {
   "name": "hud",
-  "version": "0.1.0",
-  "description": "A consolidated status line for the companion plugins: an animated beacon plus open tasks (+ the in-progress one), paused state, quality-attributes status, last tidy action, tokens up/down, git branch, and model — rendered read-only from existing plugin state and the statusLine payload. No hooks, no scanning, zero model-token cost.",
-  "author": { "name": "Andrew Stanbury" },
+  "version": "0.2.0",
+  "description": "A consolidated status line for the companion plugins: an animated beacon plus open tasks (+ the in-progress one), paused state, quality-attributes status, last tidy action, tokens up/down, git branch, and model \u2014 rendered read-only from existing plugin state and the statusLine payload. Run /hud:setup once to wire it into settings.json with a version-resilient command (survives updates). No hooks, no scanning, zero model-token cost.",
+  "author": {
+    "name": "Andrew Stanbury"
+  },
   "homepage": "https://github.com/andrewstanbury/claude-task-queue/tree/main/plugins/hud",
   "repository": "https://github.com/andrewstanbury/claude-task-queue",
   "license": "MIT",
-  "keywords": ["statusline", "status-bar", "hud", "tokens", "tasks", "git-branch"],
+  "keywords": [
+    "statusline",
+    "status-bar",
+    "hud",
+    "tokens",
+    "tasks",
+    "git-branch"
+  ],
   "defaultEnabled": true
 }
