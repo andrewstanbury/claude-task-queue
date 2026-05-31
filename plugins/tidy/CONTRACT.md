@@ -91,7 +91,7 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
 - **If it changes:** the verification floor silently stops; everything else is
   unaffected.
 
-### 5. The `/tidy:distill` command (user-invoked)
+### 5. The `/tidy:distill` and `/tidy:audit` commands (user-invoked)
 
 - **Files:** `commands/distill.md` (auto-discovered, namespaced `/tidy:distill`)
   inlines the stdout of `bin/tidy-distill.sh` via the `!` prefix, then instructs
@@ -102,6 +102,10 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   markers, and junk artefacts. Tunables: `CLAUDE_TIDY_SIZE_BUDGET` (default 400),
   `CLAUDE_TIDY_DISTILL_TOP` (default 10). It never writes and never hard-fails.
   The *judgment* (what to actually delete) is the model's, gated on confirmation.
+- **`/tidy:audit`** (`commands/audit.md`) reuses the same weight report, then drives
+  a read-only, proportional whole-project audit — running the project's own
+  tests/linters, flagging dead code/duplication, checking doc proportionality and
+  currency, and reporting in plain language. Read-only; offers to fix afterward.
 
 ## Where the plugin writes
 
