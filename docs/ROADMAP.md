@@ -89,10 +89,13 @@ plugin stays independently installable (the install boundary forbids shared code
   session, with a nudge to flag deprecated/behind-latest tech — facts from the
   hook, judgment from the model, **never an auto-upgrade**. `CLAUDE_TIDY_CURRENCY=0`
   to disable.
-- **Planned (Phase 3):** **blast-radius awareness** (surface a symbol's
-  dependents before you change it, so TDD covers the affected surface) and
-  broader multi-stack pattern linting. Identity going forward: *no change lands
-  without a test and an understanding of what it can break.*
+- **Shipped (blast-radius, 0.11.0):** for a touched source file, `git grep`
+  surfaces approximate **importers/dependents** (`~N files reference X`) so a
+  change's affected surface gets test coverage — a grep heuristic, guarded and
+  deduped. `CLAUDE_TIDY_BLAST=0` to disable. Realises *no change lands without a
+  test and an understanding of what it can break.*
+- **Planned (Phase 3):** broader multi-stack pattern linting; tighter
+  language-aware blast-radius (e.g. `go list`) over the grep heuristic.
 
 #### Currency / modernization (how it works)
 
@@ -218,7 +221,7 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.13.0**, **tidy 0.10.0**, **charter 0.6.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.13.0**, **tidy 0.11.0**, **charter 0.6.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the

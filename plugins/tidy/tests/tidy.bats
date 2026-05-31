@@ -279,6 +279,39 @@ fake_web_linter() {
   [[ "$output" != *"decomposition candidates"* ]]
 }
 
+# ---- blast-radius -----------------------------------------------------------
+
+@test "blast-radius: surfaces importers of a touched source file" {
+  local repo="$WORK/br1"; mkdir -p "$repo"; git -C "$repo" init -q
+  printf 'export const UserCard = () => null\n' > "$repo/UserCard.tsx"
+  printf "import { UserCard } from './UserCard'\n" > "$repo/Page.tsx"
+  git -C "$repo" add -A
+  run run_touch "$repo/UserCard.tsx"
+  [[ "$output" == *"blast-radius"* ]]
+  [[ "$output" == *"Page.tsx"* ]]
+}
+
+@test "blast-radius: skips generic basenames" {
+  local repo="$WORK/br2"; mkdir -p "$repo"; git -C "$repo" init -q
+  printf 'x\n' > "$repo/index.ts"
+  printf "import './index'\n" > "$repo/a.ts"
+  git -C "$repo" add -A
+  run run_touch "$repo/index.ts"
+  [[ "$output" != *"blast-radius"* ]]
+}
+
+@test "blast-radius: silent when nothing references the file, and when disabled" {
+  local repo="$WORK/br3"; mkdir -p "$repo"; git -C "$repo" init -q
+  printf 'export const Lonely = 1\n' > "$repo/Lonely.tsx"
+  git -C "$repo" add -A
+  run run_touch "$repo/Lonely.tsx"
+  [[ "$output" != *"blast-radius"* ]]
+  printf "import './Lonely'\n" > "$repo/uses.tsx"; git -C "$repo" add -A
+  export CLAUDE_TIDY_BLAST=0
+  run run_touch "$repo/Lonely.tsx"
+  [[ "$output" != *"blast-radius"* ]]
+}
+
 # ---- currency / modernization ----------------------------------------------
 
 @test "currency: surfaces nearest package.json pins (deduped per session)" {
