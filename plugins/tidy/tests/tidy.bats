@@ -441,3 +441,13 @@ fake_web_linter() {
   [ -f "$WORK/state/nudged/recent" ]                  # recent kept
   [ ! -f "$WORK/state/verify/old" ]                   # stale swept
 }
+
+@test "session start light-distill exempts test files too (consistent with the touch nudge)" {
+  local repo="$WORK/ld"; mkdir -p "$repo"
+  seq 1 12 > "$repo/big.bats"                          # over budget, but a test file
+  seq 1 12 > "$repo/src.go"                            # over budget, real source
+  export CLAUDE_TIDY_SIZE_BUDGET=5
+  run run_standard startup "$repo"
+  [[ "$output" == *"src.go"* ]]
+  [[ "$output" != *"big.bats"* ]]
+}

@@ -224,9 +224,13 @@ tidy_oversized_files() {
   else
     listing="$(cd "$root" && find . -type f -not -path '*/.git/*' -print0 2>/dev/null | xargs -0 wc -l 2>/dev/null)"
   fi
+  # Exempt test files (they legitimately grow) — same as the per-touch nudge.
   printf '%s\n' "$listing" | awk -v b="$budget" '
     { n=$1+0; $1=""; sub(/^[ \t]+/,""); p=$0 }
-    p != "total" && p != "" && n > b { printf "%d\t%s\n", n, p }
+    p != "total" && p != "" && n > b &&
+    p !~ /(_test\.(go|py)$|\.bats$|\.spec\.|\.test\.|(^|\/)test_[^/]*\.py$|\/(tests?|__tests__|spec)\/)/ {
+      printf "%d\t%s\n", n, p
+    }
   ' | sort -rn -k1,1
 }
 
