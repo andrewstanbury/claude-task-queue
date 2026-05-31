@@ -70,6 +70,11 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   and surfaces its **pinned versions** once per manifest per session, with a
   nudge to flag deprecated/behind-latest tech. Judgment is the model's (world
   knowledge); the hook never upgrades. Disable with `CLAUDE_TIDY_CURRENCY=0`.
+- **Blast-radius (approximate):** for a touched *source* file, `git grep` finds
+  import-context references to its basename across tracked files and surfaces
+  `~N files reference X` (deduped per file per session). It's a grep heuristic,
+  not static analysis — guarded (min name length, generic-name skip, capped
+  sample). Disable with `CLAUDE_TIDY_BLAST=0`.
 
 ### 4. The `/tidy:distill` command (user-invoked)
 

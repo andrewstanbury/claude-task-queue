@@ -242,3 +242,35 @@ tidy_currency_nudge() {
     printf 'currency: nearest manifest is %s — check whether its pinned tech is behind latest stable or deprecated and flag modernization in the touched scope (do not auto-upgrade).' "$kind"
   fi
 }
+
+# ---- blast-radius ----------------------------------------------------------
+
+# Approximate dependent-surfacing: when you change a file, grep the repo for
+# import-context references to its basename so the change's blast radius is
+# visible and TDD can cover the affected surface. Lightweight (git grep), not
+# static analysis — guarded against noise (min name length, skip generic names,
+# import-context only, capped sample) and deduped once per file per session.
+# Empty when no dependents, not a git repo, or disabled (CLAUDE_TIDY_BLAST=0).
+tidy_blast_radius() {
+  local file="$1" sid="${2:-}" base root rel hits n sample mdir mark
+  [ "${CLAUDE_TIDY_BLAST:-1}" = "0" ] && return 0
+  [ -f "$file" ] || return 0
+  base="$(basename "$file")"; base="${base%.*}"
+  [ "${#base}" -ge 4 ] || return 0
+  case "$base" in
+    index|main|app|mod|utils|util|types|type|config|helpers|helper|test|tests|lib|setup|init|README|index.d) return 0 ;;
+  esac
+  root="$(git -C "$(dirname "$file")" rev-parse --show-toplevel 2>/dev/null || true)"
+  [ -n "$root" ] || return 0
+  mdir="$(tidy_log_dir)/nudged"
+  mark="$mdir/blast-$(printf '%s' "${sid:0:8}-$file" | sed 's:/:-:g')"
+  [ -f "$mark" ] && return 0
+  { mkdir -p "$mdir" 2>/dev/null && : > "$mark"; } 2>/dev/null || true
+  rel="${file#"$root"/}"
+  hits="$(git -C "$root" grep -lE "(import|require|from|use|include).*${base}" -- . 2>/dev/null | grep -vF "$rel" || true)"
+  [ -n "$hits" ] || return 0
+  n="$(printf '%s\n' "$hits" | grep -c .)"
+  sample="$(printf '%s\n' "$hits" | head -n 3 | tr '\n' ',' | sed 's/,$//; s/,/, /g')"
+  tidy_log blast "file=$file n=$n"
+  printf 'blast-radius (approx): ~%d file(s) reference %s — your change may affect them; cover the affected surface with tests. e.g. %s' "$n" "$base" "$sample"
+}

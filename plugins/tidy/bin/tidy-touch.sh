@@ -58,7 +58,12 @@ case "$lang" in
     result="$(tidy_handle_web "$file" 2>/dev/null || true)"  # eslint/stylelint findings
     ;;
 esac
-[ -n "$result" ] || [ -n "$tdd" ] || [ -n "$size" ] || [ -n "$currency" ] || exit 0   # nothing to say
+
+# Blast-radius: only for recognized source files (avoids noise on docs/config).
+blast=""
+[ -n "$lang" ] && blast="$(tidy_blast_radius "$file" "$sid" 2>/dev/null || true)"
+
+[ -n "$result" ] || [ -n "$tdd" ] || [ -n "$size" ] || [ -n "$currency" ] || [ -n "$blast" ] || exit 0   # nothing to say
 
 changed=""
 lint=""
@@ -74,6 +79,7 @@ ctx="[tidy] ${file}:"
 [ -n "$tdd" ] && ctx="$ctx"$'\n'"• $tdd"
 [ -n "$size" ] && ctx="$ctx"$'\n'"• $size"
 [ -n "$currency" ] && ctx="$ctx"$'\n'"• $currency"
+[ -n "$blast" ] && ctx="$ctx"$'\n'"• $blast"
 
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $c}}'
