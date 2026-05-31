@@ -14,8 +14,8 @@
     {
       "name": "tidy",
       "source": "./plugins/tidy",
-      "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe) so an active project converges toward clean code over time, scoped to the touched file. MVP targets Go.",
-      "version": "0.4.0"
+      "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe) and holds a subtractive posture (reuse before create, delete what a change makes redundant) so an active project trends down in complexity over time, scoped to the touched file. MVP targets Go.",
+      "version": "0.5.0"
     },
     {
       "name": "charter",

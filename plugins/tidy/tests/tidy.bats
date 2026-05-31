@@ -62,6 +62,15 @@ run_touch() {
   [[ "$output" != *"ratchet, do not sweep"* ]]
 }
 
+@test "standard hook bakes in the subtractive prune posture (startup + lean)" {
+  run bash -c 'printf "{\"source\":\"startup\"}" | "$1" | jq -r .hookSpecificOutput.additionalContext' _ "$STANDARD"
+  [[ "$output" == *"Subtract as you add"* ]]
+  [[ "$output" == *"redundant"* ]]
+  [[ "$output" == *"reuse"* ]]                          # reuse before create
+  run bash -c 'printf "{\"source\":\"compact\"}" | "$1" | jq -r .hookSpecificOutput.additionalContext' _ "$STANDARD"
+  [[ "$output" == *"reuse before create"* ]]            # short form survives in lean
+}
+
 # ---- no-op paths ------------------------------------------------------------
 
 @test "an unsupported file type is left untouched (silent)" {

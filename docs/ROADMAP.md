@@ -68,7 +68,11 @@ plugin stays independently installable (the install boundary forbids shared code
 
 ### tidy — *change safely & cleanly* (shipped)
 - **Now:** format + lint + TDD nudge on touch, ratchet posture, tidy-doctor,
-  payload-drift canary.
+  payload-drift canary, and the **subtractive posture** (prune force, touch-time
+  half): *subtract as you add* — delete what a change makes redundant, **reuse
+  before create**, prefer the smaller surface so net complexity trends down. The
+  on-demand whole-project pass (`/distill`: dead-code sweep, file-count /
+  size-vs-complexity budget, doc↔code drift) is the deferred other half.
 - **Planned (Phase 3):** **blast-radius awareness** (surface a symbol's
   dependents before you change it, so TDD covers the affected surface);
   file-size-vs-complexity nudge; multi-stack pattern linting; and
@@ -137,8 +141,7 @@ it's *temporal* and model-knowledge-driven, so it gets named explicitly.
   owns project-knowledge) — a local integration shakeout found it duplicated
   charter's documentation nudge at SessionStart.
 - **Planned:** stack/architecture notes; richer reconciliation (auto-detect
-  which roadmap items merged); task-queue hydrating the roadmap's open items
-  into the live session task list.
+  which roadmap items merged).
 
 ## Strategic direction — the subtractive force + quiet hooks
 
@@ -150,11 +153,12 @@ primitives, now the priority ahead of the older Phase 2/3 sequencing:
 
 1. **A maintained project map** (✅ shipped above) — so growth is visible and
    loading stays cheap. The other two read from it.
-2. **A subtractive *prune* force** — on touch (tidy: flag now-dead code,
-   duplication, "X makes Y redundant", riding the planned blast-radius) and
-   on demand (a `/distill` whole-project health pass: dead code, file-count /
-   size-vs-complexity budget, doc↔code drift). This is what turns *add
-   requirement → add code* into *add requirement → net surface flat or smaller*.
+2. **A subtractive *prune* force** — touch-time half ✅ shipped (tidy 0.5.0:
+   *subtract as you add* — delete what a change makes redundant, reuse before
+   create, smaller surface). Deferred: the on-demand `/distill` whole-project
+   pass (dead-code sweep, file-count / size-vs-complexity budget, doc↔code
+   drift) and richer per-touch surfacing once blast-radius lands. This turns
+   *add requirement → add code* into *add requirement → net surface flat or smaller*.
 3. **Hooks: re-injection → bootstrap-once + drift-detect.** Bake standing policy
    into the project's own `CLAUDE.md` (always loaded); hooks then mostly verify
    the durable docs exist and are current, and otherwise **stay quiet** — so the
@@ -188,12 +192,13 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.12.0**, **tidy 0.4.0**, **charter 0.5.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.12.0**, **tidy 0.5.0**, **charter 0.5.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the
   audit left"). **task-queue 0.12.0** hydrates the live queue from the committed
-  roadmap/backlog. Next, per the strategic direction above: the **subtractive
-  prune force** and **bootstrap-then-quiet hooks**; then the older **Phase 2** (task-queue
+  roadmap/backlog; **tidy 0.5.0** adds the prune force's touch-time half. Next,
+  per the strategic direction above: **bootstrap-then-quiet hooks** (and the
+  deferred `/distill` pass); then the older **Phase 2** (task-queue
   smart backlog + agent-mode) and **Phase 3** (tidy
   blast-radius + size-vs-complexity + currency/modernization).
