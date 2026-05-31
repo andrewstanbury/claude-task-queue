@@ -11,19 +11,19 @@
       "name": "task-queue",
       "source": "./plugins/task-queue",
       "description": "Resume bridge + auto-advance for Claude Code's native task list \u2014 re-surfaces a repo's unfinished tasks from earlier sessions, hydrates the queue from a committed roadmap/backlog file when present, and points the model at the next unblocked task as each one completes. Goes quiet once the policy is recorded in CLAUDE.md. Opt-in agent-mode fans independent tasks out to subagents.",
-      "version": "0.14.0"
+      "version": "0.15.0"
     },
     {
       "name": "tidy",
       "source": "./plugins/tidy",
       "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe), flags it for decomposition when it grows past a size budget, and holds a subtractive posture (reuse before create, delete what a change makes redundant) so an active project trends down in complexity over time, scoped to the touched file. Over-budget files also surface automatically at session start; no manual trigger. Goes quiet once the standard is recorded in CLAUDE.md. /tidy:distill runs the full whole-project weight report on demand. Targets Go and web (eslint incl. jsx-a11y, stylelint); surfaces manifest version pins on touch to flag outdated tech. Surfaces a touched file's blast-radius (importers) for test coverage. Verification floor: runs the project's tests on Stop and blocks until green.",
-      "version": "0.20.0"
+      "version": "0.21.0"
     },
     {
       "name": "charter",
       "source": "./plugins/charter",
       "description": "Know the project: gates substantive work on documented quality attributes (web projects get Lighthouse-aligned defaults), maintains a committed Claude-facing roadmap/backlog file, keeps a project map (file\u2192responsibility index) so a session orients from the map instead of re-scanning the tree, and tracks decisions/ADRs so past choices aren't re-litigated. Generates the docs from the codebase/git history when missing; goes quiet once the policy is summarised in CLAUDE.md. Surfaces recently-merged commits for roadmap reconciliation. Records stack notes for modernization context. One compact, proportional brief (not a wall of per-doc prose).",
-      "version": "0.10.0"
+      "version": "0.11.0"
     },
     {
       "name": "hud",

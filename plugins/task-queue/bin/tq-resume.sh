@@ -36,6 +36,9 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 # shellcheck source=../lib/project.sh
 . "$PLUGIN_DIR/lib/project.sh"
 
+# Once per session, keep the activity log bounded so it never becomes cruft.
+tq_prune_log 2>/dev/null || true
+
 # Trimmed standing policy (re-injected on each fresh SessionStart, so kept lean).
 POLICY='[task-queue] Your native task list IS the live work queue. Capture multi-step work with TaskCreate (skip trivial/chat) before starting, work it in dependency order (honor blockedBy), and advance as you finish — without draining the backlog unprompted.'
 

@@ -22,6 +22,9 @@ PLUGIN_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 # shellcheck source=../lib/tidy.sh
 . "$PLUGIN_DIR/lib/tidy.sh"
 
+# Once per session, sweep stale per-session state so it never accumulates.
+tidy_prune_state 2>/dev/null || true
+
 input=""
 [ -t 0 ] || input="$(cat 2>/dev/null || true)"
 src=""; cwd=""

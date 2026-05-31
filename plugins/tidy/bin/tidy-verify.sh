@@ -59,17 +59,31 @@ fi
 cmd="$(tidy_test_command "$root" 2>/dev/null || true)"
 [ -n "$cmd" ] || allow                                # no discoverable tests → silent
 
+# Per-session state: the attempt counter and the last-green tree fingerprint.
+cdir="$(tidy_log_dir)/verify"
+key="$(printf '%s' "${sid:-nosession}" | sed 's:/:-:g')"
+cfile="$cdir/$key"
+hfile="$cdir/hash-$key"
+
+# Throttle: if the tree is byte-for-byte what it was at the last GREEN verify,
+# nothing changed since — skip the (possibly slow) run. (A failed/timeout verify
+# clears the fingerprint, so we never skip past red tests.)
+cur="$(tidy_tree_hash "$root" 2>/dev/null || true)"
+if [ -n "$cur" ] && [ -f "$hfile" ] && [ "$(cat "$hfile" 2>/dev/null || true)" = "$cur" ]; then
+  tidy_log verify "skip unchanged"
+  allow
+fi
+
 out="$(tidy_run_checks "$root" "$cmd" 2>/dev/null)"; rc=$?
 
-# Per-session attempt counter, so we never loop forever.
-cdir="$(tidy_log_dir)/verify"
-cfile="$cdir/$(printf '%s' "${sid:-nosession}" | sed 's:/:-:g')"
-
 if [ "$rc" -eq 0 ]; then
-  rm -f "$cfile" 2>/dev/null || true                  # green → reset + allow
+  rm -f "$cfile" 2>/dev/null || true                  # green → reset counter
+  if [ -n "$cur" ]; then { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$cur" > "$hfile"; } 2>/dev/null || true; fi
   tidy_log verify "pass cmd=$cmd"
   allow
 fi
+
+rm -f "$hfile" 2>/dev/null || true                    # not green → drop the stale pass-fingerprint
 
 if [ "$rc" -eq 124 ]; then                            # timed out — can't verify; don't loop on it
   rm -f "$cfile" 2>/dev/null || true
