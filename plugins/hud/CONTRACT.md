@@ -15,9 +15,10 @@ on-disk state files and prints one line. It never writes anything.
 - **Token note:** on current Claude Code, `total_input_tokens` /
   `total_output_tokens` are **current-context** counts (most recent exchange),
   not cumulative session totals. hud labels them up/down; read accordingly.
-- **Config:** wired by the user's `statusLine` setting (`type: command`,
-  `command`, `refreshInterval`). A plugin can ship a *default* statusLine but the
-  user's config wins, so wiring is a documented opt-in.
+- **Config:** wired by the user's `statusLine` setting. Claude Code can't
+  auto-wire a plugin status line, so `/hud:setup` (→ `bin/hud-install.sh`) does it
+  once, writing a **version-resilient** command (execs the newest installed hud,
+  so it survives updates). Override the target file with `CLAUDE_SETTINGS`.
 - **If it changes:** affected slots fall back (model `?`, tokens `0`, etc.).
 
 ### 2. Sibling plugins' on-disk state (read-only; soft path coupling)

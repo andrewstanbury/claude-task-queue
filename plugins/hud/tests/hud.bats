@@ -71,3 +71,25 @@ mk_task() {
   [[ "$output" == *"Opus 4.8"* ]]
   [ "$(printf '%s\n' "$output" | wc -l)" -eq 1 ]   # single line
 }
+
+# ---- hud-install (status-line wiring) ---------------------------------------
+
+@test "install: adds a version-resilient statusLine, preserving other settings" {
+  local s; s="$(mktemp -d)/settings.json"
+  printf '{"existingKey":true}\n' > "$s"
+  run bash -c 'CLAUDE_SETTINGS="$1" "$2/bin/hud-install.sh"' _ "$s" "$ROOT"
+  [ "$status" -eq 0 ]
+  jq -e '.existingKey == true' "$s"                       # preserved
+  jq -e '.statusLine.type == "command"' "$s"
+  [[ "$(jq -r '.statusLine.command' "$s")" == *"sort -V | tail -1"* ]]   # self-resolving, not version-pinned
+  [[ "$(jq -r '.statusLine.command' "$s")" != *"/0.1.0/"* ]]
+  rm -rf "$(dirname "$s")"
+}
+
+@test "install: creates settings.json when absent" {
+  local s; s="$(mktemp -d)/settings.json"   # file does not exist yet
+  run bash -c 'CLAUDE_SETTINGS="$1" "$2/bin/hud-install.sh"' _ "$s" "$ROOT"
+  [ "$status" -eq 0 ]
+  jq -e '.statusLine.command' "$s"
+  rm -rf "$(dirname "$s")"
+}
