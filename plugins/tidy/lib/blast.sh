@@ -64,5 +64,5 @@ tidy_blast_radius() {
   n="$(printf '%s\n' "$hits" | grep -c .)"
   sample="$(printf '%s\n' "$hits" | head -n 3 | tr '\n' ',' | sed 's/,$//; s/,/, /g')"
   tidy_log blast "file=$file n=$n"
-  printf 'blast-radius (approx): ~%d file(s) reference %s — your change may affect them; cover the affected surface with tests. e.g. %s' "$n" "$label" "$sample"
+  printf 'blast-radius (~%d files reference %s): cover the affected surface; e.g. %s' "$n" "$label" "$sample"
 }
