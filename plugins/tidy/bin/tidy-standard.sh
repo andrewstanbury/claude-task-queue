@@ -49,18 +49,20 @@ for f in CLAUDE.md AGENTS.md docs/CLAUDE.md; do
   [ -f "$root/$f" ] && grep -q 'claude-companion' "$root/$f" 2>/dev/null && { documented=1; break; }
 done
 
-lean_msg='[tidy] (reminder) clean-as-you-go, scoped to your change: test-first; fix linter findings in code you touched; do not grow god-files; subtract as you add — reuse before create, delete what your change makes redundant.'
+lean_msg='[tidy] (reminder) clean-as-you-go, scoped to your change: cover changes with passing tests; fix linter findings you touched; simplest design that fits; name things in the domain'"'"'s language; do not grow god-files; subtract as you add — reuse before create, delete what your change makes redundant.'
 
 if [ "$src" = "compact" ] || [ "$src" = "resume" ]; then
   ctx="$lean_msg"
 elif [ "$documented" -eq 1 ]; then
   # Quiet: the standard lives in CLAUDE.md, so re-anchor lean even on a fresh context.
-  ctx='[tidy] (standard in CLAUDE.md) clean-as-you-go, scoped to your change: test-first; fix linter findings you touched; subtract as you add — reuse before create, delete what a change makes redundant.'
+  ctx='[tidy] (standard in CLAUDE.md) clean-as-you-go, scoped to your change: cover changes with passing tests; fix linter findings you touched; simplest design that fits; subtract as you add — reuse before create, delete what a change makes redundant.'
 else
   ctx='[tidy] Clean-as-you-go, scoped to what you touch — ratchet, do not sweep:
-- TDD: add or extend a failing test before changing logic, then make it pass, and cover what you changed. Characterization-test legacy code before refactoring.
+- Tests are the safety net: cover the behavior you change with a passing test (write it first when it helps pin the spec). Nothing is done until the suite is green. Characterization-test legacy code before refactoring.
 - Fix linter findings in code you touched (the plugin auto-formats supported files and surfaces findings); leave unrelated pre-existing issues alone.
 - Clean code: small focused functions, clear names, no dead code, handled errors.
+- Right-size the design to the requirement: the simplest maintainable solution, no speculative layers or patterns — let complexity earn its keep.
+- Name things in the project'"'"'s own domain language (the words the product owner uses), not generic tech abstractions, so non-technical contributors can follow the code.
 - Clean architecture: no new cross-layer or cyclic dependencies; do not grow a god-file — extract new logic into a focused unit.
 - Subtract as you add: when a change makes code redundant, delete it; reuse an existing function/component before creating a new one; prefer the smaller surface. Net complexity should trend down over time, not only up.
 - To make this nudge re-anchor in one line each session, record this standard in your CLAUDE.md and mark it "claude-companion".'

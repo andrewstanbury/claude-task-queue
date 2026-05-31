@@ -147,9 +147,9 @@ tidy_tdd_nudge() {
 
   local sibling; sibling="${file%.go}_test.go"
   if [ -f "$sibling" ]; then
-    printf 'TDD: extend %s to cover this change before moving on.' "$(basename "$sibling")"
+    printf 'tests: extend %s to cover this change, and keep the suite green before moving on.' "$(basename "$sibling")"
   else
-    printf 'TDD: %s has no test — add %s covering this change (test-first).' \
+    printf 'tests: %s has no test — add %s covering this change so a regression here is caught.' \
       "$(basename "$file")" "$(basename "$sibling")"
   fi
 }
