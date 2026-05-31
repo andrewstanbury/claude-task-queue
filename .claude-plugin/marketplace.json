@@ -10,8 +10,8 @@
     {
       "name": "task-queue",
       "source": "./plugins/task-queue",
-      "description": "Resume bridge + auto-advance for Claude Code's native task list \u2014 re-surfaces a repo's unfinished tasks from earlier sessions, hydrates the queue from a committed roadmap/backlog file when present, and points the model at the next unblocked task as each one completes. Goes quiet once the policy is recorded in CLAUDE.md.",
-      "version": "0.13.0"
+      "description": "Resume bridge + auto-advance for Claude Code's native task list \u2014 re-surfaces a repo's unfinished tasks from earlier sessions, hydrates the queue from a committed roadmap/backlog file when present, and points the model at the next unblocked task as each one completes. Goes quiet once the policy is recorded in CLAUDE.md. Opt-in agent-mode fans independent tasks out to subagents.",
+      "version": "0.14.0"
     },
     {
       "name": "tidy",

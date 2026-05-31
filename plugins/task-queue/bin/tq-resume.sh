@@ -51,6 +51,7 @@ fi
 [ -n "$cwd" ] || cwd="$PWD"
 root="$(tq_root_for_cwd "$cwd")"
 pause_cmd="bash \"$PLUGIN_DIR/bin/tq-pause.sh\""
+agent_cmd="bash \"$PLUGIN_DIR/bin/tq-agent.sh\""
 
 # Source-aware: inject the full block on a fresh context (startup / clear / and
 # any unknown source — the safe default), but only a lean one-line re-anchor on
@@ -73,7 +74,7 @@ elif tq_policy_documented "$root"; then
   roadmap="$(tq_roadmap_path "$root" 2>/dev/null || true)"
   [ -n "$roadmap" ] && ctx="$ctx"$'\n\n'"[task-queue] Backlog at $roadmap — adopt its open items into your task list with TaskCreate; reflect finished work back."
 else
-  pause_hint="Pause/resume auto-advance on request: $pause_cmd on|off (per repo, persists)."
+  pause_hint="Pause/resume auto-advance on request: $pause_cmd on|off (per repo, persists). Agent-mode (fan independent tasks to subagents, opt-in): $agent_cmd on|off."
   # Bootstrap nudge: once the policy is recorded in CLAUDE.md, this goes lean.
   tip="Tip: record this standing policy in your CLAUDE.md and mark it with \"claude-companion\" — then this nudge re-anchors in one line each session instead of repeating in full."
   # Orientation/project-knowledge nudges live in the charter plugin (know-the-project),
@@ -99,9 +100,14 @@ if [ "$(tq_schema_status 2>/dev/null || true)" = "drift" ]; then
   drift=1
   ctx="$ctx"$'\n\n'"⚠️ [task-queue] The native task store no longer matches the expected schema — Claude Code may have changed it; carry-over/advance may be degraded. Run $PLUGIN_DIR/bin/tq-doctor.sh (see CONTRACT.md)."
 fi
+agent=0
+if tq_is_agent_mode "$root"; then
+  agent=1
+  ctx="$ctx"$'\n\n'"🤖 Agent-mode is ON for this repo — when several independent tasks are queued (unblocked, no shared blockedBy, non-conflicting files), you MAY fan them out to subagents via the Task tool; keep dependent/chained work inline and in order. Default to inline when unsure. ($agent_cmd off to disable.)"
+fi
 
 tq_log "session-start" \
-  "src=${src:-?} mode=$( [ "$lean" -eq 1 ] && printf 'lean' || printf 'full' )$( [ "$paused" -eq 1 ] && printf ', paused' )$( [ "$drift" -eq 1 ] && printf ', DRIFT' )" \
+  "src=${src:-?} mode=$( [ "$lean" -eq 1 ] && printf 'lean' || printf 'full' )$( [ "$paused" -eq 1 ] && printf ', paused' )$( [ "$drift" -eq 1 ] && printf ', DRIFT' )$( [ "$agent" -eq 1 ] && printf ', AGENT' )" \
   "$sid"
 
 # Emit as SessionStart additionalContext.

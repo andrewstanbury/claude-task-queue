@@ -156,6 +156,10 @@ Three small files, all outside `~/.claude/tasks`:
   presence is the pause. A fixed home for the same reason as the log: the
   `TaskCompleted` hook and `bin/tq-pause.sh` (run by the model in plain bash)
   must resolve the identical path.
+- **Agent-mode flags** — `~/.claude/state/task-queue/agent/<encoded-repo-root>`
+  (overridable via `CLAUDE_TQ_AGENT_DIR`). Same scheme as pause: an empty file
+  per repo where opt-in agent-mode is enabled. `bin/tq-agent.sh` writes it; the
+  SessionStart hook reads it to decide whether to permit subagent fan-out.
 
 If a dependency here drifts, prefer making the plugin **degrade quietly** (no
 output) over guessing — a missing nudge is invisible; a wrong one is noise.
