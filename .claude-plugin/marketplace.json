@@ -22,8 +22,8 @@
     {
       "name": "charter",
       "source": "./plugins/charter",
-      "description": "Know the project: gates substantive work on documented quality attributes (web projects get Lighthouse-aligned defaults), maintains a committed Claude-facing roadmap/backlog file, keeps a project map (file\u2192responsibility index) so a session orients from the map instead of re-scanning the tree, and tracks decisions/ADRs so past choices aren't re-litigated. Generates the docs from the codebase/git history when missing; goes quiet once the policy is summarised in CLAUDE.md. Surfaces recently-merged commits for roadmap reconciliation. Records stack notes for modernization context.",
-      "version": "0.9.0"
+      "description": "Know the project: gates substantive work on documented quality attributes (web projects get Lighthouse-aligned defaults), maintains a committed Claude-facing roadmap/backlog file, keeps a project map (file\u2192responsibility index) so a session orients from the map instead of re-scanning the tree, and tracks decisions/ADRs so past choices aren't re-litigated. Generates the docs from the codebase/git history when missing; goes quiet once the policy is summarised in CLAUDE.md. Surfaces recently-merged commits for roadmap reconciliation. Records stack notes for modernization context. One compact, proportional brief (not a wall of per-doc prose).",
+      "version": "0.10.0"
     },
     {
       "name": "hud",
