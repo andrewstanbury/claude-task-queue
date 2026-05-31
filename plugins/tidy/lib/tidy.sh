@@ -158,9 +158,9 @@ tidy_tdd_nudge() {
 
   local sibling; sibling="${file%.go}_test.go"
   if [ -f "$sibling" ]; then
-    printf 'tests: extend %s to cover this change, and keep the suite green before moving on.' "$(basename "$sibling")"
+    printf 'tests: extend %s to cover this change (keep the suite green).' "$(basename "$sibling")"
   else
-    printf 'tests: %s has no test — add %s covering this change so a regression here is caught.' \
+    printf 'tests: %s has no test — add %s (catch regressions here).' \
       "$(basename "$file")" "$(basename "$sibling")"
   fi
 }
@@ -238,7 +238,7 @@ tidy_currency_nudge() {
 
   case "$kind" in
     package.json)
-      pins="$(jq -r '((.dependencies // {}) + (.devDependencies // {})) | to_entries | map("\(.key)@\(.value)") | .[0:12] | join(", ")' "$manifest" 2>/dev/null || true)"
+      pins="$(jq -r '((.dependencies // {}) + (.devDependencies // {})) | to_entries | map("\(.key)@\(.value)") | .[0:8] | join(", ")' "$manifest" 2>/dev/null || true)"
       node="$(jq -r '.engines.node // empty' "$manifest" 2>/dev/null || true)"
       [ -n "$node" ] && pins="node@$node; $pins" ;;
     go.mod)
@@ -249,9 +249,9 @@ tidy_currency_nudge() {
 
   tidy_log currency "manifest=$manifest"
   if [ -n "$pins" ]; then
-    printf 'currency: nearest manifest %s pins %s — apply safe (patch/minor) upgrades when tests cover the area and the suite stays green; surface only risky majors, in plain language for the owner.' "$kind" "$pins"
+    printf 'currency: %s pins %s — apply safe (patch/minor) upgrades behind passing tests; surface risky majors plainly.' "$kind" "$pins"
   else
-    printf 'currency: nearest manifest is %s — apply safe (patch/minor) upgrades behind passing tests; surface only risky majors, in plain language for the owner.' "$kind"
+    printf 'currency: %s — apply safe (patch/minor) upgrades behind passing tests; surface risky majors plainly.' "$kind"
   fi
 }
 
