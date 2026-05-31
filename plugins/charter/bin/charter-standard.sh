@@ -101,13 +101,23 @@ elif [ "$documented" -eq 0 ]; then
   parts+=("[charter] Consult $(charter_map_path "$root") to orient instead of re-scanning the tree, and keep it current as structure changes — it's how a session loads the project cheaply.")
 fi
 
+# Stack/architecture notes — the durable record of languages/frameworks/versions
+# that modernization & currency judgments lean on. Missing → capture it from the
+# manifests; present → consult (dropped when marked).
+sstatus="$(charter_stack_status "$root" 2>/dev/null || printf 'missing')"
+if [ "$sstatus" = "missing" ]; then
+  parts+=("[charter] No stack notes. Capture the tech stack — languages, frameworks, key dependencies and their versions, and build/test tooling — in STACK.md (or a \"## Stack\" section of CLAUDE.md), inferred from the manifests. It's the durable context modernization and dependency judgments rely on.")
+elif [ "$documented" -eq 0 ]; then
+  parts+=("[charter] $(charter_stack_path "$root") documents the stack — consult it (and keep it current) when adding dependencies or judging what's outdated.")
+fi
+
 # Bootstrap tip: if policy isn't marked yet but some docs exist (so there are
 # honor-reminders to quiet), point at the marker once.
-if [ "$documented" -eq 0 ] && { [ "$status" != "missing" ] || [ "$rstatus" != "missing" ] || [ "$mstatus" != "missing" ] || [ "$dstatus" != "missing" ]; }; then
+if [ "$documented" -eq 0 ] && { [ "$status" != "missing" ] || [ "$rstatus" != "missing" ] || [ "$mstatus" != "missing" ] || [ "$dstatus" != "missing" ] || [ "$sstatus" != "missing" ]; }; then
   parts+=("[charter] Tip: once these project docs are summarised in CLAUDE.md, mark it \"claude-companion\" and charter's honor-reminders go silent (the gap nudges stay).")
 fi
 
-charter_log "session-start" "qa=$status roadmap=$rstatus decisions=$dstatus map=$mstatus web=$web marked=$documented src=${src:-?} mode=full"
+charter_log "session-start" "qa=$status roadmap=$rstatus decisions=$dstatus map=$mstatus stack=$sstatus web=$web marked=$documented src=${src:-?} mode=full"
 
 # Join non-empty parts; stay silent if there's nothing to say (fully documented + marked).
 ctx=""

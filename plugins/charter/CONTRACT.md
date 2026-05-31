@@ -29,6 +29,10 @@ Code internals below are observed behaviour, not documented APIs.
   `docs/adr/`, `docs/adrs/`, `docs/decisions/`. Override via
   `CLAUDE_CHARTER_DECISIONS_FILE`. Present → consult-before-reversing reminder;
   missing → a nudge to capture key decisions (so past choices aren't re-litigated).
+- **Stack notes:** `STACK.md`, `docs/STACK.md`, or a `## Stack` / `## Tech stack`
+  heading in `CLAUDE.md` / `AGENTS.md` / `README.md`. Override via
+  `CLAUDE_CHARTER_STACK_FILE`. Present → consult; missing → capture
+  languages/frameworks/versions (durable context for currency/modernization).
 - **Policy marker:** the `claude-companion` token in `CLAUDE.md` / `AGENTS.md` /
   `docs/CLAUDE.md`. When present, charter drops its recurring *honor/consult*
   reminders (the manual is always loaded) and emits only the drift nudges for

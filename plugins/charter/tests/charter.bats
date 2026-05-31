@@ -243,7 +243,7 @@ run_standard() {
 
 @test "quiet mode: claude-companion marker drops honor/consult lines, keeps gap nudges" {
   # all docs present + marker -> charter is silent
-  : > "$REPO/QUALITY.md"
+  : > "$REPO/QUALITY.md"; : > "$REPO/STACK.md"
   mkdir -p "$REPO/docs"; : > "$REPO/docs/ROADMAP.md"; : > "$REPO/docs/MAP.md"; : > "$REPO/DECISIONS.md"
   printf '# CLAUDE.md\nsummary <!-- claude-companion -->\n' > "$REPO/CLAUDE.md"
   run run_standard startup
@@ -284,6 +284,31 @@ run_standard() {
   mkdir -p "$REPO/docs"; printf '# Roadmap\n' > "$REPO/docs/ROADMAP.md"
   run run_standard startup                      # REPO inited but no commits
   [[ "$output" != *"recently merged"* ]]
+}
+
+@test "stack-status: missing, then present via STACK.md / a Stack heading" {
+  src='. "$1/lib/charter.sh";'
+  run bash -c "$src"' charter_stack_status "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "missing" ]
+
+  printf '# Stack\n- Go 1.22\n' > "$REPO/STACK.md"
+  run bash -c "$src"' charter_stack_status "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "present" ]
+  run bash -c "$src"' charter_stack_path "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "STACK.md" ]
+
+  rm "$REPO/STACK.md"; printf '# Manual\n## Tech Stack\n- Next.js\n' > "$REPO/CLAUDE.md"
+  run bash -c "$src"' charter_stack_status "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "present" ]
+}
+
+@test "stack: nudge to capture when missing, consult when present (startup)" {
+  run run_standard startup
+  [[ "$output" == *"No stack notes"* ]]
+  printf '# Stack\n- Go 1.22\n' > "$REPO/STACK.md"
+  run run_standard startup
+  [[ "$output" == *"documents the stack"* ]]
+  [[ "$output" != *"No stack notes"* ]]
 }
 
 @test "SessionStart output is valid JSON with the SessionStart event name" {
