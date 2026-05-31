@@ -99,12 +99,6 @@ run_resume() {
   [[ "$output" != *"no longer matches the expected schema"* ]]
 }
 
-@test "session start includes the orientation (CLAUDE.md) nudge" {
-  run run_resume "s2" "/home/x/alpha"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Record it in CLAUDE.md"* ]]
-}
-
 # run_resume sets source:"startup" → full block. Helper for other sources:
 resume_with_source() {
   local src="$1" json

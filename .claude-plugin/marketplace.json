@@ -9,7 +9,7 @@
       "name": "task-queue",
       "source": "./plugins/task-queue",
       "description": "Resume bridge + auto-advance for Claude Code's native task list — re-surfaces a repo's unfinished tasks from earlier sessions and points the model at the next unblocked task as each one completes.",
-      "version": "0.10.0"
+      "version": "0.11.0"
     },
     {
       "name": "tidy",
@@ -21,7 +21,7 @@
       "name": "charter",
       "source": "./plugins/charter",
       "description": "Know the project: gates substantive work on documented quality attributes (nudges to capture perf/security/a11y/reliability/maintainability targets if missing) and keeps the project's Claude manual in view, so a vibe-coded project stays oriented and quality-driven.",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ]
 }

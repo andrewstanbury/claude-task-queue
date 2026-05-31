@@ -11,6 +11,15 @@ gate, a CLI, a status bar) into a featherweight **native-first** plugin: two
 event-driven hooks, **read-only** over Claude Code's own task store, with **zero
 per-prompt cost**. The breaking releases in that range reflect that rebuild.
 
+## [0.11.0] — 2026-05-31
+
+### Changed
+- **Removed the orientation (CLAUDE.md) nudge** from SessionStart — it now lives
+  in the **charter** plugin (*know-the-project*), which owns project-knowledge.
+  An integration shakeout found it duplicated charter's documentation nudge;
+  consolidating there de-dups the SessionStart output and sharpens the
+  responsibility boundary (task-queue = orchestrate). Trims a little more, too.
+
 ## [0.10.0] — 2026-05-31
 
 ### Changed
@@ -189,6 +198,7 @@ per-prompt cost**. The breaking releases in that range reflect that rebuild.
   status-bar reader. Queue persisted under `~/.claude/state/task-queue/`,
   surviving `/clear` and restarts.
 
+[0.11.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.11.0
 [0.10.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.10.0
 [0.9.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.9.0
 [0.8.0]: https://github.com/andrewstanbury/claude-task-queue/releases/tag/v0.8.0

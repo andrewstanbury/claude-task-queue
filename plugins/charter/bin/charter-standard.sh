@@ -35,18 +35,22 @@ status="$(charter_qa_status "$root" 2>/dev/null || printf 'missing')"
 
 case "$src" in compact|resume) lean=1 ;; *) lean=0 ;; esac
 
+# Orientation belongs to charter (know-the-project) — appended on a fresh context
+# so future sessions orient cheaply. Omitted in lean mode to stay token-light.
+orient="If you learn something durable about this project's structure or conventions, record it in CLAUDE.md so future sessions skip re-exploring."
+
 if [ "$status" = "missing" ]; then
   if [ "$lean" -eq 1 ]; then
     ctx="[charter] (reminder) document this project's quality attributes (perf, security, a11y, reliability, maintainability) before substantive changes."
   else
-    ctx="[charter] This project has no documented quality attributes. Before substantive changes, capture them — performance, security, accessibility, reliability, maintainability targets — in QUALITY.md (or a \"Quality Attributes\" section of CLAUDE.md). Changes should then honor them."
+    ctx="[charter] This project has no documented quality attributes. Before substantive changes, capture them — performance, security, accessibility, reliability, maintainability targets — in QUALITY.md (or a \"Quality Attributes\" section of CLAUDE.md). Changes should then honor them."$'\n\n'"$orient"
   fi
   charter_log "session-start" "qa=missing src=${src:-?}"
 else
-  # Documented: a brief honor-reminder on a fresh context; silent on compact/resume
-  # (the model already oriented, and can read the doc directly).
+  # Documented: a brief honor-reminder + orientation on a fresh context; silent on
+  # compact/resume (the model already oriented, and can read the doc directly).
   [ "$lean" -eq 1 ] && exit 0
-  ctx="[charter] This project documents its quality attributes — honor them when changing code, and surface the relevant one when you touch related areas."
+  ctx="[charter] This project documents its quality attributes — honor them when changing code, and surface the relevant one when you touch related areas."$'\n\n'"$orient"
   charter_log "session-start" "qa=documented src=${src:-?}"
 fi
 
