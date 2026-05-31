@@ -42,6 +42,19 @@ tidy_test_command() {
 
 # Run CMD in ROOT, print a bounded tail of combined output, and return its exit
 # code. Best-effort: a runner that isn't found just exits non-zero like a failure.
+# A content fingerprint of the working-tree changes (tracked diff vs HEAD +
+# untracked file contents). Lets the Stop hook skip a re-run when nothing has
+# changed since the last green verify. Empty outside a git repo (no throttle there).
+tidy_tree_hash() {
+  local root="$1" f
+  git -C "$root" rev-parse >/dev/null 2>&1 || return 0
+  {
+    git -C "$root" diff HEAD 2>/dev/null
+    git -C "$root" ls-files --others --exclude-standard 2>/dev/null \
+      | while IFS= read -r f; do cksum "$root/$f" 2>/dev/null; done
+  } | cksum | awk '{print $1"-"$2}'
+}
+
 # Bounded so a slow/hanging test command can never stall Claude Code's turn
 # completion. `timeout` exit 124 propagates so the caller can treat it as "could
 # not verify" rather than a failure to loop on. CLAUDE_TIDY_VERIFY_TIMEOUT secs

@@ -88,6 +88,17 @@ tq_log() {
   return 0
 }
 
+# Best-effort: keep the append-only log bounded so it never becomes cruft. Trims
+# to the last 1000 lines once it passes 2000. Never fails the caller.
+tq_prune_log() {
+  local log; log="$(tq_log_file)"
+  [ -f "$log" ] || return 0
+  if [ "$(wc -l < "$log" 2>/dev/null || printf 0)" -gt 2000 ]; then
+    { tail -n 1000 "$log" > "$log.tmp" 2>/dev/null && mv "$log.tmp" "$log"; } 2>/dev/null || true
+  fi
+  return 0
+}
+
 # ---- helpers ----------------------------------------------------------------
 
 # Portable mtime (seconds). GNU stat then BSD/macOS stat then 0.

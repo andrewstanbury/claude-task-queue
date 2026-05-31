@@ -22,6 +22,9 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 # shellcheck source=../lib/charter.sh
 . "$PLUGIN_DIR/lib/charter.sh"
 
+# Once per session, keep the activity log bounded so it never becomes cruft.
+charter_prune_log 2>/dev/null || true
+
 input=""
 [ -t 0 ] || input="$(cat 2>/dev/null || true)"
 cwd=""; src=""

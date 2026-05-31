@@ -426,3 +426,18 @@ fake_web_linter() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"formatter: goimports"* ]]   # goimports preferred over gofmt
 }
+
+# ---- state pruning (no cruft accumulation) ----------------------------------
+
+@test "prune: removes stale dedup/verify state, keeps recent" {
+  export CLAUDE_TIDY_LOG_DIR="$WORK/state"
+  mkdir -p "$WORK/state/nudged" "$WORK/state/verify"
+  : > "$WORK/state/nudged/recent"
+  : > "$WORK/state/verify/old"
+  touch -d '10 days ago' "$WORK/state/verify/old" 2>/dev/null || skip "touch -d unsupported"
+  src='. "$1/lib/tidy.sh";'
+  run bash -c "$src"' tidy_prune_state' bash "$ROOT"
+  [ "$status" -eq 0 ]
+  [ -f "$WORK/state/nudged/recent" ]                  # recent kept
+  [ ! -f "$WORK/state/verify/old" ]                   # stale swept
+}

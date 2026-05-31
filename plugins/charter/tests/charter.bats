@@ -318,3 +318,10 @@ run_standard() {
   run bash -c 'printf "%s" "$1" | "$2" | jq -r .hookSpecificOutput.hookEventName' _ "$json" "$STANDARD"
   [ "$output" = "SessionStart" ]
 }
+
+@test "prune: bounds the activity log (no cruft)" {
+  seq 1 2500 > "$CLAUDE_CHARTER_LOG_DIR/activity.log"
+  run bash -c '. "$1/lib/charter.sh"; charter_prune_log' _ "$ROOT"
+  [ "$status" -eq 0 ]
+  [ "$(wc -l < "$CLAUDE_CHARTER_LOG_DIR/activity.log")" -eq 1000 ]
+}

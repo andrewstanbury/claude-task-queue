@@ -356,3 +356,12 @@ resume_with_source() {
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
+
+@test "prune: bounds the activity log (no cruft)" {
+  export CLAUDE_TQ_LOG_DIR="$(mktemp -d)"
+  seq 1 2500 > "$CLAUDE_TQ_LOG_DIR/activity.log"
+  run bash -c '. "$1/lib/tasks.sh"; tq_prune_log' _ "$ROOT"
+  [ "$status" -eq 0 ]
+  [ "$(wc -l < "$CLAUDE_TQ_LOG_DIR/activity.log")" -eq 1000 ]
+  rm -rf "$CLAUDE_TQ_LOG_DIR"
+}

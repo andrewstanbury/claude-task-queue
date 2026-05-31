@@ -67,6 +67,22 @@ run_verify() {
   [ -z "$output" ]                                                    # disabled
 }
 
+@test "verify: throttles re-runs when the tree is unchanged since the last green" {
+  local repo="$WORK/vthr"; mkdir -p "$repo"; git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  : > "$repo/x.txt"                                    # dirty (untracked)
+  local runs="$WORK/runs"
+  export CLAUDE_TIDY_TEST_CMD="echo x >> $runs; true"
+  run run_verify "$repo" thr                          # 1st: runs, green, stores fingerprint
+  [ -z "$output" ]
+  [ "$(wc -l < "$runs")" -eq 1 ]
+  run run_verify "$repo" thr                          # unchanged tree → throttled, no re-run
+  [ "$(wc -l < "$runs")" -eq 1 ]
+  printf 'changed\n' > "$repo/x.txt"                  # tree changes → must run again
+  run run_verify "$repo" thr
+  [ "$(wc -l < "$runs")" -eq 2 ]
+}
+
 @test "verify: a slow test command times out (allows the stop, doesn't loop)" {
   command -v timeout >/dev/null 2>&1 || skip "timeout not installed"
   local repo="$WORK/vt"; mkdir -p "$repo"; git -C "$repo" init -q

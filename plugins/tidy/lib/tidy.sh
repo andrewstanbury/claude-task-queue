@@ -22,6 +22,20 @@ tidy_log_file() { printf '%s/activity.log' "$(tidy_log_dir)"; }
 
 tidy_have() { command -v "$1" >/dev/null 2>&1; }
 
+# Best-effort: prune stale per-session state (dedup markers, verify counters/
+# fingerprints) older than CLAUDE_TIDY_STATE_TTL_DAYS (default 7) so they don't
+# accumulate forever. Also trims the activity log if it grows large. Never fails.
+tidy_prune_state() {
+  local base days="${CLAUDE_TIDY_STATE_TTL_DAYS:-7}" log
+  base="$(tidy_log_dir)"
+  find "$base/nudged" "$base/verify" -type f -mtime "+$days" -delete 2>/dev/null || true
+  log="$(tidy_log_file)"
+  if [ -f "$log" ] && [ "$(wc -l < "$log" 2>/dev/null || printf 0)" -gt 2000 ]; then
+    { tail -n 1000 "$log" > "$log.tmp" 2>/dev/null && mv "$log.tmp" "$log"; } 2>/dev/null || true
+  fi
+  return 0
+}
+
 # Append one best-effort log line; never fails the caller. CLAUDE_TIDY_LOG_DISABLED=1 to mute.
 tidy_log() {
   [ -n "${CLAUDE_TIDY_LOG_DISABLED:-}" ] && return 0
