@@ -279,6 +279,36 @@ fake_web_linter() {
   [[ "$output" != *"decomposition candidates"* ]]
 }
 
+# ---- currency / modernization ----------------------------------------------
+
+@test "currency: surfaces nearest package.json pins (deduped per session)" {
+  printf '{"dependencies":{"react":"^17.0.0"},"devDependencies":{"jest":"^26.0.0"}}\n' > "$WORK/package.json"
+  printf 'hello\n' > "$WORK/notes.txt"
+  run run_touch "$WORK/notes.txt"
+  [[ "$output" == *"react@^17.0.0"* ]]
+  [[ "$output" == *"do not auto-upgrade"* ]]
+  run run_touch "$WORK/notes.txt"               # same manifest, same session
+  [[ "$output" != *"react@"* ]]                 # deduped
+}
+
+@test "currency: surfaces go.mod version pins" {
+  printf 'module x\n\ngo 1.19\n\nrequire (\n\tgithub.com/foo/bar v1.2.3\n)\n' > "$WORK/go.mod"
+  printf 'note\n' > "$WORK/readme.txt"
+  run run_touch "$WORK/readme.txt"
+  [[ "$output" == *"go 1.19"* ]]
+  [[ "$output" == *"do not auto-upgrade"* ]]
+}
+
+@test "currency: silent when there is no manifest, and when disabled" {
+  printf 'x\n' > "$WORK/lonely.txt"
+  run run_touch "$WORK/lonely.txt"
+  [[ "$output" != *"currency:"* ]]
+  printf '{"dependencies":{"react":"^17.0.0"}}\n' > "$WORK/package.json"
+  export CLAUDE_TIDY_CURRENCY=0
+  run run_touch "$WORK/lonely2.txt"
+  [[ "$output" != *"currency:"* ]]
+}
+
 # ---- tidy-distill (whole-project weight report) -----------------------------
 
 @test "distill: flags over-budget files, junk, and cruft markers (git repo)" {

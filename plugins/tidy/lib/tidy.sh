@@ -198,3 +198,47 @@ tidy_oversized_files() {
     p != "total" && p != "" && n > b { printf "%d\t%s\n", n, p }
   ' | sort -rn -k1,1
 }
+
+# ---- currency / modernization ----------------------------------------------
+
+# Surface the nearest dependency manifest's *pinned versions* so the model can
+# judge what's deprecated or behind latest stable (that's world knowledge a hook
+# can't have). Facts here, judgment for the model — and it NEVER auto-upgrades (a
+# dep bump is the highest-blast-radius change there is). Stack-level, so deduped
+# once per manifest per session. Prints a one-line nudge or nothing.
+tidy_currency_nudge() {
+  local file="$1" sid="${2:-}" dir m manifest="" kind="" pins="" mdir mark node reqs
+  [ "${CLAUDE_TIDY_CURRENCY:-1}" = "0" ] && return 0
+  dir="$(cd "$(dirname "$file")" 2>/dev/null && pwd)" || return 0
+  while [ -n "$dir" ] && [ "$dir" != "/" ]; do
+    for m in package.json go.mod Cargo.toml pyproject.toml requirements.txt Gemfile composer.json pom.xml build.gradle build.gradle.kts; do
+      [ -f "$dir/$m" ] && { manifest="$dir/$m"; kind="$m"; break; }
+    done
+    [ -n "$manifest" ] && break
+    dir="$(dirname "$dir")"
+  done
+  [ -n "$manifest" ] || return 0
+
+  mdir="$(tidy_log_dir)/nudged"
+  mark="$mdir/currency-$(printf '%s' "${sid:0:8}-$manifest" | sed 's:/:-:g')"
+  [ -f "$mark" ] && return 0
+  { mkdir -p "$mdir" 2>/dev/null && : > "$mark"; } 2>/dev/null || true
+
+  case "$kind" in
+    package.json)
+      pins="$(jq -r '((.dependencies // {}) + (.devDependencies // {})) | to_entries | map("\(.key)@\(.value)") | .[0:12] | join(", ")' "$manifest" 2>/dev/null || true)"
+      node="$(jq -r '.engines.node // empty' "$manifest" 2>/dev/null || true)"
+      [ -n "$node" ] && pins="node@$node; $pins" ;;
+    go.mod)
+      pins="$(grep -E '^go [0-9]' "$manifest" 2>/dev/null | head -n1)"
+      reqs="$(grep -E '^[[:space:]]+[^ ]+ v[0-9]' "$manifest" 2>/dev/null | sed 's/^[[:space:]]*//' | head -n 8 | tr '\n' ';')"
+      [ -n "$reqs" ] && pins="$pins; $reqs" ;;
+  esac
+
+  tidy_log currency "manifest=$manifest"
+  if [ -n "$pins" ]; then
+    printf 'currency: nearest manifest %s pins %s — judge whether any are behind latest stable or deprecated and flag modernization in the touched scope (do not auto-upgrade).' "$kind" "$pins"
+  else
+    printf 'currency: nearest manifest is %s — check whether its pinned tech is behind latest stable or deprecated and flag modernization in the touched scope (do not auto-upgrade).' "$kind"
+  fi
+}

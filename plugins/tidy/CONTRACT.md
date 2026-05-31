@@ -64,6 +64,12 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   accessibility / best-practices audit to edit time.
 - The plugin **does not install tools**; it detects them and honors the project's
   own config (e.g. `.golangci.yml`, `eslint.config.js`, `.stylelintrc`).
+- **Currency/modernization:** on touch it walks up from the file to the nearest
+  manifest (`package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`,
+  `requirements.txt`, `Gemfile`, `composer.json`, `pom.xml`, `build.gradle[.kts]`)
+  and surfaces its **pinned versions** once per manifest per session, with a
+  nudge to flag deprecated/behind-latest tech. Judgment is the model's (world
+  knowledge); the hook never upgrades. Disable with `CLAUDE_TIDY_CURRENCY=0`.
 
 ### 4. The `/tidy:distill` command (user-invoked)
 
