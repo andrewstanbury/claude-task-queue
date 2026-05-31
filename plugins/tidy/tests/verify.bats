@@ -28,6 +28,14 @@ run_verify() {
   [ "$output" = "make test" ]
 }
 
+@test "checks: discovers a root check.sh when there's no manifest (make-free)" {
+  local repo="$WORK/cs"; mkdir -p "$repo"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$repo/check.sh"; chmod +x "$repo/check.sh"
+  src='. "$1/lib/checks.sh";'
+  run bash -c "$src"' tidy_test_command "$2"' bash "$ROOT" "$repo"
+  [ "$output" = "./check.sh" ]
+}
+
 @test "checks: package.json placeholder test script is ignored" {
   local repo="$WORK/vp"; mkdir -p "$repo"
   printf '{"scripts":{"test":"echo \\"Error: no test specified\\" && exit 1"}}\n' > "$repo/package.json"

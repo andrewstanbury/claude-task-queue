@@ -83,7 +83,7 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   counter (capped at `CLAUDE_TIDY_VERIFY_MAX`, default 3) is the hard bound.
 - **Behaviour:** if the working tree is dirty *and* a test command is
   discoverable (`tidy_test_command`: explicit `CLAUDE_TIDY_TEST_CMD`, else
-  `package.json` test script / `go test` / `cargo test` / `pytest` / `make test`
+  `package.json` test script / `go test` / `cargo test` / `pytest` / `make test`, or a conventional root script (`check.sh` / `test.sh` / `scripts/test`)
   — only when the runner is installed), run it. On failure → emit
   `{ "decision": "block", "reason": "<failure>" }` (fed to the model, not the
   user) up to the cap, then allow the stop with a `systemMessage`. On pass / no
