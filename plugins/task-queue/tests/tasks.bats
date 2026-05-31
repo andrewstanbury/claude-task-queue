@@ -102,6 +102,24 @@ run_resume() {
   rm -rf "$repo"
 }
 
+@test "quiet mode: policy marker in CLAUDE.md -> one-line re-anchor, carryover preserved" {
+  local repo; repo="$(mktemp -d)"
+  printf '# CLAUDE.md\nstanding policy here <!-- claude-companion -->\n' > "$repo/CLAUDE.md"
+  make_session "old9" "$repo"; make_task "old9" "1" "pending" "leftover task"
+  run run_resume "new9" "$repo"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"policy in CLAUDE.md"* ]]
+  [[ "$output" != *"without draining"* ]]        # full POLICY prose suppressed
+  [[ "$output" == *"carry over"* ]]              # state (carryover) NOT suppressed
+  rm -rf "$repo"
+}
+
+@test "not documented -> full policy plus a bootstrap tip to bake it into CLAUDE.md" {
+  run run_resume "s2" "/home/x/alpha"
+  [[ "$output" == *"without draining"* ]]        # full policy present
+  [[ "$output" == *"claude-companion"* ]]        # tip names the marker
+}
+
 @test "hook output is valid SessionStart hook JSON" {
   json="$(jq -nc '{session_id:"s2", cwd:"/home/x/alpha", source:"startup"}')"
   run bash -c 'printf "%s" "$1" | "$0" | jq -r .hookSpecificOutput.hookEventName' "$RESUME" "$json"

@@ -71,6 +71,18 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
   self-contained — see AGENTS.md).
 - **If it's absent:** no hydration nudge; everything else is unchanged.
 
+### 2c. Policy marker in the Claude manual (read-only, optional)
+
+- **Path:** `CLAUDE.md` / `AGENTS.md` / `docs/CLAUDE.md` at the repo root,
+  scanned for the literal token `claude-companion`.
+- **Use:** on a fresh SessionStart, if present, the standing **policy** prose is
+  replaced by a one-line re-anchor (bootstrap-once + drift-detect) — the manual
+  is always loaded, so re-injecting it is a token tax. **State is never
+  suppressed:** carryover, roadmap hydration, pause, and drift signals still
+  fire. When absent, the full policy is injected with a one-line tip to record it
+  and add the marker. The token is shared by convention with the other companion
+  plugins (each detects it independently — install boundary).
+
 ### 3. `SessionStart` hook payload (stdin)
 
 - **Fields read:** `session_id`, `cwd`, and `source` — `source` selects the full

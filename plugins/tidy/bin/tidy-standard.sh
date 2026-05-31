@@ -11,20 +11,47 @@ set -euo pipefail
 
 input=""
 [ -t 0 ] || input="$(cat 2>/dev/null || true)"
-src=""
-[ -n "$input" ] && src="$(printf '%s' "$input" | jq -r '.source // empty' 2>/dev/null || true)"
+src=""; cwd=""
+if [ -n "$input" ]; then
+  src="$(printf '%s' "$input" | jq -r '.source // empty' 2>/dev/null || true)"
+  cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)"
+fi
+[ -n "$cwd" ] || cwd="$PWD"
 
-case "$src" in
-  compact|resume)
-    ctx='[tidy] (reminder) clean-as-you-go, scoped to your change: test-first; fix linter findings in code you touched; do not grow god-files; subtract as you add — reuse before create, delete what your change makes redundant.' ;;
-  *)
-    ctx='[tidy] Clean-as-you-go, scoped to what you touch — ratchet, do not sweep:
+# Bootstrap-once + drift-detect: if this project records the standard in its own
+# CLAUDE.md (always loaded) and marks it "claude-companion", re-anchor in one line
+# instead of re-injecting the full standard every session. Self-contained
+# detection (install boundary): resolve the repo root, then grep the manual.
+root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$root" ]; then
+  d="$cwd"
+  while [ -n "$d" ] && [ "$d" != "/" ]; do
+    [ -e "$d/.git" ] && { root="$d"; break; }
+    d="$(dirname "$d")"
+  done
+  [ -n "$root" ] || root="$cwd"
+fi
+documented=0
+for f in CLAUDE.md AGENTS.md docs/CLAUDE.md; do
+  [ -f "$root/$f" ] && grep -q 'claude-companion' "$root/$f" 2>/dev/null && { documented=1; break; }
+done
+
+lean_msg='[tidy] (reminder) clean-as-you-go, scoped to your change: test-first; fix linter findings in code you touched; do not grow god-files; subtract as you add — reuse before create, delete what your change makes redundant.'
+
+if [ "$src" = "compact" ] || [ "$src" = "resume" ]; then
+  ctx="$lean_msg"
+elif [ "$documented" -eq 1 ]; then
+  # Quiet: the standard lives in CLAUDE.md, so re-anchor lean even on a fresh context.
+  ctx='[tidy] (standard in CLAUDE.md) clean-as-you-go, scoped to your change: test-first; fix linter findings you touched; subtract as you add — reuse before create, delete what a change makes redundant.'
+else
+  ctx='[tidy] Clean-as-you-go, scoped to what you touch — ratchet, do not sweep:
 - TDD: add or extend a failing test before changing logic, then make it pass, and cover what you changed. Characterization-test legacy code before refactoring.
 - Fix linter findings in code you touched (the plugin auto-formats supported files and surfaces findings); leave unrelated pre-existing issues alone.
 - Clean code: small focused functions, clear names, no dead code, handled errors.
 - Clean architecture: no new cross-layer or cyclic dependencies; do not grow a god-file — extract new logic into a focused unit.
-- Subtract as you add: when a change makes code redundant, delete it; reuse an existing function/component before creating a new one; prefer the smaller surface. Net complexity should trend down over time, not only up.' ;;
-esac
+- Subtract as you add: when a change makes code redundant, delete it; reuse an existing function/component before creating a new one; prefer the smaller surface. Net complexity should trend down over time, not only up.
+- To make this nudge re-anchor in one line each session, record this standard in your CLAUDE.md and mark it "claude-companion".'
+fi
 
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'

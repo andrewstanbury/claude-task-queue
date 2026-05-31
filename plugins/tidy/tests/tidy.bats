@@ -44,31 +44,51 @@ run_touch() {
 
 # ---- SessionStart standard --------------------------------------------------
 
+# Run the standard hook with an explicit cwd ($WORK, a clean dir with no policy
+# marker) so quiet-mode detection is deterministic. $1=source (default startup).
+run_standard() {
+  local src="${1:-startup}" cwd="${2:-$WORK}" json
+  json="$(jq -nc --arg s "$src" --arg c "$cwd" '{source:$s, cwd:$c}')"
+  printf '%s' "$json" | "$STANDARD" | jq -r '.hookSpecificOutput.additionalContext // empty'
+}
+
 @test "standard hook emits valid SessionStart JSON with the clean-as-you-go policy" {
-  run bash -c 'printf "{}" | "$1" | jq -r .hookSpecificOutput.hookEventName' _ "$STANDARD"
+  json="$(jq -nc --arg c "$WORK" '{cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | "$2" | jq -r .hookSpecificOutput.hookEventName' _ "$json" "$STANDARD"
   [ "$status" -eq 0 ]
   [ "$output" = "SessionStart" ]
-  run bash -c 'printf "{}" | "$1" | jq -r .hookSpecificOutput.additionalContext' _ "$STANDARD"
+  run run_standard startup
   [[ "$output" == *"Clean-as-you-go"* ]]
   [[ "$output" == *"scoped to what you touch"* ]]
 }
 
 @test "standard hook: full on startup, lean re-anchor on compact" {
-  run bash -c 'printf "{\"source\":\"startup\"}" | "$1" | jq -r .hookSpecificOutput.additionalContext' _ "$STANDARD"
+  run run_standard startup
   [[ "$output" == *"ratchet, do not sweep"* ]]          # full standard
   [[ "$output" != *"(reminder)"* ]]
-  run bash -c 'printf "{\"source\":\"compact\"}" | "$1" | jq -r .hookSpecificOutput.additionalContext' _ "$STANDARD"
+  run run_standard compact
   [[ "$output" == *"(reminder)"* ]]                     # lean
   [[ "$output" != *"ratchet, do not sweep"* ]]
 }
 
 @test "standard hook bakes in the subtractive prune posture (startup + lean)" {
-  run bash -c 'printf "{\"source\":\"startup\"}" | "$1" | jq -r .hookSpecificOutput.additionalContext' _ "$STANDARD"
+  run run_standard startup
   [[ "$output" == *"Subtract as you add"* ]]
   [[ "$output" == *"redundant"* ]]
   [[ "$output" == *"reuse"* ]]                          # reuse before create
-  run bash -c 'printf "{\"source\":\"compact\"}" | "$1" | jq -r .hookSpecificOutput.additionalContext' _ "$STANDARD"
+  run run_standard compact
   [[ "$output" == *"reuse before create"* ]]            # short form survives in lean
+}
+
+@test "quiet mode: standard in CLAUDE.md (marker) -> lean re-anchor + bootstrap tip when absent" {
+  # not documented -> full standard carries the bootstrap tip naming the marker
+  run run_standard startup
+  [[ "$output" == *"claude-companion"* ]]
+  # documented -> lean even on a fresh context, full standard suppressed
+  printf '# CLAUDE.md\nour standard <!-- claude-companion -->\n' > "$WORK/CLAUDE.md"
+  run run_standard startup
+  [[ "$output" == *"standard in CLAUDE.md"* ]]
+  [[ "$output" != *"ratchet, do not sweep"* ]]
 }
 
 # ---- no-op paths ------------------------------------------------------------

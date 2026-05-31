@@ -33,6 +33,8 @@ THIS_DIR="$(cd "$(dirname "$SELF")" && pwd)"
 PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 # shellcheck source=../lib/tasks.sh
 . "$PLUGIN_DIR/lib/tasks.sh"
+# shellcheck source=../lib/project.sh
+. "$PLUGIN_DIR/lib/project.sh"
 
 # Trimmed standing policy (re-injected on each fresh SessionStart, so kept lean).
 POLICY='[task-queue] Your native task list IS the live work queue. Capture multi-step work with TaskCreate (skip trivial/chat) before starting, work it in dependency order (honor blockedBy), and advance as you finish — without draining the backlog unprompted.'
@@ -61,11 +63,22 @@ esac
 
 if [ "$lean" -eq 1 ]; then
   ctx="[task-queue] (reminder) native task list = live queue: capture work with TaskCreate, work in dependency order, advance as you finish. Pause/resume on request: $pause_cmd on|off."
+elif tq_policy_documented "$root"; then
+  # Quiet mode: the standing policy lives in this project's CLAUDE.md (always
+  # loaded), so re-anchor in one line — but still surface state below (carryover,
+  # hydration, pause/drift), which is not policy and must not be suppressed.
+  ctx="[task-queue] (policy in CLAUDE.md) native task list = live queue; pause/resume: $pause_cmd on|off."
+  resume="$(tq_resume_context "$root" "$sid" 2>/dev/null || true)"
+  [ -n "$resume" ] && ctx="$ctx"$'\n\n'"$resume"
+  roadmap="$(tq_roadmap_path "$root" 2>/dev/null || true)"
+  [ -n "$roadmap" ] && ctx="$ctx"$'\n\n'"[task-queue] Backlog at $roadmap — adopt its open items into your task list with TaskCreate; reflect finished work back."
 else
   pause_hint="Pause/resume auto-advance on request: $pause_cmd on|off (per repo, persists)."
+  # Bootstrap nudge: once the policy is recorded in CLAUDE.md, this goes lean.
+  tip="Tip: record this standing policy in your CLAUDE.md and mark it with \"claude-companion\" — then this nudge re-anchors in one line each session instead of repeating in full."
   # Orientation/project-knowledge nudges live in the charter plugin (know-the-project),
   # so they're not duplicated here.
-  ctx="$POLICY"$'\n\n'"$pause_hint"
+  ctx="$POLICY"$'\n\n'"$pause_hint"$'\n\n'"$tip"
   resume="$(tq_resume_context "$root" "$sid" 2>/dev/null || true)"
   [ -n "$resume" ] && ctx="$ctx"$'\n\n'"$resume"
   # Hydrate the live queue from the repo's committed backlog (charter surfaces it

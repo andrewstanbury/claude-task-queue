@@ -8,14 +8,14 @@
     {
       "name": "task-queue",
       "source": "./plugins/task-queue",
-      "description": "Resume bridge + auto-advance for Claude Code's native task list — re-surfaces a repo's unfinished tasks from earlier sessions, hydrates the queue from a committed roadmap/backlog file when present, and points the model at the next unblocked task as each one completes.",
-      "version": "0.12.0"
+      "description": "Resume bridge + auto-advance for Claude Code's native task list — re-surfaces a repo's unfinished tasks from earlier sessions, hydrates the queue from a committed roadmap/backlog file when present, and points the model at the next unblocked task as each one completes. Goes quiet once the policy is recorded in CLAUDE.md.",
+      "version": "0.13.0"
     },
     {
       "name": "tidy",
       "source": "./plugins/tidy",
-      "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe) and holds a subtractive posture (reuse before create, delete what a change makes redundant) so an active project trends down in complexity over time, scoped to the touched file. MVP targets Go.",
-      "version": "0.5.0"
+      "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe) and holds a subtractive posture (reuse before create, delete what a change makes redundant) so an active project trends down in complexity over time, scoped to the touched file. Goes quiet once the standard is recorded in CLAUDE.md. MVP targets Go.",
+      "version": "0.6.0"
     },
     {
       "name": "charter",

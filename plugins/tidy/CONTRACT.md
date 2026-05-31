@@ -33,9 +33,15 @@ This plugin is deliberately conservative because it *mutates files*:
 
 ### 2. `SessionStart` hook payload (stdin)
 
-- Reads only `source`: the full standard on `startup`/`clear`/unknown, a lean
-  re-anchor on `compact`/`resume`. Emits `additionalContext` with
-  `hookEventName: "SessionStart"`.
+- Reads `source` (full standard on `startup`/`clear`/unknown, lean re-anchor on
+  `compact`/`resume`) and `cwd` (to resolve the repo root). Emits
+  `additionalContext` with `hookEventName: "SessionStart"`.
+- **Quiet mode (bootstrap-once + drift-detect):** if the repo root's `CLAUDE.md`
+  / `AGENTS.md` / `docs/CLAUDE.md` carries the `claude-companion` marker, the
+  full standard is replaced by a one-line re-anchor (the manual is always
+  loaded). When absent, the full standard carries a one-line tip to record it and
+  add the marker. The token is shared by convention with the other companion
+  plugins; detection is self-contained (install boundary — AGENTS.md).
 
 ### 3. The language toolchain (environment, optional)
 

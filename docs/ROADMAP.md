@@ -159,10 +159,15 @@ primitives, now the priority ahead of the older Phase 2/3 sequencing:
    pass (dead-code sweep, file-count / size-vs-complexity budget, doc↔code
    drift) and richer per-touch surfacing once blast-radius lands. This turns
    *add requirement → add code* into *add requirement → net surface flat or smaller*.
-3. **Hooks: re-injection → bootstrap-once + drift-detect.** Bake standing policy
-   into the project's own `CLAUDE.md` (always loaded); hooks then mostly verify
-   the durable docs exist and are current, and otherwise **stay quiet** — so the
-   companion itself stops being a per-session token tax.
+3. **Hooks: re-injection → bootstrap-once + drift-detect** — ✅ MVP shipped for
+   the two pure-policy re-injectors (task-queue 0.13.0, tidy 0.6.0). Convention:
+   record the standing policy in the project's `CLAUDE.md` (always loaded) and
+   mark it `claude-companion`; the hook then re-anchors in **one line** instead
+   of re-injecting the full policy — **state (carryover, hydration, drift) is
+   never suppressed**, only the policy prose. When the marker is absent, the full
+   nudge carries a one-line tip to bootstrap it. Deferred: extend the same marker
+   to charter's honor-reminders (charter is already mostly drift-detect, so the
+   marginal tax there is small).
 
 Invariants hold throughout: zero per-prompt cost, self-contained plugins,
 native-first, conservative mutation.
@@ -192,13 +197,14 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.12.0**, **tidy 0.5.0**, **charter 0.5.0**, **hud 0.1.0** — shipped.
+- **task-queue 0.13.0**, **tidy 0.6.0**, **charter 0.5.0**, **hud 0.1.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the
   audit left"). **task-queue 0.12.0** hydrates the live queue from the committed
-  roadmap/backlog; **tidy 0.5.0** adds the prune force's touch-time half. Next,
-  per the strategic direction above: **bootstrap-then-quiet hooks** (and the
-  deferred `/distill` pass); then the older **Phase 2** (task-queue
+  roadmap/backlog; **tidy 0.5.0** added the prune force's touch-time half; and
+  **task-queue 0.13.0 + tidy 0.6.0** add bootstrap-then-quiet hooks (policy in
+  CLAUDE.md → one-line re-anchor). Next: the deferred `/distill` pass and
+  extending quiet mode to charter; then the older **Phase 2** (task-queue
   smart backlog + agent-mode) and **Phase 3** (tidy
   blast-radius + size-vs-complexity + currency/modernization).
