@@ -1,0 +1,68 @@
+# MAP — where things live (Claude-facing project map)
+
+A compact `file → responsibility` index so a session orients from here instead of
+re-scanning the tree. Read [AGENTS.md](../AGENTS.md) for conventions/invariants and
+[docs/ROADMAP.md](./ROADMAP.md) for direction. Each plugin's `CONTRACT.md` documents
+what it depends on; each plugin's `tests/*.bats` exercises it.
+
+## Repo root
+
+| Path | Responsibility |
+|---|---|
+| `AGENTS.md` | Canonical maintainer guide — read first. |
+| `CLAUDE.md` | Project instructions + the hard invariants. |
+| `docs/ROADMAP.md` | Direction, status, and the recorded design decisions. |
+| `README.md` | Human-facing overview of the marketplace. |
+| `check.sh` | One-command gate: JSON valid · ShellCheck · secret scan · 300-line size guard · bats. CI runs this. |
+| `.claude-plugin/marketplace.json` | Marketplace manifest (the 4 plugins + versions). |
+| `.github/workflows/ci.yml` | CI — provisions tools, runs `check.sh`. |
+
+Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
+(event wiring), `CONTRACT.md` (dependencies), `bin/` (hook entrypoints + controls),
+`lib/` (logic), `commands/` (slash commands), `tests/`.
+
+## task-queue — *orchestrate the work* (hooks: SessionStart, TaskCompleted, UserPromptSubmit)
+
+| File | Responsibility |
+|---|---|
+| `bin/tq-resume.sh` | SessionStart: standing policy + cross-session resume + roadmap hydration + quiet-mode + pause/agent/drift signals + log prune. |
+| `bin/tq-next.sh` | TaskCompleted: advance to the next unblocked task. |
+| `bin/tq-capture.sh` | UserPromptSubmit: conditional capture nudge. |
+| `bin/tq-pause.sh` | Control: pause/resume auto-advance (per repo). |
+| `bin/tq-agent.sh` | Control: opt-in agent-mode (parallel subagent fan-out). |
+| `bin/tq-doctor.sh` | Manual diagnostics. |
+| `lib/tasks.sh` | Native task-store reads, resume logic, pause/agent flags, logging + log prune. |
+| `lib/project.sh` | Detect the committed roadmap/backlog file + the `claude-companion` marker. |
+| `lib/capture.sh` | Capture heuristics. |
+
+## tidy — *change safely & cleanly* (hooks: SessionStart, PostToolUse[Edit\|Write], Stop)
+
+| File | Responsibility |
+|---|---|
+| `bin/tidy-standard.sh` | SessionStart: the clean-as-you-go standard (trimmed to anchors) + state prune. |
+| `bin/tidy-touch.sh` | PostToolUse: format + lint + tests nudge + size + currency + blast-radius for the edited file. |
+| `bin/tidy-verify.sh` | Stop: the verification floor — run the project's tests, block until green (bounded, timeout, change-throttled). |
+| `bin/tidy-distill.sh` | Read-only whole-project weight report (backs `/tidy:distill` and `/tidy:audit`). |
+| `bin/tidy-doctor.sh` | Manual diagnostics. |
+| `commands/distill.md` | `/tidy:distill` — on-demand prune pass. |
+| `commands/audit.md` | `/tidy:audit` — read-only proportional whole-project audit. |
+| `lib/tidy.sh` | Language dispatch, Go/web handlers, size/currency/TDD nudges, state prune. |
+| `lib/checks.sh` | Test-command discovery + bounded run + working-tree fingerprint (verify throttle). |
+| `lib/blast.sh` | Blast-radius (Go import path; basename heuristic elsewhere). |
+
+## charter — *know the project* (hook: SessionStart)
+
+| File | Responsibility |
+|---|---|
+| `bin/charter-standard.sh` | SessionStart: the proportional project brief (baseline gaps + consult line + quiet-mode) + log prune. |
+| `bin/charter-doctor.sh` | Manual diagnostics. |
+| `lib/charter.sh` | Detect QA / roadmap / decisions / map / stack / web; recent commits; the `claude-companion` marker; logging. |
+
+## hud — *show what's happening* (a statusLine, not a hook)
+
+| File | Responsibility |
+|---|---|
+| `bin/hud-status.sh` | The status-line renderer (reads stdin payload + plugin state). |
+| `bin/hud-install.sh` | Wire the status line into `settings.json`, version-resilient (`/hud:setup`). |
+| `commands/setup.md` | `/hud:setup`. |
+| `lib/hud.sh` | Read-only accessors over the other plugins' state. |
