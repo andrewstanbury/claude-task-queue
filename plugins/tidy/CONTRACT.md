@@ -76,7 +76,22 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   not static analysis — guarded (min name length, generic-name skip, capped
   sample). Disable with `CLAUDE_TIDY_BLAST=0`.
 
-### 4. The `/tidy:distill` command (user-invoked)
+### 4. `Stop` hook payload (stdin) — the verification floor
+
+- **Fields read:** `cwd` (→ repo root) and `session_id` (keys the bounded
+  attempt counter). `stop_hook_active` is the loop signal; our own per-session
+  counter (capped at `CLAUDE_TIDY_VERIFY_MAX`, default 3) is the hard bound.
+- **Behaviour:** if the working tree is dirty *and* a test command is
+  discoverable (`tidy_test_command`: explicit `CLAUDE_TIDY_TEST_CMD`, else
+  `package.json` test script / `go test` / `cargo test` / `pytest` / `make test`
+  — only when the runner is installed), run it. On failure → emit
+  `{ "decision": "block", "reason": "<failure>" }` (fed to the model, not the
+  user) up to the cap, then allow the stop with a `systemMessage`. On pass / no
+  command / clean tree / `CLAUDE_TIDY_CHECKS=0` → allow silently.
+- **If it changes:** the verification floor silently stops; everything else is
+  unaffected.
+
+### 5. The `/tidy:distill` command (user-invoked)
 
 - **Files:** `commands/distill.md` (auto-discovered, namespaced `/tidy:distill`)
   inlines the stdout of `bin/tidy-distill.sh` via the `!` prefix, then instructs

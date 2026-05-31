@@ -193,10 +193,17 @@ not methodology labels. Chosen model (tidy 0.12.0):
   requirement demands; no speculative patterns/layers (counters methodology
   theater and nudge-sprawl).
 
-Open design critiques to act on: replace per-language tidy handlers with a
-**project-checks runner** (run the project's own declared lint/test/build —
-subsumes verification + multi-stack); consider **consolidating the 4 plugins into
-1** (kill duplication); exempt test files from the size nudge.
+**Shipped (verification floor, tidy 0.13.0):** a **Stop hook** runs the project's
+*own* discoverable test command (package.json / go / pytest / cargo / Makefile, or
+explicit `CLAUDE_TIDY_TEST_CMD`) when the tree is dirty, and **blocks until the
+tests pass** — bounded to a few attempts, then allows the stop with a visible
+warning. This is the safety net a non-technical owner can't produce, and it's the
+project-checks runner that subsumes per-language test integration. (Per-language
+*lint* handlers beyond Go/web remain superseded by this discover-and-run posture.)
+
+Still open: consider **consolidating the 4 plugins into 1** (kill duplication);
+exempt test files from the size nudge; decide-with-defaults + plain-language layer
+for non-technical owners.
 
 ## Strategic direction — the subtractive force + quiet hooks
 
