@@ -65,7 +65,7 @@ case "$lang" in
     result="$(tidy_handle_python "$file" 2>/dev/null || true)"  # ruff findings
     ;;
   shell)
-    result="$(tidy_handle_shell "$file" 2>/dev/null || true)"   # shellcheck findings
+    result="$(tidy_handle_shell "$file" 2>/dev/null || true)"   # findings via shellcheck
     ;;
 esac
 
