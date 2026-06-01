@@ -36,10 +36,13 @@ flows into) and *architectural* ripple (how far a structural change reaches). Th
 is the primary safety net when tests/specs don't exist *and* the bound on where you
 clean up. At scale it has a second level — watch that **total coupling isn't
 climbing** as features land (one owner per concern, contracts not copies, low
-fan-in), because **compounding debt is a blast-radius-*at-scale* problem**. tidy
-surfaces dependents (Go `go list` / guarded `git grep`), charter marks high-fan-in
-modules in the map, task-queue sequences low-reach-first and keeps high-blast work
-off parallel agents.
+fan-in), because **compounding debt is a blast-radius-*at-scale* problem**. The
+upstream driver of that climb is **unwarranted complexity** — every needless
+dependency, abstraction, or layer widens reach — so the **burden of proof is on
+*adding* complexity (YAGNI)**, not on keeping it simple (see the Design model). tidy
+surfaces dependents (Go `go list` / guarded `git grep`) and the **complexity surface**
+(`/tidy:distill`: dep + layer count), charter marks high-fan-in modules in the map,
+task-queue sequences low-reach-first and keeps high-blast work off parallel agents.
 
 **2. Verify + stay aligned — the Steward intent loop.** The safety net the
 **non-technical owner can't produce**, so Claude must. Establish and **confirm
@@ -49,7 +52,12 @@ change** (no tests → pin the affected surface's current behavior first — bla
 radius says what to pin, so coverage accrues on the worked surface); **verify
 against that intent** (suite green before done — the verification floor enforces
 it); and **weigh the work against recorded decisions** so it's the *right* change,
-not merely a clean one.
+not merely a clean one. **Honor the owner's *outcome*, not their proposed
+*implementation*** — a non-technical owner often requests complexity they can't
+evaluate (cargo-culted patterns, premature scale); re-anchor on what they want to
+happen, build the simplest thing that achieves it, and surface in plain language
+when their requested complexity isn't warranted. **Claude is the only gatekeeper
+against over-engineering**, including the owner's own.
 
 **3. Subtract as you add.** The anti-entropy rule: a new requirement leaves net
 surface **flat or smaller** — reuse before create, delete what the change makes
@@ -178,12 +186,15 @@ owned by **non-technical** people, the leverage is **verification + simplicity**
   verifies by *seeing* it work, not by reading test names, and trust comes from a
   working demo, not a checkmark they can't interpret.
 - **SOLID's essence, not the label**; **DDD's ubiquitous language only** (name
-  code/docs in the owner's domain words); **complexity-proportional simplicity**
-  (the simplest maintainable solution the requirement demands — no speculative
-  layers); and **boring & reversible by default** — prefer mainstream, replaceable
-  tech and decisions that can be backed out, because architecture here gets *no
-  human review* (blast radius + the prune pass are its only checks) and the owner
-  can't recover from an irreversible or exotic choice.
+  code/docs in the owner's domain words); **YAGNI — the burden of proof is on
+  *adding* complexity** (the simplest maintainable solution the *present*
+  requirement demands; a new dependency, abstraction, layer, or config knob must be
+  justified by a real current need, never a hypothetical future one — *unwarranted
+  complexity is the upstream driver of a growing blast radius*); and **boring &
+  reversible by default** — prefer mainstream, replaceable tech and decisions that
+  can be backed out, because architecture here gets *no human review* (blast radius +
+  the prune pass are its only checks) and the owner can't recover from an
+  irreversible or exotic choice.
 - **Non-technical posture — autonomy on the reversible, consent on the
   consequential.** Resolve safe/reversible findings autonomously (formatting, safe
   upgrades behind passing tests, delete provably-dead code, sensible defaults). But
@@ -192,6 +203,9 @@ owned by **non-technical** people, the leverage is **verification + simplicity**
   dependency, an **irreversible data migration/deletion**, **vendor lock-in** — get
   a plain-language heads-up-and-yes first, even though it's "technical." The owner
   can't consent to what they can't see, or recover from what they didn't choose.
+  And the autonomy cuts the other way too: **push back on unwarranted complexity the
+  owner *requests*** — separate their outcome from their proposed implementation,
+  and offer the simpler path. Claude is the only gatekeeper against over-engineering.
 
 ### The subtractive force + quiet hooks
 

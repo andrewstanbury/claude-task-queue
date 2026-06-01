@@ -517,6 +517,19 @@ fake_web_linter() {
   [[ "$output" == *"0 text files"* ]]
 }
 
+@test "distill: surfaces the complexity surface (deps + top-level areas, YAGNI note)" {
+  local repo="$WORK/cx"; mkdir -p "$repo/src" "$repo/lib"; git -C "$repo" init -q
+  printf '{"dependencies":{"react":"^18"},"devDependencies":{"jest":"^29","eslint":"^8"}}\n' > "$repo/package.json"
+  printf 'a\n' > "$repo/src/a.js"; printf 'b\n' > "$repo/lib/b.js"
+  git -C "$repo" add -A
+  run bash "$ROOT/bin/tidy-distill.sh" "$repo"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Complexity surface"* ]]
+  [[ "$output" == *"dependencies: 3"* ]]        # 1 dep + 2 devDeps
+  [[ "$output" == *"top-level areas:"* ]]        # src + lib counted (package.json is a root file)
+  [[ "$output" == *"YAGNI"* ]]                   # burden of proof on complexity
+}
+
 # ---- tidy-doctor ------------------------------------------------------------
 
 @test "doctor exits 0 (no hard failure) and reports OK" {

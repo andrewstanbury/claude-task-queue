@@ -106,6 +106,38 @@ if [ -n "$junk" ]; then
 fi
 printf '\n'
 
+# ---- complexity surface ----------------------------------------------------
+# Beyond file SIZE, surface architectural WEIGHT — external dependencies and the
+# number of top-level areas — because unwarranted complexity is the upstream
+# driver of a growing blast radius (each dep/layer adds coupling and reach). A
+# rough estimate from root manifests + the file tree, not exact resolution.
+deps=0; dep_src=""
+if [ -f "$root/package.json" ] && command -v jq >/dev/null 2>&1; then
+  d="$(jq -r '((.dependencies//{})|length) + ((.devDependencies//{})|length)' "$root/package.json" 2>/dev/null || printf 0)"
+  d="${d//[^0-9]/}"; [ -n "$d" ] && { deps=$((deps + d)); dep_src="$dep_src package.json:$d"; }
+fi
+if [ -f "$root/go.mod" ]; then
+  d="$(grep -cE '^[[:space:]]+[^[:space:]]+ v[0-9]|^require[[:space:]]+[^[:space:]]+ v[0-9]' "$root/go.mod" 2>/dev/null || printf 0)"
+  d="${d//[^0-9]/}"; [ -n "$d" ] && [ "$d" -gt 0 ] && { deps=$((deps + d)); dep_src="$dep_src go.mod:$d"; }
+fi
+if [ -f "$root/requirements.txt" ]; then
+  d="$(grep -cvE '^[[:space:]]*(#|$)' "$root/requirements.txt" 2>/dev/null || printf 0)"
+  d="${d//[^0-9]/}"; [ -n "$d" ] && [ "$d" -gt 0 ] && { deps=$((deps + d)); dep_src="$dep_src requirements.txt:$d"; }
+fi
+areas="$(list_files | awk -F/ 'NF>1{print $1}' | sort -u \
+  | grep -viE '^(node_modules|vendor|dist|build|target|out|\..*|__pycache__|coverage)$' \
+  | grep -c . || true)"
+[ -n "$areas" ] || areas=0
+
+if [ "$deps" -gt 0 ] || [ "$areas" -gt 0 ]; then
+  printf 'Complexity surface (drivers of blast-radius growth)\n'
+  printf '  dependencies: %s%s\n' "$deps" "${dep_src:+ ($dep_src )}"
+  printf '  top-level areas: %s\n' "$areas"
+  printf '  → each dependency and layer widens coupling and reach. Prune what is not\n'
+  printf '    earning its keep, and resist adding complexity without a present\n'
+  printf '    requirement (YAGNI — the burden of proof is on the complexity).\n\n'
+fi
+
 cat <<'EOF'
 Next — the subtractive pass (model judgment; the script can't do this):
   - In the heaviest / over-budget files, hunt for dead code, duplication, and

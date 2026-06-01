@@ -9,6 +9,9 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## charter — *know the project + own the owner relationship*
 
+- **0.15.1** — the owner-loop posture now says **honor the owner's *outcome*, not
+  their proposed *implementation*** — push back on unwarranted complexity the owner
+  requests (Claude is the only gatekeeper against over-engineering, theirs included).
 - **0.15.0** — **owner loop**: charter now owns the non-technical-owner
   relationship. New **PreToolUse consent surfacing** (`bin/charter-consent.sh`) —
   reminds (never blocks) before consequential/irreversible actions (paid deps,
@@ -46,6 +49,11 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## tidy — *change safely & cleanly*
 
+- **0.29.5** — **anti-complexity**: the standard's subtract bullet now states
+  **YAGNI explicitly** (burden of proof on *adding* a dep/abstraction/layer —
+  unwarranted complexity is the upstream driver of blast-radius growth), and
+  **`/tidy:distill` gained a complexity surface** (dependency count from manifests +
+  top-level area count) so architectural weight is visible, not just file size.
 - **0.29.4** — **trim**: the owner-relationship guidance (observable demo + the
   consent line) **moved out to charter** (which now owns the owner loop), leaving
   tidy's standard as pure change-time mechanics — blast radius, verify floor,

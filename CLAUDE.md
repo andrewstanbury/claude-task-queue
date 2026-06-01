@@ -31,16 +31,19 @@ The priority order (full rationale in [docs/ROADMAP.md](./docs/ROADMAP.md)):
 - **1 · Contain blast radius** — before a change, understand how far it ripples and
   contain it: cover the dependents of a touched file, one owner per concern. *Also
   watch the trend* — total coupling shouldn't climb as features land (compounding
-  debt is blast-radius-at-scale). The safety net when tests/specs are absent, and
-  it **bounds where you clean up**.
+  debt is blast-radius-at-scale), and its upstream driver is **unwarranted
+  complexity**, so **YAGNI: the burden of proof is on adding** a dep/abstraction/
+  layer. The safety net when tests/specs are absent, and it **bounds where you clean
+  up**.
 - **2 · Verify + stay aligned** — confirm intent in the owner's plain language;
   **characterize before you change** (no tests → pin current behaviour first, blast
   radius says what to pin); suite green before you're done; weigh the work against
   recorded decisions so it's the *right* change. The net the non-technical owner
   can't make — so **verify observably** (demo user-visible changes in plain language;
-  they can't read tests), keep choices **boring & reversible**, and act with
-  *autonomy on the reversible but plain-language consent on the consequential* (paid
-  deps, data migrations, deletions).
+  they can't read tests), keep choices **boring & reversible**, **honor the owner's
+  outcome not their proposed implementation** (push back on over-engineering, theirs
+  included), and act with *autonomy on the reversible but plain-language consent on
+  the consequential* (paid deps, data migrations, deletions).
 - **3 · Subtract as you add** — net surface **flat or smaller**: reuse before
   create, delete what's now redundant; **ratchet, never sweep**. **4 · A deliberate
   prune** (`/tidy:audit` + `/tidy:distill`) catches the cross-module debt that
