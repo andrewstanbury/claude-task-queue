@@ -93,9 +93,10 @@ tidy_blast_radius() {
       [ -n "$label" ] || return 0 ;;
     *)
       label="$(basename "$file")"; label="${label%.*}"
-      # A short or generic basename grep-matches too much prose/config to be
-      # signal (e.g. "tidy", "blast"); skip it. Min length raised to 5.
-      [ "${#label}" -ge 5 ] || return 0
+      # A very short basename grep-matches too much to be signal; skip < 4 chars.
+      # (Common-but-real 4-char modules like auth/http/mail are kept; the generic
+      # list below drops the genuinely noisy ones.)
+      [ "${#label}" -ge 4 ] || return 0
       case "$label" in
         index|main|app|mod|utils|util|types|type|config|helpers|helper|test|tests|\
         lib|setup|init|README|index.d|model|models|view|views|store|stores|client|\
@@ -127,11 +128,16 @@ tidy_blast_radius() {
   case "$file" in
     *.go) hits="$(git -C "$root" grep -lF "\"$label\"" -- '*.go' 2>/dev/null | grep -vF "$rel" || true)" ;;
     *)
-      # Require the basename to sit right after a quote/slash/dot — i.e. look like
-      # a module specifier (`'./foo'`, `"foo"`, `pkg.foo`) rather than the bare word
-      # in prose — and skip doc/data files, which carry the word without importing
-      # it. Cuts the false positives the looser heuristic produced.
-      hits="$(git -C "$root" grep -lE "(import|require|from|use|include).*['\"/.]${label}\b" \
+      # Match an import/require/from/use/include/export line that references the
+      # basename as a whole word — catches both module specifiers (`'./foo'`,
+      # `pkg.foo`) AND bare imports (`import foo`, `from pkg import foo`, common in
+      # Python). The basename is regex-escaped (filenames like `my.config`/`a+b`
+      # would otherwise be treated as metacharacters). Doc/data files are excluded
+      # (they carry the word in prose without importing it). Recall-biased: a stray
+      # prose mention in a source comment may match, but missing a real dependent
+      # is the worse error for blast radius.
+      local label_re; label_re="$(printf '%s' "$label" | sed 's/[^[:alnum:]_]/\\&/g')"
+      hits="$(git -C "$root" grep -lE "(import|require|from|use|include|export)\b.*\b${label_re}\b" \
                 -- . ':!*.md' ':!*.json' ':!*.txt' ':!*.lock' ':!*.yaml' ':!*.yml' \
                    ':!*.toml' ':!*.cfg' ':!*.ini' ':!*.csv' 2>/dev/null \
               | grep -vF "$rel" || true)" ;;

@@ -27,10 +27,14 @@ tq_decision_add() {
   f="$(tq_decisions_file "$root")"
   mkdir -p "$(dirname "$f")" 2>/dev/null || true
   # id = max existing numeric id + 1 (stable across appends within a repo).
+  # Parse line-by-line with `jq -R 'fromjson?'` so a single corrupt/half-written
+  # line (e.g. from a crash mid-append) is skipped rather than collapsing the
+  # whole slurp to 0 — which would reuse id 1 and let `resolve 1` delete the wrong
+  # decision, defeating the "never lose a question" guarantee.
   id=1
   if [ -f "$f" ]; then
-    local max; max="$(jq -rs 'map(.id|tonumber?)|max // 0' "$f" 2>/dev/null || printf 0)"
-    id=$(( max + 1 ))
+    local max; max="$(jq -R 'fromjson? | .id | tonumber?' "$f" 2>/dev/null | sort -n | tail -1)"
+    [ -n "$max" ] && id=$(( max + 1 ))
   fi
   ts="$(date '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null || printf '?')"
   jq -cn --arg id "$id" --arg q "$q" --arg rec "$rec" --arg ts "$ts" \

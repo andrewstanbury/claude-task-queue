@@ -39,6 +39,17 @@ run_touch() {
   [ "$status" -eq 0 ]
 }
 
+@test "has_test_for: a non-test sibling (foo.md) under tests/ does NOT count (web)" {
+  mkdir -p "$WORK/web/tests"
+  printf 'export const x=1\n' > "$WORK/web/foo.ts"
+  : > "$WORK/web/tests/foo.md"                          # not a test → must not count
+  run bash -c "$SRC"' tidy_has_test_for "$2/web/foo.ts"' bash "$ROOT" "$WORK"
+  [ "$status" -eq 1 ]
+  : > "$WORK/web/tests/foo.test.ts"                     # real test → now counts
+  run bash -c "$SRC"' tidy_has_test_for "$2/web/foo.ts"' bash "$ROOT" "$WORK"
+  [ "$status" -eq 0 ]
+}
+
 @test "touch: an untested source file is nudged to characterize before changing" {
   printf 'package x\n' > "$WORK/widget.go"
   run run_touch "$WORK/widget.go"
@@ -83,6 +94,21 @@ run_touch() {
   CLAUDE_TIDY_COVERAGE_RATCHET=1 run bash -c 'printf "%s" "$1" | "$2"' _ "$json" "$VERIFY"
   [[ "$output" == *'"decision": "block"'* ]] || [[ "$output" == *'"decision":"block"'* ]]
   [[ "$output" == *"handler.go"* ]]
+}
+
+@test "verify gate: gives up (allows) after VERIFY_MAX blocks — never loops forever" {
+  local repo="$WORK/vrepo3"; mkdir -p "$repo"; git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  printf 'package x\n' > "$repo/h.go"                   # untested, dirty
+  json="$(jq -nc --arg c "$repo" '{cwd:$c, session_id:"sgate"}')"
+  export CLAUDE_TIDY_COVERAGE_RATCHET=1 CLAUDE_TIDY_VERIFY_MAX=2
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$json" "$VERIFY"   # block #1
+  [[ "$output" == *"block"* ]]
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$json" "$VERIFY"   # block #2
+  [[ "$output" == *"block"* ]]
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$json" "$VERIFY"   # gave up → warn, allow
+  [[ "$output" == *"systemMessage"* ]]
+  [[ "$output" != *"decision"* ]]
 }
 
 @test "verify gate: off by default (no block when ratchet unset)" {
