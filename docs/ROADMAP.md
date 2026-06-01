@@ -25,8 +25,10 @@ Maintain the project's *"Claude operating manual"* — project map, quality
 attributes, recorded decisions/ADRs, stack notes — and keep growth **observable**
 with a size guard. You can't contain ripple in a project you can't load, or prune
 cruft you can't see. Bootstrap it if missing; **gate substantive work on it
-existing.** (charter authors/keeps the manual; tidy's size guard keeps growth
-visible.)
+existing.** The manual is for Claude, but keep a thin **plain-language owner layer**
+too — *what this is, how it works, how to run it* — so a non-technical owner isn't
+locked to one Claude session (the bus-factor safety net). (charter authors/keeps the
+manual; tidy's size guard keeps growth visible.)
 
 **1. Contain blast radius — per change *and* as a system trend.** Minimize and
 understand the blast radius of every change: *code* ripple (what a touched file
@@ -162,17 +164,29 @@ failures first.
 TDD / DDD / SOLID are different levels, not alternatives. For LLM-written code
 owned by **non-technical** people, the leverage is **verification + simplicity**:
 
-- **Tests are a safety net, not a ritual** — cover changed behavior; nothing's
-  done until the suite is green. The **verification floor** (Stop hook runs the
-  project's own tests, blocks until green, bounded) enforces this — the safety net
-  a non-technical owner can't produce.
+- **Tests are a safety net, not a ritual — and verification must be *observable*.**
+  Cover changed behavior; nothing's done until the suite is green (the
+  **verification floor** — Stop hook runs the project's own tests, blocks until
+  green, bounded — is the net a non-technical owner can't produce). But green is
+  proof for *Claude*, not the owner: on user-visible changes, **demonstrate it
+  working and recap in plain language** (`/run`, `/verify`) — a non-technical owner
+  verifies by *seeing* it work, not by reading test names, and trust comes from a
+  working demo, not a checkmark they can't interpret.
 - **SOLID's essence, not the label**; **DDD's ubiquitous language only** (name
   code/docs in the owner's domain words); **complexity-proportional simplicity**
   (the simplest maintainable solution the requirement demands — no speculative
-  layers).
-- **Non-technical posture** — resolve technical findings autonomously (safe
-  upgrades behind passing tests; delete provably-dead code; apply sensible
-  defaults); only ask the owner about product/outcome choices, in plain language.
+  layers); and **boring & reversible by default** — prefer mainstream, replaceable
+  tech and decisions that can be backed out, because architecture here gets *no
+  human review* (blast radius + the prune pass are its only checks) and the owner
+  can't recover from an irreversible or exotic choice.
+- **Non-technical posture — autonomy on the reversible, consent on the
+  consequential.** Resolve safe/reversible findings autonomously (formatting, safe
+  upgrades behind passing tests, delete provably-dead code, sensible defaults). But
+  the dividing line that matters here is **reversibility + cost + data-safety, not
+  technical-vs-product**: before anything consequential or hard to undo — a **paid**
+  dependency, an **irreversible data migration/deletion**, **vendor lock-in** — get
+  a plain-language heads-up-and-yes first, even though it's "technical." The owner
+  can't consent to what they can't see, or recover from what they didn't choose.
 
 ### The subtractive force + quiet hooks
 

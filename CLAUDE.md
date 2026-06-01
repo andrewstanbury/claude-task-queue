@@ -25,7 +25,9 @@ The priority order (full rationale in [docs/ROADMAP.md](./docs/ROADMAP.md)):
 
 - **0 · Self-describing first** — keep the project's map / quality-attributes /
   decisions current and its growth visible (size guard); gate substantive work on
-  that manual existing. You can't contain ripple in a project you can't load.
+  that manual existing. You can't contain ripple in a project you can't load. Keep a
+  thin **plain-language owner layer** (what it is / how to run it) so a non-technical
+  owner isn't locked to one Claude session.
 - **1 · Contain blast radius** — before a change, understand how far it ripples and
   contain it: cover the dependents of a touched file, one owner per concern. *Also
   watch the trend* — total coupling shouldn't climb as features land (compounding
@@ -35,7 +37,10 @@ The priority order (full rationale in [docs/ROADMAP.md](./docs/ROADMAP.md)):
   **characterize before you change** (no tests → pin current behaviour first, blast
   radius says what to pin); suite green before you're done; weigh the work against
   recorded decisions so it's the *right* change. The net the non-technical owner
-  can't make.
+  can't make — so **verify observably** (demo user-visible changes in plain language;
+  they can't read tests), keep choices **boring & reversible**, and act with
+  *autonomy on the reversible but plain-language consent on the consequential* (paid
+  deps, data migrations, deletions).
 - **3 · Subtract as you add** — net surface **flat or smaller**: reuse before
   create, delete what's now redundant; **ratchet, never sweep**. **4 · A deliberate
   prune** (`/tidy:audit` + `/tidy:distill`) catches the cross-module debt that

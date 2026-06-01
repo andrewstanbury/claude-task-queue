@@ -28,6 +28,12 @@ run_standard() {
   [[ "$output" != *"no documented quality attributes"* ]]
 }
 
+@test "baseline docs nudge keeps a plain-language owner layer (bus factor)" {
+  run run_standard startup
+  [[ "$output" == *"plain-language owner layer"* ]]   # not just a Claude manual
+  [[ "$output" == *"locked to one Claude session"* ]]
+}
+
 @test "lean reminder on compact when QA is missing" {
   run run_standard compact
   [[ "$output" == *"(reminder)"* ]]

@@ -97,6 +97,15 @@ plugins/<name>/
   project monotonically into debt. What touch-time bounding skips (cross-module,
   rarely-touched debt) is caught by a deliberate prune pass (`/tidy:distill`,
   `/tidy:audit`), not incremental nibbling.
+- **Non-technical-owner posture (the target projects' owners can't read code).**
+  *Autonomy on the reversible, consent on the consequential* — resolve safe/reversible
+  findings yourself, but the dividing line is **reversibility + cost + data-safety,
+  not technical-vs-product**: get a plain-language yes before a paid dependency, an
+  irreversible data migration/deletion, or vendor lock-in. **Boring & reversible by
+  default** (architecture gets no human review here). **Verification must be
+  observable** — demonstrate user-visible changes in plain language, since the owner
+  verifies by seeing it work, not by reading tests. Keep a thin plain-language owner
+  doc layer (#0) so they aren't locked to one Claude session.
 - **Bash + `jq`, zero build.** No compiled languages, nothing to install to run
   a hook. (This is why the plugins are Bash, not Go — a compiled hook needs
   per-platform binaries or a toolchain, which breaks "runs everywhere, no build".)

@@ -92,6 +92,17 @@ run_standard() {
   [[ "$output" != *"failing test before changing"* ]]   # rigid test-first ritual dropped
 }
 
+@test "standard: non-technical-owner posture — observable verify, boring/reversible, consent line" {
+  run run_standard startup
+  [[ "$output" == *"demonstrate it working"* ]]         # verification must be observable
+  [[ "$output" == *"boring, reversible"* ]]             # boring & reversible by default
+  [[ "$output" == *"reversibility + cost + data-safety"* ]]   # the consent dividing line
+  [[ "$output" == *"vendor lock-in"* ]]                 # consent before the consequential
+  # and the lean re-anchor carries the consent line in short form
+  run run_standard compact
+  [[ "$output" == *"plain-language consent before the consequential"* ]]
+}
+
 @test "standard: blast-radius is the lead anchor, including coupling-at-scale" {
   run run_standard startup
   [[ "$output" == *"Blast radius first"* ]]             # the #1 principle leads

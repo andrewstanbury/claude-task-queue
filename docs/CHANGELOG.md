@@ -9,6 +9,9 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## charter — *know the project*
 
+- **0.14.1** — non-technical-owner refinement: the baseline-docs nudge now also asks
+  for a thin **plain-language owner layer** (README: what it is / how to run it) so a
+  non-technical owner isn't locked to one Claude session (bus factor).
 - **0.14.0** — blast-radius wire-in: the project-map gap nudge asks the model to
   mark **high-fan-in / "core" modules** so a change's blast radius is known before
   it's touched.
@@ -34,6 +37,12 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## tidy — *change safely & cleanly*
 
+- **0.29.3** — non-technical-owner refinements in the standard: **observable
+  verification** (demo user-visible changes in plain language — the owner can't read
+  tests), **boring & reversible by default** (no human reviews architecture here),
+  and a sharpened consent line — *autonomy on the reversible, plain-language consent
+  on the consequential* (paid deps, data migrations/deletions, vendor lock-in); the
+  dividing line is reversibility + cost + data-safety, not technical-vs-product.
 - **0.29.2** — standard wording tracks the **0–4 layered priority order**: the
   blast-radius anchor now names the **system-trend dimension** (*at scale, keep
   total coupling from climbing — compounding debt is blast radius at scale*).

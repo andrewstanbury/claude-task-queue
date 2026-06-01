@@ -88,7 +88,7 @@ parts=()
 if [ "${#gaps[@]}" -gt 0 ]; then
   body=""
   for g in "${gaps[@]}"; do body="$body"$'\n'"  • $g"; done
-  parts+=("[charter] Generate the missing baseline docs from the codebase/git (apply sensible defaults, note assumptions plainly), then commit — Claude can't infer these:$body"$'\n'"Document proportionally to complexity: capture the evident decisions (DECISIONS.md/ADRs) so they aren't re-litigated, add stack notes (STACK.md), and — for non-web — quality-attribute targets only as the project's size or risk makes them earn their keep. Don't over-document a small project.")
+  parts+=("[charter] Generate the missing baseline docs from the codebase/git (apply sensible defaults, note assumptions plainly), then commit — Claude can't infer these:$body"$'\n'"Document proportionally to complexity: capture the evident decisions (DECISIONS.md/ADRs) so they aren't re-litigated, add stack notes (STACK.md), and — for non-web — quality-attribute targets only as the project's size or risk makes them earn their keep. Don't over-document a small project. These docs are for Claude; also keep a thin plain-language owner layer (README: what this is / how to run it) so a non-technical owner isn't locked to one Claude session.")
 fi
 
 if [ "$documented" -eq 0 ] && [ "${#present[@]}" -gt 0 ]; then
