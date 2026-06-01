@@ -158,8 +158,11 @@ so green locally means green in CI (modulo locally-skipped tools).
 - Don't add a cross-plugin shared lib or a build step (install boundary).
 - Don't add anything that runs per prompt.
 - Don't re-introduce the heavyweight features the project deliberately dropped
-  (a bespoke task store, Haiku auto-decompose, autopilot, a destructive-action
-  gate, a CLI, a status bar). The project's whole arc was *removing* these
-  because they cost tokens, duplicated native Claude Code behavior, or couldn't
-  be owned reliably by a plugin (git history has the details).
+  (a bespoke task store, Haiku auto-decompose, autopilot, a *blocking*
+  destructive-action gate, a CLI, a status bar). The project's whole arc was
+  *removing* these because they cost tokens, duplicated native Claude Code
+  behavior, or couldn't be owned reliably by a plugin (git history has the
+  details). **Note:** charter's PreToolUse *consent surfacing* is **not** the
+  rejected gate — it only reminds, never blocks (see docs/ROADMAP.md "Decided
+  against").
 - Don't decompose preemptively; let the 300-line guard decide.

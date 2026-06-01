@@ -52,7 +52,7 @@ for f in CLAUDE.md AGENTS.md docs/CLAUDE.md; do
   [ -f "$root/$f" ] && grep -q 'claude-companion' "$root/$f" 2>/dev/null && { documented=1; break; }
 done
 
-lean_msg='[tidy] (reminder) clean-as-you-go: blast radius first — cover the dependents of what you touch; verify changed behavior (a test where it earns its keep, else types/build/run; suite green before done; demo user-visible changes in plain language); subtract as you add — reuse before create, simplest fit, boring & reversible; resolve reversible findings yourself, get plain-language consent before the consequential (paid deps, data migrations, deletions).'
+lean_msg='[tidy] (reminder) clean-as-you-go: blast radius first — cover the dependents of what you touch; verify changed behavior (a test where it earns its keep, else types/build/run; suite green before done); subtract as you add — reuse before create, simplest fit, boring & reversible; resolve reversible findings yourself, recap in plain language (charter owns the owner loop: intent, demo, consent).'
 
 if [ "$src" = "compact" ] || [ "$src" = "resume" ]; then
   ctx="$lean_msg"
@@ -62,9 +62,9 @@ elif [ "$documented" -eq 1 ]; then
 else
   ctx='[tidy] Clean-as-you-go, scoped to what you touch — ratchet, do not sweep. You already know good engineering; these are the anchors that matter most here (the format/lint/size/test feedback you get as you work carries the rest):
 - Blast radius first: before changing a file, know what depends on it (the touch hook surfaces dependents) and cover that affected surface with tests — no change lands without understanding what it can break. Contain ripple; prefer the change with the smallest reach. At scale, keep total coupling from climbing — one owner per concern, contracts not copies (compounding debt is blast radius at scale).
-- Verify the behavior you change — a test where it earns its keep (core logic, contracts, regression-prone code), or types/build/running the app where that suffices; skip brittle ceremony tests for trivial glue. The suite must be green before you'"'"'re done (the verification hook enforces it). On user-visible changes, also demonstrate it working and recap in plain language — the owner verifies by seeing it, not by reading tests.
+- Verify the behavior you change — a test where it earns its keep (core logic, contracts, regression-prone code), or types/build/running the app where that suffices; skip brittle ceremony tests for trivial glue. The suite must be green before you'"'"'re done (the verification hook enforces it).
 - Subtract as you add: reuse before create, delete what a change makes redundant, simplest design that fits — net complexity should trend down, not up. Prefer boring, reversible, replaceable choices (architecture gets no human review here, and the owner can'"'"'t recover from an irreversible or exotic one).
-- Name things in the owner'"'"'s domain language; the owner may be non-technical, so resolve safe/reversible findings yourself, but get a plain-language yes before anything consequential or hard to undo — a paid dependency, an irreversible data migration/deletion, vendor lock-in (the line is reversibility + cost + data-safety, not technical-vs-product) — and recap each unit of work in plain terms.
+- Name things in the owner'"'"'s domain language; the owner is non-technical, so resolve reversible/safe findings yourself and recap each unit of work in plain language (charter owns the owner loop — confirming intent, demonstrating the result back, and surfacing consent for consequential/irreversible actions).
 - Record this in your CLAUDE.md and mark it "claude-companion" to make it re-anchor in one line each session.'
 fi
 

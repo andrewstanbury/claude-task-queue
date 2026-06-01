@@ -99,10 +99,10 @@ to load and reason about.
 |---|---|---|
 | **task-queue** | **Orchestrate the work** — capture, order, advance, pause, show tasks | 1 (sequence low-reach-first), orchestration |
 | **tidy** | **Make each change safely & cleanly** — format/lint/TDD on touch, blast-radius, verification floor | 1, 2, 3, 4 (+ size guard for 0) — the change-time engine |
-| **charter** | **Maintain the project's Claude manual** — QA gate, roadmap/backlog, project map, decisions anchor, stack notes, `/charter:align` | 0, 2 (alignment arm) |
+| **charter** | **Know the project + own the owner relationship** — QA gate, roadmap/backlog, project map, decisions anchor, stack notes, `/charter:align`, the **owner loop** (intent → demo → consent) + a PreToolUse **consent surfacing** | 0, 2 (alignment + owner loop) |
 | **hud** | **Show what's happening** — a consolidated, read-only status line over the others' state | visibility (0 growth), orchestration |
 
-Single responsibility: **orchestrate / change-safely / know-the-project / show.**
+Single responsibility: **orchestrate / change-safely / know-the-project-&-own-the-owner-loop / show.**
 Each plugin stays independently installable (the install boundary forbids shared
 code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
 
@@ -125,10 +125,15 @@ Version history → [CHANGELOG.md](./CHANGELOG.md).
 - **charter** — at SessionStart, a compact **proportional brief** that gates
   substantive work on the project's "Claude manual": **quality attributes**
   (Lighthouse-aligned defaults for web), **roadmap/backlog**, **project map**,
-  **decisions/ADRs** (the alignment anchor), **stack notes** — detect-not-author
-  (the model writes the docs), quiet once they're summarised in CLAUDE.md.
-  On demand: **`/charter:align`** reconciles open/proposed work against the
-  recorded decisions + roadmap.
+  **decisions/ADRs** (the alignment anchor), **stack notes**, a **plain-language
+  owner doc layer** (bus factor) — detect-not-author (the model writes the docs),
+  quiet once they're summarised in CLAUDE.md. It also owns the **owner loop** for a
+  non-technical owner: a standing posture (confirm intent in plain language →
+  demonstrate the result back → recap) plus a **PreToolUse consent surfacing** that,
+  on a consequential/irreversible action (paid dep, destructive command, DB drop,
+  data migration), reminds the model to confirm with the owner first — *surfaces,
+  never blocks*. On demand: **`/charter:align`** reconciles open/proposed work
+  against the recorded decisions + roadmap.
 - **hud** — a static **health beacon** + tasks + paused + agent-mode + the
   verification floor's **✓/✗ tests** + **docs-health** + last tidy +
   **context-window fill %** + branch & dirty-count + model. Read-only, no idle
@@ -233,6 +238,10 @@ Changing cleanly and shedding cruft still doesn't guarantee a change is the
   agents); it costs tokens, so it's opt-in.
 - **Blast radius** = lightweight dependent-surfacing (`go list` / `git grep`),
   language-specific — not full static analysis.
+- **Consent surfacing** (charter's PreToolUse) = a *reminder* on consequential
+  actions; it **never blocks** (the heavyweight destructive-action *gate* stays
+  rejected — see below). It pattern-matches a small known set, so it can miss novel
+  consequential actions and is no substitute for the model's own judgment.
 - Plugins act **only within a Claude session** — no out-of-session daemon.
 - Consistent with the token-efficiency, avoid-complexity, and
   read-only/conservative-mutation principles in AGENTS.md.
@@ -248,13 +257,25 @@ Changing cleanly and shedding cruft still doesn't guarantee a change is the
   detector anyway, so the inventory is *net-additive* (doesn't remove the
   duplication) and adds a mid-session staleness lag. Chose the cheaper, subtractive
   alternative — a **CI drift-guard test** (`tests/drift-guard.bats`).
+- **A hard destructive-action *gate*** (blocking) — still rejected: a plugin can't
+  own a reliable block, and a false block that stops a legitimate action is worse
+  than the risk. **But** (2026-06-01, revisited) since *consent on the consequential*
+  became a first-class principle (non-technical owners can't review), a **non-blocking
+  surfacing** was added — charter's PreToolUse hook reminds, never blocks. The gate
+  stays out; the reminder is in.
 
 ## Status — 2026-06-01
 
-- **task-queue 0.20.0** · **tidy 0.29.1** · **charter 0.14.0** · **hud 0.3.1**.
+- **task-queue 0.20.0** · **tidy 0.29.4** · **charter 0.15.0** · **hud 0.3.1**.
 - **The planned roadmap (Phases 1–3) and the direction-&-signal layer are
   complete.** The system changes cleanly, sheds cruft, checks alignment, and lints
   across Go/web/Python/shell with a toolchain-accurate Go blast-radius.
+- **Owner loop (2026-06-01):** the principles were re-tuned for **non-technical
+  owners** (consent on the consequential, boring & reversible, observable
+  verification, a plain-language owner doc layer), and charter gained the **owner
+  loop** — a standing intent→demo→consent posture plus a **PreToolUse consent
+  surfacing** (reminds, never blocks). tidy's standard was trimmed to pure
+  change-time mechanics so the owner relationship has one home (charter).
 - **What's next:** nothing planned — further work is **demand-driven** (a new
   stack to lint, an Expo/React-Native-Web QA profile, a pain point that surfaces),
   not new layers.

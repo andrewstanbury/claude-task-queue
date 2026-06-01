@@ -1,7 +1,7 @@
 {
   "name": "charter",
-  "version": "0.14.1",
-  "description": "Know the project: gates substantive work on documented quality attributes (web projects get Lighthouse-aligned defaults \u2014 CWV, a11y, print CSS, progressive enhancement, components-by-default), maintains a committed Claude-facing roadmap/backlog file (cross-session/engineer coordination), keeps a project map (file\u2192responsibility index) so a session orients from the map instead of re-scanning the tree, treats recorded decisions/ADRs as the alignment anchor (consult before reversing a choice; capture the evident ones when missing) so past choices aren't re-litigated, and records stack notes (languages/frameworks/versions) for modernization context. /charter:align reconciles open/proposed work against the recorded decisions + roadmap on demand (clean \u2260 correct \u2014 surface drift and decision-contradictions before the work is done, not at review). Generates the docs from the codebase/git history when missing, reconciles them when present, and goes quiet once the policy is summarised in CLAUDE.md (claude-companion marker). Surfaces recently-merged commits next to the roadmap so reconciliation is concrete. Documents proportionally to complexity (baseline map + what's-next always; quality attributes for web; decisions/stack by judgment) as one compact brief, not a wall of per-doc prose. Read-only over the project (the hook detects; the model authors the files).",
+  "version": "0.15.0",
+  "description": "Know the project + own the owner relationship: gates substantive work on documented quality attributes (web projects get Lighthouse-aligned defaults \u2014 CWV, a11y, print CSS, progressive enhancement, components-by-default), maintains a committed Claude-facing roadmap/backlog file (cross-session/engineer coordination), keeps a project map (file\u2192responsibility index) so a session orients from the map instead of re-scanning the tree, treats recorded decisions/ADRs as the alignment anchor (consult before reversing a choice; capture the evident ones when missing) so past choices aren't re-litigated, and records stack notes (languages/frameworks/versions) for modernization context. /charter:align reconciles open/proposed work against the recorded decisions + roadmap on demand (clean \u2260 correct \u2014 surface drift and decision-contradictions before the work is done, not at review). Generates the docs from the codebase/git history when missing, reconciles them when present, and goes quiet once the policy is summarised in CLAUDE.md (claude-companion marker). Surfaces recently-merged commits next to the roadmap so reconciliation is concrete. Documents proportionally to complexity (baseline map + what's-next always; quality attributes for web; decisions/stack by judgment) as one compact brief, not a wall of per-doc prose. For non-technical owners it owns the owner loop: a standing posture (confirm intent in plain language \u2192 demonstrate the result back \u2192 recap) plus a PreToolUse consent surfacing that reminds \u2014 never blocks \u2014 before consequential/irreversible actions (paid deps, destructive commands, DB drops, data migrations); and nudges a thin plain-language owner doc layer (README: what it is / how to run it) for bus-factor. Read-only over the project and the consent hook never blocks (the hook detects; the model authors the files and decides).",
   "author": {
     "name": "Andrew Stanbury"
   },
@@ -24,7 +24,10 @@
     "lighthouse",
     "adr",
     "decisions",
-    "stack"
+    "stack",
+    "consent",
+    "owner-loop",
+    "non-technical"
   ],
   "defaultEnabled": true
 }

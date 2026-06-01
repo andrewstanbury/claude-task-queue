@@ -7,8 +7,17 @@ subtractive principle, applied to its own docs).
 
 Versions are per-plugin (each ships independently). Newest first.
 
-## charter — *know the project*
+## charter — *know the project + own the owner relationship*
 
+- **0.15.0** — **owner loop**: charter now owns the non-technical-owner
+  relationship. New **PreToolUse consent surfacing** (`bin/charter-consent.sh`) —
+  reminds (never blocks) before consequential/irreversible actions (paid deps,
+  `rm -rf`/`git reset --hard`/force-push, `DROP`/`DELETE FROM`, data migrations,
+  schema/migration files); silent otherwise, env kill-switch
+  `CLAUDE_CHARTER_CONSENT_DISABLED`. The SessionStart brief gained a standing
+  **owner-loop posture** (confirm intent in plain language → demonstrate the result
+  back → recap), shown until recorded in CLAUDE.md. The owner-relationship guidance
+  (consent + observable demo) **moved here from tidy's standard** so it has one home.
 - **0.14.1** — non-technical-owner refinement: the baseline-docs nudge now also asks
   for a thin **plain-language owner layer** (README: what it is / how to run it) so a
   non-technical owner isn't locked to one Claude session (bus factor).
@@ -37,6 +46,11 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## tidy — *change safely & cleanly*
 
+- **0.29.4** — **trim**: the owner-relationship guidance (observable demo + the
+  consent line) **moved out to charter** (which now owns the owner loop), leaving
+  tidy's standard as pure change-time mechanics — blast radius, verify floor,
+  subtract, boring & reversible, domain naming. Applying *subtract as you add* to our
+  own standard before it became a kitchen-sink.
 - **0.29.3** — non-technical-owner refinements in the standard: **observable
   verification** (demo user-visible changes in plain language — the owner can't read
   tests), **boring & reversible by default** (no human reviews architecture here),

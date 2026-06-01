@@ -34,6 +34,19 @@ run_standard() {
   [[ "$output" == *"locked to one Claude session"* ]]
 }
 
+@test "brief carries the owner loop (intent → demo → consent) until recorded" {
+  run run_standard startup
+  [[ "$output" == *"Owner loop"* ]]
+  [[ "$output" == *"confirm what they want in plain language"* ]]   # intent up front
+  [[ "$output" == *"demonstrate it working"* ]]                     # observable verify
+  [[ "$output" == *"reversibility + cost + data-safety"* ]]         # consent line
+  # goes quiet once the policy is recorded + marked in CLAUDE.md
+  printf '# CLAUDE.md\nstandard <!-- claude-companion -->\n' > "$REPO/CLAUDE.md"
+  printf 'map\n' > "$REPO/docs/MAP.md" 2>/dev/null || { mkdir -p "$REPO/docs"; printf 'map\n' > "$REPO/docs/MAP.md"; }
+  run run_standard startup
+  [[ "$output" != *"Owner loop"* ]]
+}
+
 @test "lean reminder on compact when QA is missing" {
   run run_standard compact
   [[ "$output" == *"(reminder)"* ]]

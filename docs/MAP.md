@@ -58,11 +58,12 @@ Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 | `lib/checks.sh` | Test-command discovery + bounded run + working-tree fingerprint (verify throttle). |
 | `lib/blast.sh` | Blast-radius (Go: exact `go list` importers, cached, → git grep fallback; basename heuristic elsewhere). |
 
-## charter — *know the project* (hook: SessionStart)
+## charter — *know the project + own the owner relationship* (hooks: SessionStart, PreToolUse)
 
 | File | Responsibility |
 |---|---|
-| `bin/charter-standard.sh` | SessionStart: the proportional project brief (baseline gaps + consult line + quiet-mode) + log prune. |
+| `bin/charter-standard.sh` | SessionStart: the proportional project brief (baseline gaps + consult line + owner-loop posture + quiet-mode) + log prune. |
+| `bin/charter-consent.sh` | PreToolUse(Bash\|Edit\|Write): surfaces (never blocks) consequential/irreversible actions for plain-language owner consent; silent unless matched. |
 | `bin/charter-doctor.sh` | Manual diagnostics. |
 | `bin/charter-align.sh` | Deterministic alignment anchors (decisions + roadmap + recent commits) for `/charter:align`. |
 | `commands/align.md` | `/charter:align` — reconcile open/proposed work against the recorded direction (clean ≠ correct). |
