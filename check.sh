@@ -47,7 +47,8 @@ done
 
 section "Tests (bats)"
 if have bats; then
-  for d in plugins/*/tests; do
+  for d in plugins/*/tests tests; do
+    [ -d "$d" ] || continue
     echo "  -- $d --"
     bats "$d" || fail=1
   done

@@ -17,6 +17,7 @@ what it depends on; each plugin's `tests/*.bats` exercises it.
 | `check.sh` | One-command gate: JSON valid · ShellCheck · secret scan · 300-line size guard · bats. CI runs this. |
 | `.claude-plugin/marketplace.json` | Marketplace manifest (the 4 plugins + versions). |
 | `.github/workflows/ci.yml` | CI — provisions tools, runs `check.sh`. |
+| `tests/drift-guard.bats` | Cross-plugin guard: asserts hud/task-queue doc-detection mirrors agree with charter (the source of truth). |
 
 Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 (event wiring), `CONTRACT.md` (dependencies), `bin/` (hook entrypoints + controls),
