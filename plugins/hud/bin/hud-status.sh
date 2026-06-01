@@ -45,11 +45,10 @@ mapfile -t F < <(printf '%s' "$INPUT" | jq -r '[
     (.session_id // ""),
     (.workspace.current_dir // .cwd // ""),
     (.context_window.used_percentage // ""),
-    (.context_window.context_window_size // 0),
     (.terminal_width // 0)
   ] | .[]' 2>/dev/null)
 MODEL="${F[0]:-?}"; SID="${F[1]:-}"; CWD="${F[2]:-$PWD}"
-CTX_PCT="${F[3]:-}"; CTX_SIZE="${F[4]:-0}"; TERM_W="${F[5]:-0}"
+CTX_PCT="${F[3]:-}"; TERM_W="${F[4]:-0}"
 [ -z "$CWD" ] && CWD="$PWD"
 [ "${TERM_W:-0}" -le 0 ] && TERM_W="${COLUMNS:-0}"
 [ "$TERM_W" -le 0 ] && TERM_W=200
