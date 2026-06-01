@@ -43,6 +43,14 @@ own subdirectory exists** (reachable via `${CLAUDE_PLUGIN_ROOT}`). Therefore:
   `bin/` script, the `*_log` helper, the `hookSpecificOutput` JSON emission) are
   duplicated **on purpose** — that's the price of independent installability.
   Trying to DRY them across plugins would break standalone installs.
+- **Mirrored detection is drift-guarded, not shared.** charter is the source of
+  truth for project-doc detection (QA / map / roadmap / decisions); hud and
+  task-queue re-implement the same checks (they must work standalone). To stop the
+  copies silently drifting (they once did — `hud_qa` missed `QUALITY.adoc`),
+  **`tests/drift-guard.bats`** runs every recognized doc layout through charter
+  *and* each mirror and asserts they agree. Change charter's rules → update the
+  mirrors → the guard keeps them honest. (A CI check, not a runtime layer: cheaper
+  than an inventory file and no staleness — see docs/ROADMAP.md "Decided against".)
 
 ## Layout
 

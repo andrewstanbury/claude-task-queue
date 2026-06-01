@@ -199,6 +199,12 @@ Changing cleanly and shedding cruft still doesn't guarantee a change is the
 - **Consolidating the 4 plugins into 1** (2026-05-31) — the duplication isn't
   painful and the migration would disrupt a working install; revisit only if the
   duplication bites. *Not a pending item — recorded so it isn't re-litigated.*
+- **A charter doc-inventory state file as a runtime single-source-of-truth**
+  (2026-06-01) — proposed to stop the charter↔hud↔task-queue detection mirrors
+  drifting. Rejected: the install boundary forces each consumer to keep a fallback
+  detector anyway, so the inventory is *net-additive* (doesn't remove the
+  duplication) and adds a mid-session staleness lag. Chose the cheaper, subtractive
+  alternative — a **CI drift-guard test** (`tests/drift-guard.bats`).
 
 ## Status — 2026-06-01
 
