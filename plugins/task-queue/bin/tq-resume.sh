@@ -106,7 +106,7 @@ fi
 agent=0
 if tq_is_agent_mode "$root"; then
   agent=1
-  ctx="$ctx"$'\n\n'"🤖 Agent-mode is ON for this repo — when several independent tasks are queued (unblocked, no shared blockedBy, non-conflicting files), you MAY fan them out to subagents via the Task tool; keep dependent/chained work — and high-blast-radius changes (touching widely-depended-on modules) — inline and in order. Default to inline when unsure. ($agent_cmd off to disable.)"
+  ctx="$ctx"$'\n\n'"🤖 Agent-mode is ON — DEFAULT to fanning work out to subagents (Task tool) when it pays off in speed: parallel reads/exploration/audits across many files, independent per-item transforms, and parallel verification. Safe to parallelize = unblocked, no shared blockedBy, disjoint files, low blast radius. Keep INLINE: coupled/chained work, edits to shared or high-fan-in files, or when unsure — conflicting parallel edits are the risk the blast-radius principle guards against. Decide per-task from your task list; don't ask each time. ($agent_cmd off to disable for this repo.)"
 fi
 
 tq_log "session-start" \

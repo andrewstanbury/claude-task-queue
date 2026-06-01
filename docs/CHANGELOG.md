@@ -83,6 +83,12 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## task-queue — *orchestrate the work*
 
+- **0.20.0** — **agent-mode global default**: `CLAUDE_TQ_AGENT_MODE=on` (set once in
+  settings.json `env`) enables subagent fan-out everywhere without a per-repo
+  flag; the SessionStart policy is sharpened to *default to* fanning out
+  independent/read-heavy/verification work (low blast radius) and keep coupled
+  work inline — speed-over-tokens, no per-task decision.
+
 - **0.19.1** — efficiency: the UserPromptSubmit/Notification decision hooks do a
   cheap ledger-empty pre-check before forking git, so the >99% no-open-decisions
   path costs no `git rev-parse` per prompt.

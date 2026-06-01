@@ -174,8 +174,11 @@ Three small files, all outside `~/.claude/tasks`:
   must resolve the identical path.
 - **Agent-mode flags** — `~/.claude/state/task-queue/agent/<encoded-repo-root>`
   (overridable via `CLAUDE_TQ_AGENT_DIR`). Same scheme as pause: an empty file
-  per repo where opt-in agent-mode is enabled. `bin/tq-agent.sh` writes it; the
+  per repo where agent-mode is explicitly enabled. `bin/tq-agent.sh` writes it; the
   SessionStart hook reads it to decide whether to permit subagent fan-out.
+  **Global default:** `CLAUDE_TQ_AGENT_MODE=on|1` (e.g. in settings.json `env`)
+  turns agent-mode on everywhere without a per-repo flag — for users who prefer
+  speed over token-thrift. Per-repo flag OR the env enables it; off otherwise.
 - **Open-decisions ledger** — `~/.claude/state/task-queue/decisions/<encoded-repo-root>.jsonl`
   (overridable via `CLAUDE_TQ_DECISIONS_DIR`). One JSON line per open decision
   (`{id,q,rec,ts}`). Keyed by repo (fixed home) so `bin/tq-ask.sh` (plain bash)
