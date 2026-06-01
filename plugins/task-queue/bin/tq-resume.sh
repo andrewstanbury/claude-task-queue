@@ -106,7 +106,7 @@ fi
 agent=0
 if tq_is_agent_mode "$root"; then
   agent=1
-  ctx="$ctx"$'\n\n'"🤖 Agent-mode is ON for this repo — when several independent tasks are queued (unblocked, no shared blockedBy, non-conflicting files), you MAY fan them out to subagents via the Task tool; keep dependent/chained work inline and in order. Default to inline when unsure. ($agent_cmd off to disable.)"
+  ctx="$ctx"$'\n\n'"🤖 Agent-mode is ON for this repo — when several independent tasks are queued (unblocked, no shared blockedBy, non-conflicting files), you MAY fan them out to subagents via the Task tool; keep dependent/chained work — and high-blast-radius changes (touching widely-depended-on modules) — inline and in order. Default to inline when unsure. ($agent_cmd off to disable.)"
 fi
 
 tq_log "session-start" \

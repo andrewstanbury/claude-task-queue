@@ -9,6 +9,9 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## charter — *know the project*
 
+- **0.14.0** — blast-radius wire-in: the project-map gap nudge asks the model to
+  mark **high-fan-in / "core" modules** so a change's blast radius is known before
+  it's touched.
 - **0.13.0** — `/charter:align`: on-demand reconcile of open/proposed work against
   recorded decisions + roadmap (charter's first slash command); the on-demand arm
   of the alignment discipline.
@@ -31,6 +34,16 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## tidy — *change safely & cleanly*
 
+- **0.28.0** — **coverage ratchet** (`lib/coverage.sh`): a touch-time nudge to
+  *characterize before you change* when a touched source file has no test
+  (language-aware detection: Go/web/Python/shell, walking up for a `tests/` dir),
+  and an **opt-in Stop gate** (`CLAUDE_TIDY_COVERAGE_RATCHET=1`) that blocks until
+  changed source is characterized. Generalizes & replaces the old Go-only TDD
+  nudge. The legacy spec-accumulation engine.
+- **0.27.0** — blast-radius wire-in: surfaced **higher in the touch output** (right
+  after lint findings) and its message ties dependents to **test coverage**; the
+  standard's anchors now lead with *blast radius first — cover the dependents of
+  what you touch*.
 - **0.26.0** — tightened the **non-Go blast-radius** heuristic: require the
   basename to sit after a quote/slash/dot (module-specifier shape, not a bare
   prose word), exclude doc/data files, raise the min basename length to 5, and
@@ -61,6 +74,9 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## task-queue — *orchestrate the work*
 
+- **0.18.0** — blast-radius wire-in: the capture nudge **sequences low-reach steps
+  first** and flags steps touching high-fan-in modules; agent-mode keeps
+  **high-blast-radius changes off parallel subagents**.
 - **0.17.0** — **open-decisions ledger** so a question the model asks isn't lost
   to queued/typed-ahead prompts: `tq-ask.sh` (open/resolve/list), a
   **UserPromptSubmit** hook that re-surfaces unanswered decisions every prompt,

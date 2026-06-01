@@ -25,6 +25,8 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/blast.sh"
 # shellcheck source=../lib/lint.sh
 . "$PLUGIN_DIR/lib/lint.sh"
+# shellcheck source=../lib/coverage.sh
+. "$PLUGIN_DIR/lib/coverage.sh"
 
 # PostToolUse hands us { tool_name, tool_input: { file_path, ... }, ... }.
 input=""
@@ -50,13 +52,16 @@ size="$(tidy_size_nudge "$file" "$sid" 2>/dev/null || true)"
 # deduped per manifest per session (not per edit).
 currency="$(tidy_currency_nudge "$file" "$sid" 2>/dev/null || true)"
 
+# Coverage ratchet: if a touched source file has no test, ask to characterize it
+# before changing — so an under-tested project accrues a spec on the worked
+# surface. Language-agnostic (gated inside); deduped per file per session.
+cov="$(tidy_coverage_nudge "$file" "$sid" 2>/dev/null || true)"
+
 lang="$(tidy_lang_for_file "$file")"
 result=""
-tdd=""
 case "$lang" in
   go)
     result="$(tidy_handle_go "$file" 2>/dev/null || true)"   # format + lint findings
-    tdd="$(tidy_tdd_nudge "$file" "$sid" 2>/dev/null || true)"
     ;;
   web)
     result="$(tidy_handle_web "$file" 2>/dev/null || true)"  # eslint/stylelint findings
@@ -73,7 +78,7 @@ esac
 blast=""
 [ -n "$lang" ] && blast="$(tidy_blast_radius "$file" "$sid" 2>/dev/null || true)"
 
-[ -n "$result" ] || [ -n "$tdd" ] || [ -n "$size" ] || [ -n "$currency" ] || [ -n "$blast" ] || exit 0   # nothing to say
+[ -n "$result" ] || [ -n "$cov" ] || [ -n "$size" ] || [ -n "$currency" ] || [ -n "$blast" ] || exit 0   # nothing to say
 
 changed=""
 lint=""
@@ -86,10 +91,12 @@ fi
 ctx="[tidy] ${file}:"
 [ "$changed" = "1" ] && ctx="$ctx"$'\n'"• auto-formatted — re-read before further edits (line content may have shifted)."
 [ -n "$lint" ] && ctx="$ctx"$'\n'"• linter findings to fix in this file (leave unrelated pre-existing issues alone):"$'\n'"$lint"
-[ -n "$tdd" ] && ctx="$ctx"$'\n'"• $tdd"
+# Blast radius is the first-class signal — surface it high (right after findings),
+# with the coverage ratchet next (characterize the surface a change can reach).
+[ -n "$blast" ] && ctx="$ctx"$'\n'"• $blast"
+[ -n "$cov" ] && ctx="$ctx"$'\n'"• $cov"
 [ -n "$size" ] && ctx="$ctx"$'\n'"• $size"
 [ -n "$currency" ] && ctx="$ctx"$'\n'"• $currency"
-[ -n "$blast" ] && ctx="$ctx"$'\n'"• $blast"
 
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $c}}'

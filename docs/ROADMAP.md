@@ -26,6 +26,25 @@ constrain everything below.
 6. **Streamlined plugins** — seamless, pausable, show the tasks being worked on,
    and process the backlog optimally (fan out to agents *or* auto-order the work).
 
+**The first-class principle — contain blast radius.** Above the criteria sits one
+organizing idea: **minimize and understand the blast radius of every change.** It's
+ranked #1 because the system targets **existing, often legacy, under-tested,
+under-documented projects** — and there, blast-radius awareness is the primary
+safety net (it works when tests and specs don't exist) *and* it bounds where you
+clean up. Two legacy corollaries make the project **converge toward clean as you
+build** rather than accrue cruft: **characterize before you change** (pin the
+affected surface's current behavior with a test first — blast radius says what to
+pin — so coverage accrues on the worked surface over time) and **clean as you
+touch, bounded by blast radius** (improve the touched area; *ratchet, never sweep*).
+This converges the *active* surface, by design — untouched stable code is left
+alone (refactoring what you can't see the ripple of is itself a top rework risk);
+large pre-existing architectural debt needs a deliberate, characterized refactor
+pass, surfaced by `/tidy:audit` + `/tidy:distill`. Both *code* and *architectural*
+ripple count, and every plugin wires it in: tidy surfaces dependents and ties them
+to tests (and the coverage ratchet flags untested touched files), charter marks
+high-fan-in modules in the map, task-queue sequences low-reach-first and keeps
+high-blast work off parallel agents.
+
 **Through-line:** reduce tech debt as you go; bake **TDD + blast-radius
 awareness** into every change.
 
@@ -183,7 +202,7 @@ Changing cleanly and shedding cruft still doesn't guarantee a change is the
 
 ## Status — 2026-06-01
 
-- **task-queue 0.17.0** · **tidy 0.26.0** · **charter 0.13.0** · **hud 0.3.0**.
+- **task-queue 0.18.0** · **tidy 0.28.0** · **charter 0.14.0** · **hud 0.3.0**.
 - **The planned roadmap (Phases 1–3) and the direction-&-signal layer are
   complete.** The system changes cleanly, sheds cruft, checks alignment, and lints
   across Go/web/Python/shell with a toolchain-accurate Go blast-radius.

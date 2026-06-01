@@ -106,6 +106,24 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   command / clean tree / `CLAUDE_TIDY_CHECKS=0` → allow silently.
 - **If it changes:** the verification floor silently stops; everything else is
   unaffected.
+- **Coverage ratchet (opt-in, same Stop hook):** with
+  `CLAUDE_TIDY_COVERAGE_RATCHET=1`, before the test run it lists changed source
+  files lacking a test (`tidy_untested_changed`) and, if any, blocks with a
+  `decision: block` asking to characterize them. Runs even when no test command
+  exists (legacy projects). Off by default — the touch-time nudge is the always-on
+  version.
+
+#### Coverage ratchet (how test-detection works, and its limits)
+
+`lib/coverage.sh` decides "does this source file have a test?" by **filename
+convention only** — sibling names (`x_test.go`, `x.test.ts`, `x.spec.ts`,
+`__tests__/x.*`, `test_x.py`, `x.bats`) plus a `tests/`/`test/` dir found by
+walking up to 4 levels. It is a heuristic: a project with **consolidated test
+files** (one `suite.bats` covering many libs) will get false "no test" nudges for
+the libs not named in a sibling test. That's acceptable — the touch nudge is soft,
+deduped per file per session, and disable-able (`CLAUDE_TIDY_COVERAGE=0`); it's
+tuned for the target case (legacy app code with per-file or absent tests). Don't
+make the opt-in **gate** the default without weighing this.
 
 ### 5. The `/tidy:distill` and `/tidy:audit` commands (user-invoked)
 

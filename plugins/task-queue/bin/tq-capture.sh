@@ -43,7 +43,7 @@ case "$prompt" in '/'*|'!'*) exit 0 ;; esac          # slash / bang commands are
 [ "$(tq_open_count "$sid")" -eq 0 ] || exit 0         # already have a queue → don't nudge
 tq_looks_multistep "$prompt" || exit 0                # not multi-step → stay silent
 
-ctx="[task-queue] This looks like multi-step work and your task queue is empty — capture the steps with TaskCreate in dependency order before starting, so they show up in the queue and auto-advance as you finish each."
+ctx="[task-queue] This looks like multi-step work and your task queue is empty — capture the steps with TaskCreate in dependency order before starting, so they show up in the queue and auto-advance as you finish each. Sequence to contain blast radius: smallest-reach steps first, and flag any step touching a widely-depended-on (high-fan-in) module so its dependents get covered."
 
 # Alignment (clean ≠ correct): if the project records its direction, weigh the
 # work against it AS it's captured, so a new task doesn't silently contradict a

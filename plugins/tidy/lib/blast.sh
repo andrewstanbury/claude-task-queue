@@ -119,7 +119,7 @@ tidy_blast_radius() {
       [ -n "$gi" ] || return 0                              # go ran, nothing imports it
       n="${gi%%$'\t'*}"; sample="${gi#*$'\t'}"
       tidy_log blast "file=$file n=$n via=golist"
-      printf 'blast-radius (~%d package(s) import %s): cover the affected surface; e.g. %s' "$n" "$label" "$sample"
+      printf 'blast-radius (~%d package(s) import %s): cover these with tests as part of this change; e.g. %s' "$n" "$label" "$sample"
       return 0
     fi
   fi
@@ -141,5 +141,5 @@ tidy_blast_radius() {
   n="$(printf '%s\n' "$hits" | grep -c .)"
   sample="$(printf '%s\n' "$hits" | head -n 3 | tr '\n' ',' | sed 's/,$//; s/,/, /g')"
   tidy_log blast "file=$file n=$n via=grep"
-  printf 'blast-radius (~%d files reference %s): cover the affected surface; e.g. %s' "$n" "$label" "$sample"
+  printf 'blast-radius (~%d files reference %s): cover these with tests as part of this change; e.g. %s' "$n" "$label" "$sample"
 }

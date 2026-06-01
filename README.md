@@ -18,11 +18,42 @@ Maintained by Claude, for Claude. **Start at [AGENTS.md](./AGENTS.md)**
 | **charter** | Know the project | Gates work on documented quality attributes (web projects get Lighthouse-aligned defaults); maintains a roadmap/backlog, a project map, and decisions/ADRs — generating them from the code/git when missing. |
 | **hud** | Show what's happening | A consolidated, read-only status line over the other plugins' state. |
 
-Design principles (see AGENTS.md for the hard invariants): **zero per-prompt
-cost**, **self-contained** plugins (no shared lib / build), **read-only or
-conservative mutation**, and **bootstrap-then-quiet** — record the standing
-policy in your `CLAUDE.md` and mark it `claude-companion`, and the SessionStart
-hooks re-anchor in one line instead of re-injecting in full.
+## Principles (in priority order)
+
+Tuned for ongoing work on **real, often legacy projects** — features already
+built, frequently *without* solid tests or documented requirements. The order
+reflects what prevents rework and lets the project **converge toward clean as you
+build**, rather than accrue cruft.
+
+1. **Contain blast radius** — before changing code, know what depends on it and
+   contain the ripple. When tests and specs don't exist, this is the primary
+   safety net, and it **bounds where you clean up**. The one principle not to
+   compromise. (Both *code* ripple and *architectural* ripple — one owner per
+   concern, contracts not copies.)
+2. **Characterize before you change** — tests often don't exist, so pin the
+   *current* behavior of the affected surface with tests **first** (blast radius
+   says what to pin). This is how the project accrues a real spec over time.
+3. **Preserve intent** — requirements are often undocumented, so don't alter
+   behavior you didn't mean to; surface assumptions to the owner in plain language
+   (clean ≠ correct — a well-made change can still be the wrong one).
+4. **Clean as you touch, bounded by blast radius** — leave the touched area better
+   than you found it; subtract as you add; **ratchet, never sweep** (don't
+   refactor code whose ripple you can't see — that's how cleanup *causes* rework).
+5. **Optimize for Claude to read & maintain** — rebuild the missing map/docs as
+   you learn the code, keep files sized to their complexity, prefer the smaller
+   surface. Keeps 1–4 cheap; this is where **token efficiency** accrues. Document
+   quality attributes when the project's risk earns it (web → Lighthouse-aligned).
+6. **Follow current, correct patterns** — flag outdated/deprecated tech within the
+   touched scope.
+7. **Streamlined, proactive plugins** — seamless, pausable, show the work, process
+   the backlog optimally.
+
+Always-on: **tests stay green** (the verification floor blocks until they pass),
+**document proportionally**, and **bootstrap-then-quiet** hooks (record the
+standing policy in your `CLAUDE.md`, mark it `claude-companion`, and the
+SessionStart hooks re-anchor in one line). Hard invariants (self-contained
+plugins, no shared lib/build, read-only or conservative mutation) live in
+[AGENTS.md](./AGENTS.md).
 
 The only non-automatic entry points are, by design: `/tidy:distill` (deep prune),
 `tq-pause on|off` (the one control), and the per-plugin `*-doctor.sh` diagnostics.

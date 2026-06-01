@@ -26,9 +26,10 @@ A small **marketplace of self-contained Claude Code companion plugins**:
 Each plugin has a `CONTRACT.md` (the **undocumented Claude Code internals it
 depends on** — read it before changing any hook input/output); its `plugin.json`
 `description` says what it does. The system's direction lives in
-[docs/ROADMAP.md](./docs/ROADMAP.md). **No per-plugin READMEs or CHANGELOGs** —
-this is a personal, Claude-run repo: git history is the changelog, and these
-Claude-facing docs (this file, each CONTRACT, the ROADMAP) are the manual.
+[docs/ROADMAP.md](./docs/ROADMAP.md), with the version-by-version history distilled
+into [docs/CHANGELOG.md](./docs/CHANGELOG.md) (one consolidated, Claude-facing
+changelog — **no per-plugin READMEs or CHANGELOGs**). These Claude-facing docs
+(this file, each CONTRACT, the ROADMAP, the CHANGELOG) are the manual.
 
 ## The one rule that drives the architecture: the install boundary
 
@@ -63,6 +64,19 @@ plugins/<name>/
 
 ## Conventions (mirror these in any new plugin)
 
+- **Blast radius is the first-class principle.** The master lever for keeping a
+  project — *especially an existing, under-tested, under-documented one* — efficient
+  and correct as features are added is to **minimize and understand the blast
+  radius of every change**: both *code* blast radius (what a touched file ripples
+  into → surface dependents) and *architectural* blast radius (how far a change to
+  the plugins ripples → one owner per concern, contracts not copies). Every other
+  pattern (the project map, small files, the prune force, quiet hooks) serves it.
+  Its legacy corollaries: **characterize before you change** (no tests → pin the
+  affected surface's current behavior with a test first; blast radius says what to
+  pin — so the project accrues a spec over time), and **clean as you touch,
+  bounded by blast radius** (improve the touched area, but *ratchet, never sweep* —
+  refactoring code whose ripple you can't see is itself a top cause of rework).
+  Ask "how far does this ripple, and how do I contain it?" before every change.
 - **Bash + `jq`, zero build.** No compiled languages, nothing to install to run
   a hook. (This is why the plugins are Bash, not Go — a compiled hook needs
   per-platform binaries or a toolchain, which breaks "runs everywhere, no build".)

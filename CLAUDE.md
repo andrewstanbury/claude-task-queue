@@ -21,10 +21,16 @@ This repo runs its own companion plugins. Their standing guidance is summarised
 here so the SessionStart hooks re-anchor in one line instead of repeating in full
 (the `claude-companion` marker above is what tells them to stay quiet):
 
-- **Tests are the floor** — verify changed behaviour (a test where it earns its
-  keep, else types/build/running it); the suite must be green before you're done.
-- **Clean-as-you-go, subtract as you add** — reuse before create, delete what a
-  change makes redundant, simplest design that fits; net complexity trends down.
+- **Blast radius first** — before a change, understand how far it ripples and
+  contain it: cover the dependents of a touched file, localize cross-cutting
+  concerns so a change has one owner. The safety net when tests/specs are absent,
+  and it **bounds where you clean up**. The principle the others serve.
+- **Characterize before you change** — on under-tested legacy code, pin the
+  *current* behaviour of the affected surface with a test before changing it
+  (blast radius says what to pin); the suite must be green before you're done.
+- **Clean as you touch, bounded by blast radius** — leave the touched area better,
+  subtract as you add, reuse before create; **ratchet, never sweep** — don't
+  refactor code whose ripple you can't see.
 - **Native task list = the live queue** — capture multi-step work, work it in
   dependency order, advance as you finish.
 - **Document proportionally** — don't over-document; the baseline is the project
