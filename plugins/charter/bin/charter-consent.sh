@@ -51,7 +51,7 @@ if [ -n "$cmd" ]; then
   fi
 elif [ -n "$file" ]; then
   case "$file" in
-    *migration*|*migrations/*|*schema.prisma|*db/schema.rb)
+    *migration*|*schema.prisma|*db/schema.rb)
       reason="edits a schema/migration (can be irreversible for existing data)" ;;
   esac
 fi
