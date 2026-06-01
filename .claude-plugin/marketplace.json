@@ -28,8 +28,8 @@
     {
       "name": "hud",
       "source": "./plugins/hud",
-      "description": "A consolidated status line: animated beacon, open tasks + in-progress, paused state, quality-attributes status, last tidy action, tokens up/down, git branch, and model \u2014 read-only from existing plugin state, zero model-token cost. Run /hud:setup once to wire it in (version-resilient).",
-      "version": "0.2.0"
+      "description": "A consolidated status line: static health beacon, open tasks + in-progress, paused, agent-mode, the verification floor's \u2713/\u2717 tests result, charter docs-health, last tidy action, context-window fill %, git branch + dirty count, and model \u2014 read-only from existing plugin state, zero model-token cost, no idle timer. Run /hud:setup once to wire it in (version-resilient).",
+      "version": "0.3.0"
     }
   ]
 }

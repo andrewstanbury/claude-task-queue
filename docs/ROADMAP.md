@@ -372,7 +372,16 @@ build it all at once.
 
 ## Status — 2026-06-01
 
-- **task-queue 0.16.0**, **tidy 0.25.0**, **charter 0.13.0**, **hud 0.2.0** — shipped.
+- **task-queue 0.16.0**, **tidy 0.25.0**, **charter 0.13.0**, **hud 0.3.0** — shipped.
+- **hud 0.3.0** reworked the status line for signal-per-cost: a **static health
+  beacon** (green/yellow/red) replacing the animated spinner so the status line
+  needs **no `refreshInterval`** (event-driven only — no idle jq+git wakeups,
+  battery-friendly on a handheld); surfaces the **verification floor's ✓/✗ tests**
+  result (the non-technical owner's trust signal) and **task-queue agent-mode**;
+  shows **context-window fill %** (how close to a compaction) from the payload's
+  `used_percentage` instead of raw token counts; a **docs-health** glyph over the
+  charter baseline (map+roadmap+QA, detection realigned with charter); and an
+  **uncommitted-file count** on the branch. Still read-only, zero model-token cost.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the

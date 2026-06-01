@@ -47,29 +47,92 @@ mk_task() {
   [ "$output" = "1" ]
 }
 
+@test "hud_qa aligns with charter: QUALITY.adoc, docs/CLAUDE.md, and the override" {
+  run bash -c "$SRC"' hud_qa "$2"' bash "$ROOT" "$REPO"; [ "$output" = "0" ]
+  : > "$REPO/QUALITY.adoc"
+  run bash -c "$SRC"' hud_qa "$2"' bash "$ROOT" "$REPO"; [ "$output" = "1" ]
+  rm "$REPO/QUALITY.adoc"; mkdir -p "$REPO/docs"
+  printf '# Manual\n## Non-functional requirements\n' > "$REPO/docs/CLAUDE.md"
+  run bash -c "$SRC"' hud_qa "$2"' bash "$ROOT" "$REPO"; [ "$output" = "1" ]
+}
+
+@test "hud_map / hud_roadmap detect the charter baseline docs" {
+  run bash -c "$SRC"' hud_map "$2"' bash "$ROOT" "$REPO"; [ "$output" = "0" ]
+  run bash -c "$SRC"' hud_roadmap "$2"' bash "$ROOT" "$REPO"; [ "$output" = "0" ]
+  mkdir -p "$REPO/docs"; : > "$REPO/docs/MAP.md"; : > "$REPO/docs/ROADMAP.md"
+  run bash -c "$SRC"' hud_map "$2"' bash "$ROOT" "$REPO"; [ "$output" = "1" ]
+  run bash -c "$SRC"' hud_roadmap "$2"' bash "$ROOT" "$REPO"; [ "$output" = "1" ]
+}
+
+@test "hud_agent reflects task-queue's per-repo agent-mode flag" {
+  export CLAUDE_HUD_AGENT_DIR="$(mktemp -d)"
+  run bash -c "$SRC"' hud_agent "/some/repo"' bash "$ROOT"; [ "$output" = "0" ]
+  touch "$CLAUDE_HUD_AGENT_DIR/-some-repo"
+  run bash -c "$SRC"' hud_agent "/some/repo"' bash "$ROOT"; [ "$output" = "1" ]
+  rm -rf "$CLAUDE_HUD_AGENT_DIR"
+}
+
+@test "hud_verify reads the verification floor's last outcome" {
+  export CLAUDE_HUD_VERIFY_DIR="$(mktemp -d)"
+  run bash -c "$SRC"' hud_verify "sessabc"' bash "$ROOT"; [ -z "$output" ]
+  printf 'pass' > "$CLAUDE_HUD_VERIFY_DIR/result-sessabc"
+  run bash -c "$SRC"' hud_verify "sessabc"' bash "$ROOT"; [ "$output" = "pass" ]
+  printf 'fail' > "$CLAUDE_HUD_VERIFY_DIR/result-sessabc"
+  run bash -c "$SRC"' hud_verify "sessabc"' bash "$ROOT"; [ "$output" = "fail" ]
+  rm -rf "$CLAUDE_HUD_VERIFY_DIR"
+}
+
+@test "hud_dirty counts uncommitted files, empty on a clean tree" {
+  run bash -c "$SRC"' hud_dirty "$2"' bash "$ROOT" "$REPO"; [ -z "$output" ]   # clean
+  printf 'x\n' > "$REPO/new.txt"
+  run bash -c "$SRC"' hud_dirty "$2"' bash "$ROOT" "$REPO"; [ "$output" = "1" ]
+}
+
 @test "hud_last_tidy extracts the touched filename from the tidy log" {
   printf 'ts\tgo\tfile=/proj/auth/login.go fmt=goimports\n' > "$CLAUDE_HUD_TIDY_LOG"
   run bash -c "$SRC"' hud_last_tidy' bash "$ROOT"
   [ "$output" = "login.go" ]
 }
 
-@test "hud_fmt_k humanizes counts" {
-  run bash -c "$SRC"' hud_fmt_k 1234' bash "$ROOT"; [ "$output" = "1.2k" ]
-  run bash -c "$SRC"' hud_fmt_k 2000000' bash "$ROOT"; [ "$output" = "2.0M" ]
-}
-
-@test "renders a single line with the key slots" {
+@test "renders a single line with the key slots (ctx %, model, tasks)" {
   mk_task sess 1 in_progress "Wire auth"
   payload="$(jq -nc --arg c "$REPO" \
     '{model:{display_name:"Opus 4.8"}, session_id:"sess", cwd:$c,
-      context_window:{total_input_tokens:12345, total_output_tokens:4567}, terminal_width:200}')"
+      context_window:{used_percentage:68, context_window_size:1000000}, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Wire auth"* ]]
-  [[ "$output" == *"Tokens:"* ]]
-  [[ "$output" == *"12.3k"* ]]
+  [[ "$output" == *"ctx 68%"* ]]
+  [[ "$output" == *"docs 0/3"* ]]
   [[ "$output" == *"Opus 4.8"* ]]
   [ "$(printf '%s\n' "$output" | wc -l)" -eq 1 ]   # single line
+}
+
+@test "render: ✓ tests + docs ✓ when verify passed and baseline docs present" {
+  export CLAUDE_HUD_VERIFY_DIR="$(mktemp -d)"; printf 'pass' > "$CLAUDE_HUD_VERIFY_DIR/result-sess"
+  mkdir -p "$REPO/docs"; : > "$REPO/docs/MAP.md"; : > "$REPO/docs/ROADMAP.md"; : > "$REPO/QUALITY.md"
+  payload="$(jq -nc --arg c "$REPO" \
+    '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c,
+      context_window:{used_percentage:5}, terminal_width:200}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
+  [[ "$output" == *"✓ tests"* ]]
+  [[ "$output" == *"docs ✓"* ]]
+  rm -rf "$CLAUDE_HUD_VERIFY_DIR"
+}
+
+@test "render: ✗ tests when the verification floor last failed" {
+  export CLAUDE_HUD_VERIFY_DIR="$(mktemp -d)"; printf 'fail' > "$CLAUDE_HUD_VERIFY_DIR/result-sess"
+  payload="$(jq -nc --arg c "$REPO" \
+    '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, context_window:{used_percentage:5}, terminal_width:200}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
+  [[ "$output" == *"✗ tests"* ]]
+  rm -rf "$CLAUDE_HUD_VERIFY_DIR"
+}
+
+@test "render: omits ctx when the payload has no context_window" {
+  payload="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
+  [[ "$output" != *"ctx"* ]]
 }
 
 # ---- hud-install (status-line wiring) ---------------------------------------
