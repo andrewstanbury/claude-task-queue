@@ -21,6 +21,9 @@ This repo runs its own companion plugins. Their standing guidance is summarised
 here so the SessionStart hooks re-anchor in one line instead of repeating in full
 (the `claude-companion` marker above is what tells them to stay quiet):
 
+- **Blast radius first** — before a change, understand how far it ripples and
+  contain it: cover the dependents of a touched file, and localize cross-cutting
+  concerns so a change has one owner. This is the principle the others serve.
 - **Tests are the floor** — verify changed behaviour (a test where it earns its
   keep, else types/build/running it); the suite must be green before you're done.
 - **Clean-as-you-go, subtract as you add** — reuse before create, delete what a

@@ -71,7 +71,7 @@ charter_log "session-start" "qa=$status roadmap=$rstatus decisions=$dstatus map=
 
 # Baseline gaps (always actionable); QA gap only for web projects.
 gaps=()
-[ "$mstatus" = "missing" ] && gaps+=("project map (docs/MAP.md) — a file→responsibility index so sessions orient without re-scanning the tree")
+[ "$mstatus" = "missing" ] && gaps+=("project map (docs/MAP.md) — a file→responsibility index so sessions orient without re-scanning the tree; mark the high-fan-in / 'core' modules (the ones many files import) so a change's blast radius is known before it's touched")
 [ "$rstatus" = "missing" ] && gaps+=("roadmap/backlog (docs/ROADMAP.md) — a Now/Next/Later list + dated changelog, the cross-session record of what's next")
 [ "$status" = "missing" ] && [ "$web" = "web" ] && gaps+=("quality attributes (QUALITY.md) — web project, so Lighthouse-aligned: Core Web Vitals, accessibility (WCAG AA, jsx-a11y/stylelint at edit time), SEO, responsive + print styles, progressive enhancement, components-by-default (reuse existing before creating new)")
 

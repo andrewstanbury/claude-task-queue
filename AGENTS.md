@@ -26,9 +26,10 @@ A small **marketplace of self-contained Claude Code companion plugins**:
 Each plugin has a `CONTRACT.md` (the **undocumented Claude Code internals it
 depends on** — read it before changing any hook input/output); its `plugin.json`
 `description` says what it does. The system's direction lives in
-[docs/ROADMAP.md](./docs/ROADMAP.md). **No per-plugin READMEs or CHANGELOGs** —
-this is a personal, Claude-run repo: git history is the changelog, and these
-Claude-facing docs (this file, each CONTRACT, the ROADMAP) are the manual.
+[docs/ROADMAP.md](./docs/ROADMAP.md), with the version-by-version history distilled
+into [docs/CHANGELOG.md](./docs/CHANGELOG.md) (one consolidated, Claude-facing
+changelog — **no per-plugin READMEs or CHANGELOGs**). These Claude-facing docs
+(this file, each CONTRACT, the ROADMAP, the CHANGELOG) are the manual.
 
 ## The one rule that drives the architecture: the install boundary
 
@@ -63,6 +64,16 @@ plugins/<name>/
 
 ## Conventions (mirror these in any new plugin)
 
+- **Blast radius is the first-class principle.** The system's master lever for
+  keeping a vibe-coded project efficient *and* correct over time is to **minimize
+  and understand the blast radius of every change** — both *code* blast radius
+  (what a touched file's change can ripple into → surface dependents, cover them
+  with tests) and *architectural* blast radius (how far a change to the plugins
+  ripples → localize cross-cutting concerns behind file/state contracts, single
+  owner per concern). Every other efficiency pattern (the project map, small
+  files, the prune force, quiet hooks) ultimately serves this. When designing a
+  change or a feature, ask "how far does this ripple, and how do I contain it?"
+  first.
 - **Bash + `jq`, zero build.** No compiled languages, nothing to install to run
   a hook. (This is why the plugins are Bash, not Go — a compiled hook needs
   per-platform binaries or a toolchain, which breaks "runs everywhere, no build".)

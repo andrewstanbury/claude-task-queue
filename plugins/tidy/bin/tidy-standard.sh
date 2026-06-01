@@ -52,15 +52,16 @@ for f in CLAUDE.md AGENTS.md docs/CLAUDE.md; do
   [ -f "$root/$f" ] && grep -q 'claude-companion' "$root/$f" 2>/dev/null && { documented=1; break; }
 done
 
-lean_msg='[tidy] (reminder) clean-as-you-go: verify changed behavior (a test where it earns its keep, else types/build/run; suite green before done); subtract as you add — reuse before create, simplest fit; resolve findings yourself, ask outcomes in plain language.'
+lean_msg='[tidy] (reminder) clean-as-you-go: blast radius first — cover the dependents of what you touch; verify changed behavior (a test where it earns its keep, else types/build/run; suite green before done); subtract as you add — reuse before create, simplest fit; resolve findings yourself, ask outcomes in plain language.'
 
 if [ "$src" = "compact" ] || [ "$src" = "resume" ]; then
   ctx="$lean_msg"
 elif [ "$documented" -eq 1 ]; then
   # Quiet: the standard lives in CLAUDE.md, so re-anchor lean even on a fresh context.
-  ctx='[tidy] (standard in CLAUDE.md) clean-as-you-go, scoped to your change: verify changed behavior (test where it earns its keep, else types/build/run; suite green); simplest design that fits; subtract as you add — reuse before create, delete what a change makes redundant.'
+  ctx='[tidy] (standard in CLAUDE.md) clean-as-you-go, scoped to your change: blast radius first — cover the dependents of what you touch; verify changed behavior (test where it earns its keep, else types/build/run; suite green); simplest design that fits; subtract as you add — reuse before create, delete what a change makes redundant.'
 else
   ctx='[tidy] Clean-as-you-go, scoped to what you touch — ratchet, do not sweep. You already know good engineering; these are the anchors that matter most here (the format/lint/size/test feedback you get as you work carries the rest):
+- Blast radius first: before changing a file, know what depends on it (the touch hook surfaces dependents) and cover that affected surface with tests — no change lands without understanding what it can break. Contain ripple; prefer the change with the smallest reach.
 - Verify the behavior you change — a test where it earns its keep (core logic, contracts, regression-prone code), or types/build/running the app where that suffices; skip brittle ceremony tests for trivial glue. The suite must be green before you'"'"'re done (the verification hook enforces it).
 - Subtract as you add: reuse before create, delete what a change makes redundant, simplest design that fits — net complexity should trend down, not up.
 - Name things in the owner'"'"'s domain language; the owner may be non-technical, so resolve technical findings yourself (only ask about product/outcome choices, in plain language) and recap each unit of work in plain terms.

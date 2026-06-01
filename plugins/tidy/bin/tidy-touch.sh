@@ -86,10 +86,11 @@ fi
 ctx="[tidy] ${file}:"
 [ "$changed" = "1" ] && ctx="$ctx"$'\n'"• auto-formatted — re-read before further edits (line content may have shifted)."
 [ -n "$lint" ] && ctx="$ctx"$'\n'"• linter findings to fix in this file (leave unrelated pre-existing issues alone):"$'\n'"$lint"
+# Blast radius is the first-class signal — surface it high (right after findings).
+[ -n "$blast" ] && ctx="$ctx"$'\n'"• $blast"
 [ -n "$tdd" ] && ctx="$ctx"$'\n'"• $tdd"
 [ -n "$size" ] && ctx="$ctx"$'\n'"• $size"
 [ -n "$currency" ] && ctx="$ctx"$'\n'"• $currency"
-[ -n "$blast" ] && ctx="$ctx"$'\n'"• $blast"
 
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $c}}'

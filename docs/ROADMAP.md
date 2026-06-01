@@ -26,6 +26,17 @@ constrain everything below.
 6. **Streamlined plugins** — seamless, pausable, show the tasks being worked on,
    and process the backlog optimally (fan out to agents *or* auto-order the work).
 
+**The first-class principle — contain blast radius.** Above the criteria sits one
+organizing idea: **minimize and understand the blast radius of every change.**
+Both *code* blast radius (what a touched file ripples into → surface dependents,
+cover them with tests) and *architectural* blast radius (how far a change to the
+plugins ripples → one owner per concern, contracts not copies). It's the
+through-line the other criteria *serve*, not a rival to criterion 1 — a contained
+change is cheaper to load, test, and reason about, so low blast radius is how 1–3
+are achieved. Every plugin wires it in: tidy surfaces dependents and ties them to
+tests, charter marks high-fan-in modules in the map, task-queue sequences
+low-reach-first and keeps high-blast work off parallel agents.
+
 **Through-line:** reduce tech debt as you go; bake **TDD + blast-radius
 awareness** into every change.
 
@@ -183,7 +194,7 @@ Changing cleanly and shedding cruft still doesn't guarantee a change is the
 
 ## Status — 2026-06-01
 
-- **task-queue 0.16.0** · **tidy 0.26.0** · **charter 0.13.0** · **hud 0.3.0**.
+- **task-queue 0.18.0** · **tidy 0.27.0** · **charter 0.14.0** · **hud 0.3.0**.
 - **The planned roadmap (Phases 1–3) and the direction-&-signal layer are
   complete.** The system changes cleanly, sheds cruft, checks alignment, and lints
   across Go/web/Python/shell with a toolchain-accurate Go blast-radius.

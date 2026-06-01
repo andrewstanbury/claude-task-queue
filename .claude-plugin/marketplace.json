@@ -11,19 +11,19 @@
       "name": "task-queue",
       "source": "./plugins/task-queue",
       "description": "Resume bridge + auto-advance for Claude Code's native task list — re-surfaces a repo's unfinished tasks from earlier sessions, hydrates the queue from a committed roadmap/backlog file when present, and points the model at the next unblocked task as each one completes. The capture nudge weighs new work against the project's recorded direction (decisions/ADRs, roadmap) at capture time — alignment. Goes quiet once the policy is recorded in CLAUDE.md. Opt-in agent-mode fans independent tasks out to subagents.",
-      "version": "0.16.0"
+      "version": "0.18.0"
     },
     {
       "name": "tidy",
       "source": "./plugins/tidy",
       "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe), flags it for decomposition when it grows past a size budget, and holds a subtractive posture (reuse before create, delete what a change makes redundant) so an active project trends down in complexity over time, scoped to the touched file. Over-budget files also surface automatically at session start; no manual trigger. Goes quiet once the standard is recorded in CLAUDE.md. /tidy:distill runs the full whole-project weight report on demand. Edit-time linting targets Go, web (eslint incl. jsx-a11y, stylelint), Python (ruff) and shell (shellcheck) — findings-only, the project's own tool, fast file-scoped tools only; surfaces manifest version pins on touch to flag outdated tech. Surfaces a touched file's blast-radius (Go via the exact `go list` importer graph, else git grep) for test coverage. Verification floor: runs the project's tests on Stop and blocks until green. /tidy:audit runs a proportional whole-project audit against the standards.",
-      "version": "0.26.0"
+      "version": "0.27.0"
     },
     {
       "name": "charter",
       "source": "./plugins/charter",
       "description": "Know the project: gates substantive work on documented quality attributes (web projects get Lighthouse-aligned defaults), maintains a committed Claude-facing roadmap/backlog file, keeps a project map (file→responsibility index) so a session orients from the map instead of re-scanning the tree, and treats recorded decisions/ADRs as the alignment anchor (consult before reversing a choice) so past choices aren't re-litigated. /charter:align reconciles open/proposed work against the decisions + roadmap on demand (clean ≠ correct — surface drift and contradictions before the work is done). Generates the docs from the codebase/git history when missing; goes quiet once the policy is summarised in CLAUDE.md. Surfaces recently-merged commits for roadmap reconciliation. Records stack notes for modernization context. One compact, proportional brief (not a wall of per-doc prose).",
-      "version": "0.13.0"
+      "version": "0.14.0"
     },
     {
       "name": "hud",

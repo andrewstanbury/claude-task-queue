@@ -18,11 +18,32 @@ Maintained by Claude, for Claude. **Start at [AGENTS.md](./AGENTS.md)**
 | **charter** | Know the project | Gates work on documented quality attributes (web projects get Lighthouse-aligned defaults); maintains a roadmap/backlog, a project map, and decisions/ADRs — generating them from the code/git when missing. |
 | **hud** | Show what's happening | A consolidated, read-only status line over the other plugins' state. |
 
-Design principles (see AGENTS.md for the hard invariants): **zero per-prompt
-cost**, **self-contained** plugins (no shared lib / build), **read-only or
-conservative mutation**, and **bootstrap-then-quiet** — record the standing
-policy in your `CLAUDE.md` and mark it `claude-companion`, and the SessionStart
-hooks re-anchor in one line instead of re-injecting in full.
+## Principles (in priority order)
+
+1. **Contain blast radius** — minimize and understand the ripple of every change,
+   both *code* (cover the dependents of what you touch) and *architectural* (one
+   owner per concern, contracts not copies). The first-class principle the rest
+   serve: a contained change is cheaper to load, test, and reason about.
+2. **Optimize for Claude to read & maintain** the project — assume Claude does all
+   the coding going forward.
+3. **Token efficiency** — *earn* the token (highest-leverage context), don't just
+   minimize words; zero per-prompt cost in the plugins themselves.
+4. **File sizes match the complexity** of the requirement — split only when it
+   earns it (the 300-line guard is the trigger).
+5. **Honor the project's quality attributes** — document them first if missing
+   (web projects get Lighthouse-aligned defaults).
+6. **Follow the stack's recommended patterns** — and flag outdated/deprecated tech
+   within the touched scope.
+7. **Streamlined, proactive plugins** — seamless, pausable, show the work, process
+   the backlog optimally.
+
+Always-on, cutting across all of the above: **tests are the floor** (the
+verification hook blocks until green), **subtract as you add**, **document
+proportionally**, **alignment** (clean ≠ correct — don't contradict a recorded
+decision), and **bootstrap-then-quiet** hooks (record the standing policy in your
+`CLAUDE.md`, mark it `claude-companion`, and the SessionStart hooks re-anchor in
+one line). Hard invariants (self-contained plugins, no shared lib/build,
+read-only or conservative mutation) live in [AGENTS.md](./AGENTS.md).
 
 The only non-automatic entry points are, by design: `/tidy:distill` (deep prune),
 `tq-pause on|off` (the one control), and the per-plugin `*-doctor.sh` diagnostics.
