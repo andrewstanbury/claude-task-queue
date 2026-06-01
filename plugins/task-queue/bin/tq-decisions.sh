@@ -30,6 +30,13 @@ input=""
 cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)"
 sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
 [ -n "$cwd" ] || cwd="$PWD"
+
+# Cheap pre-check before forking git: if NO repo has any open decisions, skip.
+# This runs on every prompt, so avoid the `git rev-parse` in tq_root_for_cwd on
+# the >99% path where the ledger is empty.
+ddir="$(tq_decisions_dir)"
+[ -d "$ddir" ] && [ -n "$(ls -A "$ddir" 2>/dev/null)" ] || exit 0
+
 root="$(tq_root_for_cwd "$cwd")"
 
 rows="$(tq_decision_list "$root" 2>/dev/null || true)"

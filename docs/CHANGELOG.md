@@ -34,6 +34,9 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## tidy — *change safely & cleanly*
 
+- **0.29.1** — efficiency: a transient `go list` **timeout now retries** on a later
+  edit (bounded by `CLAUDE_TIDY_BLAST_GOLIST_RETRIES`, default 2) instead of
+  sticking to grep for the whole session.
 - **0.29.0** — code-review fixes: **blast-radius non-Go matching** now catches
   bare imports (`import foo`) again and regex-escapes the basename (no over-match
   on `my.config`), min length back to 4; **coverage detection** requires a
@@ -80,6 +83,9 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## task-queue — *orchestrate the work*
 
+- **0.19.1** — efficiency: the UserPromptSubmit/Notification decision hooks do a
+  cheap ledger-empty pre-check before forking git, so the >99% no-open-decisions
+  path costs no `git rev-parse` per prompt.
 - **0.19.0** — code-review fix: the open-decisions ledger computes the next id by
   parsing **line-by-line** (`jq -R 'fromjson?'`), so a corrupt/half-written line
   no longer collapses the id to 1 and collide with an existing decision.
@@ -102,6 +108,8 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## hud — *show what's happening*
 
+- **0.3.1** — efficiency: the dirty-tree `git status --porcelain` scan now runs
+  only when it's actually shown (wide terminal, in a repo), not every render.
 - **0.3.0** — status line reworked for **signal-per-cost**: a **static health
   beacon** (no `refreshInterval` → no idle jq+git wakeups), the verification
   floor's **✓/✗ tests** result, **agent-mode**, **context-window fill %** (from

@@ -55,11 +55,24 @@ tidy_go_importers() {
     else
       out="$(cd "$moddir" && go list -e -f "$tmpl" ./... 2>/dev/null)"; rc=$?
     fi
-    if [ "$rc" -ne 0 ] || [ -z "$out" ]; then
-      printf 'FAILED\n' > "$cache" 2>/dev/null || true     # sentinel: don't retry this session
+    if [ "$rc" -eq 0 ] && [ -n "$out" ]; then
+      printf '%s\n' "$out" > "$cache" 2>/dev/null || true
+    elif [ "$rc" -eq 124 ]; then
+      # A timeout is often transient (cold build cache on the first edit), so retry
+      # on a later edit instead of sticking — but cap retries so we don't keep
+      # paying the slow scan. Only after repeated timeouts give up for the session.
+      local af="$cache.timeouts" a=0
+      [ -f "$af" ] && a="$(cat "$af" 2>/dev/null || printf 0)"; a="${a//[^0-9]/}"; [ -n "$a" ] || a=0
+      if [ "$a" -ge "${CLAUDE_TIDY_BLAST_GOLIST_RETRIES:-2}" ]; then
+        printf 'FAILED\n' > "$cache" 2>/dev/null || true
+      else
+        printf '%s' "$((a + 1))" > "$af" 2>/dev/null || true
+      fi
+      return 1
+    else
+      printf 'FAILED\n' > "$cache" 2>/dev/null || true     # hard error → don't retry
       return 1
     fi
-    printf '%s\n' "$out" > "$cache" 2>/dev/null || true
   fi
   list="$(cat "$cache" 2>/dev/null || true)"
   [ "$list" = "FAILED" ] && return 1
