@@ -93,9 +93,15 @@ tidy_blast_radius() {
       [ -n "$label" ] || return 0 ;;
     *)
       label="$(basename "$file")"; label="${label%.*}"
-      [ "${#label}" -ge 4 ] || return 0
+      # A short or generic basename grep-matches too much prose/config to be
+      # signal (e.g. "tidy", "blast"); skip it. Min length raised to 5.
+      [ "${#label}" -ge 5 ] || return 0
       case "$label" in
-        index|main|app|mod|utils|util|types|type|config|helpers|helper|test|tests|lib|setup|init|README|index.d) return 0 ;;
+        index|main|app|mod|utils|util|types|type|config|helpers|helper|test|tests|\
+        lib|setup|init|README|index.d|model|models|view|views|store|stores|client|\
+        server|service|services|handler|handlers|route|routes|component|components|\
+        constants|common|core|base|data|schema|schemas|page|pages|layout|style|\
+        styles|theme|hooks|api) return 0 ;;
       esac ;;
   esac
 
@@ -120,7 +126,15 @@ tidy_blast_radius() {
 
   case "$file" in
     *.go) hits="$(git -C "$root" grep -lF "\"$label\"" -- '*.go' 2>/dev/null | grep -vF "$rel" || true)" ;;
-    *)    hits="$(git -C "$root" grep -lE "(import|require|from|use|include).*${label}" -- . 2>/dev/null | grep -vF "$rel" || true)" ;;
+    *)
+      # Require the basename to sit right after a quote/slash/dot — i.e. look like
+      # a module specifier (`'./foo'`, `"foo"`, `pkg.foo`) rather than the bare word
+      # in prose — and skip doc/data files, which carry the word without importing
+      # it. Cuts the false positives the looser heuristic produced.
+      hits="$(git -C "$root" grep -lE "(import|require|from|use|include).*['\"/.]${label}\b" \
+                -- . ':!*.md' ':!*.json' ':!*.txt' ':!*.lock' ':!*.yaml' ':!*.yml' \
+                   ':!*.toml' ':!*.cfg' ':!*.ini' ':!*.csv' 2>/dev/null \
+              | grep -vF "$rel" || true)" ;;
   esac
   [ -n "$hits" ] || return 0
 
