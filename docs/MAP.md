@@ -65,7 +65,7 @@ Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 
 | File | Responsibility |
 |---|---|
-| `bin/hud-status.sh` | The status-line renderer (reads stdin payload + plugin state). |
-| `bin/hud-install.sh` | Wire the status line into `settings.json`, version-resilient (`/hud:setup`). |
+| `bin/hud-status.sh` | The status-line renderer: health beacon · tasks · paused · agent · ✓/✗ tests · docs-health · last tidy · ctx % · branch+dirty · model. |
+| `bin/hud-install.sh` | Wire the status line into `settings.json`, version-resilient, no refreshInterval (`/hud:setup`). |
 | `commands/setup.md` | `/hud:setup`. |
-| `lib/hud.sh` | Read-only accessors over the other plugins' state. |
+| `lib/hud.sh` | Read-only accessors over the other plugins' state (tasks, paused, agent, verify result, QA/map/roadmap, last tidy, branch, dirty). |

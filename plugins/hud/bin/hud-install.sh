@@ -17,9 +17,11 @@ cmd="bash -c 'exec \"\$(ls -d ~/.claude/plugins/cache/andrewstanbury/hud/*/bin/h
 mkdir -p "$(dirname "$settings")" 2>/dev/null || true
 [ -s "$settings" ] || printf '{}\n' > "$settings"
 
+# No refreshInterval: hud's beacon is static, so event-driven updates (each new
+# message / after compact) keep it fresh without waking jq+git on an idle timer.
 tmp="$(mktemp)"
 if jq --arg c "$cmd" \
-     '.statusLine = {type: "command", command: $c, refreshInterval: 1}' \
+     '.statusLine = {type: "command", command: $c}' \
      "$settings" > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
   mv "$tmp" "$settings"
   printf 'hud: status line wired into %s (version-resilient — survives hud updates).\n' "$settings"
@@ -27,6 +29,6 @@ if jq --arg c "$cmd" \
 else
   rm -f "$tmp"
   printf 'hud: could not update %s (not valid JSON?). Add this statusLine manually:\n' "$settings" >&2
-  printf '  "statusLine": { "type": "command", "command": %s, "refreshInterval": 1 }\n' "$(printf '%s' "$cmd" | jq -Rs .)" >&2
+  printf '  "statusLine": { "type": "command", "command": %s }\n' "$(printf '%s' "$cmd" | jq -Rs .)" >&2
   exit 1
 fi

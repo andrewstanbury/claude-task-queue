@@ -64,6 +64,11 @@ cdir="$(tidy_log_dir)/verify"
 key="$(printf '%s' "${sid:-nosession}" | sed 's:/:-:g')"
 cfile="$cdir/$key"
 hfile="$cdir/hash-$key"
+rfile="$cdir/result-$key"          # last verification outcome, for hud's tests slot
+
+# Record the last outcome (pass|fail|timeout) so the status line can show it.
+# Best-effort; never affects the stop decision.
+tidy_set_result() { { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$1" > "$rfile"; } 2>/dev/null || true; }
 
 # Throttle: if the tree is byte-for-byte what it was at the last GREEN verify,
 # nothing changed since — skip the (possibly slow) run. (A failed/timeout verify
@@ -79,6 +84,7 @@ out="$(tidy_run_checks "$root" "$cmd" 2>/dev/null)"; rc=$?
 if [ "$rc" -eq 0 ]; then
   rm -f "$cfile" 2>/dev/null || true                  # green → reset counter
   if [ -n "$cur" ]; then { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$cur" > "$hfile"; } 2>/dev/null || true; fi
+  tidy_set_result pass
   tidy_log verify "pass cmd=$cmd"
   allow
 fi
@@ -87,6 +93,7 @@ rm -f "$hfile" 2>/dev/null || true                    # not green → drop the s
 
 if [ "$rc" -eq 124 ]; then                            # timed out — can't verify; don't loop on it
   rm -f "$cfile" 2>/dev/null || true
+  tidy_set_result timeout
   tidy_log verify "timeout cmd=$cmd"
   jq -cn --arg m "⚠️ Tests timed out (> ${CLAUDE_TIDY_VERIFY_TIMEOUT:-180}s, \`$cmd\`) — couldn't verify this change; run them manually if needed." \
     '{systemMessage: $m}'
@@ -100,6 +107,7 @@ count="${count//[^0-9]/}"; [ -n "$count" ] || count=0
 
 if [ "$count" -ge "$max" ]; then
   rm -f "$cfile" 2>/dev/null || true                  # gave it enough tries
+  tidy_set_result fail
   tidy_log verify "give-up cmd=$cmd attempts=$count"
   jq -cn --arg m "⚠️ Tests are still failing after $count fix attempts ($cmd) — this needs attention before the change is trusted." \
     '{systemMessage: $m}'
@@ -107,6 +115,7 @@ if [ "$count" -ge "$max" ]; then
 fi
 
 { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$((count + 1))" > "$cfile"; } 2>/dev/null || true
+tidy_set_result fail
 tidy_log verify "block cmd=$cmd attempt=$((count + 1))"
 jq -cn --arg r "The project's tests are failing after your change — nothing is done until they're green. Run \`$cmd\`, read the failure, and fix it:"$'\n\n'"$out" \
   '{decision: "block", reason: $r}'

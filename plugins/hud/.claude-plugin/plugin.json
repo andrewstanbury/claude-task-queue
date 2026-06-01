@@ -1,7 +1,7 @@
 {
   "name": "hud",
-  "version": "0.2.0",
-  "description": "A consolidated status line for the companion plugins: an animated beacon plus open tasks (+ the in-progress one), paused state, quality-attributes status, last tidy action, tokens up/down, git branch, and model \u2014 rendered read-only from existing plugin state and the statusLine payload. Run /hud:setup once to wire it into settings.json with a version-resilient command (survives updates). No hooks, no scanning, zero model-token cost.",
+  "version": "0.3.0",
+  "description": "A consolidated status line for the companion plugins: a static health beacon (green/yellow/red), open tasks (+ the in-progress one), paused state, agent-mode, the verification floor's \u2713/\u2717 tests result, charter docs-health (map+roadmap+QA), last tidy action, context-window fill % (how close to a compaction, color-ramped), git branch + uncommitted-file count, and model \u2014 rendered read-only from existing plugin state and the statusLine payload. Sets no refreshInterval: the beacon is static, so event-driven updates keep it fresh without waking jq+git on an idle timer (battery-friendly). Run /hud:setup once to wire it into settings.json with a version-resilient command (survives updates). No hooks, no scanning, zero model-token cost.",
   "author": {
     "name": "Andrew Stanbury"
   },
