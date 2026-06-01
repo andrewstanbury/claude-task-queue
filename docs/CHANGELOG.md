@@ -34,6 +34,9 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## tidy — *change safely & cleanly*
 
+- **0.29.2** — standard wording tracks the **0–4 layered priority order**: the
+  blast-radius anchor now names the **system-trend dimension** (*at scale, keep
+  total coupling from climbing — compounding debt is blast radius at scale*).
 - **0.29.1** — efficiency: a transient `go list` **timeout now retries** on a later
   edit (bounded by `CLAUDE_TIDY_BLAST_GOLIST_RETRIES`, default 2) instead of
   sticking to grep for the whole session.

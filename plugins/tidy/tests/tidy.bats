@@ -92,6 +92,13 @@ run_standard() {
   [[ "$output" != *"failing test before changing"* ]]   # rigid test-first ritual dropped
 }
 
+@test "standard: blast-radius is the lead anchor, including coupling-at-scale" {
+  run run_standard startup
+  [[ "$output" == *"Blast radius first"* ]]             # the #1 principle leads
+  [[ "$output" == *"smallest reach"* ]]                 # contain per-change ripple
+  [[ "$output" == *"compounding debt is blast radius at scale"* ]]   # the system-trend clause
+}
+
 @test "quiet mode: standard in CLAUDE.md (marker) -> lean re-anchor + bootstrap tip when absent" {
   # not documented -> full standard carries the bootstrap tip naming the marker
   run run_standard startup

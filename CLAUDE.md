@@ -21,20 +21,30 @@ This repo runs its own companion plugins. Their standing guidance is summarised
 here so the SessionStart hooks re-anchor in one line instead of repeating in full
 (the `claude-companion` marker above is what tells them to stay quiet):
 
-- **Blast radius first** — before a change, understand how far it ripples and
-  contain it: cover the dependents of a touched file, localize cross-cutting
-  concerns so a change has one owner. The safety net when tests/specs are absent,
-  and it **bounds where you clean up**. The principle the others serve.
-- **Characterize before you change** — on under-tested legacy code, pin the
-  *current* behaviour of the affected surface with a test before changing it
-  (blast radius says what to pin); the suite must be green before you're done.
-- **Clean as you touch, bounded by blast radius** — leave the touched area better,
-  subtract as you add, reuse before create; **ratchet, never sweep** — don't
-  refactor code whose ripple you can't see.
+The priority order (full rationale in [docs/ROADMAP.md](./docs/ROADMAP.md)):
+
+- **0 · Self-describing first** — keep the project's map / quality-attributes /
+  decisions current and its growth visible (size guard); gate substantive work on
+  that manual existing. You can't contain ripple in a project you can't load.
+- **1 · Contain blast radius** — before a change, understand how far it ripples and
+  contain it: cover the dependents of a touched file, one owner per concern. *Also
+  watch the trend* — total coupling shouldn't climb as features land (compounding
+  debt is blast-radius-at-scale). The safety net when tests/specs are absent, and
+  it **bounds where you clean up**.
+- **2 · Verify + stay aligned** — confirm intent in the owner's plain language;
+  **characterize before you change** (no tests → pin current behaviour first, blast
+  radius says what to pin); suite green before you're done; weigh the work against
+  recorded decisions so it's the *right* change. The net the non-technical owner
+  can't make.
+- **3 · Subtract as you add** — net surface **flat or smaller**: reuse before
+  create, delete what's now redundant; **ratchet, never sweep**. **4 · A deliberate
+  prune** (`/tidy:audit` + `/tidy:distill`) catches the cross-module debt that
+  touch-time bounding skips.
 - **Native task list = the live queue** — capture multi-step work, work it in
   dependency order, advance as you finish.
 - **Document proportionally** — don't over-document; the baseline is the project
-  map + what's-next, the rest scales with complexity.
+  map + what's-next, the rest scales with complexity. Token efficiency is the
+  *payoff* of the above, not a separate chase.
 
 Project docs to consult: **[AGENTS.md](./AGENTS.md)** (conventions + quality
 attributes), **[docs/ROADMAP.md](./docs/ROADMAP.md)** (direction, status,

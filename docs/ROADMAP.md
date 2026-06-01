@@ -14,62 +14,91 @@ constrain everything below.
 
 ## Prioritized criteria (in order)
 
-1. **Optimize for Claude to read & maintain the project** — assume Claude does
-   all the coding going forward.
-2. **Token efficiency** — the plugins *and* the project being worked on.
-3. **File sizes that match the complexity** of the product requirements.
-4. **Follow the project's Quality Attributes**; if none are documented, document
-   them *before* working on the project.
-5. **Follow the recommended patterns** of the tech stack in use — and **flag
-   outdated/deprecated tech within the touched scope** so cruft is modernized as
-   you go, not left to rot.
-6. **Streamlined plugins** — seamless, pausable, show the tasks being worked on,
-   and process the backlog optimally (fan out to agents *or* auto-order the work).
+The ordering is tuned for the system's real target: **existing, often legacy,
+under-tested, under-documented projects that must stay clean *as they grow*.** The
+forces that contain debt lead; the intent loop and the payoff follow. (This list
+supersedes the older flat six-criteria ranking — those criteria survive, re-seated
+under the layers below.)
 
-**The first-class principle — contain blast radius.** Above the criteria sits one
-organizing idea: **minimize and understand the blast radius of every change.** It's
-ranked #1 because the system targets **existing, often legacy, under-tested,
-under-documented projects** — and there, blast-radius awareness is the primary
-safety net (it works when tests and specs don't exist) *and* it bounds where you
-clean up. Two legacy corollaries make the project **converge toward clean as you
-build** rather than accrue cruft: **characterize before you change** (pin the
-affected surface's current behavior with a test first — blast radius says what to
-pin — so coverage accrues on the worked surface over time) and **clean as you
-touch, bounded by blast radius** (improve the touched area; *ratchet, never sweep*).
-This converges the *active* surface, by design — untouched stable code is left
-alone (refactoring what you can't see the ripple of is itself a top rework risk);
-large pre-existing architectural debt needs a deliberate, characterized refactor
-pass, surfaced by `/tidy:audit` + `/tidy:distill`. Both *code* and *architectural*
-ripple count, and every plugin wires it in: tidy surfaces dependents and ties them
-to tests (and the coverage ratchet flags untested touched files), charter marks
-high-fan-in modules in the map, task-queue sequences low-reach-first and keeps
-high-blast work off parallel agents.
+**0. Keep the project self-describing — and its growth visible.** *(precondition)*
+Maintain the project's *"Claude operating manual"* — project map, quality
+attributes, recorded decisions/ADRs, stack notes — and keep growth **observable**
+with a size guard. You can't contain ripple in a project you can't load, or prune
+cruft you can't see. Bootstrap it if missing; **gate substantive work on it
+existing.** (charter authors/keeps the manual; tidy's size guard keeps growth
+visible.)
 
-**Through-line:** reduce tech debt as you go; bake **TDD + blast-radius
-awareness** into every change.
+**1. Contain blast radius — per change *and* as a system trend.** Minimize and
+understand the blast radius of every change: *code* ripple (what a touched file
+flows into) and *architectural* ripple (how far a structural change reaches). This
+is the primary safety net when tests/specs don't exist *and* the bound on where you
+clean up. At scale it has a second level — watch that **total coupling isn't
+climbing** as features land (one owner per concern, contracts not copies, low
+fan-in), because **compounding debt is a blast-radius-*at-scale* problem**. tidy
+surfaces dependents (Go `go list` / guarded `git grep`), charter marks high-fan-in
+modules in the map, task-queue sequences low-reach-first and keeps high-blast work
+off parallel agents.
+
+**2. Verify + stay aligned — the Steward intent loop.** The safety net the
+**non-technical owner can't produce**, so Claude must. Establish and **confirm
+intent in the owner's plain language** (ask only about product/outcome, never
+implementation); build the simplest thing that meets it; **characterize before you
+change** (no tests → pin the affected surface's current behavior first — blast
+radius says what to pin, so coverage accrues on the worked surface); **verify
+against that intent** (suite green before done — the verification floor enforces
+it); and **weigh the work against recorded decisions** so it's the *right* change,
+not merely a clean one.
+
+**3. Subtract as you add.** The anti-entropy rule: a new requirement leaves net
+surface **flat or smaller** — reuse before create, delete what the change makes
+redundant. Without it, a project of individually-clean changes still grows
+*monotonically* into debt. Applied at touch-time (tidy's subtractive posture) and
+on-demand (`/tidy:distill`).
+
+**4. Periodic deliberate prune — for what touch-time bounding skips.** "Clean as
+you touch, bounded by blast radius" converges only the *active* surface (untouched
+stable code is left alone — refactoring ripple you can't see is itself a top rework
+risk). Cross-module and rarely-touched debt therefore accrues invisibly; a
+scheduled, **characterized** audit/prune pass (`/tidy:audit` + `/tidy:distill`)
+catches it. Large pre-existing architectural debt needs this deliberate pass, not
+incremental nibbling.
+
+**Cross-cutting (applied throughout, not a step):**
+
+- **Proportionality** — every practice scaled to complexity/risk, never exhaustive.
+- **Follow the stack's recommended patterns** — and **flag outdated/deprecated tech
+  within the touched scope**, so cruft is modernized as you go, not left to rot.
+- **Streamlined orchestration** — seamless, pausable, shows the work, processes the
+  backlog optimally (fan out to agents *or* auto-order the work).
+- **Token efficiency (the payoff — named so it isn't forgotten).** Not *fewest*
+  tokens but *highest-leverage* ones: a well-mapped, small-filed, clean,
+  pattern-following project is automatically cheap for Claude to load and reason
+  about. It **accrues from 0–4** plus the already-lean plugins — *don't chase it
+  directly* (that's what causes under-testing and under-documenting).
+
+**Through-line:** reduce tech debt as you go; bake **blast-radius awareness +
+verify-against-intent + subtract-as-you-add** into every change — and run a
+deliberate prune for what incremental work can't reach.
 
 ## Unifying insight
 
-Criteria **1, 3, 4, 5 collapse to one root**: the project being vibe-coded needs
-its own *"Claude operating manual"* — a maintained project map + quality
-attributes + stack patterns + file-size norms — and substantive work should be
-**gated on it existing**. This is the same discipline this repo gives itself
-(AGENTS.md + CONTRACT + checks + size guard), created and kept current
-**automatically** for whatever project Claude is pointed at.
-
-Criterion **2 (project token efficiency) is the *payoff*, not a separate
-mechanism**: a well-mapped, small-filed, clean, pattern-following project is cheap
-for Claude to load and reason about. It accrues from 1/3/4/5 plus the already-lean
-plugins.
+The list has **one root and one payoff.** The root is **#0**: most of what "good"
+means — loadable, right-sized, quality-attribute-driven, pattern-following — is just
+*the project describing itself well*. That's the same discipline this repo gives
+itself (AGENTS.md + CONTRACT + checks + size guard), created and kept current
+**automatically** for whatever project Claude is pointed at. The payoff is **token
+efficiency**: not a separate mechanism but the consequence of 0–4 plus the
+already-lean plugins — a well-mapped, small-filed, clean project is cheap for Claude
+to load and reason about.
 
 ## Architecture — four self-contained plugins, by responsibility
 
 | Plugin | Responsibility | Serves |
 |---|---|---|
-| **task-queue** | **Orchestrate the work** — capture, order, advance, pause, show tasks | 6 |
-| **tidy** | **Make each change safely & cleanly** — format/lint/TDD on touch, blast-radius, verification floor | 3, 5, TDD, tech-debt |
-| **charter** | **Maintain the project's Claude manual** — QA gate, roadmap/backlog, project map, decisions anchor, stack notes, `/charter:align` | 1, 4 (feeds 2, 3, 5) |
-| **hud** | **Show what's happening** — a consolidated, read-only status line over the others' state | 6 |
+| **task-queue** | **Orchestrate the work** — capture, order, advance, pause, show tasks | 1 (sequence low-reach-first), orchestration |
+| **tidy** | **Make each change safely & cleanly** — format/lint/TDD on touch, blast-radius, verification floor | 1, 2, 3, 4 (+ size guard for 0) — the change-time engine |
+| **charter** | **Maintain the project's Claude manual** — QA gate, roadmap/backlog, project map, decisions anchor, stack notes, `/charter:align` | 0, 2 (alignment arm) |
+| **hud** | **Show what's happening** — a consolidated, read-only status line over the others' state | visibility (0 growth), orchestration |
 
 Single responsibility: **orchestrate / change-safely / know-the-project / show.**
 Each plugin stays independently installable (the install boundary forbids shared

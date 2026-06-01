@@ -72,19 +72,31 @@ plugins/<name>/
 
 ## Conventions (mirror these in any new plugin)
 
-- **Blast radius is the first-class principle.** The master lever for keeping a
-  project — *especially an existing, under-tested, under-documented one* — efficient
-  and correct as features are added is to **minimize and understand the blast
-  radius of every change**: both *code* blast radius (what a touched file ripples
-  into → surface dependents) and *architectural* blast radius (how far a change to
-  the plugins ripples → one owner per concern, contracts not copies). Every other
-  pattern (the project map, small files, the prune force, quiet hooks) serves it.
-  Its legacy corollaries: **characterize before you change** (no tests → pin the
-  affected surface's current behavior with a test first; blast radius says what to
-  pin — so the project accrues a spec over time), and **clean as you touch,
-  bounded by blast radius** (improve the touched area, but *ratchet, never sweep* —
-  refactoring code whose ripple you can't see is itself a top cause of rework).
-  Ask "how far does this ripple, and how do I contain it?" before every change.
+- **The priority order (full list: [docs/ROADMAP.md](./docs/ROADMAP.md)).** Tuned
+  for *existing, under-tested, under-documented projects that must stay clean as they
+  grow*: **0** keep the project self-describing (map/QA/decisions + a size guard —
+  the precondition) → **1** contain blast radius → **2** verify + stay aligned →
+  **3** subtract as you add → **4** periodic deliberate prune. Token efficiency is
+  the *payoff* of 0–4, not a separate chase.
+- **Contain blast radius — per change *and* as a system trend (principle #1).** The
+  master lever for keeping a project efficient and correct as features are added is
+  to **minimize and understand the blast radius of every change**: both *code* blast
+  radius (what a touched file ripples into → surface dependents) and *architectural*
+  blast radius (how far a change ripples → one owner per concern, contracts not
+  copies). At scale, also watch that **total coupling isn't climbing** — compounding
+  debt is a blast-radius-*at-scale* problem. Its legacy corollaries: **characterize
+  before you change** (no tests → pin the affected surface's current behavior with a
+  test first; blast radius says what to pin — so the project accrues a spec over
+  time), and **clean as you touch, bounded by blast radius** (improve the touched
+  area, but *ratchet, never sweep* — refactoring code whose ripple you can't see is
+  itself a top cause of rework). Ask "how far does this ripple, and how do I contain
+  it?" before every change.
+- **Subtract as you add (principle #3) — the anti-entropy rule.** A new requirement
+  must leave net surface **flat or smaller**: reuse before create, delete what the
+  change makes redundant. Without it, even individually-clean changes grow the
+  project monotonically into debt. What touch-time bounding skips (cross-module,
+  rarely-touched debt) is caught by a deliberate prune pass (`/tidy:distill`,
+  `/tidy:audit`), not incremental nibbling.
 - **Bash + `jq`, zero build.** No compiled languages, nothing to install to run
   a hook. (This is why the plugins are Bash, not Go — a compiled hook needs
   per-platform binaries or a toolchain, which breaks "runs everywhere, no build".)
