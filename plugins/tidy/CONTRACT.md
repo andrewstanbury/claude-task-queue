@@ -62,19 +62,35 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   walking up from the file) before PATH. Linter exit 1 = problems surfaced; 0 =
   clean; 2+ = config/crash → no-op. This shifts much of Lighthouse's
   accessibility / best-practices audit to edit time.
+- **Python:** `ruff check` for `.py` — findings only, resolved project-local
+  (`.venv`/`venv/bin`, walking up) before PATH. **Shell:** `shellcheck -x` for
+  `.sh`/`.bash`. Same exit-code contract as web (1 = findings, 0 = clean, 2+ =
+  no-op). These are the **fast, file-scoped** linters; slow whole-project tools
+  (clippy, project-wide mypy) are intentionally left to the verification floor
+  (§4) — the fastest loop that can catch a problem owns it. Disable a stack by
+  not having its tool installed; `CLAUDE_TIDY_LINT_TIMEOUT` bounds each run.
 - The plugin **does not install tools**; it detects them and honors the project's
-  own config (e.g. `.golangci.yml`, `eslint.config.js`, `.stylelintrc`).
+  own config (e.g. `.golangci.yml`, `eslint.config.js`, `.stylelintrc`,
+  `ruff.toml`/`pyproject.toml`, `.shellcheckrc`).
 - **Currency/modernization:** on touch it walks up from the file to the nearest
   manifest (`package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`,
   `requirements.txt`, `Gemfile`, `composer.json`, `pom.xml`, `build.gradle[.kts]`)
   and surfaces its **pinned versions** once per manifest per session, with a
   nudge to flag deprecated/behind-latest tech. Judgment is the model's (world
   knowledge); the hook never upgrades. Disable with `CLAUDE_TIDY_CURRENCY=0`.
-- **Blast-radius (approximate):** for a touched *source* file, `git grep` finds
-  import-context references to its basename across tracked files and surfaces
-  `~N files reference X` (deduped per file per session). It's a grep heuristic,
-  not static analysis — guarded (min name length, generic-name skip, capped
-  sample). Disable with `CLAUDE_TIDY_BLAST=0`.
+- **Blast-radius:** for a touched *source* file, surface what depends on it so the
+  affected surface gets test coverage (deduped per file per session). **Go** uses
+  the toolchain's own import graph — `go list -e -f '{{.ImportPath}} {{.Imports}}…'
+  ./...` resolves the exact packages that import the touched file's package
+  (caught regardless of comments/aliases) and reports `~N package(s) import X`.
+  The module scan is **bounded** (`timeout`, `CLAUDE_TIDY_BLAST_GOLIST_TIMEOUT`,
+  default 8s) and **cached per module per session** (run at most once; a failure
+  is remembered so it isn't retried). When `go` is absent, disabled
+  (`CLAUDE_TIDY_BLAST_GOLIST=0`), or the scan fails, it **falls back** to the grep
+  heuristic. **Other languages** use `git grep` for import-context references to
+  the basename (`~N files reference X`) — a heuristic, not static analysis,
+  guarded (min name length, generic-name skip, capped sample). Disable all with
+  `CLAUDE_TIDY_BLAST=0`.
 
 ### 4. `Stop` hook payload (stdin) — the verification floor
 
@@ -116,15 +132,20 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
 - **TDD-nudge markers** — empty files under `~/.claude/state/tidy/nudged/`
   (one per session+file) so the test nudge fires at most once per file per
   session. Same fixed home as the log; safe to delete anytime.
+- **`go list` cache** — the per-module-per-session import graph under
+  `~/.claude/state/tidy/golist/` so the blast-radius scan runs at most once per
+  module. All of `nudged/`, `verify/`, `golist/` are pruned after
+  `CLAUDE_TIDY_STATE_TTL_DAYS` (default 7); safe to delete anytime.
 
 It writes **nothing** to Claude Code's own state.
 
 ## How this is verified
 
-- **`tests/tidy.bats`** fakes the Go toolchain via stub executables on `PATH`, so
+- **`tests/tidy.bats`** fakes every toolchain via stub executables on `PATH`, so
   the dispatch (format-applied, findings-scoped, generated-file skip, graceful
-  no-op, payload-drift canary) is verified without installing
-  `goimports`/`golangci-lint`.
+  no-op, payload-drift canary, Python `ruff`/shell `shellcheck` findings, and the
+  `go list` exact-importer path vs. its grep fallback) is verified without
+  installing `goimports`/`golangci-lint`/`ruff`/`shellcheck`/`go`.
 - **`bin/tidy-doctor.sh`** is the on-demand check: it validates the dependencies
   above against the *live* environment (jq, a Go formatter, golangci-lint) and
   prints the activity-log tail. Run it first when tidy seems to do nothing.

@@ -23,6 +23,8 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/tidy.sh"
 # shellcheck source=../lib/blast.sh
 . "$PLUGIN_DIR/lib/blast.sh"
+# shellcheck source=../lib/lint.sh
+. "$PLUGIN_DIR/lib/lint.sh"
 
 # PostToolUse hands us { tool_name, tool_input: { file_path, ... }, ... }.
 input=""
@@ -58,6 +60,12 @@ case "$lang" in
     ;;
   web)
     result="$(tidy_handle_web "$file" 2>/dev/null || true)"  # eslint/stylelint findings
+    ;;
+  python)
+    result="$(tidy_handle_python "$file" 2>/dev/null || true)"  # ruff findings
+    ;;
+  shell)
+    result="$(tidy_handle_shell "$file" 2>/dev/null || true)"   # findings via shellcheck
     ;;
 esac
 

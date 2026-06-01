@@ -40,15 +40,16 @@ Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 | File | Responsibility |
 |---|---|
 | `bin/tidy-standard.sh` | SessionStart: the clean-as-you-go standard (trimmed to anchors) + state prune. |
-| `bin/tidy-touch.sh` | PostToolUse: format + lint + tests nudge + size + currency + blast-radius for the edited file. |
+| `bin/tidy-touch.sh` | PostToolUse: format + lint (Go/web/Python/shell) + tests nudge + size + currency + blast-radius for the edited file. |
 | `bin/tidy-verify.sh` | Stop: the verification floor — run the project's tests, block until green (bounded, timeout, change-throttled). |
 | `bin/tidy-distill.sh` | Read-only whole-project weight report (backs `/tidy:distill` and `/tidy:audit`). |
 | `bin/tidy-doctor.sh` | Manual diagnostics. |
 | `commands/distill.md` | `/tidy:distill` — on-demand prune pass. |
 | `commands/audit.md` | `/tidy:audit` — read-only proportional whole-project audit. |
 | `lib/tidy.sh` | Language dispatch, Go/web handlers, size/currency/TDD nudges, state prune. |
+| `lib/lint.sh` | Multi-stack edit-time linters (Python ruff, shell shellcheck) — findings-only, project's own tool. |
 | `lib/checks.sh` | Test-command discovery + bounded run + working-tree fingerprint (verify throttle). |
-| `lib/blast.sh` | Blast-radius (Go import path; basename heuristic elsewhere). |
+| `lib/blast.sh` | Blast-radius (Go: exact `go list` importers, cached, → git grep fallback; basename heuristic elsewhere). |
 
 ## charter — *know the project* (hook: SessionStart)
 

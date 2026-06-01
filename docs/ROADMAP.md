@@ -112,7 +112,20 @@ plugin stays independently installable (the install boundary forbids shared code
   on the **package import path** (module from go.mod + relative dir), not the
   basename — what other packages actually import. Non-Go keeps the basename
   heuristic.
-- **Planned (Phase 3):** broader multi-stack pattern linting.
+- **Shipped (language-aware blast-radius via `go list`, 0.25.0):** Go now uses the
+  **toolchain's own import graph** (`go list -e -f … ./...`) to find the *exact*
+  packages that import the touched file's package — precise where grep was
+  approximate (no false hits in comments/strings, catches aliased imports). The
+  module scan is **bounded** (timeout) and **cached per module per session** (run
+  once), and **falls back to grep** when `go` is absent/disabled/failed
+  (`CLAUDE_TIDY_BLAST_GOLIST=0`). This is the language-aware blast-radius the
+  roadmap flagged as a nice-to-have, now shipped.
+- **Shipped (multi-stack edit-time linting, 0.25.0):** edit-time linting now also
+  covers **Python (`ruff check`)** and **shell (`shellcheck`)** — findings-only,
+  the project's own tool, silent otherwise (`lib/lint.sh`). Scope boundary made
+  explicit: edit-time linting is for **fast, file-scoped** tools only; slow
+  whole-project linters (clippy, project-wide mypy) stay with the verification
+  floor — the fastest loop that can catch a class of problem owns it.
 
 #### Currency / modernization (how it works)
 
@@ -359,7 +372,7 @@ build it all at once.
 
 ## Status — 2026-06-01
 
-- **task-queue 0.16.0**, **tidy 0.24.0**, **charter 0.13.0**, **hud 0.2.0** — shipped.
+- **task-queue 0.16.0**, **tidy 0.25.0**, **charter 0.13.0**, **hud 0.2.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the
@@ -372,10 +385,10 @@ build it all at once.
   dimension and quiet-mode. Then the rest of the roadmap landed: **tidy 0.9.0**
   web edit-time linters, **0.10.0** currency/modernization, **0.11.0**
   blast-radius (Phase 3); **task-queue 0.14.0** opt-in agent-mode (Phase 2); and
-  **charter 0.7.0** roadmap reconcile. **The planned roadmap is essentially
-  complete.** Remaining nice-to-haves only: broader
-  multi-stack pattern linting, and a language-aware blast-radius (e.g. `go list`)
-  over today's grep heuristic.
+  **charter 0.7.0** roadmap reconcile. **The planned roadmap is complete** — the
+  two remaining nice-to-haves also shipped (**tidy 0.25.0**): broader multi-stack
+  pattern linting (Python ruff + shell shellcheck) and the language-aware
+  blast-radius via `go list` over the grep heuristic.
 - **The direction & signal layer is now also complete.** All three arms of the
   **alignment** discipline shipped: charter 0.12.0 (recorded decisions = the
   alignment anchor), task-queue 0.16.0 (alignment-aware capture — weigh work at
@@ -385,7 +398,9 @@ build it all at once.
   disciplines (fastest-loop-owns-it: touch > stop > on-demand > CI) and the
   **refined token philosophy** (earn the token, don't just save it) are documented
   above and embodied by the shipped mechanism.
-- **What's next:** only the two nice-to-haves above (multi-stack pattern linting;
-  language-aware blast-radius beyond the Go import-path keying already in tidy
-  0.16.0). The system now changes cleanly, sheds cruft, *and* checks alignment —
-  the strategic arc is built; further work is incremental polish, not new layers.
+- **What's next:** nothing planned. Both former nice-to-haves shipped in tidy
+  0.25.0, so the planned roadmap *and* the direction & signal layer are complete.
+  The system changes cleanly, sheds cruft, checks alignment, and lints across Go/
+  web/Python/shell with a toolchain-accurate Go blast-radius. Further work is
+  demand-driven (a new stack to lint, a pain point that surfaces) — not new
+  layers.
