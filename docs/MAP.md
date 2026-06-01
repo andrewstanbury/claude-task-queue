@@ -22,19 +22,23 @@ Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 (event wiring), `CONTRACT.md` (dependencies), `bin/` (hook entrypoints + controls),
 `lib/` (logic), `commands/` (slash commands), `tests/`.
 
-## task-queue — *orchestrate the work* (hooks: SessionStart, TaskCompleted, UserPromptSubmit)
+## task-queue — *orchestrate the work* (hooks: SessionStart, TaskCompleted, UserPromptSubmit, Notification)
 
 | File | Responsibility |
 |---|---|
 | `bin/tq-resume.sh` | SessionStart: standing policy + cross-session resume + roadmap hydration + quiet-mode + pause/agent/drift signals + log prune. |
 | `bin/tq-next.sh` | TaskCompleted: advance to the next unblocked task. |
 | `bin/tq-capture.sh` | UserPromptSubmit: conditional capture nudge. |
+| `bin/tq-decisions.sh` | UserPromptSubmit: re-surface open decisions every prompt so a question isn't lost to queued input. |
+| `bin/tq-notify.sh` | Notification: desktop/terminal alert when idle with an open decision. |
+| `bin/tq-ask.sh` | Control: the model's CLI for the open-decisions ledger (open/resolve/list). |
 | `bin/tq-pause.sh` | Control: pause/resume auto-advance (per repo). |
 | `bin/tq-agent.sh` | Control: opt-in agent-mode (parallel subagent fan-out). |
 | `bin/tq-doctor.sh` | Manual diagnostics. |
 | `lib/tasks.sh` | Native task-store reads, resume logic, pause/agent flags, logging + log prune. |
 | `lib/project.sh` | Detect the committed roadmap/backlog file + the `claude-companion` marker. |
 | `lib/capture.sh` | Capture heuristics. |
+| `lib/decisions.sh` | Open-decisions ledger (per-repo): add/resolve/list/count. |
 
 ## tidy — *change safely & cleanly* (hooks: SessionStart, PostToolUse[Edit\|Write], Stop)
 

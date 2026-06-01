@@ -113,6 +113,22 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
 - **Output contract:** same shape, with `"hookEventName": "UserPromptSubmit"`.
 - **If it changes:** the proactive capture nudge silently stops; capture still
   relies on the SessionStart policy.
+- **Second UserPromptSubmit hook (`tq-decisions.sh`):** reads `cwd` + `session_id`;
+  if the repo has open decisions in the ledger, re-injects them as
+  `additionalContext` so a question the model asked isn't lost to queued/typed-
+  ahead prompts. Silent (zero cost) when the ledger is empty. Disabled with
+  `CLAUDE_TQ_DECISIONS_DISABLED`.
+
+### 5b. `Notification` hook payload (stdin)
+
+- **Fields read:** `cwd` and `notification_type`.
+- **Behavior (`tq-notify.sh`):** on idle/waiting notifications, if the repo has
+  open decisions, emits an OSC 777/9 **terminal/desktop alert** naming them, so
+  the user is pinged exactly when an answer is needed. Silent otherwise.
+- **Output contract:** `{ "terminalSequence": "<allow-listed OSC escape>" }`.
+  Only OSC 0/1/2/9/99/777 + BEL are honored; unsupported terminals ignore them.
+- **If it changes:** the alert silently stops; the UserPromptSubmit re-injection
+  still surfaces open decisions in-context.
 
 ### 6. Hook wiring & env
 
@@ -160,6 +176,11 @@ Three small files, all outside `~/.claude/tasks`:
   (overridable via `CLAUDE_TQ_AGENT_DIR`). Same scheme as pause: an empty file
   per repo where opt-in agent-mode is enabled. `bin/tq-agent.sh` writes it; the
   SessionStart hook reads it to decide whether to permit subagent fan-out.
+- **Open-decisions ledger** — `~/.claude/state/task-queue/decisions/<encoded-repo-root>.jsonl`
+  (overridable via `CLAUDE_TQ_DECISIONS_DIR`). One JSON line per open decision
+  (`{id,q,rec,ts}`). Keyed by repo (fixed home) so `bin/tq-ask.sh` (plain bash)
+  and the UserPromptSubmit/Notification hooks resolve the same file. Removed on
+  resolve; survives restarts until then.
 
 If a dependency here drifts, prefer making the plugin **degrade quietly** (no
 output) over guessing — a missing nudge is invisible; a wrong one is noise.
