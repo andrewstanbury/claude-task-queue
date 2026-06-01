@@ -64,7 +64,10 @@ VERIFY="$(hud_verify "$SID")"
 QA="$(hud_qa "$ROOT")"; MAP="$(hud_map "$ROOT")"; RMAP="$(hud_roadmap "$ROOT")"
 TIDY="$(hud_last_tidy)"
 BRANCH="$(hud_branch "$CWD")"
-DIRTY="$(hud_dirty "$CWD")"
+# Dirty-count is only shown next to the branch (wide terminals, in a repo). Skip
+# its `git status --porcelain` worktree scan otherwise — it runs every render.
+DIRTY=""
+[ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ] && DIRTY="$(hud_dirty "$CWD")"
 
 # 1) Health beacon — STATIC dot, colored by overall health: red = tests failing,
 # yellow = paused, green otherwise. No animation → no timer needed.

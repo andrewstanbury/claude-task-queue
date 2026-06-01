@@ -35,6 +35,10 @@ ntype="$(printf '%s' "$input" | jq -r '.notification_type // empty' 2>/dev/null 
 # safe default to alert on.
 case "$ntype" in idle_prompt|permission_prompt|""|elicitation_dialog) ;; *) exit 0 ;; esac
 
+# Cheap pre-check before forking git: if no repo has any open decisions, skip.
+ddir="$(tq_decisions_dir)"
+[ -d "$ddir" ] && [ -n "$(ls -A "$ddir" 2>/dev/null)" ] || exit 0
+
 root="$(tq_root_for_cwd "$cwd")"
 n="$(tq_decision_count "$root")"
 [ "${n:-0}" -gt 0 ] || exit 0                          # nothing pending → silent

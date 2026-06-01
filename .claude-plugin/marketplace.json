@@ -11,13 +11,13 @@
       "name": "task-queue",
       "source": "./plugins/task-queue",
       "description": "Resume bridge + auto-advance for Claude Code's native task list — re-surfaces a repo's unfinished tasks from earlier sessions, hydrates the queue from a committed roadmap/backlog file when present, and points the model at the next unblocked task as each one completes. The capture nudge weighs new work against the project's recorded direction (decisions/ADRs, roadmap) at capture time — alignment — and sequences low-blast-radius steps first. Goes quiet once the policy is recorded in CLAUDE.md. Opt-in agent-mode fans independent tasks out to subagents. Open-decisions ledger (tq-ask.sh) + UserPromptSubmit re-injector + Notification alert ensure a question the model asks is never lost to queued prompts.",
-      "version": "0.19.0"
+      "version": "0.19.1"
     },
     {
       "name": "tidy",
       "source": "./plugins/tidy",
       "description": "Tidy-as-you-touch: formats and lint-checks the file you just edited (fixing what's safe), flags it for decomposition when it grows past a size budget, and holds a subtractive posture (reuse before create, delete what a change makes redundant) so an active project trends down in complexity over time, scoped to the touched file. Over-budget files also surface automatically at session start; no manual trigger. Goes quiet once the standard is recorded in CLAUDE.md. /tidy:distill runs the full whole-project weight report on demand. Edit-time linting targets Go, web (eslint incl. jsx-a11y, stylelint), Python (ruff) and shell (shellcheck) — findings-only, the project's own tool, fast file-scoped tools only; surfaces manifest version pins on touch to flag outdated tech. Surfaces a touched file's blast-radius (Go via the exact `go list` importer graph, else git grep) for test coverage. Verification floor: runs the project's tests on Stop and blocks until green. /tidy:audit runs a proportional whole-project audit against the standards. Coverage ratchet nudges to characterize untested touched files before changing (opt-in strict gate).",
-      "version": "0.29.0"
+      "version": "0.29.1"
     },
     {
       "name": "charter",
@@ -29,7 +29,7 @@
       "name": "hud",
       "source": "./plugins/hud",
       "description": "A consolidated status line: static health beacon, open tasks + in-progress, paused, agent-mode, the verification floor's ✓/✗ tests result, charter docs-health, last tidy action, context-window fill %, git branch + dirty count, and model — read-only from existing plugin state, zero model-token cost, no idle timer. Run /hud:setup once to wire it in (version-resilient).",
-      "version": "0.3.0"
+      "version": "0.3.1"
     }
   ]
 }
