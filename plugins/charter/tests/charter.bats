@@ -344,3 +344,42 @@ run_standard() {
   [ "$status" -eq 0 ]
   [ "$(wc -l < "$CLAUDE_CHARTER_LOG_DIR/activity.log")" -eq 1000 ]
 }
+
+# ---- /charter:align (alignment check) ---------------------------------------
+
+run_align() { ( cd "$REPO" && "$ROOT/bin/charter-align.sh" ); }
+
+@test "align: bare repo reports no anchors to check against" {
+  run run_align
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Decisions / ADRs: none recorded"* ]]
+  [[ "$output" == *"Roadmap / backlog: none recorded"* ]]
+  [[ "$output" == *"No recorded direction to align against"* ]]
+}
+
+@test "align: surfaces the decisions anchor with the do-not-reverse framing" {
+  printf '# Decisions\n- Use bash + jq, no build step.\n' > "$REPO/DECISIONS.md"
+  run run_align
+  [[ "$output" == *"DECISIONS.md"* ]]
+  [[ "$output" == *"do not reverse or contradict"* ]]
+}
+
+@test "align: surfaces the roadmap as the recorded direction" {
+  mkdir -p "$REPO/docs"; printf '# Roadmap\n## Now\n- ship it\n' > "$REPO/docs/ROADMAP.md"
+  run run_align
+  [[ "$output" == *"docs/ROADMAP.md"* ]]
+  [[ "$output" == *"recorded direction"* ]]
+}
+
+@test "align: surfaces recently-landed commits for reconciliation" {
+  git -C "$REPO" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "feat: a landed thing"
+  run run_align
+  [[ "$output" == *"Recently landed"* ]]
+  [[ "$output" == *"a landed thing"* ]]
+}
+
+@test "align: output is plain text, exits clean even with no git history" {
+  run run_align
+  [ "$status" -eq 0 ]
+  [ -n "$output" ]
+}

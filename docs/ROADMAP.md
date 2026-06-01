@@ -311,11 +311,15 @@ have said at edit time.
 Skills audit (the on-demand `/` commands, 2026-05-31): **tidy** ships `audit`
 (read-only assess) and `distill` (subtractive, edits) — they share the
 weight-report header but differ in mandate, so not redundant; **hud** ships
-`setup`; **charter** and **task-queue** ship none. Gap surfaced: no on-demand
-**alignment check** (a `/charter:*` that reconciles open work against
-decisions/roadmap) — it pairs with discipline 1. Keep the set small and
-non-overlapping: each command earns its slot the same way each nudge earns its
-tokens.
+`setup`; **task-queue** ships none. The gap the audit surfaced — no on-demand
+**alignment check** — is now **closed: `/charter:align` (charter 0.13.0)**
+reconciles open/proposed work against the recorded decisions + roadmap on demand
+(`charter-align.sh` emits the deterministic anchors — decisions path, roadmap
+path, recently-landed commits — and the command does the reconciliation), the
+on-demand counterpart to alignment-aware capture (task-queue 0.16.0). Read-only,
+model-judged, zero per-prompt cost (a `/` command, not a hook). Keep the set
+small and non-overlapping: each command earns its slot the same way each nudge
+earns its tokens.
 
 ### 3. Refined token philosophy — earn the token, don't just save it
 
@@ -355,7 +359,7 @@ build it all at once.
 
 ## Status — 2026-05-31
 
-- **task-queue 0.16.0**, **tidy 0.24.0**, **charter 0.12.0**, **hud 0.2.0** — shipped.
+- **task-queue 0.16.0**, **tidy 0.24.0**, **charter 0.13.0**, **hud 0.2.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
   added the roadmap/backlog file, **0.4.0** the project map (orientation → map),
   and **0.5.0** web best-practices defaults (Lighthouse-aligned QA, "shift the
