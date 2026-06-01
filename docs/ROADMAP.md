@@ -357,7 +357,7 @@ same rule applied to docs, nudges, and scope.
 Each phase is its own PR cycle, MVP-first, so complexity stays bounded. Do not
 build it all at once.
 
-## Status — 2026-05-31
+## Status — 2026-06-01
 
 - **task-queue 0.16.0**, **tidy 0.24.0**, **charter 0.13.0**, **hud 0.2.0** — shipped.
 - **Phase 1 (charter MVP)** done; **hud** (status line) added; **charter 0.3.0**
@@ -376,9 +376,16 @@ build it all at once.
   complete.** Remaining nice-to-haves only: broader
   multi-stack pattern linting, and a language-aware blast-radius (e.g. `go list`)
   over today's grep heuristic.
-- **What's next** is the new strategic layer above (*The next layer — direction &
-  signal*): **alignment** (clean ≠ correct — charter's decisions/roadmap feeding
-  task-queue capture), **feedback-loop disciplines** (tighten the loop; close the
-  on-demand alignment-check gap the skills audit found), and the **refined token
-  philosophy** (earn the token, don't just save it). The mechanism is mostly
-  built; this layer is about steering it.
+- **The direction & signal layer is now also complete.** All three arms of the
+  **alignment** discipline shipped: charter 0.12.0 (recorded decisions = the
+  alignment anchor), task-queue 0.16.0 (alignment-aware capture — weigh work at
+  capture time), and **charter 0.13.0 (`/charter:align`** — the on-demand check
+  that reconciles open/proposed work against decisions + roadmap, closing the
+  skills-audit gap; charter's first slash command). The **feedback-loop**
+  disciplines (fastest-loop-owns-it: touch > stop > on-demand > CI) and the
+  **refined token philosophy** (earn the token, don't just save it) are documented
+  above and embodied by the shipped mechanism.
+- **What's next:** only the two nice-to-haves above (multi-stack pattern linting;
+  language-aware blast-radius beyond the Go import-path keying already in tidy
+  0.16.0). The system now changes cleanly, sheds cruft, *and* checks alignment —
+  the strategic arc is built; further work is incremental polish, not new layers.
