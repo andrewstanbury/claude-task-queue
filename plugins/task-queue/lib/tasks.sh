@@ -45,7 +45,15 @@ tq_is_paused()       { [ -n "${1:-}" ] && [ -f "$(tq_pause_file "$1")" ]; }
 # default for token efficiency. Set with bin/tq-agent.sh.
 tq_agent_dir()       { printf '%s' "${CLAUDE_TQ_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}"; }
 tq_agent_file()      { printf '%s/%s' "$(tq_agent_dir)" "$(printf '%s' "$1" | sed 's:/:-:g')"; }
-tq_is_agent_mode()   { [ -n "${1:-}" ] && [ -f "$(tq_agent_file "$1")" ]; }
+# Agent-mode is on when this repo has an explicit opt-in flag, OR the global
+# default is on (CLAUDE_TQ_AGENT_MODE=on|1 — set once in settings.json env to
+# enable everywhere without a per-repo decision). Off by default otherwise.
+tq_is_agent_mode() {
+  [ -n "${1:-}" ] || return 1
+  [ -f "$(tq_agent_file "$1")" ] && return 0
+  case "${CLAUDE_TQ_AGENT_MODE:-}" in on|1) return 0 ;; esac
+  return 1
+}
 
 # ---- drift canary -----------------------------------------------------------
 

@@ -1,6 +1,6 @@
 {
   "name": "task-queue",
-  "version": "0.19.1",
+  "version": "0.20.0",
   "description": "Makes Claude Code's native task list a live work queue with event-driven hooks and zero per-prompt cost: a SessionStart hook primes the model to capture and order work as native tasks, re-surfaces a repo's unfinished tasks from earlier sessions, and hydrates the queue from a committed roadmap/backlog file when present; a TaskCompleted hook advances the queue to the next unblocked task. The conditional capture nudge weighs new work against the project's recorded direction (decisions/ADRs, roadmap) at capture time and sequences low-blast-radius steps first; agent-mode keeps high-blast-radius changes off parallel subagents. An open-decisions ledger (tq-ask.sh) makes sure a question the model asks isn't lost when you queue prompts ahead: a UserPromptSubmit hook re-surfaces unanswered decisions every prompt, and a Notification hook fires a desktop/terminal alert when the model is idle waiting on one — with a proceed-on-recommended-default policy so work never stalls. Goes quiet (one-line re-anchor) once the standing policy is recorded in the project's CLAUDE.md. Adds opt-in agent-mode (tq-agent.sh on|off): when on, the policy permits fanning independent, non-conflicting tasks out to subagents. Read-only over ~/.claude/tasks.",
   "author": {
     "name": "Andrew Stanbury"

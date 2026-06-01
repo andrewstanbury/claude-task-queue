@@ -208,7 +208,7 @@ Changing cleanly and shedding cruft still doesn't guarantee a change is the
 
 ## Status — 2026-06-01
 
-- **task-queue 0.19.1** · **tidy 0.29.1** · **charter 0.14.0** · **hud 0.3.1**.
+- **task-queue 0.20.0** · **tidy 0.29.1** · **charter 0.14.0** · **hud 0.3.1**.
 - **The planned roadmap (Phases 1–3) and the direction-&-signal layer are
   complete.** The system changes cleanly, sheds cruft, checks alignment, and lints
   across Go/web/Python/shell with a toolchain-accurate Go blast-radius.

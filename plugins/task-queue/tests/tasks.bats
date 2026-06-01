@@ -15,6 +15,7 @@ setup() {
   export CLAUDE_TQ_PROJECTS_DIR="$(mktemp -d)"
   export CLAUDE_TQ_STATE_DIR="$(mktemp -d)"
   export CLAUDE_TQ_AGENT_DIR="$(mktemp -d)"
+  unset CLAUDE_TQ_AGENT_MODE   # hermetic: ignore any ambient global default
 }
 
 teardown() {
@@ -143,6 +144,17 @@ run_resume() {
   run run_resume "sA" "$repo"
   [[ "$output" == *"Agent-mode is ON"* ]]
   [[ "$output" == *"subagents"* ]]
+  rm -rf "$repo"
+}
+
+@test "agent-mode: the global default (CLAUDE_TQ_AGENT_MODE) enables it without a per-repo flag" {
+  local repo; repo="$(mktemp -d)"
+  run run_resume "sG" "$repo"                          # no flag, no env → off
+  [[ "$output" != *"Agent-mode is ON"* ]]
+  CLAUDE_TQ_AGENT_MODE=on run run_resume "sG" "$repo"  # global default on
+  [[ "$output" == *"Agent-mode is ON"* ]]
+  CLAUDE_TQ_AGENT_MODE=0 run run_resume "sG" "$repo"   # explicit off value
+  [[ "$output" != *"Agent-mode is ON"* ]]
   rm -rf "$repo"
 }
 
