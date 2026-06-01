@@ -34,6 +34,12 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## tidy — *change safely & cleanly*
 
+- **0.28.0** — **coverage ratchet** (`lib/coverage.sh`): a touch-time nudge to
+  *characterize before you change* when a touched source file has no test
+  (language-aware detection: Go/web/Python/shell, walking up for a `tests/` dir),
+  and an **opt-in Stop gate** (`CLAUDE_TIDY_COVERAGE_RATCHET=1`) that blocks until
+  changed source is characterized. Generalizes & replaces the old Go-only TDD
+  nudge. The legacy spec-accumulation engine.
 - **0.27.0** — blast-radius wire-in: surfaced **higher in the touch output** (right
   after lint findings) and its message ties dependents to **test coverage**; the
   standard's anchors now lead with *blast radius first — cover the dependents of

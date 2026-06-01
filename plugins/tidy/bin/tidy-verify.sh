@@ -25,6 +25,8 @@ PLUGIN_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 . "$PLUGIN_DIR/lib/tidy.sh"
 # shellcheck source=../lib/checks.sh
 . "$PLUGIN_DIR/lib/checks.sh"
+# shellcheck source=../lib/coverage.sh
+. "$PLUGIN_DIR/lib/coverage.sh"
 
 allow() { exit 0; }                                   # let the stop proceed
 
@@ -54,6 +56,20 @@ fi
 # repo (or a pure-conversation turn) means no changes → nothing to run.
 if git -C "$root" rev-parse >/dev/null 2>&1; then
   [ -z "$(git -C "$root" status --porcelain 2>/dev/null)" ] && allow
+fi
+
+# Coverage ratchet (opt-in, strict): block the stop until every changed source
+# file has a test, so an under-tested project can't keep growing untested surface.
+# Off by default — the touch-time nudge is the always-on version. Runs before the
+# test-command check so it works even on a project with no runnable suite yet.
+if [ "${CLAUDE_TIDY_COVERAGE_RATCHET:-0}" = "1" ]; then
+  untested="$(tidy_untested_changed "$root" 2>/dev/null | head -n 20)"
+  if [ -n "$untested" ]; then
+    tidy_log verify "coverage-gate block"
+    jq -cn --arg r "Coverage ratchet: these changed source files have no test — characterize them (pin current behavior with a test) before finishing, so the project accrues a spec:"$'\n\n'"$untested" \
+      '{decision: "block", reason: $r}'
+    exit 0
+  fi
 fi
 
 cmd="$(tidy_test_command "$root" 2>/dev/null || true)"

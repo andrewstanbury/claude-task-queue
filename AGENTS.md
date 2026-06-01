@@ -64,16 +64,19 @@ plugins/<name>/
 
 ## Conventions (mirror these in any new plugin)
 
-- **Blast radius is the first-class principle.** The system's master lever for
-  keeping a vibe-coded project efficient *and* correct over time is to **minimize
-  and understand the blast radius of every change** — both *code* blast radius
-  (what a touched file's change can ripple into → surface dependents, cover them
-  with tests) and *architectural* blast radius (how far a change to the plugins
-  ripples → localize cross-cutting concerns behind file/state contracts, single
-  owner per concern). Every other efficiency pattern (the project map, small
-  files, the prune force, quiet hooks) ultimately serves this. When designing a
-  change or a feature, ask "how far does this ripple, and how do I contain it?"
-  first.
+- **Blast radius is the first-class principle.** The master lever for keeping a
+  project — *especially an existing, under-tested, under-documented one* — efficient
+  and correct as features are added is to **minimize and understand the blast
+  radius of every change**: both *code* blast radius (what a touched file ripples
+  into → surface dependents) and *architectural* blast radius (how far a change to
+  the plugins ripples → one owner per concern, contracts not copies). Every other
+  pattern (the project map, small files, the prune force, quiet hooks) serves it.
+  Its legacy corollaries: **characterize before you change** (no tests → pin the
+  affected surface's current behavior with a test first; blast radius says what to
+  pin — so the project accrues a spec over time), and **clean as you touch,
+  bounded by blast radius** (improve the touched area, but *ratchet, never sweep* —
+  refactoring code whose ripple you can't see is itself a top cause of rework).
+  Ask "how far does this ripple, and how do I contain it?" before every change.
 - **Bash + `jq`, zero build.** No compiled languages, nothing to install to run
   a hook. (This is why the plugins are Bash, not Go — a compiled hook needs
   per-platform binaries or a toolchain, which breaks "runs everywhere, no build".)
