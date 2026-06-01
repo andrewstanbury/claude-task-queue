@@ -109,9 +109,13 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
 - **Coverage ratchet (opt-in, same Stop hook):** with
   `CLAUDE_TIDY_COVERAGE_RATCHET=1`, before the test run it lists changed source
   files lacking a test (`tidy_untested_changed`) and, if any, blocks with a
-  `decision: block` asking to characterize them. Runs even when no test command
-  exists (legacy projects). Off by default — the touch-time nudge is the always-on
-  version.
+  `decision: block` asking to characterize them. **Bounded** like the test path:
+  after `CLAUDE_TIDY_VERIFY_MAX` (default 3) blocks it gives up with a
+  `systemMessage` and allows the stop — it can never loop forever. Runs even when
+  no test command exists (legacy projects). Off by default — the touch-time nudge
+  is the always-on version. Note: it scopes to the **whole dirty tree** (changed
+  vs HEAD), not just files touched this session, so pre-existing uncommitted
+  untested files also trip it — another reason it's opt-in.
 
 #### Coverage ratchet (how test-detection works, and its limits)
 

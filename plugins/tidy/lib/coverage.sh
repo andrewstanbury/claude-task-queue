@@ -38,7 +38,12 @@ tidy_has_test_for() {
       *.go) [ -f "$d/${stem}_test.go" ] && return 0 ;;
       *.py) for g in "$d/test_${stem}.py" "$d/${stem}_test.py" "$d/tests/test_${stem}.py" "$d/tests/${stem}_test.py"; do [ -f "$g" ] && return 0; done ;;
       *.sh|*.bash) for g in "$d/${stem}.bats" "$d/tests/${stem}.bats"; do [ -f "$g" ] && return 0; done ;;
-      *) for g in "$d/tests/${stem}".* "$d/test/${stem}".*; do [ -e "$g" ] && return 0; done ;;
+      # web: require a TEST-SHAPED name (.test./.spec./__tests__) — a same-stem
+      # non-test sibling (foo.md, foo.snap) must NOT count as a test, or the
+      # ratchet fails open and silently stops nudging genuinely untested code.
+      *) for g in "$d/tests/${stem}".test.* "$d/tests/${stem}".spec.* \
+                  "$d/test/${stem}".test.* "$d/test/${stem}".spec.* \
+                  "$d/__tests__/${stem}".*; do [ -e "$g" ] && return 0; done ;;
     esac
     d="$(dirname "$d")"; levels=$((levels + 1))
   done

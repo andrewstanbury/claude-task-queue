@@ -38,6 +38,14 @@ notify() { printf '{"cwd":"%s","notification_type":"%s"}' "$REPO" "${1:-idle_pro
   [[ "$output" == *"Q2"* ]]
 }
 
+@test "add: a corrupt ledger line doesn't collapse the next id (no collision)" {
+  ask open "Q1" "r1"; ask open "Q2" "r2"               # ids 1, 2
+  f="$CLAUDE_TQ_DECISIONS_DIR/$(printf '%s' "$(git -C "$REPO" rev-parse --show-toplevel)" | sed 's:/:-:g').jsonl"
+  printf 'NOT VALID JSON {{\n' >> "$f"                  # crash-style partial line
+  run ask open "Q3" "r3"
+  [[ "$output" == *"#3"* ]]                             # max(1,2)+1, NOT a reset to 1
+}
+
 @test "resolve all clears the ledger" {
   ask open "Q1" "r1"; ask open "Q2" "r2"
   ask resolve all

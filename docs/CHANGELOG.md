@@ -34,6 +34,12 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## tidy — *change safely & cleanly*
 
+- **0.29.0** — code-review fixes: **blast-radius non-Go matching** now catches
+  bare imports (`import foo`) again and regex-escapes the basename (no over-match
+  on `my.config`), min length back to 4; **coverage detection** requires a
+  test-shaped name (a non-test sibling like `foo.md` no longer counts); the
+  **opt-in coverage Stop-gate is now bounded** (gives up after
+  `CLAUDE_TIDY_VERIFY_MAX` blocks, can't loop forever).
 - **0.28.0** — **coverage ratchet** (`lib/coverage.sh`): a touch-time nudge to
   *characterize before you change* when a touched source file has no test
   (language-aware detection: Go/web/Python/shell, walking up for a `tests/` dir),
@@ -74,6 +80,9 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## task-queue — *orchestrate the work*
 
+- **0.19.0** — code-review fix: the open-decisions ledger computes the next id by
+  parsing **line-by-line** (`jq -R 'fromjson?'`), so a corrupt/half-written line
+  no longer collapses the id to 1 and collide with an existing decision.
 - **0.18.0** — blast-radius wire-in: the capture nudge **sequences low-reach steps
   first** and flags steps touching high-fan-in modules; agent-mode keeps
   **high-blast-radius changes off parallel subagents**.

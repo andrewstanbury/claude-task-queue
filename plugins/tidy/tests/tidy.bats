@@ -383,6 +383,27 @@ fake_web_linter() {
   [[ "$output" != *"blast-radius"* ]]
 }
 
+@test "blast-radius: matches a bare import (python) — recall for bare imports" {
+  export CLAUDE_TIDY_COVERAGE=0
+  local repo="$WORK/brpy"; mkdir -p "$repo"; git -C "$repo" init -q
+  printf 'def f(): pass\n' > "$repo/widget.py"
+  printf 'import widget\nwidget.f()\n' > "$repo/app.py"     # bare import, no quote/slash
+  git -C "$repo" add -A
+  run run_touch "$repo/widget.py"
+  [[ "$output" == *"blast-radius"* ]]
+  [[ "$output" == *"app.py"* ]]
+}
+
+@test "blast-radius: regex metachars in the basename are escaped (no over-match)" {
+  export CLAUDE_TIDY_COVERAGE=0
+  local repo="$WORK/brmeta"; mkdir -p "$repo"; git -C "$repo" init -q
+  printf 'export const x=1\n' > "$repo/my.util.ts"          # stem 'my.util'
+  printf "import './myXutil'\n" > "$repo/decoy.ts"          # '.' must be literal, not 'X'
+  git -C "$repo" add -A
+  run run_touch "$repo/my.util.ts"
+  [[ "$output" != *"decoy.ts"* ]]
+}
+
 @test "blast-radius: doc/prose mentions don't count (tighter non-Go heuristic)" {
   local repo="$WORK/brn"; mkdir -p "$repo"; git -C "$repo" init -q
   printf 'export const Widget = 1\n' > "$repo/Widget.tsx"
