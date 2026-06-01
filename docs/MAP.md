@@ -56,6 +56,8 @@ Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 |---|---|
 | `bin/charter-standard.sh` | SessionStart: the proportional project brief (baseline gaps + consult line + quiet-mode) + log prune. |
 | `bin/charter-doctor.sh` | Manual diagnostics. |
+| `bin/charter-align.sh` | Deterministic alignment anchors (decisions + roadmap + recent commits) for `/charter:align`. |
+| `commands/align.md` | `/charter:align` — reconcile open/proposed work against the recorded direction (clean ≠ correct). |
 | `lib/charter.sh` | Detect QA / roadmap / decisions / map / stack / web; recent commits; the `claude-companion` marker; logging. |
 
 ## hud — *show what's happening* (a statusLine, not a hook)

@@ -66,6 +66,21 @@ Code internals below are observed behaviour, not documented APIs.
   --format=%s -n 5` supplies recently-merged subjects next to the reconcile
   reminder. A repo with no commits (git log exits 128) degrades to silence.
 
+### 3. The `/charter:align` command (user-invoked)
+
+- **Files:** `commands/align.md` (auto-discovered, namespaced `/charter:align`)
+  inlines the stdout of `bin/charter-align.sh` via the `!` prefix, then instructs
+  the model to reconcile open/proposed work against the recorded direction.
+- **`bin/charter-align.sh`** is **read-only**: it prints the alignment anchors —
+  the decisions/ADR path, the roadmap/backlog path, and the recently-landed
+  commits (`git log --no-merges -n 8`) — using the same `lib/charter.sh`
+  detectors as the hook. It never writes and never hard-fails (a bare repo prints
+  "no anchors to check against" and exits 0). The reconciliation/judgment is the
+  model's; the script only supplies facts.
+- **Depends on:** Claude Code's plugin slash-command mechanism (`commands/*.md`
+  auto-discovery, the `!` command-output prefix, `${CLAUDE_PLUGIN_ROOT}`). If
+  that changes, the command stops working but the hook is unaffected.
+
 ## Where the plugin writes
 
 - **Activity log** — `~/.claude/state/charter/activity.log` (override
@@ -79,7 +94,8 @@ It writes **nothing** to your project and nothing to Claude Code's state.
 
 - `tests/charter.bats` fakes a project via a temp git repo and `CLAUDE_CHARTER_*`
   overrides — QA-, roadmap-, and map-status detection, the full/lean nudge by
-  source, and the doctor.
+  source, the doctor, and `/charter:align`'s anchor output (no-anchor, decisions,
+  roadmap, and recent-commit cases).
 - `bin/charter-doctor.sh` checks the same against a live project on demand.
 
 ## Not yet (see docs/ROADMAP.md)
