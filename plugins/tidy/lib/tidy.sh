@@ -28,7 +28,7 @@ tidy_have() { command -v "$1" >/dev/null 2>&1; }
 tidy_prune_state() {
   local base days="${CLAUDE_TIDY_STATE_TTL_DAYS:-7}" log
   base="$(tidy_log_dir)"
-  find "$base/nudged" "$base/verify" -type f -mtime "+$days" -delete 2>/dev/null || true
+  find "$base/nudged" "$base/verify" "$base/golist" -type f -mtime "+$days" -delete 2>/dev/null || true
   log="$(tidy_log_file)"
   if [ -f "$log" ] && [ "$(wc -l < "$log" 2>/dev/null || printf 0)" -gt 2000 ]; then
     { tail -n 1000 "$log" > "$log.tmp" 2>/dev/null && mv "$log.tmp" "$log"; } 2>/dev/null || true
@@ -52,6 +52,8 @@ tidy_lang_for_file() {
     *.go) printf 'go' ;;
     *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs|*.vue|*.svelte|*.css|*.scss|*.sass|*.less)
           printf 'web' ;;
+    *.py) printf 'python' ;;
+    *.sh|*.bash) printf 'shell' ;;
     *)    printf '' ;;
   esac
 }

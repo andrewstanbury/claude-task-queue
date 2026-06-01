@@ -240,6 +240,50 @@ fake_web_linter() {
   [ -z "$output" ]
 }
 
+# ---- multi-stack edit-time linting (Python ruff, shell shellcheck) -----------
+
+@test "python: surfaces project ruff findings for a touched .py file" {
+  printf '#!/usr/bin/env bash\nif [ "$1" = check ]; then echo "$2:1:1: F401 [*] os imported but unused"; exit 1; fi\nexit 0\n' \
+    > "$FAKEBIN/ruff"; chmod +x "$FAKEBIN/ruff"
+  printf 'import os\n' > "$WORK/mod.py"
+  run run_touch "$WORK/mod.py"
+  [[ "$output" == *"F401"* ]]
+  [[ "$output" == *"linter findings"* ]]
+}
+
+@test "python: silent when ruff reports no problems (exit 0)" {
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$FAKEBIN/ruff"; chmod +x "$FAKEBIN/ruff"
+  printf 'x = 1\n' > "$WORK/clean.py"
+  run run_touch "$WORK/clean.py"
+  [ -z "$output" ]
+}
+
+@test "python: prefers a project virtualenv ruff over PATH" {
+  mkdir -p "$WORK/proj/.venv/bin"
+  printf '#!/usr/bin/env bash\n[ "$1" = check ] && { echo "$2:2:1: E701 multiple statements"; exit 1; }\nexit 0\n' \
+    > "$WORK/proj/.venv/bin/ruff"; chmod +x "$WORK/proj/.venv/bin/ruff"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$FAKEBIN/ruff"; chmod +x "$FAKEBIN/ruff"   # PATH ruff = clean
+  printf 'x=1\n' > "$WORK/proj/app.py"
+  run run_touch "$WORK/proj/app.py"
+  [[ "$output" == *"E701"* ]]                    # the venv ruff ran, not the clean PATH one
+}
+
+@test "shell: surfaces shellcheck findings for a touched .sh file" {
+  printf '#!/usr/bin/env bash\necho "In %s line 2:" "$2"\necho "SC2086 Double quote to prevent globbing"\nexit 1\n' \
+    > "$FAKEBIN/shellcheck"; chmod +x "$FAKEBIN/shellcheck"
+  printf '#!/usr/bin/env bash\nrm $1\n' > "$WORK/run.sh"
+  run run_touch "$WORK/run.sh"
+  [[ "$output" == *"SC2086"* ]]
+  [[ "$output" == *"linter findings"* ]]
+}
+
+@test "shell: silent when shellcheck reports no problems (exit 0)" {
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$FAKEBIN/shellcheck"; chmod +x "$FAKEBIN/shellcheck"
+  printf 'echo hi\n' > "$WORK/ok.sh"
+  run run_touch "$WORK/ok.sh"
+  [ -z "$output" ]
+}
+
 # ---- size-vs-complexity (automatic, no manual trigger) ----------------------
 
 @test "size: a touched file over budget is flagged for decomposition (any language)" {
@@ -313,7 +357,8 @@ fake_web_linter() {
   [[ "$output" == *"Page.tsx"* ]]
 }
 
-@test "blast-radius: Go uses the package import path, not the basename" {
+@test "blast-radius: Go grep fallback keys on the package import path, not the basename" {
+  export CLAUDE_TIDY_BLAST_GOLIST=0            # force the grep heuristic deterministically
   local repo="$WORK/gobr"; mkdir -p "$repo/pkg"; git -C "$repo" init -q
   printf 'module example.com/proj\n\ngo 1.21\n' > "$repo/go.mod"
   printf 'package pkg\nfunc F() {}\n' > "$repo/pkg/foo.go"
@@ -323,6 +368,40 @@ fake_web_linter() {
   [[ "$output" == *"blast-radius"* ]]
   [[ "$output" == *"example.com/proj/pkg"* ]]   # import path, not "foo"
   [[ "$output" == *"main.go"* ]]
+}
+
+@test "blast-radius: Go uses go list for exact importing packages when go is present" {
+  # Stub `go list` so the test is deterministic without a real toolchain: package
+  # example.com/proj imports example.com/proj/pkg (the touched file's package).
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf 'if [ "$1" = "list" ]; then\n'
+    printf '  echo "example.com/proj example.com/proj/pkg fmt"\n'
+    printf '  echo "example.com/proj/pkg fmt"\n'
+    printf '  exit 0\n'
+    printf 'fi\nexit 0\n'
+  } > "$FAKEBIN/go"; chmod +x "$FAKEBIN/go"
+  local repo="$WORK/golist"; mkdir -p "$repo/pkg"; git -C "$repo" init -q
+  printf 'module example.com/proj\n\ngo 1.21\n' > "$repo/go.mod"
+  printf 'package pkg\nfunc F() {}\n' > "$repo/pkg/foo.go"
+  git -C "$repo" add -A
+  run run_touch "$repo/pkg/foo.go"
+  [[ "$output" == *"blast-radius"* ]]
+  [[ "$output" == *"package(s) import example.com/proj/pkg"* ]]
+  [[ "$output" == *"e.g. example.com/proj"* ]]   # the importing package, from go list
+}
+
+@test "blast-radius: go list says nothing when no package imports the touched one" {
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf 'if [ "$1" = "list" ]; then echo "example.com/proj/pkg fmt"; exit 0; fi\nexit 0\n'
+  } > "$FAKEBIN/go"; chmod +x "$FAKEBIN/go"
+  local repo="$WORK/golist2"; mkdir -p "$repo/pkg"; git -C "$repo" init -q
+  printf 'module example.com/proj\n\ngo 1.21\n' > "$repo/go.mod"
+  printf 'package pkg\nfunc F() {}\n' > "$repo/pkg/foo.go"
+  git -C "$repo" add -A
+  run run_touch "$repo/pkg/foo.go"
+  [[ "$output" != *"blast-radius"* ]]            # go ran, nothing imports it → silent
 }
 
 @test "blast-radius: skips generic basenames" {
