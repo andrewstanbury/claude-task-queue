@@ -413,6 +413,25 @@ fake_web_linter() {
   [[ "$output" != *"blast-radius"* ]]
 }
 
+@test "blast-radius: doc/prose mentions don't count (tighter non-Go heuristic)" {
+  local repo="$WORK/brn"; mkdir -p "$repo"; git -C "$repo" init -q
+  printf 'export const Widget = 1\n' > "$repo/Widget.tsx"
+  printf '# Notes\nimport Widget guidance here\n' > "$repo/NOTES.md"   # doc file — excluded
+  printf 'const x = Widget + 1\n' > "$repo/consumer.tsx"               # bare word, no quote/slash
+  git -C "$repo" add -A
+  run run_touch "$repo/Widget.tsx"
+  [[ "$output" != *"blast-radius"* ]]
+}
+
+@test "blast-radius: expanded generic-name skip (e.g. service)" {
+  local repo="$WORK/brg"; mkdir -p "$repo"; git -C "$repo" init -q
+  printf 'x\n' > "$repo/service.ts"
+  printf "import './service'\n" > "$repo/a.ts"
+  git -C "$repo" add -A
+  run run_touch "$repo/service.ts"
+  [[ "$output" != *"blast-radius"* ]]
+}
+
 @test "blast-radius: silent when nothing references the file, and when disabled" {
   local repo="$WORK/br3"; mkdir -p "$repo"; git -C "$repo" init -q
   printf 'export const Lonely = 1\n' > "$repo/Lonely.tsx"

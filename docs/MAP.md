@@ -11,7 +11,8 @@ what it depends on; each plugin's `tests/*.bats` exercises it.
 |---|---|
 | `AGENTS.md` | Canonical maintainer guide — read first. |
 | `CLAUDE.md` | Project instructions + the hard invariants. |
-| `docs/ROADMAP.md` | Direction, status, and the recorded design decisions. |
+| `docs/ROADMAP.md` | Direction, status, and the recorded design decisions (lean). |
+| `docs/CHANGELOG.md` | Per-plugin version-by-version shipped history. |
 | `README.md` | Human-facing overview of the marketplace. |
 | `check.sh` | One-command gate: JSON valid · ShellCheck · secret scan · 300-line size guard · bats. CI runs this. |
 | `.claude-plugin/marketplace.json` | Marketplace manifest (the 4 plugins + versions). |
