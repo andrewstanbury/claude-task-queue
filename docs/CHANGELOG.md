@@ -77,11 +77,12 @@ Versions are per-plugin (each ships independently). Newest first.
 - **0.18.0** — blast-radius wire-in: the capture nudge **sequences low-reach steps
   first** and flags steps touching high-fan-in modules; agent-mode keeps
   **high-blast-radius changes off parallel subagents**.
-- **0.17.0** — **open-decisions ledger** so a question the model asks isn't lost to
-  queued/typed-ahead prompts: `tq-ask.sh` (open/resolve/list), a UserPromptSubmit
-  hook that re-surfaces unanswered decisions every prompt, and a Notification hook
-  that alerts when the model is idle with one open — with a proceed-on-recommended
-  -default policy so work never stalls.
+- **0.17.0** — **open-decisions ledger** so a question the model asks isn't lost
+  to queued/typed-ahead prompts: `tq-ask.sh` (open/resolve/list), a
+  **UserPromptSubmit** hook that re-surfaces unanswered decisions every prompt,
+  and a **Notification** hook that fires a desktop/terminal alert when the model
+  is idle with one open — plus a proceed-on-recommended-default policy so work
+  never stalls.
 - **0.16.0** — **alignment-aware capture**: weigh captured work against the
   recorded direction (decisions/roadmap) before capturing.
 - **0.14.0** — opt-in **agent-mode** toggle (fan independent tasks to subagents).
