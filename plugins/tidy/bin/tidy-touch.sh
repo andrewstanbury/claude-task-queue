@@ -46,11 +46,6 @@ sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
 # every edit (no manual trigger).
 size="$(tidy_size_nudge "$file" "$sid" 2>/dev/null || true)"
 
-# Currency/modernization: surface the nearest manifest's pinned versions once per
-# session so the model can judge what's deprecated/behind latest. Stack-level, so
-# deduped per manifest per session (not per edit).
-currency="$(tidy_currency_nudge "$file" "$sid" 2>/dev/null || true)"
-
 # Coverage ratchet: if a touched source file has no test, ask to characterize it
 # before changing — so an under-tested project accrues a spec on the worked
 # surface. Language-agnostic (gated inside); deduped per file per session.
@@ -77,7 +72,7 @@ esac
 blast=""
 [ -n "$lang" ] && blast="$(tidy_blast_radius "$file" "$sid" 2>/dev/null || true)"
 
-[ -n "$result" ] || [ -n "$cov" ] || [ -n "$size" ] || [ -n "$currency" ] || [ -n "$blast" ] || exit 0   # nothing to say
+[ -n "$result" ] || [ -n "$cov" ] || [ -n "$size" ] || [ -n "$blast" ] || exit 0   # nothing to say
 
 changed=""
 lint=""
@@ -95,7 +90,6 @@ ctx="[tidy] ${file}:"
 [ -n "$blast" ] && ctx="$ctx"$'\n'"• $blast"
 [ -n "$cov" ] && ctx="$ctx"$'\n'"• $cov"
 [ -n "$size" ] && ctx="$ctx"$'\n'"• $size"
-[ -n "$currency" ] && ctx="$ctx"$'\n'"• $currency"
 
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $c}}'
