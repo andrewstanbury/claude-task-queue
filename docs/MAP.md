@@ -14,8 +14,7 @@ what it depends on; each plugin's `tests/*.bats` exercises it.
 | `docs/ROADMAP.md` | Direction, status, and the recorded design decisions (lean). |
 | `docs/MAP.md` | This file — the `file → responsibility` index. |
 | `check.sh` | One-command gate: JSON valid · ShellCheck · secret scan · 300-line size guard · bats. CI runs this. |
-| `flow.sh` | Generate `FLOW.md` — derived live from the repo (`./flow.sh` / `make flow`). |
-| `FLOW.md` | Human-reviewable workflow snapshot (the one sanctioned human-facing artifact; refresh via `flow.sh`). |
+| `flow.sh` | Render the colored workflow diagram in the terminal, derived live from the repo (`./flow.sh` / `make flow`) — the one sanctioned human-facing artifact. |
 | `.claude-plugin/marketplace.json` | Marketplace manifest (the 4 plugins + versions). |
 | `.github/workflows/ci.yml` | CI — provisions tools, runs `check.sh`. |
 | `tests/drift-guard.bats` | Cross-plugin guard: asserts hud/task-queue doc-detection mirrors agree with charter (the source of truth). |

@@ -10,9 +10,9 @@ while Claude keeps it clean, well-documented, token-efficient, and low-debt —
 **proactively, with minimal input**, entirely through the CLI. The owner reads no
 code, no docs, and runs no commands; the system is automatic and artifact-free
 (only **lean Claude-context** files, never human-facing prose). *One sanctioned
-exception (owner-requested):* `flow.sh` generates `FLOW.md` at the repo root
-(`make flow`) — a derived, human-reviewable workflow snapshot, refreshed by hand
-(no cron). Both are intentional; keep them, don't prune.
+exception (owner-requested):* `flow.sh` at the repo root (`./flow.sh` / `make flow`)
+renders a derived, at-a-glance colored workflow diagram in the terminal — keep it in
+sync with the lifecycle; don't prune it.
 
 ## Prioritized criteria (in order)
 
