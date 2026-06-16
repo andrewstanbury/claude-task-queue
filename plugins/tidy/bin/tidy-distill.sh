@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tidy-distill — on-demand, read-only whole-project "weight report".
+# tidy-distill — read-only whole-project "weight report".
 #
 # The subtractive prune force's whole-project half (the per-touch half is the
 # clean-as-you-go standard). It measures where a project is heavy so the model
@@ -7,9 +7,10 @@
 # propose subtractive changes. The script only surfaces *measurable* facts; the
 # judgment is the model's job (a script can't reliably know "this is dead code").
 #
-# Read-only and best-effort: it never writes the project and never hard-fails the
-# caller (the /tidy:distill command inlines its stdout). Language-agnostic — it
-# uses git to enumerate tracked + new-but-not-ignored files, falling back to find.
+# Invoked automatically by the SessionStart hook when the debt threshold is
+# crossed (no manual command); it never writes the project and never hard-fails
+# the caller. Language-agnostic — it uses git to enumerate tracked +
+# new-but-not-ignored files, falling back to find.
 #
 # Tunables: CLAUDE_TIDY_SIZE_BUDGET (lines/file, default 400),
 #           CLAUDE_TIDY_DISTILL_TOP (heaviest-files to list, default 10).

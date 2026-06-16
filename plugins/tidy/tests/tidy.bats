@@ -318,6 +318,16 @@ fake_web_linter() {
   [[ "$output" == *"decomposition candidates"* ]]
 }
 
+@test "session start escalates to an auto-prune pass when debt crosses the threshold" {
+  export CLAUDE_TIDY_SIZE_BUDGET=5
+  seq 1 12 > "$WORK/a.go"; seq 1 12 > "$WORK/b.go"; seq 1 12 > "$WORK/c.go"
+  run run_standard startup
+  [[ "$output" == *"Debt threshold crossed"* ]]
+  [[ "$output" == *"subtractive prune pass"* ]]
+  [[ "$output" == *"interpret→present→approve"* ]]
+  [[ "$output" != *"decomposition candidates"* ]]   # escalated past the light list
+}
+
 @test "session start stays quiet about size when nothing is over budget" {
   printf 'a\nb\n' > "$WORK/small.txt"
   run run_standard startup                      # default budget 300
