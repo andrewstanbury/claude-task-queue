@@ -240,3 +240,49 @@ run_capture() {
   CLAUDE_TQ_INTENT_GATE=0 run run_verify
   [ -z "$output" ]
 }
+
+# ---- design-change preview (ASCII mockups via AskUserQuestion) ---------------
+
+@test "design heuristic: fires on visual/UI changes, silent on architecture/functional" {
+  src='. "$1/lib/tasks.sh"; . "$1/lib/capture.sh";'
+  for p in "redesign the login page" "make the dashboard cleaner" "move the sidebar to the right" \
+           "restyle the navbar" "lay out the settings screen" "show me a wireframe for the hero" \
+           "center the modal and make it look modern" "change the layout of the pricing cards"; do
+    run bash -c "$src"' tq_looks_design "$2" && echo Y' bash "$ROOT" "$p"
+    [ "$output" = "Y" ]
+  done
+  # architecture/API "design" + functional edits must NOT fire (precision)
+  for p in "design the database schema" "design the public API surface" "add a logout button" \
+           "fix the slow report page" "move the auth module to a new package" \
+           "format the JSON output" "update the user table"; do
+    run bash -c "$src"' tq_looks_design "$2" || echo N' bash "$ROOT" "$p"
+    [ "$output" = "N" ]
+  done
+}
+
+@test "design change triggers the ASCII-preview present loop, even when short" {
+  run run_capture "make the login page look cleaner"   # 6 words: not multi-step, still fires
+  [[ "$output" == *"Design change"* ]]
+  [[ "$output" == *"ASCII mockup"* ]]
+  [[ "$output" == *"AskUserQuestion"* ]]
+  [[ "$output" == *"(Recommended)"* ]]
+  [[ "$output" == *"arrow keys"* ]]
+  [[ "$output" == *"Enter"* ]]
+}
+
+@test "design change is substantive → its intent is recorded for the outcome gate" {
+  run run_capture "redesign the dashboard layout"
+  [ -f "$(intent_file)" ]
+}
+
+@test "a consequential design change keeps CONSEQUENTIAL scrutiny + a design-preview note" {
+  run run_capture "redesign and migrate the checkout to the paid stripe widget"
+  [[ "$output" == *"CONSEQUENTIAL"* ]]
+  [[ "$output" == *"ASCII mockups"* ]]            # design note appended to the consequential path
+}
+
+@test "a plain non-visual substantive prompt still uses the generic loop (no ASCII)" {
+  run run_capture "$MULTI"
+  [[ "$output" == *"New substantive work"* ]]
+  [[ "$output" != *"ASCII"* ]]
+}

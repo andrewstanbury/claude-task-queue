@@ -102,6 +102,16 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
   paused (§ pause flag), the checkpoint is suppressed and substantive prompts run
   straight through in auto without presenting for approval. Disabled with
   `CLAUDE_TQ_CAPTURE_DISABLED`.
+- **Design preview (visual prompts):** when the prompt looks like a **visual/UI/
+  layout** change (`tq_looks_design` in `lib/capture.sh` — a visual intent + a UI
+  noun, or an inherently-visual term; precision-tuned so architecture/API "design"
+  and functional edits don't trip it), the injected instruction becomes a
+  *design-preview* loop: present a recommended design + 2-3 alternatives as faithful
+  **ASCII mockups** in the AskUserQuestion `preview` field (recommended first, native
+  arrow-key nav + Enter), build only the chosen one. Fires even on a short
+  single-sentence ask; a *consequential* visual change keeps the consequential
+  scrutiny and appends a design-preview note. Relies on AskUserQuestion supporting
+  `preview` (monospace ASCII).
 - **Intent of record (side effect):** on a substantive, non-paused prompt it also
   stashes the prompt text to `tq_intent_file($session_id)` (in the state dir) for the
   Stop gate below. Best-effort; gated off by `CLAUDE_TQ_INTENT_GATE=0`.

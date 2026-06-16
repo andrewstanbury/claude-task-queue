@@ -43,6 +43,28 @@ tq_looks_consequential() {
     'rm[[:space:]]+-[a-z]*[rf]|reset[[:space:]]+--hard|force[ -]?push|push[[:space:]].*(--force|-f([[:space:]]|$))|(drop|delete|truncate)([[:space:]]+[[:alnum:]_-]+){0,3}[[:space:]]+(tables?|databases?|schema)|delete[[:space:]]+from|migrat(e|ion)|backfill|alter[[:space:]]+table|schema[[:space:]]+change|(^|[^[:alnum:]])(paid|subscription|subscribe|license|purchase|billing)([^[:alnum:]]|$)|credit[[:space:]]+card|(deploy|release|ship|rollout)([[:space:]]+[[:alnum:]_-]+){0,4}[[:space:]]+prod(uction)?'
 }
 
+# Does this prompt ask for a VISUAL / UI / layout change worth PREVIEWING before
+# building? The owner is non-technical and verifies by SEEING, so a visual change
+# earns a recommended-plus-alternatives ASCII preview (via AskUserQuestion) before
+# a line of code is written — the "demonstrate" half of the owner loop, moved ahead
+# of the work. PRECISION-tuned like tq_looks_consequential: it must NOT fire on
+# architecture/API "design" or functional edits (add a button, fix a slow page) —
+# only on a visual/appearance INTENT applied to a UI element, or an inherently-
+# visual term on its own. Returns 0 yes / 1 no.
+tq_looks_design() {
+  local p="$1" low
+  low="$(printf '%s' "$p" | tr '[:upper:]' '[:lower:]')"
+  # (A) inherently-visual terms — fire on their own.
+  printf '%s' "$low" | grep -Eq \
+    '(^|[^a-z])(layouts?|wireframes?|mock[- ]?ups?|ui|ux|user interface|design system|style[ -]?guides?)([^a-z]|$)' && return 0
+  # (B) a visual/appearance INTENT *and* a UI NOUN must both be present.
+  printf '%s' "$low" | grep -Eq \
+    '(^|[^a-z])((re-?)?design|(re-?)?lay[ -]?out|restyle|re-?skin|reposition|rearrange|re-?order|re-?align|realign|resize|recolou?r|move|cent(er|re)|style|theme|skin|looks?|looking|appearance|responsive|cleaner|prettier|sleeker|modern|polished|spacing|align(ment)?)([^a-z]|$)' || return 1
+  printf '%s' "$low" | grep -Eq \
+    '(^|[^a-z])(buttons?|pages?|screens?|views?|forms?|modals?|dialogs?|navs?|navbars?|navigation|sidebars?|menus?|headers?|footers?|heroe?s?|banners?|cards?|dashboards?|landing|panels?|tabs?|toolbars?|components?|widgets?|icons?|logos?|popups?|drop[- ]?downs?|tooltips?|badges?|avatars?|carousels?|accordions?|grids?|sections?|tables?|lists?)([^a-z]|$)' || return 1
+  return 0
+}
+
 # Build the " First weigh it against <decisions/backlog> ..." alignment clause for
 # the repo at $cwd, or empty if the project records no direction. Shared by the
 # capture nudge and the consequential review-gate so neither duplicates it — the

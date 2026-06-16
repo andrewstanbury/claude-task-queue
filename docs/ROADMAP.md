@@ -65,7 +65,14 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   fan-out, **present its understanding + candid per-task recommendations (incl. skip)
   via AskUserQuestion**, and TaskCreate only what the user approves — weighed against
   recorded direction. Trivial prompts stay silent. **Pause** suppresses the review
-  loop so substantive prompts run straight through in auto. On Stop, the
+  loop so substantive prompts run straight through in auto. On a **visual/design**
+  prompt the loop specializes into a **design preview**: the model presents a
+  recommended design + 2-3 alternatives as faithful **ASCII mockups** in the
+  AskUserQuestion `preview` (native keyboard-nav + Enter, recommended first), and
+  builds only the chosen one — the owner-loop's "demonstrate" moved *ahead* of the
+  work (a non-technical owner verifies by seeing, not by reading code). Detected by
+  a precision-tuned heuristic (visual intent + UI noun; architecture/API "design"
+  and functional edits don't trip it). Fires even on a short single-sentence ask. On Stop, the
   **intent→outcome gate** closes the loop: the substantive prompt's plain-language
   ask is stashed at capture time (the *intent of record*) and replayed at "done"
   against the actual diff — blocking **once** (consumed per ask, so it can't loop)
