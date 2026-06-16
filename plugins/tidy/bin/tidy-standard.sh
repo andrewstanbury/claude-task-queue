@@ -60,28 +60,5 @@ else
 - Record this in your CLAUDE.md and mark it "claude-companion" to make it re-anchor in one line each session.'
 fi
 
-# Debt surface (auto, no manual trigger). On a fresh context, surface files over
-# the size budget. BELOW the prune threshold it's a light list of decomposition
-# candidates; AT/ABOVE it the deliberate prune fires on its own — a full weight
-# report plus the instruction to run a subtractive pass now, with any cuts routed
-# through the task-queue review loop (no slash command needed). STATE, not policy,
-# so it appends even in quiet mode; omitted on compact/resume to stay token-light.
-if [ "$src" != "compact" ] && [ "$src" != "resume" ]; then
-  over="$(tidy_oversized_files "$root" 2>/dev/null || true)"
-  if [ -n "$over" ]; then
-    budget="$(tidy_size_budget)"
-    n="$(printf '%s\n' "$over" | grep -c .)"
-    threshold="${CLAUDE_TIDY_PRUNE_THRESHOLD:-3}"
-    if [ "$n" -ge "$threshold" ]; then
-      report="$("$PLUGIN_DIR/bin/tidy-distill.sh" "$root" 2>/dev/null || true)"
-      ctx="$ctx"$'\n\n'"[tidy] Debt threshold crossed — $n files over the $budget-line budget. Run a subtractive prune pass NOW (automatic, no command): hunt dead code, duplication, and now-redundant surface in the heaviest/over-budget files; reconcile docs vs code; net complexity DOWN. Route any deletions/refactors through the task-queue interpret→present→approve loop so they're reviewed before they land. Weight report:"$'\n'"$report"
-    else
-      list="$(printf '%s\n' "$over" | head -n 5 | awk -F'\t' '{printf "%s (%d), ", $2, $1}')"
-      list="${list%, }"
-      ctx="$ctx"$'\n\n'"[tidy] $n file(s) over the $budget-line budget — decomposition candidates: $list."
-    fi
-  fi
-fi
-
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'

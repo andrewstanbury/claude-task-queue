@@ -111,3 +111,39 @@ run_verify() {
   [[ "$output" == *"systemMessage"* ]]                               # gave up
   [[ "$output" != *block* ]]
 }
+
+# ---- debt surface (moved here from SessionStart; post-work, throttled) ------
+
+@test "stop: recommends a prune when debt crosses the threshold (dirty, no tests)" {
+  local repo="$WORK/d1"; mkdir -p "$repo"; git -C "$repo" init -q
+  export CLAUDE_TIDY_SIZE_BUDGET=5
+  seq 1 12 > "$repo/a.go"; seq 1 12 > "$repo/b.go"; seq 1 12 > "$repo/c.go"
+  run run_verify "$repo" d1
+  [[ "$output" == *"Debt threshold crossed"* ]]
+  [[ "$output" == *"prune pass"* ]]
+  [[ "$output" == *"systemMessage"* ]]                               # non-blocking
+}
+
+@test "stop: the prune nudge is throttled to once per episode" {
+  local repo="$WORK/d2"; mkdir -p "$repo"; git -C "$repo" init -q
+  export CLAUDE_TIDY_SIZE_BUDGET=5
+  seq 1 12 > "$repo/a.go"; seq 1 12 > "$repo/b.go"; seq 1 12 > "$repo/c.go"
+  run run_verify "$repo" d2; [[ "$output" == *"Debt threshold crossed"* ]]   # 1st: fires
+  run run_verify "$repo" d2; [ -z "$output" ]                                 # 2nd: quiet
+}
+
+@test "stop: quiet when debt is below the prune threshold" {
+  local repo="$WORK/d3"; mkdir -p "$repo"; git -C "$repo" init -q
+  export CLAUDE_TIDY_SIZE_BUDGET=5
+  seq 1 12 > "$repo/a.go"                          # only 1 over budget (threshold 3)
+  run run_verify "$repo" d3
+  [ -z "$output" ]
+}
+
+@test "stop: over-budget TEST files don't trip the prune nudge (exempt)" {
+  local repo="$WORK/d4"; mkdir -p "$repo"; git -C "$repo" init -q
+  export CLAUDE_TIDY_SIZE_BUDGET=5
+  seq 1 12 > "$repo/a_test.go"; seq 1 12 > "$repo/b_test.go"; seq 1 12 > "$repo/c_test.go"
+  run run_verify "$repo" d4
+  [ -z "$output" ]
+}

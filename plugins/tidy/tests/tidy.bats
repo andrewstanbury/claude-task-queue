@@ -309,38 +309,6 @@ fake_web_linter() {
   [[ "$output" != *"is 12 lines"* ]]
 }
 
-@test "session start auto-surfaces files over the size budget (light distill)" {
-  export CLAUDE_TIDY_SIZE_BUDGET=5
-  seq 1 12 > "$WORK/huge.txt"
-  run run_standard startup
-  [[ "$output" == *"over the 5-line budget"* ]]
-  [[ "$output" == *"huge.txt"* ]]
-  [[ "$output" == *"decomposition candidates"* ]]
-}
-
-@test "session start escalates to an auto-prune pass when debt crosses the threshold" {
-  export CLAUDE_TIDY_SIZE_BUDGET=5
-  seq 1 12 > "$WORK/a.go"; seq 1 12 > "$WORK/b.go"; seq 1 12 > "$WORK/c.go"
-  run run_standard startup
-  [[ "$output" == *"Debt threshold crossed"* ]]
-  [[ "$output" == *"subtractive prune pass"* ]]
-  [[ "$output" == *"interpret→present→approve"* ]]
-  [[ "$output" != *"decomposition candidates"* ]]   # escalated past the light list
-}
-
-@test "session start stays quiet about size when nothing is over budget" {
-  printf 'a\nb\n' > "$WORK/small.txt"
-  run run_standard startup                      # default budget 300
-  [[ "$output" != *"decomposition candidates"* ]]
-}
-
-@test "session start: light distill is omitted on compact (token-light)" {
-  export CLAUDE_TIDY_SIZE_BUDGET=5
-  seq 1 12 > "$WORK/huge.txt"
-  run run_standard compact
-  [[ "$output" != *"decomposition candidates"* ]]
-}
-
 # ---- blast-radius -----------------------------------------------------------
 
 @test "blast-radius: surfaces importers of a touched source file" {
@@ -522,14 +490,4 @@ fake_web_linter() {
   [ "$status" -eq 0 ]
   [ -f "$WORK/state/nudged/recent" ]                  # recent kept
   [ ! -f "$WORK/state/verify/old" ]                   # stale swept
-}
-
-@test "session start light-distill exempts test files too (consistent with the touch nudge)" {
-  local repo="$WORK/ld"; mkdir -p "$repo"
-  seq 1 12 > "$repo/big.bats"                          # over budget, but a test file
-  seq 1 12 > "$repo/src.go"                            # over budget, real source
-  export CLAUDE_TIDY_SIZE_BUDGET=5
-  run run_standard startup "$repo"
-  [[ "$output" == *"src.go"* ]]
-  [[ "$output" != *"big.bats"* ]]
 }

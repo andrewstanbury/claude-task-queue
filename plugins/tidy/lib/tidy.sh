@@ -202,9 +202,9 @@ tidy_size_nudge() {
     "$(basename "$file")" "$n" "$budget"
 }
 
-# Whole-project (SessionStart light distill): print "<lines>\t<path>" for each
-# text file over budget, heaviest first. One wc -l pass; read-only. Empty when
-# nothing is over budget or the check is disabled.
+# Whole-project debt surface (the Stop hook's prune nudge): print "<lines>\t<path>"
+# for each text file over budget, heaviest first. One wc -l pass; read-only. Empty
+# when nothing is over budget or the check is disabled.
 tidy_oversized_files() {
   local root="$1" budget="${2:-$(tidy_size_budget)}" listing
   [ "${CLAUDE_TIDY_SIZE_CHECK:-1}" = "0" ] && return 0

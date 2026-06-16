@@ -57,6 +57,30 @@ cfile="$cdir/$key"
 hfile="$cdir/hash-$key"
 rfile="$cdir/result-$key"          # last verification outcome, for hud's tests slot
 gfile="$cdir/covgate-$key"         # coverage-ratchet block counter
+pfile="$cdir/prune-$key"           # debt-surfaced-this-episode flag (Stop debt nudge)
+
+# Whole-project debt surface (moved here from SessionStart so it fires AFTER the
+# turn's work, not before the user's intent). On a dirty tree that verified clean,
+# if over-budget files cross the prune threshold, recommend a subtractive prune
+# pass — once per episode (a flag file, $pfile), so it doesn't nag while debt
+# persists and re-fires only after it drops below and re-crosses. Non-blocking.
+surface_debt_then_allow() {
+  local over n threshold budget report
+  over="$(tidy_oversized_files "$root" 2>/dev/null || true)"
+  n="$(printf '%s\n' "$over" | grep -c . 2>/dev/null || printf 0)"
+  threshold="${CLAUDE_TIDY_PRUNE_THRESHOLD:-3}"
+  if [ -n "$over" ] && [ "$n" -ge "$threshold" ]; then
+    [ -f "$pfile" ] && exit 0                 # already surfaced this episode → quiet
+    { mkdir -p "$cdir" 2>/dev/null && : > "$pfile"; } 2>/dev/null || true
+    budget="$(tidy_size_budget)"
+    report="$("$PLUGIN_DIR/bin/tidy-distill.sh" "$root" 2>/dev/null || true)"
+    jq -cn --arg m "[tidy] Debt threshold crossed — $n files over the $budget-line budget. Consider a subtractive prune pass: dead code, duplication, now-redundant surface, doc↔code drift — net complexity down; route any cuts through the task-queue review loop. Weight report:"$'\n'"$report" \
+      '{systemMessage: $m}'
+    exit 0
+  fi
+  rm -f "$pfile" 2>/dev/null || true          # below threshold → reset the episode
+  exit 0
+}
 
 # Coverage ratchet (opt-in, strict): block the stop until every changed source
 # file has a test, so an under-tested project can't keep growing untested surface.
@@ -85,7 +109,7 @@ if [ "${CLAUDE_TIDY_COVERAGE_RATCHET:-0}" = "1" ]; then
 fi
 
 cmd="$(tidy_test_command "$root" 2>/dev/null || true)"
-[ -n "$cmd" ] || allow                                # no discoverable tests → silent
+[ -n "$cmd" ] || surface_debt_then_allow              # no tests → still surface debt
 
 # Record the last outcome (pass|fail|timeout) so the status line can show it.
 # Best-effort; never affects the stop decision.
@@ -105,7 +129,7 @@ if [ "$rc" -eq 0 ]; then
   rm -f "$cfile" 2>/dev/null || true                  # green → reset counter
   if [ -n "$cur" ]; then { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$cur" > "$hfile"; } 2>/dev/null || true; fi
   tidy_set_result pass
-  allow
+  surface_debt_then_allow
 fi
 
 rm -f "$hfile" 2>/dev/null || true                    # not green → drop the stale pass-fingerprint
