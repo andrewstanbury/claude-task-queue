@@ -28,7 +28,6 @@ input=""
 [ -t 0 ] || input="$(cat 2>/dev/null || true)"
 [ -n "$input" ] || exit 0
 cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)"
-sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
 [ -n "$cwd" ] || cwd="$PWD"
 
 # Cheap pre-check before forking git: if NO repo has any open decisions, skip.
