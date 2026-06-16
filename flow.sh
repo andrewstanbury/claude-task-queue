@@ -29,7 +29,7 @@ purpose() { local p; p="$(sed -n '2p' "$1" 2>/dev/null | sed 's/^# *//')"; case 
 # curated one-line role blurb by basename; falls back to the header purpose.
 blurb() {
   case "$(basename "$1")" in
-    charter-standard.sh) printf 'gate work on docs · decisions anchor · owner loop' ;;
+    charter-standard.sh) printf 'gate docs · decisions anchor · owner loop · scar tissue' ;;
     tidy-standard.sh)    printf 'clean-as-you-go standard' ;;
     tq-resume.sh)        printf 'queue policy · resume bridge · hydrate backlog' ;;
     tq-capture.sh)       printf 'the interpret→present→approve review loop' ;;
