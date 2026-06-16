@@ -210,3 +210,9 @@ charter_is_web() {
   fi
   printf 'no'
 }
+
+# Conventions detection (charter_conventions / charter_conventions_status) lives
+# in a sibling lib so this file stays focused and under the size guard; source it
+# so every consumer of charter.sh gets it transitively (no bin sources it directly).
+# shellcheck source=./conventions.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/conventions.sh"

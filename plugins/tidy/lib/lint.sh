@@ -33,34 +33,18 @@ tidy_py_bin() {
 # fast, file-scoped modern standard; exit 1 = violations, 0 = clean, 2+ = config
 # error/crash (treated as no-op). No `--fix` — report only.
 tidy_handle_python() {
-  local file="$1" bin out rc
+  local file="$1" bin
   case "$file" in *.py) ;; *) return 0 ;; esac
   bin="$(tidy_py_bin "$file" ruff)" || return 0
   [ -n "$bin" ] || return 0
-  if tidy_have timeout; then
-    out="$(timeout "${CLAUDE_TIDY_LINT_TIMEOUT:-30}" "$bin" check "$file" 2>/dev/null)"; rc=$?
-  else
-    out="$("$bin" check "$file" 2>/dev/null)"; rc=$?
-  fi
-  [ "$rc" -eq 1 ] || return 0
-  [ -n "$out" ] || return 0
-  tidy_log python "file=$file tool=ruff findings=yes"
-  printf '0\t%s' "$(printf '%s\n' "$out" | head -n 25)"
+  tidy_run_linter python ruff "$file" "$bin" check "$file"
 }
 
 # Shell: surface shellcheck findings for the touched script (the same linter this
 # repo gates with). File-scoped and fast; exit 1 = issues, 0 = clean.
 tidy_handle_shell() {
-  local file="$1" out rc
+  local file="$1"
   case "$file" in *.sh|*.bash) ;; *) return 0 ;; esac
   tidy_have shellcheck || return 0
-  if tidy_have timeout; then
-    out="$(timeout "${CLAUDE_TIDY_LINT_TIMEOUT:-30}" shellcheck -x "$file" 2>/dev/null)"; rc=$?
-  else
-    out="$(shellcheck -x "$file" 2>/dev/null)"; rc=$?
-  fi
-  [ "$rc" -eq 1 ] || return 0
-  [ -n "$out" ] || return 0
-  tidy_log shell "file=$file tool=shellcheck findings=yes"
-  printf '0\t%s' "$(printf '%s\n' "$out" | head -n 25)"
+  tidy_run_linter shell shellcheck "$file" shellcheck -x "$file"
 }

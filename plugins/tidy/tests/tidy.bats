@@ -322,7 +322,7 @@ fake_web_linter() {
 
 @test "session start stays quiet about size when nothing is over budget" {
   printf 'a\nb\n' > "$WORK/small.txt"
-  run run_standard startup                      # default budget 400
+  run run_standard startup                      # default budget 300
   [[ "$output" != *"decomposition candidates"* ]]
 }
 

@@ -17,43 +17,27 @@ Verify everything with **`./check.sh`** — CI runs the same script.
 
 ## Working standards <!-- claude-companion -->
 
-This repo runs its own companion plugins. Their standing guidance is summarised
-here so the SessionStart hooks re-anchor in one line instead of repeating in full
-(the `claude-companion` marker above is what tells them to stay quiet):
+This repo runs its own companion plugins; their standing guidance is summarised
+here (one line each — full rationale in [docs/ROADMAP.md](./docs/ROADMAP.md)) so
+the SessionStart hooks re-anchor briefly instead of repeating in full. The
+`claude-companion` marker above is what tells them to stay quiet.
 
-The priority order (full rationale in [docs/ROADMAP.md](./docs/ROADMAP.md)):
+- **0 · Self-describing first** — keep the map / quality-attributes / decisions
+  current and growth visible; gate substantive work on them existing. Keep a thin
+  plain-language owner layer (what it is / how to run it).
+- **1 · Contain blast radius** — cover the dependents of what you touch; one owner
+  per concern; watch that total coupling doesn't climb. **YAGNI: burden of proof is
+  on adding** a dep/abstraction/layer.
+- **2 · Verify + stay aligned** — confirm intent in plain language; characterize
+  before you change (no tests → pin current behaviour first); suite green before
+  done; weigh against recorded decisions. Verify observably; keep choices boring &
+  reversible; honor the owner's *outcome* not their implementation; autonomy on the
+  reversible, plain-language consent on the consequential.
+- **3 · Subtract as you add** — net surface flat or smaller; reuse before create;
+  ratchet, never sweep. **4 · Deliberate prune** (`/tidy:audit` + `/tidy:distill`)
+  for cross-module debt.
+- **Native task list = the live queue**; **document proportionally** (token
+  efficiency is the payoff, not a separate chase).
 
-- **0 · Self-describing first** — keep the project's map / quality-attributes /
-  decisions current and its growth visible (size guard); gate substantive work on
-  that manual existing. You can't contain ripple in a project you can't load. Keep a
-  thin **plain-language owner layer** (what it is / how to run it) so a non-technical
-  owner isn't locked to one Claude session.
-- **1 · Contain blast radius** — before a change, understand how far it ripples and
-  contain it: cover the dependents of a touched file, one owner per concern. *Also
-  watch the trend* — total coupling shouldn't climb as features land (compounding
-  debt is blast-radius-at-scale), and its upstream driver is **unwarranted
-  complexity**, so **YAGNI: the burden of proof is on adding** a dep/abstraction/
-  layer. The safety net when tests/specs are absent, and it **bounds where you clean
-  up**.
-- **2 · Verify + stay aligned** — confirm intent in the owner's plain language;
-  **characterize before you change** (no tests → pin current behaviour first, blast
-  radius says what to pin); suite green before you're done; weigh the work against
-  recorded decisions so it's the *right* change. The net the non-technical owner
-  can't make — so **verify observably** (demo user-visible changes in plain language;
-  they can't read tests), keep choices **boring & reversible**, **honor the owner's
-  outcome not their proposed implementation** (push back on over-engineering, theirs
-  included), and act with *autonomy on the reversible but plain-language consent on
-  the consequential* (paid deps, data migrations, deletions).
-- **3 · Subtract as you add** — net surface **flat or smaller**: reuse before
-  create, delete what's now redundant; **ratchet, never sweep**. **4 · A deliberate
-  prune** (`/tidy:audit` + `/tidy:distill`) catches the cross-module debt that
-  touch-time bounding skips.
-- **Native task list = the live queue** — capture multi-step work, work it in
-  dependency order, advance as you finish.
-- **Document proportionally** — don't over-document; the baseline is the project
-  map + what's-next, the rest scales with complexity. Token efficiency is the
-  *payoff* of the above, not a separate chase.
-
-Project docs to consult: **[AGENTS.md](./AGENTS.md)** (conventions + quality
-attributes), **[docs/ROADMAP.md](./docs/ROADMAP.md)** (direction, status,
-decisions), **[docs/MAP.md](./docs/MAP.md)** (file→responsibility map).
+Project docs: **[AGENTS.md](./AGENTS.md)**, **[docs/ROADMAP.md](./docs/ROADMAP.md)**,
+**[docs/MAP.md](./docs/MAP.md)**.

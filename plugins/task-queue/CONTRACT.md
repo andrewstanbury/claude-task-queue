@@ -9,8 +9,9 @@ update, you know where to look first.
 > **Observed against:** Claude Code 2.x · last verified **2026-05-30**.
 > If you re-verify on a newer version, bump that date.
 
-All of this knowledge is centralized in [`lib/tasks.sh`](./lib/tasks.sh) and the
-two entrypoints in [`bin/`](./bin). If a dependency below changes, that is where
+All of this knowledge is centralized in [`lib/tasks.sh`](./lib/tasks.sh) (with
+best-effort logging in the sibling [`lib/log.sh`](./lib/log.sh) it sources) and the
+entrypoints in [`bin/`](./bin). If a dependency below changes, that is where
 the fix goes — nothing else in the repo encodes these assumptions.
 
 ## The hard invariant

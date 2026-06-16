@@ -38,15 +38,7 @@ fi
 # CLAUDE.md (always loaded) and marks it "claude-companion", re-anchor in one line
 # instead of re-injecting the full standard every session. Self-contained
 # detection (install boundary): resolve the repo root, then grep the manual.
-root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || true)"
-if [ -z "$root" ]; then
-  d="$cwd"
-  while [ -n "$d" ] && [ "$d" != "/" ]; do
-    [ -e "$d/.git" ] && { root="$d"; break; }
-    d="$(dirname "$d")"
-  done
-  [ -n "$root" ] || root="$cwd"
-fi
+root="$(tidy_root_for_cwd "$cwd")"
 documented=0
 for f in CLAUDE.md AGENTS.md docs/CLAUDE.md; do
   [ -f "$root/$f" ] && grep -q 'claude-companion' "$root/$f" 2>/dev/null && { documented=1; break; }

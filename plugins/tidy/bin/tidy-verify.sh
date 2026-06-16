@@ -42,15 +42,7 @@ fi
 [ -n "$cwd" ] || cwd="$PWD"
 
 # Resolve the repo root (git top, else walk, else cwd).
-root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || true)"
-if [ -z "$root" ]; then
-  d="$cwd"
-  while [ -n "$d" ] && [ "$d" != "/" ]; do
-    [ -e "$d/.git" ] && { root="$d"; break; }
-    d="$(dirname "$d")"
-  done
-  [ -n "$root" ] || root="$cwd"
-fi
+root="$(tidy_root_for_cwd "$cwd")"
 
 # Only verify when there's something to verify: a dirty working tree. A clean
 # repo (or a pure-conversation turn) means no changes → nothing to run.

@@ -9,6 +9,16 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## charter — *know the project + own the owner relationship*
 
+- **0.16.0** — **established-conventions awareness** (`lib/conventions.sh`): detects
+  the project's existing component/UI library, styling system, state approach,
+  components dir, and test framework from its manifests + structure, and the
+  SessionStart brief surfaces them with a **reuse-before-create** framing — so new
+  features extend what's there instead of introducing a parallel pattern to clean
+  up later. Gated on its own recorded-status: automatic until written down (a
+  "Conventions" section in the map / DECISIONS.md), then quiet. Silent when nothing
+  is detected (non-web / not enough signal). Detection extracted to a sibling lib
+  so charter.sh stays under the size guard.
+
 - **0.15.1** — the owner-loop posture now says **honor the owner's *outcome*, not
   their proposed *implementation*** — push back on unwarranted complexity the owner
   requests (Claude is the only gatekeeper against over-engineering, theirs included).
@@ -48,6 +58,14 @@ Versions are per-plugin (each ships independently). Newest first.
 - **0.1.0** — MVP: **quality-attributes gate** at SessionStart.
 
 ## tidy — *change safely & cleanly*
+
+- **0.30.0** — **size budget aligns to the decomposition line**: the per-touch +
+  session-start size nudge now defaults to **300** (was 400) so it fires before the
+  common CI/decomposition guard rejects a file; raise per-project with
+  `CLAUDE_TIDY_SIZE_BUDGET`. **In-plugin de-duplication**: repo-root detection
+  factored into `tidy_root_for_cwd` (was copy-pasted in the SessionStart + Stop
+  bins); the per-language lint handlers (web/python/shell) collapsed onto one
+  `tidy_run_linter` (one timeout/exit-code/print shape instead of three).
 
 - **0.29.5** — **anti-complexity**: the standard's subtract bullet now states
   **YAGNI explicitly** (burden of proof on *adding* a dep/abstraction/layer —
@@ -117,6 +135,16 @@ Versions are per-plugin (each ships independently). Newest first.
 
 ## task-queue — *orchestrate the work*
 
+- **0.21.0** — **consequential review-gate**: the UserPromptSubmit capture hook now
+  detects a consequential prompt (destructive shell/DB ops, data migrations, paid
+  deps, deploy-to-prod — precision-tuned so routine edits don't trip it) and asks
+  the model to decompose it and get per-task owner sign-off *before* anything is
+  queued. Non-blocking (it only injects the instruction); an up-front interpretation
+  check complementing charter's just-in-time action surfacing. New
+  `tq_looks_consequential` + shared `tq_alignment_clause` in `lib/capture.sh`.
+  Also: observability (`tq_log`/`tq_prune_log`) extracted to `lib/log.sh` (sourced
+  by tasks.sh) so `lib/tasks.sh` drops back under the size guard (298→267).
+
 - **0.20.0** — **agent-mode global default**: `CLAUDE_TQ_AGENT_MODE=on` (set once in
   settings.json `env`) enables subagent fan-out everywhere without a per-repo
   flag; the SessionStart policy is sharpened to *default to* fanning out
@@ -147,6 +175,15 @@ Versions are per-plugin (each ships independently). Newest first.
   auto-advance, per-repo **pause**, schema-drift canary.
 
 ## hud — *show what's happening*
+
+- **0.4.0** — **scoped to unique signals**: dropped the tasks, docs-health, and
+  last-tidy slots — Claude Code renders the task list natively, charter nudges
+  docs at session start, and last-tidy was ephemeral; re-rendering them was
+  duplication. Removed the `hud_tasks`/`hud_qa`/`hud_map`/`hud_roadmap`/
+  `hud_last_tidy` mirrors (the charter doc-detection trio was the heaviest
+  cross-plugin maintenance burden), so `lib/hud.sh` more than halved (134→60) and
+  the drift-guard now only watches task-queue's path mirrors. Kept: beacon,
+  paused, agent, ✓/✗ tests, ctx %, branch + dirty, model.
 
 - **0.3.1** — efficiency: the dirty-tree `git status --porcelain` scan now runs
   only when it's actually shown (wide terminal, in a repo), not every render.

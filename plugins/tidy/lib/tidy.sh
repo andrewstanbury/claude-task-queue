@@ -22,6 +22,42 @@ tidy_log_file() { printf '%s/activity.log' "$(tidy_log_dir)"; }
 
 tidy_have() { command -v "$1" >/dev/null 2>&1; }
 
+# Resolve a repo root for a cwd: git toplevel, else walk up for a .git, else the
+# cwd itself. One home for the detection the SessionStart/Stop bins both need
+# (was copy-pasted in tidy-standard.sh and tidy-verify.sh).
+tidy_root_for_cwd() {
+  local cwd="$1" root d
+  root="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || true)"
+  if [ -z "$root" ]; then
+    d="$cwd"
+    while [ -n "$d" ] && [ "$d" != "/" ]; do
+      [ -e "$d/.git" ] && { root="$d"; break; }
+      d="$(dirname "$d")"
+    done
+    [ -n "$root" ] || root="$cwd"
+  fi
+  printf '%s' "$root"
+}
+
+# Run a fast, file-scoped linter with a bounded timeout and emit the touch hook's
+# lint block. On exit 1 WITH output (violations) it logs and prints "0\t<findings>"
+# (changed=0); clean (0), config/crash (2+), and timeout (124) are all no-ops.
+# Collapses the identical timeout/rc/print shape the per-language handlers shared.
+# Usage: tidy_run_linter <lang> <tool> <file> <cmd> [args...]
+tidy_run_linter() {
+  local lang="$1" tool="$2" file="$3"; shift 3
+  local out rc
+  if tidy_have timeout; then
+    out="$(timeout "${CLAUDE_TIDY_LINT_TIMEOUT:-30}" "$@" 2>/dev/null)"; rc=$?
+  else
+    out="$("$@" 2>/dev/null)"; rc=$?
+  fi
+  [ "$rc" -eq 1 ] || return 0
+  [ -n "$out" ] || return 0
+  tidy_log "$lang" "file=$file tool=$tool findings=yes"
+  printf '0\t%s' "$(printf '%s\n' "$out" | head -n 25)"
+}
+
 # Best-effort: prune stale per-session state (dedup markers, verify counters/
 # fingerprints) older than CLAUDE_TIDY_STATE_TTL_DAYS (default 7) so they don't
 # accumulate forever. Also trims the activity log if it grows large. Never fails.
@@ -137,7 +173,7 @@ tidy_node_bin() {
 # block) or nothing. Exit 1 from the linter = problems found; 0 = clean; 2+ =
 # config/crash → treated as no-op.
 tidy_handle_web() {
-  local file="$1" tool bin out rc
+  local file="$1" tool bin
   case "$file" in
     *.js|*.jsx|*.ts|*.tsx|*.mjs|*.cjs|*.vue|*.svelte) tool=eslint ;;
     *.css|*.scss|*.sass|*.less)                       tool=stylelint ;;
@@ -145,16 +181,7 @@ tidy_handle_web() {
   esac
   bin="$(tidy_node_bin "$file" "$tool")" || return 0
   [ -n "$bin" ] || return 0
-  # Bounded so a wedged linter can't stall the edit's PostToolUse hook.
-  if command -v timeout >/dev/null 2>&1; then
-    out="$(timeout "${CLAUDE_TIDY_LINT_TIMEOUT:-30}" "$bin" "$file" 2>/dev/null)"; rc=$?
-  else
-    out="$("$bin" "$file" 2>/dev/null)"; rc=$?
-  fi
-  [ "$rc" -eq 1 ] || return 0                         # 0 clean / 2+ config / 124 timeout → no-op
-  [ -n "$out" ] || return 0
-  tidy_log web "file=$file tool=$tool findings=yes"
-  printf '0\t%s' "$(printf '%s\n' "$out" | head -n 25)"
+  tidy_run_linter web "$tool" "$file" "$bin" "$file"
 }
 
 # (The test-coverage nudge — generalized across languages as the "characterize
@@ -164,7 +191,9 @@ tidy_handle_web() {
 #
 # The line budget over which a file is a decomposition candidate. A nudge, not a
 # rule — a long-but-cohesive file can be fine; the model judges size-vs-complexity.
-tidy_size_budget() { printf '%s' "${CLAUDE_TIDY_SIZE_BUDGET:-400}"; }
+# Default 300 to match the common CI/decomposition line (this repo's check.sh fails
+# at 300); raise it per-project with CLAUDE_TIDY_SIZE_BUDGET for laxer codebases.
+tidy_size_budget() { printf '%s' "${CLAUDE_TIDY_SIZE_BUDGET:-300}"; }
 
 # Per-touch (PostToolUse): if the just-edited file is over budget, return a one-
 # line nudge — once per file per session (deduped like the TDD nudge), skipping

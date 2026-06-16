@@ -52,6 +52,14 @@ documented APIs.
   heading in `CLAUDE.md` / `AGENTS.md` / `README.md`. Override via
   `CLAUDE_CHARTER_STACK_FILE`. Present → consult; missing → capture
   languages/frameworks/versions (durable context for currency/modernization).
+- **Established conventions** (`lib/conventions.sh`): inferred read-only from
+  `package.json` deps + a few config files/dirs — UI/component library
+  (`components.json` → shadcn, `@mui/material`, `@chakra-ui/react`, `antd`, …),
+  styling (`tailwind.config.*`/`tailwindcss`, styled-components, …), state
+  (Redux/Zustand/Jotai/…), a components dir (`src/components`/…), and test
+  framework. Surfaced with a *reuse-before-create* framing until recorded (a
+  `## Conventions` section in the map/manual/`DECISIONS.md`, or `CONVENTIONS.md`),
+  then quiet. Silent when nothing is detected (non-web / not enough signal).
 - **Policy marker:** the `claude-companion` token in `CLAUDE.md` / `AGENTS.md` /
   `docs/CLAUDE.md`. When present, charter drops its recurring *honor/consult*
   reminders (the manual is always loaded) and emits only the drift nudges for
@@ -120,9 +128,11 @@ It writes **nothing** to your project and nothing to Claude Code's state.
   `permissionDecision`), and the env kill-switch works.
 - `bin/charter-doctor.sh` checks the same against a live project on demand.
 
-## Not yet (see docs/ROADMAP.md)
+## Status (see docs/ROADMAP.md)
 
-A **subtractive/prune force** (dead-code, duplication, size-vs-complexity) and
-shifting hooks from per-session re-injection toward *bootstrap-once +
-drift-detect* are the next direction. Shipped so far: the quality-attributes
-gate, the roadmap/backlog awareness, and the project map (orientation).
+Shipped: the quality-attributes gate, roadmap/backlog awareness, the project map,
+recorded-decisions anchor, stack notes, the owner loop + PreToolUse consent
+surfacing, and `/charter:align`. The subtractive/prune force now lives in **tidy**
+(`/tidy:distill` + the size guard); hooks are already **bootstrap-once +
+drift-detect** (they go quiet once the policy is recorded in CLAUDE.md). Further
+work is demand-driven, not a planned phase.

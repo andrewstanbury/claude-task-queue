@@ -402,3 +402,54 @@ run_align() { ( cd "$REPO" && "$ROOT/bin/charter-align.sh" ); }
   [ "$status" -eq 0 ]
   [ -n "$output" ]
 }
+
+# ---- established conventions (reuse-before-create made concrete) -------------
+
+CONV_SRC='. "$1/lib/charter.sh";'   # charter.sh transitively sources conventions.sh
+
+@test "charter_conventions detects the UI lib, components dir, styling, state, tests" {
+  mkdir -p "$REPO/src/components"
+  printf '{"dependencies":{"@mui/material":"^5","zustand":"^4","tailwindcss":"^3"},"devDependencies":{"vitest":"^1"}}' > "$REPO/package.json"
+  run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
+  [[ "$output" == *"UI: MUI"* ]]
+  [[ "$output" == *"components in src/components/"* ]]
+  [[ "$output" == *"styling: Tailwind"* ]]
+  [[ "$output" == *"state: Zustand"* ]]
+  [[ "$output" == *"tests: Vitest"* ]]
+}
+
+@test "charter_conventions detects shadcn/ui via components.json" {
+  : > "$REPO/components.json"
+  run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
+  [[ "$output" == *"UI: shadcn/ui"* ]]
+}
+
+@test "charter_conventions stays silent with no signal (non-web / empty repo)" {
+  run bash -c "$CONV_SRC"' echo "[$(charter_conventions "$2")]"' bash "$ROOT" "$REPO"
+  [ "$output" = "[]" ]
+}
+
+@test "charter_conventions_status: missing until recorded, then documented" {
+  run bash -c "$CONV_SRC"' charter_conventions_status "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "missing" ]
+  printf '# Map\n## Conventions\n- use MUI\n' > "$REPO/docs/MAP.md" 2>/dev/null || { mkdir -p "$REPO/docs"; printf '# Map\n## Conventions\n- use MUI\n' > "$REPO/docs/MAP.md"; }
+  run bash -c "$CONV_SRC"' charter_conventions_status "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "documented" ]
+}
+
+@test "standard hook surfaces detected conventions with the reuse framing" {
+  mkdir -p "$REPO/src/components"
+  printf '{"dependencies":{"@chakra-ui/react":"^2"}}' > "$REPO/package.json"
+  run run_standard startup
+  [[ "$output" == *"Established conventions detected"* ]]
+  [[ "$output" == *"REUSE them"* ]]
+  [[ "$output" == *"Chakra UI"* ]]
+}
+
+@test "standard hook goes quiet about conventions once they're recorded" {
+  mkdir -p "$REPO/src/components" "$REPO/docs"
+  printf '{"dependencies":{"@chakra-ui/react":"^2"}}' > "$REPO/package.json"
+  printf '# Map\n## Conventions\n- Chakra UI for components\n' > "$REPO/docs/MAP.md"
+  run run_standard startup
+  [[ "$output" != *"Established conventions detected"* ]]
+}

@@ -35,3 +35,43 @@ tq_looks_multistep() {
   done
   [ "$n" -ge 2 ]                                            # 2+ action verbs → multi-step
 }
+
+# Does this prompt ask for something CONSEQUENTIAL — irreversible or externally
+# binding — that warrants explicit consent before it shapes the queue? Mirrors the
+# categories of charter's PreToolUse consent surfacing (charter-consent.sh) so the
+# system stays coherent — duplicated, not shared, because each plugin installs
+# alone (see CLAUDE.md). Unlike the capture nudge this fires regardless of queue
+# state or step count: a single "drop the prod table" still deserves review.
+#
+# Tuned for PRECISION, not recall: it must NOT fire on routine edits, because a
+# gate that fires on "remove the unused import" trains rubber-stamping and taxes
+# every prompt with a decompose+approve round-trip — the opposite of the token
+# efficiency this project optimizes for. So bare verbs (delete/remove/drop) are
+# deliberately excluded; only high-signal forms match — destructive shell/VCS, a
+# delete/drop/truncate aimed at a table/database, SQL DML, data migrations, paid
+# deps, and a deploy-verb aimed at production. Misses some genuinely consequential
+# NL phrasings by design — charter's just-in-time action surfacing is the backstop.
+# Returns 0 yes / 1 no.
+tq_looks_consequential() {
+  local p="$1"
+  printf '%s' "$p" | grep -Eiq \
+    'rm[[:space:]]+-[a-z]*[rf]|reset[[:space:]]+--hard|force[ -]?push|push[[:space:]].*(--force|-f([[:space:]]|$))|(drop|delete|truncate)([[:space:]]+[[:alnum:]_-]+){0,3}[[:space:]]+(tables?|databases?|schema)|delete[[:space:]]+from|migrat(e|ion)|backfill|alter[[:space:]]+table|schema[[:space:]]+change|(^|[^[:alnum:]])(paid|subscription|subscribe|license|purchase|billing)([^[:alnum:]]|$)|credit[[:space:]]+card|(deploy|release|ship|rollout)([[:space:]]+[[:alnum:]_-]+){0,4}[[:space:]]+prod(uction)?'
+}
+
+# Build the " First weigh it against <decisions/backlog> ..." alignment clause for
+# the repo at $cwd, or empty if the project records no direction. Shared by the
+# capture nudge and the consequential review-gate so neither duplicates it — the
+# orchestration arm of charter's decisions anchor (clean ≠ correct). Depends on
+# project.sh (tq_root_for_cwd / tq_decisions_path / tq_roadmap_path), sourced by
+# the caller. Costs only local file checks (no model cost).
+tq_alignment_clause() {
+  local cwd="$1" root dpath rpath anchor=""
+  [ -n "$cwd" ] || cwd="$PWD"
+  root="$(tq_root_for_cwd "$cwd")"
+  dpath="$(tq_decisions_path "$root" 2>/dev/null || true)"
+  rpath="$(tq_roadmap_path "$root" 2>/dev/null || true)"
+  [ -n "$dpath" ] && anchor="recorded decisions ($dpath)"
+  [ -n "$rpath" ] && { [ -n "$anchor" ] && anchor="$anchor and the backlog ($rpath)" || anchor="the backlog ($rpath)"; }
+  [ -n "$anchor" ] || return 0
+  printf " First weigh it against %s — flag any drift or contradiction (don't reverse a recorded decision) before you capture." "$anchor"
+}

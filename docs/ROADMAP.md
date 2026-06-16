@@ -276,14 +276,31 @@ Changing cleanly and shedding cruft still doesn't guarantee a change is the
   than the risk. **But** (2026-06-01, revisited) since *consent on the consequential*
   became a first-class principle (non-technical owners can't review), a **non-blocking
   surfacing** was added — charter's PreToolUse hook reminds, never blocks. The gate
-  stays out; the reminder is in.
+  stays out; the reminder is in. **Extended (2026-06-10):** task-queue's capture hook
+  gained a **prompt-time review-gate** — on a consequential prompt it asks the model
+  to decompose the request and get per-task owner sign-off (via AskUserQuestion)
+  *before* anything is queued. Still non-blocking at the hook level (it only injects
+  the instruction; the review pause is the model's, in-loop), so the recorded
+  decision holds. It complements charter's *just-in-time action* surfacing with an
+  *up-front interpretation* check — the owner confirms how Claude read the prompt.
 
-## Status — 2026-06-01
+## Status — 2026-06-10
 
-- **task-queue 0.20.0** · **tidy 0.29.5** · **charter 0.15.1** · **hud 0.3.1**.
+- **task-queue 0.21.0** · **tidy 0.30.0** · **charter 0.16.0** · **hud 0.4.0**.
 - **The planned roadmap (Phases 1–3) and the direction-&-signal layer are
   complete.** The system changes cleanly, sheds cruft, checks alignment, and lints
   across Go/web/Python/shell with a toolchain-accurate Go blast-radius.
+- **Conventions awareness + self-audit (2026-06-10):** charter now detects a
+  project's **established conventions** (component/UI library, styling, state,
+  components dir, tests) and surfaces them with a *reuse-before-create* framing so
+  new features extend what's there instead of adding a parallel pattern — automatic
+  until recorded, then quiet (charter 0.16.0). A ruthless self-audit also pruned the
+  system's own drift: deleted a duplicate 396-line doc, canonicalised the priority
+  order in this file, aligned tidy's size nudge to the 300-line CI guard and DRY'd
+  its in-plugin copy-paste (0.30.0), split task-queue's logging out of an
+  at-the-limit `tasks.sh`, and **scoped hud to its unique signals** — dropping the
+  tasks/docs/last-tidy slots that re-rendered state shown elsewhere, which removed
+  the heaviest cross-plugin mirrors (0.4.0).
 - **Owner loop (2026-06-01):** the principles were re-tuned for **non-technical
   owners** (consent on the consequential, boring & reversible, observable
   verification, a plain-language owner doc layer), and charter gained the **owner

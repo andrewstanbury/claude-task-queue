@@ -95,6 +95,86 @@ run_capture() {
   [ -z "$output" ]
 }
 
+@test "review-gate fires on a consequential prompt (DB deletion)" {
+  run run_capture "delete the user accounts table"
+  [[ "$output" == *"CONSEQUENTIAL"* ]]
+  [[ "$output" == *"AskUserQuestion"* ]]
+}
+
+@test "review-gate takes precedence over capture — fires even when the queue is non-empty" {
+  make_task sess 1 pending
+  run run_capture "drop the production database and remove the old backups"
+  [[ "$output" == *"CONSEQUENTIAL"* ]]   # a queued session doesn't suppress consent
+}
+
+@test "review-gate fires on a short single-step consequential prompt" {
+  run run_capture "rm -rf build"          # too short for the multi-step nudge, still consequential
+  [[ "$output" == *"CONSEQUENTIAL"* ]]
+}
+
+@test "review-gate fires on migrations, paid deps, and destructive history ops" {
+  run run_capture "run the database migration for the new schema"
+  [[ "$output" == *"CONSEQUENTIAL"* ]]
+  run run_capture "subscribe to the paid plan for the email service"
+  [[ "$output" == *"CONSEQUENTIAL"* ]]
+  run run_capture "force push the rebased branch to origin main"
+  [[ "$output" == *"CONSEQUENTIAL"* ]]
+}
+
+@test "review-gate appends the alignment clause when the project records direction" {
+  printf '# Decisions\n' > "$REPO/DECISIONS.md"
+  mkdir -p "$REPO/docs"; printf '# ROADMAP\n' > "$REPO/docs/ROADMAP.md"
+  run run_capture "run the data migration for the legacy auth records"
+  [[ "$output" == *"weigh it against recorded decisions (DECISIONS.md)"* ]]
+  [[ "$output" == *"don't reverse a recorded decision"* ]]
+}
+
+@test "review-gate stays SILENT on routine deletions (precision over recall)" {
+  # bare delete/remove/drop are deliberately NOT consequential — they'd fire on
+  # everyday edits and tax every prompt; charter's action surfacing is the backstop.
+  run run_capture "remove the unused import and delete the temp file"
+  [[ "$output" != *"CONSEQUENTIAL"* ]]
+}
+
+@test "a benign multi-step prompt gets the capture nudge, NOT the review-gate" {
+  run run_capture "Add the login form and then wire the auth endpoint and update the tests"
+  [[ "$output" == *"capture the steps with TaskCreate"* ]]
+  [[ "$output" != *"CONSEQUENTIAL"* ]]
+}
+
+@test "review-gate respects CAPTURE_DISABLED" {
+  export CLAUDE_TQ_CAPTURE_DISABLED=1
+  run run_capture "delete the production database"
+  [ -z "$output" ]
+}
+
+@test "review-gate skips slash commands even when consequential" {
+  run run_capture "/db drop the table and migrate the schema"
+  [ -z "$output" ]
+}
+
+@test "consequential heuristic: fires only on high-signal forms, silent on routine work" {
+  src='. "$1/lib/tasks.sh"; . "$1/lib/capture.sh";'
+  # high-signal: destructive shell/VCS, DB-targeted drop/delete/truncate, SQL DML,
+  # migrations, paid deps, deploy-to-prod.
+  for p in "drop the production database" "delete the users table" \
+           "truncate the events table" "delete from sessions where expired" \
+           "run a data migration" "add the paid subscription" \
+           "rm -rf node_modules" "git reset --hard origin/main" \
+           "force push the rebased branch" "deploy the new build to production"; do
+    run bash -c "$src"' tq_looks_consequential "$2" && echo Y' bash "$ROOT" "$p"
+    [ "$output" = "Y" ]
+  done
+  # routine work that bare-verb matching would WRONGLY flag — must stay silent.
+  for p in "delete the temp file" "remove the old auth module" \
+           "drop the feature flag" "add a dropdown menu to the navbar" \
+           "reproduce the bug that only happens in production" \
+           "update the product page copy" "implement the login form and add tests"; do
+    run bash -c "$src"' tq_looks_consequential "$2" || echo N' bash "$ROOT" "$p"
+    [ "$output" = "N" ]
+  done
+}
+
 @test "multi-step heuristic fires on connectives, lists, and 2+ verbs; not on a single short action" {
   src='. "$1/lib/tasks.sh"; . "$1/lib/capture.sh";'
   run bash -c "$src"' tq_looks_multistep "please add the thing and then remove the other thing" && echo Y' bash "$ROOT"

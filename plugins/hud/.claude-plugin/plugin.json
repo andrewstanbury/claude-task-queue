@@ -1,7 +1,7 @@
 {
   "name": "hud",
-  "version": "0.3.1",
-  "description": "A consolidated status line for the companion plugins: a static health beacon (green/yellow/red), open tasks (+ the in-progress one), paused state, agent-mode, the verification floor's \u2713/\u2717 tests result, charter docs-health (map+roadmap+QA), last tidy action, context-window fill % (how close to a compaction, color-ramped), git branch + uncommitted-file count, and model \u2014 rendered read-only from existing plugin state and the statusLine payload. Sets no refreshInterval: the beacon is static, so event-driven updates keep it fresh without waking jq+git on an idle timer (battery-friendly). Run /hud:setup once to wire it into settings.json with a version-resilient command (survives updates). No hooks, no scanning, zero model-token cost.",
+  "version": "0.4.0",
+  "description": "A consolidated status line for the companion plugins, scoped to the signals a status line is the best surface for: a static health beacon (green/yellow/red), paused state, agent-mode, the verification floor's \u2713/\u2717 tests result, context-window fill % (how close to a compaction, color-ramped), git branch + uncommitted-file count, and model \u2014 rendered read-only from existing plugin state and the statusLine payload. Deliberately doesn't re-render signals already shown elsewhere (the task list Claude Code renders natively; docs-health charter nudges at session start; last tidy action) \u2014 that was duplication, and the docs mirror was the heaviest cross-plugin maintenance burden. Sets no refreshInterval: the beacon is static, so event-driven updates keep it fresh without waking jq+git on an idle timer (battery-friendly). Run /hud:setup once to wire it into settings.json with a version-resilient command (survives updates). No hooks, no scanning, zero model-token cost.",
   "author": {
     "name": "Andrew Stanbury"
   },

@@ -67,7 +67,9 @@ rstatus="$(charter_roadmap_status "$root" 2>/dev/null || printf 'missing')"
 dstatus="$(charter_decisions_status "$root" 2>/dev/null || printf 'missing')"
 mstatus="$(charter_map_status "$root" 2>/dev/null || printf 'missing')"
 sstatus="$(charter_stack_status "$root" 2>/dev/null || printf 'missing')"
-charter_log "session-start" "qa=$status roadmap=$rstatus decisions=$dstatus map=$mstatus stack=$sstatus web=$web marked=$documented src=${src:-?} mode=full"
+conv="$(charter_conventions "$root" 2>/dev/null || true)"
+cstatus="$(charter_conventions_status "$root" 2>/dev/null || printf 'missing')"
+charter_log "session-start" "qa=$status roadmap=$rstatus decisions=$dstatus map=$mstatus stack=$sstatus conv=$cstatus web=$web marked=$documented src=${src:-?} mode=full"
 
 # Baseline gaps (always actionable); QA gap only for web projects.
 gaps=()
@@ -99,6 +101,16 @@ fi
 # (bin/charter-consent.sh).
 if [ "$documented" -eq 0 ]; then
   parts+=("[charter] Owner loop — the owner is non-technical and can't read code: before substantive work, confirm what they want in plain language and play it back; build the simplest thing that meets it; then demonstrate it working and recap in plain terms (they verify by seeing it, not by reading tests). Autonomy on the reversible; get a plain-language yes before anything consequential or hard to undo — paid deps, data migrations/deletions, vendor lock-in (the line is reversibility + cost + data-safety, not technical-vs-product). Honor their OUTCOME, not their proposed implementation — if a request implies unwarranted complexity, re-anchor on what they want to happen, offer the simplest path that achieves it, and surface the cost in plain language. You are the only gatekeeper against over-engineering, theirs included.")
+fi
+
+# Established conventions — the heart of "reuse before create": name the project's
+# existing component library / patterns so new features extend them instead of
+# introducing a parallel design the owner must clean up later. Gated on its OWN
+# recorded-status (not the claude-companion marker) so it stays automatic until the
+# conventions are written down, then goes quiet. Silent when nothing is detected
+# (non-web / not enough signal), so it never guesses.
+if [ -n "$conv" ] && [ "$cstatus" = "missing" ]; then
+  parts+=("[charter] Established conventions detected — REUSE them; don't introduce a parallel pattern the owner has to clean up later: $conv. Build new features with the existing component library / patterns above; only reach for a new dependency or pattern when there's a real reason, and surface why in plain language first (you are the gatekeeper against unwarranted complexity). Make it durable: record these in a \"Conventions\" section of the map (or DECISIONS.md) and this reminder goes quiet.")
 fi
 
 if [ "$documented" -eq 0 ] && [ "${#present[@]}" -gt 0 ]; then

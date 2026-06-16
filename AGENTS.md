@@ -59,7 +59,7 @@ own subdirectory exists** (reachable via `${CLAUDE_PLUGIN_ROOT}`). Therefore:
 .github/workflows/ci.yml          # runs ./check.sh on push (the backstop)
 check.sh                          # single source of truth for "what we check"
 .editorconfig
-AGENTS.md  CLAUDE.md  LICENSE  README.md   # README is a one-line stub → AGENTS.md
+AGENTS.md  CLAUDE.md  LICENSE  README.md   # README = orientation; AGENTS.md = the maintainer SSOT
 docs/ROADMAP.md
 plugins/<name>/
   .claude-plugin/plugin.json      # version MUST equal the marketplace entry

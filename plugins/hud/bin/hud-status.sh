@@ -5,8 +5,13 @@
 # writes — it only reads and prints, so it can't interfere with anything.
 #
 # Slots (left → right), each collapses when its data is absent:
-#   health beacon · tasks (+ in-progress) · ⏸ paused · 🤖 agent · ✓/✗ tests ·
-#   docs health · last tidy · ctx % · git branch (+ dirty) · model
+#   health beacon · ⏸ paused · 🤖 agent · ✓/✗ tests · ctx % · git branch (+ dirty) · model
+#
+# Scoped to signals a status line is the BEST surface for — persistent
+# state/health you want at a glance. Deliberately NOT re-rendered here: the task
+# list (Claude Code shows it natively), docs-health (charter nudges it at session
+# start), and last-tidy (ephemeral) — surfacing those again was duplication, and
+# the docs mirror was the heaviest cross-plugin maintenance burden.
 #
 # The beacon is a STATIC health dot (green = clean/green, yellow = paused,
 # red = tests failing) — not an animation — so the status line needs no timer.
@@ -57,12 +62,9 @@ NARROW=0; [ "$TERM_W" -lt 100 ] && NARROW=1
 ROOT="$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$CWD")"
 SHORT_MODEL="$(printf '%s' "$MODEL" | sed -E 's/^claude-//; s/-[0-9]{8}([^0-9]|$)/\1/')"
 
-IFS=$'\t' read -r TASK_N TASK_DOING <<<"$(hud_tasks "$SID")"
 PAUSED="$(hud_paused "$ROOT")"
 AGENT="$(hud_agent "$ROOT")"
 VERIFY="$(hud_verify "$SID")"
-QA="$(hud_qa "$ROOT")"; MAP="$(hud_map "$ROOT")"; RMAP="$(hud_roadmap "$ROOT")"
-TIDY="$(hud_last_tidy)"
 BRANCH="$(hud_branch "$CWD")"
 # Dirty-count is only shown next to the branch (wide terminals, in a repo). Skip
 # its `git status --porcelain` worktree scan otherwise — it runs every render.
@@ -76,35 +78,20 @@ BCOL="$G"
 [ "$VERIFY" = "fail" ] && BCOL="$R"
 printf "%s%s%s%s" "$BCOL$B" "●" "$X" "$SEP"
 
-# 2) Tasks (+ in-progress subject)
-if [ "${TASK_N:-0}" -gt 0 ] || [ -n "$TASK_DOING" ]; then
-  printf "%sTasks:%s %s%s%s" "$D" "$X" "$C$B" "${TASK_N:-0}" "$X"
-  [ -n "$TASK_DOING" ] && printf " %s▶ %s%s" "$D" "$TASK_DOING" "$X"
-  printf "%s" "$SEP"
-fi
-
-# 3) Paused
+# 2) Paused
 [ "$PAUSED" = "1" ] && printf "%s⏸ paused%s%s" "$Y$B" "$X" "$SEP"
 
-# 4) Agent-mode ON (task-queue fan-out)
+# 3) Agent-mode ON (task-queue fan-out)
 [ "$AGENT" = "1" ] && printf "%s🤖 agent%s%s" "$C$B" "$X" "$SEP"
 
-# 5) Tests — the verification floor's last outcome (the owner's trust signal)
+# 4) Tests — the verification floor's last outcome (the owner's trust signal)
 case "$VERIFY" in
   pass)    printf "%s✓ tests%s%s" "$G$B" "$X" "$SEP" ;;
   fail)    printf "%s✗ tests%s%s" "$R$B" "$X" "$SEP" ;;
   timeout) printf "%s⚠ tests%s%s" "$Y$B" "$X" "$SEP" ;;
 esac
 
-# 6) Docs health — charter baseline (map + roadmap + QA); ✓ when all present.
-DOCS_N=$(( ${QA:-0} + ${MAP:-0} + ${RMAP:-0} ))
-if [ "$DOCS_N" -eq 3 ]; then printf "%sdocs%s %s✓%s%s" "$D" "$X" "$G$B" "$X" "$SEP"
-else printf "%sdocs%s %s%d/3%s%s" "$D" "$X" "$Y$B" "$DOCS_N" "$X" "$SEP"; fi
-
-# 7) Last tidy action (shed on narrow)
-[ "$NARROW" -eq 0 ] && [ -n "$TIDY" ] && printf "%s✎ %s%s%s" "$D" "$TIDY" "$X" "$SEP"
-
-# 8) Context-window fill % — "how close to a compaction" (color ramp). Uses the
+# 5) Context-window fill % — "how close to a compaction" (color ramp). Uses the
 # payload's pre-computed used_percentage; silent when absent (e.g. before the
 # first API call or right after /compact).
 if [ -n "$CTX_PCT" ]; then
@@ -113,13 +100,13 @@ if [ -n "$CTX_PCT" ]; then
   printf "%sctx%s %s%s%%%s%s" "$D" "$X" "$PCOL$B" "$PCT" "$X" "$SEP"
 fi
 
-# 9) Branch (+ dirty-file count), shed on narrow
+# 6) Branch (+ dirty-file count), shed on narrow
 if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
   printf "%s⎇ %s%s" "$C$B" "$BRANCH" "$X"
   [ -n "$DIRTY" ] && printf " %s*%s%s" "$Y$B" "$DIRTY" "$X"
   printf "%s" "$SEP"
 fi
 
-# 10) Model
+# 7) Model
 printf "%sModel:%s %s%s%s" "$D" "$X" "$C" "$SHORT_MODEL" "$X"
 printf '\n'

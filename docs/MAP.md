@@ -29,16 +29,17 @@ Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 |---|---|
 | `bin/tq-resume.sh` | SessionStart: standing policy + cross-session resume + roadmap hydration + quiet-mode + pause/agent/drift signals + log prune. |
 | `bin/tq-next.sh` | TaskCompleted: advance to the next unblocked task. |
-| `bin/tq-capture.sh` | UserPromptSubmit: conditional capture nudge. |
+| `bin/tq-capture.sh` | UserPromptSubmit: conditional capture nudge + consequential review-gate (decompose → owner sign-off before queuing). |
 | `bin/tq-decisions.sh` | UserPromptSubmit: re-surface open decisions every prompt so a question isn't lost to queued input. |
 | `bin/tq-notify.sh` | Notification: desktop/terminal alert when idle with an open decision. |
 | `bin/tq-ask.sh` | Control: the model's CLI for the open-decisions ledger (open/resolve/list). |
 | `bin/tq-pause.sh` | Control: pause/resume auto-advance (per repo). |
 | `bin/tq-agent.sh` | Control: opt-in agent-mode (parallel subagent fan-out). |
 | `bin/tq-doctor.sh` | Manual diagnostics. |
-| `lib/tasks.sh` | Native task-store reads, resume logic, pause/agent flags, logging + log prune. |
+| `lib/tasks.sh` | Native task-store reads, resume logic, pause/agent flags, drift canary, auto-advance. |
+| `lib/log.sh` | Best-effort activity logging + log prune (sourced by tasks.sh). |
 | `lib/project.sh` | Detect the committed roadmap/backlog file + the `claude-companion` marker. |
-| `lib/capture.sh` | Capture heuristics. |
+| `lib/capture.sh` | Capture + consequential heuristics; shared alignment clause. |
 | `lib/decisions.sh` | Open-decisions ledger (per-repo): add/resolve/list/count. |
 
 ## tidy — *change safely & cleanly* (hooks: SessionStart, PostToolUse[Edit\|Write], Stop)
@@ -52,7 +53,7 @@ Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 | `bin/tidy-doctor.sh` | Manual diagnostics. |
 | `commands/distill.md` | `/tidy:distill` — on-demand prune pass. |
 | `commands/audit.md` | `/tidy:audit` — read-only proportional whole-project audit. |
-| `lib/tidy.sh` | Language dispatch, Go/web handlers, size/currency nudges, state prune. |
+| `lib/tidy.sh` | Language dispatch, Go/web handlers, size/currency nudges, state prune; shared `tidy_root_for_cwd` + `tidy_run_linter`. |
 | `lib/lint.sh` | Multi-stack edit-time linters (Python ruff, shell shellcheck) — findings-only, project's own tool. |
 | `lib/coverage.sh` | Coverage ratchet: per-language test detection, characterize-before-change nudge, untested-changed lister for the opt-in gate. |
 | `lib/checks.sh` | Test-command discovery + bounded run + working-tree fingerprint (verify throttle). |
@@ -68,12 +69,13 @@ Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 | `bin/charter-align.sh` | Deterministic alignment anchors (decisions + roadmap + recent commits) for `/charter:align`. |
 | `commands/align.md` | `/charter:align` — reconcile open/proposed work against the recorded direction (clean ≠ correct). |
 | `lib/charter.sh` | Detect QA / roadmap / decisions / map / stack / web; recent commits; the `claude-companion` marker; logging. |
+| `lib/conventions.sh` | Detect the project's established conventions (UI/component lib, styling, state, components dir, tests) + their recorded-status, for the reuse-before-create brief. |
 
 ## hud — *show what's happening* (a statusLine, not a hook)
 
 | File | Responsibility |
 |---|---|
-| `bin/hud-status.sh` | The status-line renderer: health beacon · tasks · paused · agent · ✓/✗ tests · docs-health · last tidy · ctx % · branch+dirty · model. |
+| `bin/hud-status.sh` | The status-line renderer: health beacon · paused · agent · ✓/✗ tests · ctx % · branch+dirty · model. |
 | `bin/hud-install.sh` | Wire the status line into `settings.json`, version-resilient, no refreshInterval (`/hud:setup`). |
 | `commands/setup.md` | `/hud:setup`. |
-| `lib/hud.sh` | Read-only accessors over the other plugins' state (tasks, paused, agent, verify result, QA/map/roadmap, last tidy, branch, dirty). |
+| `lib/hud.sh` | Read-only accessors over the other plugins' state (paused, agent, verify result, branch, dirty). |

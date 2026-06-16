@@ -19,18 +19,18 @@
 
 set -euo pipefail
 
+# Observability (tq_log / tq_prune_log) lives in a sibling lib so this file stays
+# focused and under the size guard; source it so every consumer that sources
+# tasks.sh gets logging transitively (no bin sources it directly).
+# shellcheck source=./log.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/log.sh"
+
 # ---- locations (all overridable for tests) ---------------------------------
 
 tq_tasks_dir()       { printf '%s' "${CLAUDE_TQ_TASKS_DIR:-$HOME/.claude/tasks}"; }
 tq_projects_dir()    { printf '%s' "${CLAUDE_TQ_PROJECTS_DIR:-$HOME/.claude/projects}"; }
 tq_state_dir()       { printf '%s' "${CLAUDE_TQ_STATE_DIR:-$HOME/.claude/state/task-queue}"; }
 tq_root_cache_file() { printf '%s/root-cache.tsv' "$(tq_state_dir)"; }
-
-# The activity log lives at a FIXED home (independent of the hook-only
-# CLAUDE_TQ_STATE_DIR=CLAUDE_PLUGIN_DATA override) so that tq-doctor, run by
-# hand with no plugin env, reads exactly the file the hooks write.
-tq_log_dir()         { printf '%s' "${CLAUDE_TQ_LOG_DIR:-$HOME/.claude/state/task-queue}"; }
-tq_log_file()        { printf '%s/activity.log' "$(tq_log_dir)"; }
 
 # Pause flags share the same fixed-home rationale as the log: the TaskCompleted
 # hook (CLAUDE_TQ_STATE_DIR=CLAUDE_PLUGIN_DATA) and bin/tq-pause.sh (run by the
@@ -74,37 +74,6 @@ tq_schema_status() {
     [ "$sample" -ge 25 ] && break
   done
   [ "$sample" -gt 0 ] && printf 'ok' || printf 'empty'
-}
-
-# ---- observability ----------------------------------------------------------
-
-# Append one best-effort diagnostic line: "<iso-ts>\t<event>\t<sid8>\t<detail>".
-# Logging must never break a hook, so every failure is swallowed. Disabled
-# entirely with CLAUDE_TQ_LOG_DISABLED=1.
-#   $1 event   short tag (session-start | advance | …)
-#   $2 detail  free text (optional)
-#   $3 sid     session id (optional; truncated to 8 chars)
-tq_log() {
-  [ -n "${CLAUDE_TQ_LOG_DISABLED:-}" ] && return 0
-  local event="$1" detail="${2:-}" sid="${3:-}" ts dir
-  ts="$(date '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null || printf '?')"
-  dir="$(tq_log_dir)"
-  {
-    mkdir -p "$dir" 2>/dev/null \
-      && printf '%s\t%s\t%s\t%s\n' "$ts" "$event" "${sid:0:8}" "$detail" >> "$(tq_log_file)"
-  } 2>/dev/null || true
-  return 0
-}
-
-# Best-effort: keep the append-only log bounded so it never becomes cruft. Trims
-# to the last 1000 lines once it passes 2000. Never fails the caller.
-tq_prune_log() {
-  local log; log="$(tq_log_file)"
-  [ -f "$log" ] || return 0
-  if [ "$(wc -l < "$log" 2>/dev/null || printf 0)" -gt 2000 ]; then
-    { tail -n 1000 "$log" > "$log.tmp" 2>/dev/null && mv "$log.tmp" "$log"; } 2>/dev/null || true
-  fi
-  return 0
 }
 
 # ---- helpers ----------------------------------------------------------------
