@@ -31,6 +31,12 @@ This plugin is deliberately conservative because it *mutates files*:
   model turn. Emitted when the file was formatted, has findings, **or is over the
   size budget** (a language-agnostic decomposition nudge, deduped once per file
   per session, skipping binaries / lockfiles / generated files).
+- **Lint dedup:** linter findings are **content-keyed deduped per file per
+  session** (a `nudged/lint-*` mark holds a hash of the finding set) — re-editing a
+  file with the *same* unfixed/legacy findings stays quiet, but a changed set (new
+  issue, or some fixed) re-surfaces, and the mark is cleared when findings go to
+  zero so a later reintroduction surfaces again. Avoids re-injecting identical
+  "leave pre-existing issues alone" blocks on every edit of the same file.
 - **If it changes:** the format/lint-on-touch silently stops.
 
 **Size-check tunables** (both hooks): `CLAUDE_TIDY_SIZE_BUDGET` (lines/file,
@@ -175,7 +181,8 @@ before intent was known and re-injected a big report every session):
   No activity log is written; the dir only holds the dedup/verify state below.
 - **TDD-nudge markers** — empty files under `~/.claude/state/tidy/nudged/`
   (one per session+file) so the test nudge fires at most once per file per
-  session. Safe to delete anytime.
+  session. The same dir also holds `lint-*` marks (a hash of the last-surfaced
+  finding set per file+session, for the lint dedup above). Safe to delete anytime.
 - **`go list` cache** — the per-module-per-session import graph under
   `~/.claude/state/tidy/golist/` so the blast-radius scan runs at most once per
   module. All of `nudged/`, `verify/`, `golist/` are pruned after

@@ -491,3 +491,38 @@ fake_web_linter() {
   [ -f "$WORK/state/nudged/recent" ]                  # recent kept
   [ ! -f "$WORK/state/verify/old" ]                   # stale swept
 }
+
+# ---- lint-finding dedup (per file per session, content-keyed) ----------------
+
+sc_stub() {  # $1 = SC code to emit; empty = clean (exit 0)
+  if [ -z "$1" ]; then printf '#!/usr/bin/env bash\nexit 0\n' > "$FAKEBIN/shellcheck"
+  else printf '#!/usr/bin/env bash\necho "In %%s line 2:" "$2"\necho "%s Double quote to prevent globbing"\nexit 1\n' "$1" > "$FAKEBIN/shellcheck"
+  fi
+  chmod +x "$FAKEBIN/shellcheck"
+}
+
+@test "lint dedup: identical findings are not re-surfaced on a second edit" {
+  sc_stub SC2086
+  printf '#!/usr/bin/env bash\nrm $1\n' > "$WORK/run.sh"
+  run run_touch "$WORK/run.sh"
+  [[ "$output" == *"SC2086"* ]]                 # 1st edit surfaces
+  run run_touch "$WORK/run.sh"
+  [[ "$output" != *"SC2086"* ]]                 # 2nd edit, same finding set → quiet
+}
+
+@test "lint dedup: a CHANGED finding set re-surfaces" {
+  sc_stub SC2086
+  printf '#!/usr/bin/env bash\nrm $1\n' > "$WORK/run.sh"
+  run run_touch "$WORK/run.sh"; [[ "$output" == *"SC2086"* ]]
+  sc_stub SC2046                                 # findings changed
+  run run_touch "$WORK/run.sh"
+  [[ "$output" == *"SC2046"* ]]                 # new finding set surfaces
+}
+
+@test "lint dedup: findings re-surface after being cleared and reintroduced" {
+  printf '#!/usr/bin/env bash\nrm $1\n' > "$WORK/run.sh"
+  sc_stub SC2086; run run_touch "$WORK/run.sh"; [[ "$output" == *"SC2086"* ]]
+  sc_stub "";     run run_touch "$WORK/run.sh"                       # clean → mark cleared
+  sc_stub SC2086; run run_touch "$WORK/run.sh"
+  [[ "$output" == *"SC2086"* ]]                 # reintroduced → surfaces again
+}

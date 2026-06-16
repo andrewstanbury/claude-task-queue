@@ -68,12 +68,7 @@ case "$lang" in
     ;;
 esac
 
-# Blast-radius: only for recognized source files (avoids noise on docs/config).
-blast=""
-[ -n "$lang" ] && blast="$(tidy_blast_radius "$file" "$sid" 2>/dev/null || true)"
-
-[ -n "$result" ] || [ -n "$cov" ] || [ -n "$size" ] || [ -n "$blast" ] || exit 0   # nothing to say
-
+# Extract the format-changed flag + lint findings from the handler result.
 changed=""
 lint=""
 if [ -n "$result" ]; then
@@ -81,6 +76,33 @@ if [ -n "$result" ]; then
   lint="${result#*$'\t'}"
   [ "$lint" = "$result" ] && lint=""           # no tab → no lint section
 fi
+
+# Dedup identical lint findings per file per session: re-surface ONLY when the
+# finding set changes (a new issue appeared, or some were fixed). Without this the
+# same "leave these pre-existing issues alone" block re-injects on every edit of a
+# file carrying legacy/unfixed lint — pure repeat tokens. Content-keyed, so a
+# genuinely new finding still surfaces; the mark is cleared when findings go away,
+# so a later reintroduction re-surfaces.
+if [ -n "$sid" ]; then
+  lmark="$(tidy_log_dir)/nudged/lint-$(printf '%s' "${sid:0:8}-$file" | sed 's:/:-:g')"
+  if [ -z "$lint" ]; then
+    rm -f "$lmark" 2>/dev/null || true
+  else
+    lhash="$(printf '%s' "$lint" | cksum | tr -d ' ')"
+    if [ "$(cat "$lmark" 2>/dev/null || true)" = "$lhash" ]; then
+      lint=""                                    # unchanged since last surfaced → quiet
+    else
+      { mkdir -p "$(dirname "$lmark")" 2>/dev/null && printf '%s' "$lhash" > "$lmark"; } 2>/dev/null || true
+    fi
+  fi
+fi
+
+# Blast-radius: only for recognized source files (avoids noise on docs/config).
+blast=""
+[ -n "$lang" ] && blast="$(tidy_blast_radius "$file" "$sid" 2>/dev/null || true)"
+
+# Nothing to say → silent (re-checked AFTER the lint dedup may have cleared it).
+[ "$changed" = "1" ] || [ -n "$lint" ] || [ -n "$cov" ] || [ -n "$size" ] || [ -n "$blast" ] || exit 0
 
 ctx="[tidy] ${file}:"
 [ "$changed" = "1" ] && ctx="$ctx"$'\n'"• auto-formatted — re-read before further edits (line content may have shifted)."
