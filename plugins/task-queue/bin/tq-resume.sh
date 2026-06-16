@@ -37,7 +37,7 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/project.sh"
 
 # Trimmed standing policy (re-injected on each fresh SessionStart, so kept lean).
-POLICY='[task-queue] Your native task list IS the live work queue. Capture multi-step work with TaskCreate (skip trivial/chat) before starting, work it in dependency order (honor blockedBy), and advance as you finish — without draining the backlog unprompted.'
+POLICY='[task-queue] Your native task list IS the live work queue. For substantive/multi-step work, FIRST run the interpret→present→approve loop: show your one-line reading of the request and a proposed task breakdown (mark parallel-vs-inline, give candid per-task recommendations incl. skip) and get the user'"'"'s sign-off via AskUserQuestion BEFORE queuing. Then TaskCreate the approved tasks, work them in dependency order (honor blockedBy), and advance as you finish — without draining the backlog unprompted. Trivial prompts: just do them.'
 
 # SessionStart hands us JSON on stdin: { session_id, cwd, source, ... }.
 input=""
@@ -63,7 +63,7 @@ case "$src" in
 esac
 
 if [ "$lean" -eq 1 ]; then
-  ctx="[task-queue] (reminder) native task list = live queue: capture work with TaskCreate, work in dependency order, advance as you finish. Pause/resume on request: $pause_cmd on|off."
+  ctx="[task-queue] (reminder) native task list = live queue: substantive work → interpret→present→approve (sign-off via AskUserQuestion) before TaskCreate, then work in dependency order and advance as you finish. Pause/resume: $pause_cmd on|off."
 elif tq_policy_documented "$root"; then
   # Quiet mode: the standing policy lives in this project's CLAUDE.md (always
   # loaded), so re-anchor in one line — but still surface state below (carryover,

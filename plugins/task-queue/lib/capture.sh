@@ -2,21 +2,7 @@
 # capture — heuristics for the UserPromptSubmit capture nudge (bin/tq-capture.sh).
 #
 # Kept out of tasks.sh so the core stays small and loadable; this is sourced
-# only by the capture hook. Depends on tq_tasks_dir() from tasks.sh.
-
-# Count this session's OPEN (pending/in_progress) tasks. Completed files can
-# linger on disk (see CONTRACT.md), so filter by status, not file presence.
-tq_open_count() {
-  local sid="$1" dir f n=0
-  [ -n "$sid" ] || { printf '0'; return 0; }
-  dir="$(tq_tasks_dir)/$sid"
-  [ -d "$dir" ] || { printf '0'; return 0; }
-  for f in "$dir"/*.json; do
-    [ -f "$f" ] || continue
-    jq -e '.status=="pending" or .status=="in_progress"' "$f" >/dev/null 2>&1 && n=$((n + 1))
-  done
-  printf '%s' "$n"
-}
+# only by the capture hook.
 
 # Conservative heuristic: does this prompt look like multi-step work worth
 # queuing? Errs toward NOT firing — a false nudge is noise, but a miss is
@@ -37,11 +23,10 @@ tq_looks_multistep() {
 }
 
 # Does this prompt ask for something CONSEQUENTIAL — irreversible or externally
-# binding — that warrants explicit consent before it shapes the queue? Mirrors the
-# categories of charter's PreToolUse consent surfacing (charter-consent.sh) so the
-# system stays coherent — duplicated, not shared, because each plugin installs
-# alone (see CLAUDE.md). Unlike the capture nudge this fires regardless of queue
-# state or step count: a single "drop the prod table" still deserves review.
+# binding — that warrants extra scrutiny in the review loop? The categories mirror
+# the native permissions deny/ask set (settings.json) so the system stays coherent.
+# A single "drop the prod table" earns the loop with extra emphasis even though it
+# isn't multi-step.
 #
 # Tuned for PRECISION, not recall: it must NOT fire on routine edits, because a
 # gate that fires on "remove the unused import" trains rubber-stamping and taxes

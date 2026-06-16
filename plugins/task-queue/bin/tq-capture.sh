@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# UserPromptSubmit hook — proactively nudge task capture, but ONLY when it helps.
+# UserPromptSubmit hook — the interpret→present→approve loop.
 #
-# Silent on almost every prompt. It speaks up only when the prompt looks like
-# multi-step work AND the session's task queue is empty — i.e. exactly when work
-# should be captured but hasn't been. When it does fire, and the project records
-# its direction (decisions/ADRs, roadmap/backlog), it also asks the model to
-# weigh the work against that direction before capturing — alignment at capture
-# time (clean ≠ correct). **Token-free unless it fires** (the checks are local
-# bash/jq, no model cost), which is what makes it safe to run per prompt — unlike
-# the old unconditional UserPromptSubmit that was removed.
-# Disable entirely with CLAUDE_TQ_CAPTURE_DISABLED=1.
+# On a SUBSTANTIVE prompt (multi-step work, OR a consequential/irreversible
+# request) it asks the model to FIRST show its reading of the prompt and a
+# proposed task breakdown — with per-task risk/alignment + parallel-vs-inline
+# judgement and candid skip recommendations — and get the user's sign-off via
+# AskUserQuestion BEFORE anything is queued or started. Trivial prompts are left
+# alone (they just run under auto mode). Fires regardless of existing queue state:
+# new substantive work always gets reviewed before it shapes the queue. When the
+# project records its direction (decisions/roadmap), the work is weighed against
+# it (clean ≠ correct). **Token-free unless it fires** (local bash/jq, no model
+# cost). Disable with CLAUDE_TQ_CAPTURE_DISABLED=1. The hook only injects the
+# instruction — the review pause is the model calling AskUserQuestion in-loop,
+# not a hook-level block.
 
 set -uo pipefail
 
@@ -36,40 +39,32 @@ input=""
 [ -t 0 ] || input="$(cat 2>/dev/null || true)"
 [ -n "$input" ] || exit 0
 prompt="$(printf '%s' "$input" | jq -r '.prompt // empty' 2>/dev/null || true)"
-sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
 [ -n "$prompt" ] || exit 0
 case "$prompt" in '/'*|'!'*) exit 0 ;; esac          # slash / bang commands aren't tasks
 
 cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)"
 [ -n "$cwd" ] || cwd="$PWD"
 
-# Consent on the consequential (takes precedence — fires regardless of queue
-# state or step count). An irreversible / externally-binding request shouldn't
-# silently shape the queue: have the model show its reading of the prompt and get
-# the owner's go-ahead BEFORE any of it is queued or started. The hook only
-# surfaces the instruction — the review pause is the model voluntarily calling
-# AskUserQuestion in-loop, NOT a hook-level block (the heavyweight destructive
-# gate stays out per docs/ROADMAP.md "Decided against"; this is its prompt-time,
-# decomposition-review complement to charter's just-in-time action surfacing).
-if tq_looks_consequential "$prompt"; then
-  ctx="[task-queue] This prompt looks CONSEQUENTIAL — irreversible or externally binding (e.g. deletions, data migrations, paid deps, production or destructive ops). Before queuing or starting ANY of it: decompose it into the concrete tasks you would run, then present them to the owner for sign-off via AskUserQuestion — one disposition per task (add to queue / modify / skip) plus your honest recommendation, which may be that none of it should be queued. TaskCreate ONLY what they approve, and don't start the work until they have. If your honest read is 'don't do this', make that the recommended option."
-  ctx="$ctx$(tq_alignment_clause "$cwd")"
-  jq -cn --arg c "$ctx" \
-    '{hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $c}}'
+# Classify: a consequential/irreversible request, or multi-step work, is
+# SUBSTANTIVE and gets the review loop. A trivial single-step prompt is left to
+# run untouched (auto mode handles it). Fires regardless of existing queue state —
+# new substantive work always gets reviewed before it shapes the queue.
+consequential=0
+tq_looks_consequential "$prompt" && consequential=1
+if [ "$consequential" -eq 0 ] && ! tq_looks_multistep "$prompt"; then
   exit 0
 fi
 
-[ "$(tq_open_count "$sid")" -eq 0 ] || exit 0         # already have a queue → don't nudge
-tq_looks_multistep "$prompt" || exit 0                # not multi-step → stay silent
+# The loop instruction (shared). The hook injects it; the model runs it in-loop —
+# the interaction (AskUserQuestion) and the queuing (TaskCreate) are the model's.
+loop="Before queuing or starting this work, run the interpret→present→approve loop: (1) INTERPRET — restate in one plain-language line the outcome the user wants; (2) DECOMPOSE — break it into concrete tasks in dependency order (smallest blast-radius first; flag any step touching a high-fan-in module); (3) JUDGE each task — mark PARALLEL (independent, disjoint files, low blast radius → fan out to subagents) vs INLINE (coupled / high-fan-in), and give a candid per-task recommendation, including a skip (don't do it) where that is your honest read; (4) PRESENT via AskUserQuestion — your one-line understanding plus the task list with a per-task disposition (queue / modify / skip) and your recommendations; (5) TaskCreate ONLY what the user approves, then let it auto-advance — don't start until they have signed off."
 
-ctx="[task-queue] This looks like multi-step work and your task queue is empty — capture the steps with TaskCreate in dependency order before starting, so they show up in the queue and auto-advance as you finish each. Sequence to contain blast radius: smallest-reach steps first, and flag any step touching a widely-depended-on (high-fan-in) module so its dependents get covered."
-
-# Alignment (clean ≠ correct): if the project records its direction, weigh the
-# work against it AS it's captured, so a new task doesn't silently contradict a
-# recorded decision or drift from the backlog. Costs nothing unless the nudge
-# already fires — the docs are only resolved here, with local file checks.
-align="$(tq_alignment_clause "$cwd")"
-ctx="$ctx$align"
+if [ "$consequential" -eq 1 ]; then
+  ctx="⚠️ [task-queue] This request looks CONSEQUENTIAL — irreversible or externally binding (deletions, data migrations, paid deps, production/destructive ops). Give it extra scrutiny; if your honest read is to NOT do it, make that the recommended option. $loop"
+else
+  ctx="[task-queue] New substantive work. $loop"
+fi
+ctx="$ctx$(tq_alignment_clause "$cwd")"
 
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $c}}'

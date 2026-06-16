@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
 #
-# Tests for the conditional UserPromptSubmit capture hook (bin/tq-capture.sh).
-# It must be SILENT unless the prompt is multi-step AND the session queue is
-# empty. Everything faked via CLAUDE_TQ_* overrides.
+# Tests for the interpret→present→approve hook (bin/tq-capture.sh). On a
+# SUBSTANTIVE prompt (multi-step, or consequential/irreversible) it injects the
+# review-loop instruction; trivial prompts stay silent. Faked via CLAUDE_TQ_*.
 
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -12,6 +12,7 @@ setup() {
   # repo's own ROADMAP/decisions. Tests that want the clause drop docs into REPO.
   REPO="$(mktemp -d)/proj"; mkdir -p "$REPO"; git -C "$REPO" init -q
   unset CLAUDE_TQ_CAPTURE_DISABLED
+  MULTI="Add the login form and then wire the auth endpoint and update the tests"
 }
 
 teardown() { rm -rf "$CLAUDE_TQ_TASKS_DIR" "$(dirname "$REPO")"; }
@@ -28,21 +29,30 @@ run_capture() {
   printf '%s' "$json" | "$CAPTURE" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null || true
 }
 
-@test "nudges on a multi-step prompt when the queue is empty" {
-  run run_capture "Add the login form and then wire the auth endpoint and update the tests"
-  [[ "$output" == *"capture the steps with TaskCreate"* ]]
+@test "multi-step prompt triggers the interpret→present→approve loop" {
+  run run_capture "$MULTI"
+  [[ "$output" == *"interpret→present→approve"* ]]
+  [[ "$output" == *"AskUserQuestion"* ]]
+  [[ "$output" == *"New substantive work"* ]]
+  [[ "$output" != *"CONSEQUENTIAL"* ]]      # benign multi-step is not consequential
+}
+
+@test "fires regardless of an existing queue — new substantive work is always reviewed" {
+  make_task sess 1 pending
+  run run_capture "$MULTI"
+  [[ "$output" == *"interpret→present→approve"* ]]
 }
 
 @test "no alignment clause when the project records no direction" {
-  run run_capture "Add the login form and then wire the auth endpoint and update the tests"
-  [[ "$output" == *"capture the steps with TaskCreate"* ]]
+  run run_capture "$MULTI"
+  [[ "$output" == *"interpret→present→approve"* ]]
   [[ "$output" != *"weigh it against"* ]]   # bare repo → nothing to align to
 }
 
 @test "alignment clause names decisions + backlog when the project records them" {
   printf '# Decisions\n- chose X over Y\n' > "$REPO/DECISIONS.md"
   mkdir -p "$REPO/docs"; printf '# ROADMAP\n' > "$REPO/docs/ROADMAP.md"
-  run run_capture "Add the login form and then wire the auth endpoint and update the tests"
+  run run_capture "$MULTI"
   [[ "$output" == *"weigh it against recorded decisions (DECISIONS.md)"* ]]
   [[ "$output" == *"backlog (docs/ROADMAP.md)"* ]]
   [[ "$output" == *"don't reverse a recorded decision"* ]]
@@ -50,35 +60,52 @@ run_capture() {
 
 @test "alignment clause covers ADR dirs and a backlog-only project" {
   mkdir -p "$REPO/docs/adr"; : > "$REPO/docs/adr/0001-x.md"
-  run run_capture "Add the login form and then wire the auth endpoint and update the tests"
+  run run_capture "$MULTI"
   [[ "$output" == *"recorded decisions (docs/adr/)"* ]]
   # backlog-only (decisions absent): the clause still fires, naming just the backlog
   rm -r "$REPO/docs/adr"; printf '# BACKLOG\n' > "$REPO/BACKLOG.md"
-  run run_capture "Add the login form and then wire the auth endpoint and update the tests"
+  run run_capture "$MULTI"
   [[ "$output" == *"weigh it against the backlog (BACKLOG.md)"* ]]
   [[ "$output" != *"recorded decisions"* ]]
 }
 
-@test "alignment is silent on the non-firing path (queue already has work)" {
+@test "consequential prompt gets the loop with extra CONSEQUENTIAL scrutiny" {
+  run run_capture "delete the user accounts table"
+  [[ "$output" == *"CONSEQUENTIAL"* ]]
+  [[ "$output" == *"interpret→present→approve"* ]]
+  [[ "$output" == *"AskUserQuestion"* ]]
+}
+
+@test "consequential fires even on a short single-step prompt" {
+  run run_capture "rm -rf build"          # too short for the multi-step path, still consequential
+  [[ "$output" == *"CONSEQUENTIAL"* ]]
+}
+
+@test "consequential fires on migrations, paid deps, and destructive history ops" {
+  run run_capture "run the database migration for the new schema"
+  [[ "$output" == *"CONSEQUENTIAL"* ]]
+  run run_capture "subscribe to the paid plan for the email service"
+  [[ "$output" == *"CONSEQUENTIAL"* ]]
+  run run_capture "force push the rebased branch to origin main"
+  [[ "$output" == *"CONSEQUENTIAL"* ]]
+}
+
+@test "consequential prompt appends the alignment clause" {
   printf '# Decisions\n' > "$REPO/DECISIONS.md"
-  make_task sess 1 pending
-  run run_capture "Add the login form and then wire the auth endpoint and update tests"
-  [ -z "$output" ]                          # no nudge at all → no alignment cost
+  mkdir -p "$REPO/docs"; printf '# ROADMAP\n' > "$REPO/docs/ROADMAP.md"
+  run run_capture "run the data migration for the legacy auth records"
+  [[ "$output" == *"weigh it against recorded decisions (DECISIONS.md)"* ]]
+  [[ "$output" == *"don't reverse a recorded decision"* ]]
 }
 
-@test "silent when the queue already has an open task" {
-  make_task sess 1 pending
-  run run_capture "Add the login form and then wire the auth endpoint and update tests"
-  [ -z "$output" ]
+@test "routine deletions are not consequential (precision over recall)" {
+  # bare delete/remove/drop are deliberately NOT consequential — they'd tax every
+  # prompt with the extra scrutiny; native permissions are the destructive backstop.
+  run run_capture "remove the unused import and delete the temp file"
+  [[ "$output" != *"CONSEQUENTIAL"* ]]
 }
 
-@test "silent when all tasks are completed but a fresh multi-step prompt arrives" {
-  make_task sess 1 completed     # completed files linger but aren't "open"
-  run run_capture "Add the login form and then wire the auth endpoint and update tests"
-  [[ "$output" == *"TaskCreate"* ]]   # completed ones don't count as a queue → nudge
-}
-
-@test "silent on a short prompt" {
+@test "silent on a short trivial prompt (runs untouched under auto mode)" {
   run run_capture "fix the typo"
   [ -z "$output" ]
 }
@@ -88,66 +115,18 @@ run_capture() {
   [ -z "$output" ]
 }
 
+@test "silent on a bang command" {
+  run run_capture "!rm -rf build and then redeploy to production"
+  [ -z "$output" ]
+}
+
 @test "can be disabled with CLAUDE_TQ_CAPTURE_DISABLED" {
   export CLAUDE_TQ_CAPTURE_DISABLED=1
   run run_capture "Add X and then build Y and update Z and refactor W"
   [ -z "$output" ]
 }
 
-@test "review-gate fires on a consequential prompt (DB deletion)" {
-  run run_capture "delete the user accounts table"
-  [[ "$output" == *"CONSEQUENTIAL"* ]]
-  [[ "$output" == *"AskUserQuestion"* ]]
-}
-
-@test "review-gate takes precedence over capture — fires even when the queue is non-empty" {
-  make_task sess 1 pending
-  run run_capture "drop the production database and remove the old backups"
-  [[ "$output" == *"CONSEQUENTIAL"* ]]   # a queued session doesn't suppress consent
-}
-
-@test "review-gate fires on a short single-step consequential prompt" {
-  run run_capture "rm -rf build"          # too short for the multi-step nudge, still consequential
-  [[ "$output" == *"CONSEQUENTIAL"* ]]
-}
-
-@test "review-gate fires on migrations, paid deps, and destructive history ops" {
-  run run_capture "run the database migration for the new schema"
-  [[ "$output" == *"CONSEQUENTIAL"* ]]
-  run run_capture "subscribe to the paid plan for the email service"
-  [[ "$output" == *"CONSEQUENTIAL"* ]]
-  run run_capture "force push the rebased branch to origin main"
-  [[ "$output" == *"CONSEQUENTIAL"* ]]
-}
-
-@test "review-gate appends the alignment clause when the project records direction" {
-  printf '# Decisions\n' > "$REPO/DECISIONS.md"
-  mkdir -p "$REPO/docs"; printf '# ROADMAP\n' > "$REPO/docs/ROADMAP.md"
-  run run_capture "run the data migration for the legacy auth records"
-  [[ "$output" == *"weigh it against recorded decisions (DECISIONS.md)"* ]]
-  [[ "$output" == *"don't reverse a recorded decision"* ]]
-}
-
-@test "review-gate stays SILENT on routine deletions (precision over recall)" {
-  # bare delete/remove/drop are deliberately NOT consequential — they'd fire on
-  # everyday edits and tax every prompt; charter's action surfacing is the backstop.
-  run run_capture "remove the unused import and delete the temp file"
-  [[ "$output" != *"CONSEQUENTIAL"* ]]
-}
-
-@test "a benign multi-step prompt gets the capture nudge, NOT the review-gate" {
-  run run_capture "Add the login form and then wire the auth endpoint and update the tests"
-  [[ "$output" == *"capture the steps with TaskCreate"* ]]
-  [[ "$output" != *"CONSEQUENTIAL"* ]]
-}
-
-@test "review-gate respects CAPTURE_DISABLED" {
-  export CLAUDE_TQ_CAPTURE_DISABLED=1
-  run run_capture "delete the production database"
-  [ -z "$output" ]
-}
-
-@test "review-gate skips slash commands even when consequential" {
+@test "skips slash commands even when consequential" {
   run run_capture "/db drop the table and migrate the schema"
   [ -z "$output" ]
 }
