@@ -1,115 +1,115 @@
 #!/usr/bin/env bash
-# flow.sh — render the companion workflow, DERIVED LIVE from the repo so it never
-# drifts: the lifecycle wiring from each plugin's hooks.json, the descriptions
-# from each script's header, the review-loop steps from tq-capture's own
-# instruction, versions from plugin.json, and the live permission state from
-# settings.json. Add/remove/rewire a hook and this view follows automatically.
+# flow.sh — generate FLOW.md, a human-reviewable snapshot of the workflow,
+# DERIVED LIVE from the repo so it can't drift: the lifecycle wiring from each
+# plugin's hooks.json, one-line purposes from each script's header, the review-
+# loop steps from tq-capture's own instruction, versions from plugin.json, and
+# the live permission/agent-mode state from settings.json.
 #
-# The ONE sanctioned human-facing artifact in this otherwise artifact-free repo
-# (owner-requested). Run it with `./flow.sh` or `make flow`; it's intentional —
-# do NOT prune it as stray. Colour auto-disables when stdout isn't a terminal
-# (piped/captured) or under NO_COLOR / TERM=dumb.
+# Run it to (re)generate the file: `./flow.sh` or `make flow`. There is no cron
+# and nothing automatic — refresh it by hand whenever you want a current view.
+#
+# FLOW.md is the ONE sanctioned human-facing artifact in this otherwise
+# artifact-free repo (owner-requested) — it is intentional; do NOT prune it.
+# Output path defaults to FLOW.md; pass an alternate as $1.
 
 set -uo pipefail
 cd "$(dirname "$0")" || exit 1
+OUT="${1:-FLOW.md}"
 
-if [ -n "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ] || [ ! -t 1 ]; then
-  C=''; G=''; Y=''; B=''; M=''; D=''; W=''; X=''
-else
-  C=$'\e[36m'; G=$'\e[32m'; Y=$'\e[33m'; B=$'\e[34m'
-  M=$'\e[35m'; D=$'\e[2m'; W=$'\e[1m'; X=$'\e[0m'
-fi
-line() { printf '%s\n' "$1"; }
+EVENTS=(SessionStart UserPromptSubmit PreToolUse PostToolUse Stop Notification SubagentStop)
+declare -A SYM=([SessionStart]="●" [UserPromptSubmit]="◆" [PreToolUse]="⛬"
+                [PostToolUse]="⚙" [Stop]="✓" [Notification]="✦" [SubagentStop]="⤺")
 
-ver()    { jq -r '.version // "?"' "plugins/$1/.claude-plugin/plugin.json" 2>/dev/null || printf '?'; }
-pcolor() { case "$1" in
-             task-queue) printf '%s' "$C" ;; tidy) printf '%s' "$G" ;;
-             charter)    printf '%s' "$Y" ;; hud)  printf '%s' "$B" ;;
-             *)          printf '%s' "$W" ;;
-           esac; }
+ver() { jq -r '.version // "?"' "plugins/$1/.claude-plugin/plugin.json" 2>/dev/null || printf '?'; }
 
-# One-line purpose from a script's header (line 2, the text after the em-dash).
+# One-line purpose from a script's header (line 2, text after the em-dash).
 purpose() {
-  local p; p="$(sed -n '2p' "$1" 2>/dev/null | sed 's/^# *//')"
+  local p; p="$(sed -n '2p' "$1" 2>/dev/null | sed 's/^# *//; s/|/\//g')"
   case "$p" in *"— "*) p="${p#*— }" ;; esac
-  [ "${#p}" -gt 56 ] && p="${p:0:55}…"
+  [ "${#p}" -gt 66 ] && p="${p:0:65}…"
   printf '%s' "$p"
 }
 
 # "plugin|script-path" for every hook wired to event $1, across all plugins.
 wired() {
-  local hooks plug cmd path
-  for hooks in plugins/*/hooks/hooks.json; do
-    [ -f "$hooks" ] || continue
-    plug="$(basename "$(dirname "$(dirname "$hooks")")")"
+  local h plug cmd path
+  for h in plugins/*/hooks/hooks.json; do
+    [ -f "$h" ] || continue
+    plug="$(basename "$(dirname "$(dirname "$h")")")"
     while IFS= read -r cmd; do
       path="$(printf '%s' "$cmd" | grep -oE 'bin/[A-Za-z0-9_-]+\.sh' | head -1)"
       [ -n "$path" ] && printf '%s|plugins/%s/%s\n' "$plug" "$plug" "$path"
-    done < <(jq -r --arg e "$1" '.hooks[$e][]?.hooks[]?.command // empty' "$hooks" 2>/dev/null)
+    done < <(jq -r --arg e "$1" '.hooks[$e][]?.hooks[]?.command // empty' "$h" 2>/dev/null)
   done | sort -u
 }
 
-# --- always-on -------------------------------------------------------------
+# " · "-joined script basenames (no .sh) wired to event $1.
+names() {
+  wired "$1" | cut -d'|' -f2 | while IFS= read -r p; do [ -n "$p" ] && basename "$p" .sh; done \
+    | awk '{a=a (NR>1?" · ":"") $0} END{print a}'
+}
+
+# --- live state ------------------------------------------------------------
 S="$HOME/.claude/settings.json"
 if [ -f "$S" ]; then
-  mode="$(jq -r '.permissions.defaultMode // "default"' "$S" 2>/dev/null)"
-  dn="$(jq -r '(.permissions.deny // []) | length' "$S" 2>/dev/null)"
-  ak="$(jq -r '(.permissions.ask // []) | length' "$S" 2>/dev/null)"
-  am="$(jq -r '.env.CLAUDE_TQ_AGENT_MODE // "off"' "$S" 2>/dev/null)"
-  perm="defaultMode=$mode · deny($dn) · ask($ak) · agent-mode=$am"
+  perm="defaultMode=$(jq -r '.permissions.defaultMode // "default"' "$S" 2>/dev/null)"
+  perm="$perm · deny($(jq -r '(.permissions.deny//[])|length' "$S" 2>/dev/null))"
+  perm="$perm · ask($(jq -r '(.permissions.ask//[])|length' "$S" 2>/dev/null))"
+  perm="$perm · agent-mode=$(jq -r '.env.CLAUDE_TQ_AGENT_MODE // "off"' "$S" 2>/dev/null)"
 else
   perm="auto mode + deny/ask (settings.json not found)"
 fi
 sl=''; for d in plugins/*/; do [ -f "${d}hooks/hooks.json" ] || sl="$(basename "$d")"; done
-sha="$(git rev-parse --short HEAD 2>/dev/null || printf '?')"
-
-line ""
-line "  ${W}COMPANION WORKFLOW${X}  ${D}— live from the repo @ ${sha}${X}"
-line "  ${D}────────────────────────────────────────────────────────────${X}"
-line ""
-line "  ${M}▐▌ ALWAYS-ON${X}  ${M}native permissions${X} ${D}${perm}${X}"
-[ -n "$sl" ] && line "  ${D}             ${X}${B}statusLine →${X} ${B}${sl}${X} ${D}$(ver "$sl") · health ✓tests ⏸paused 🤖agent ctx%${X}"
-line ""
-
-# --- lifecycle (events in firing order; empty ones auto-omit) --------------
-emit() {                                   # $1 symbol  $2 label  $3 event-key
-  local rows plug path; rows="$(wired "$3")"; [ -n "$rows" ] || return 0
-  line "  ${W}$1 $2${X}"
-  while IFS='|' read -r plug path; do
-    [ -n "$plug" ] || continue
-    line "  ${D}┊${X}  $(pcolor "$plug")${plug}${X} ${D}$(ver "$plug")${X}  ${D}$(basename "$path") — $(purpose "$path")${X}"
-  done <<< "$rows"
-  line "  ${D}▼${X}"
-}
-
-emit "●" "SessionStart"     "SessionStart"
-emit "◆" "UserPromptSubmit" "UserPromptSubmit"
+sha="$(git rev-parse --short HEAD 2>/dev/null || printf 'unknown')"
 steps="$(grep -oE '\([0-9]\) [A-Za-z]+' plugins/task-queue/bin/tq-capture.sh 2>/dev/null \
          | sed 's/.*) //' | awk '{a=a (NR>1?" → ":"") $0} END{print a}')"
-[ -n "$steps" ] && { line "  ${C}┊   the loop:${X} ${steps}"; line "  ${D}▼${X}"; }
-emit "⚙" "PreToolUse"       "PreToolUse"
-emit "⚙" "PostToolUse"      "PostToolUse"
-emit "✓" "Stop"             "Stop"
-emit "✦" "Notification"     "Notification"
+ss="$(names SessionStart)"; up="$(names UserPromptSubmit)"
+pt="$(names PostToolUse)";  st="$(names Stop)"
 
-# --- on-demand (commands + control toggles, derived) -----------------------
-cmds=''
-for c in plugins/*/commands/*.md; do
-  [ -f "$c" ] || continue
-  cmds="$cmds /$(basename "$(dirname "$(dirname "$c")")"):$(basename "$c" .md)"
-done
-wiredset="$(for e in SessionStart UserPromptSubmit PreToolUse PostToolUse Stop Notification; do wired "$e"; done \
-            | cut -d'|' -f2 | while IFS= read -r p; do [ -n "$p" ] && basename "$p"; done | sort -u)"
-toggles=''
-for f in plugins/*/bin/*.sh; do
-  bn="$(basename "$f")"
-  printf '%s\n' "$wiredset" | grep -qx "$bn" && continue
-  sed -n '2p' "$f" 2>/dev/null | grep -qiE 'pause|resume|toggle' && toggles="$toggles ${bn%.sh}"
-done
-od="  ${W}on demand${X}${D}:${X}"
-[ -n "$cmds" ]    && od="$od  ${Y}commands${X}${D}${cmds}${X}"
-[ -n "$toggles" ] && od="$od   ${C}toggles${X}${D}${toggles}${X}"
-line "$od"
-line ""
-line "  $(pcolor task-queue)■${X} task-queue ${D}orchestrate${X}   $(pcolor tidy)■${X} tidy ${D}change${X}   $(pcolor charter)■${X} charter ${D}know${X}   $(pcolor hud)■${X} hud ${D}show${X}"
-line ""
+# --- generate FLOW.md ------------------------------------------------------
+{
+  printf '# Companion workflow — current state\n\n'
+  printf '_Derived from the repo @ `%s` by `./flow.sh`. Manual refresh: `./flow.sh` (or `make flow`). No cron — pull, not push._\n\n' "$sha"
+  printf '**Always-on** — native permissions `%s`' "$perm"
+  [ -n "$sl" ] && printf ' · statusLine → `%s` %s' "$sl" "$(ver "$sl")"
+  printf '\n\n## The flow\n\n```text\n'
+  [ -n "$ss" ]    && printf '  ● SessionStart      → %s\n' "$ss"
+  [ -n "$up" ]    && printf '  ◆ UserPromptSubmit  → %s\n' "$up"
+  [ -n "$steps" ] && printf '      loop: %s\n' "$steps"
+  printf '  ⚙ work the queue      (native task list)\n'
+  [ -n "$pt" ]    && printf '  ├ each edit  →        %s\n' "$pt"
+  [ -n "$st" ]    && printf '  └ on finish  →        %s   (tests block-until-green + throttled prune)\n' "$st"
+  printf '```\n\n## What fires when\n\n'
+  for e in "${EVENTS[@]}"; do
+    rows="$(wired "$e")"; [ -n "$rows" ] || continue
+    printf '### %s %s\n\n| plugin | script | what it does |\n|---|---|---|\n' "${SYM[$e]:-•}" "$e"
+    while IFS='|' read -r plug path; do
+      [ -n "$plug" ] || continue
+      printf '| `%s` %s | `%s` | %s |\n' "$plug" "$(ver "$plug")" "$(basename "$path")" "$(purpose "$path")"
+    done <<< "$rows"
+    [ "$e" = "UserPromptSubmit" ] && [ -n "$steps" ] && printf '\n**The review loop:** %s\n' "$steps"
+    printf '\n'
+  done
+  cmds=''
+  for c in plugins/*/commands/*.md; do
+    [ -f "$c" ] || continue
+    nm="/$(basename "$(dirname "$(dirname "$c")")"):$(basename "$c" .md)"
+    cmds="${cmds:+$cmds, }\`$nm\`"
+  done
+  wiredset="$(for e in "${EVENTS[@]}"; do wired "$e"; done | cut -d'|' -f2 \
+              | while IFS= read -r p; do [ -n "$p" ] && basename "$p"; done | sort -u)"
+  togs=''
+  for f in plugins/*/bin/*.sh; do
+    bn="$(basename "$f")"
+    printf '%s\n' "$wiredset" | grep -qx "$bn" && continue
+    sed -n '2p' "$f" 2>/dev/null | grep -qiE 'pause|resume|toggle' && togs="${togs:+$togs, }\`${bn%.sh}\`"
+  done
+  printf '## On demand\n\n'
+  [ -n "$cmds" ] && printf '%s\n' "- **commands** — $cmds"
+  [ -n "$togs" ] && printf '%s\n' "- **toggles** — $togs"
+  printf '\n---\n'
+  printf '_`task-queue` %s · `tidy` %s · `charter` %s · `hud` %s_\n' \
+    "$(ver task-queue)" "$(ver tidy)" "$(ver charter)" "$(ver hud)"
+} > "$OUT"
+
+printf 'wrote %s (@ %s) — refresh anytime with ./flow.sh\n' "$OUT" "$sha"
