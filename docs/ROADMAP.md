@@ -11,8 +11,9 @@ while Claude keeps it clean, well-documented, token-efficient, and low-debt —
 code, no docs, and runs no commands; the system is automatic and artifact-free
 (only **lean Claude-context** files, never human-facing prose). *One sanctioned
 exception (owner-requested):* `flow.sh` at the repo root (`./flow.sh` / `make flow`)
-renders an at-a-glance colored workflow diagram in the terminal. It is **hand-maintained**
-(a static picture, not derived) — so keep it in sync when the lifecycle changes; don't prune it.
+renders an at-a-glance colored workflow diagram in the terminal — in the hand-drawn
+visual format, but **derived live** from the repo (hook wiring, the review-loop steps,
+versions, permission state) so it can't drift. Keep it; don't prune it.
 
 ## Prioritized criteria (in order)
 
