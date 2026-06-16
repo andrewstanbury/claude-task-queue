@@ -34,6 +34,7 @@ blurb() {
     tidy-standard.sh)     printf 'clean-as-you-go standard' ;;
     tq-resume.sh)         printf 'queue policy · resume bridge · hydrate backlog' ;;
     tq-capture.sh)        printf 'the interpret→present→approve review loop' ;;
+    tq-verify.sh)         printf 'intent→outcome check (built ≟ what was asked)' ;;
     tidy-touch.sh)        printf 'format · lint · blast-radius · size' ;;
     tidy-verify.sh)       printf 'tests green · regression gate (untested hotspots) · prune' ;;
     *)                   purpose "$1" ;;

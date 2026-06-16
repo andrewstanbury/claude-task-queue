@@ -26,6 +26,12 @@ tq_projects_dir()    { printf '%s' "${CLAUDE_TQ_PROJECTS_DIR:-$HOME/.claude/proj
 tq_state_dir()       { printf '%s' "${CLAUDE_TQ_STATE_DIR:-$HOME/.claude/state/task-queue}"; }
 tq_root_cache_file() { printf '%s/root-cache.tsv' "$(tq_state_dir)"; }
 
+# Intent of record for the intent→outcome gate: the latest SUBSTANTIVE prompt,
+# stashed by tq-capture (UserPromptSubmit) and replayed by tq-verify (Stop) to
+# check the finished change against what the owner actually asked. Per session;
+# lives in the state dir (both hooks share CLAUDE_TQ_STATE_DIR=CLAUDE_PLUGIN_DATA).
+tq_intent_file()     { printf '%s/intent-%s' "$(tq_state_dir)" "$(printf '%s' "${1:-nosession}" | sed 's:/:-:g')"; }
+
 # Pause flags use a FIXED home (independent of any per-hook state-dir override) so
 # the capture hook that reads the flag (CLAUDE_TQ_STATE_DIR=CLAUDE_PLUGIN_DATA) and
 # bin/tq-pause.sh (run by the model in plain bash, no plugin env) resolve the SAME

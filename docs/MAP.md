@@ -24,15 +24,16 @@ Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 `lib/` (logic), `tests/`. (charter's `/charter:align` and hud's `/hud:setup` are
 the only `commands/` left; task-queue and tidy are hook-only now.)
 
-## task-queue — *orchestrate the work* (hooks: SessionStart, UserPromptSubmit)
+## task-queue — *orchestrate the work* (hooks: SessionStart, UserPromptSubmit, Stop)
 
 | File | Responsibility |
 |---|---|
 | `bin/tq-resume.sh` | SessionStart: standing policy + cross-session resume + roadmap hydration + quiet-mode + pause/agent/drift signals. |
-| `bin/tq-capture.sh` | UserPromptSubmit: on any substantive prompt, inject the interpret→present→approve review loop (interpret → decompose → judge risk/fan-out → AskUserQuestion → create only approved); silent on trivial prompts; suppressed when the repo is paused. |
+| `bin/tq-capture.sh` | UserPromptSubmit: on any substantive prompt, inject the interpret→present→approve review loop (interpret → decompose → judge risk/fan-out → AskUserQuestion → create only approved) AND stash the prompt as the intent of record; silent on trivial prompts; suppressed when the repo is paused. |
+| `bin/tq-verify.sh` | Stop: the **intent→outcome gate** (loop close) — replay the stashed intent against the actual diff, block once (consumed per ask) so the model verifies the outcome matches the ask and recaps in plain language before "done". `CLAUDE_TQ_INTENT_GATE=0` to disable. |
 | `bin/tq-pause.sh` | Control: pause/resume the review loop (per repo) — paused runs prompts straight through in auto. |
 | `bin/tq-agent.sh` | Control: opt-in agent-mode (parallel subagent fan-out). |
-| `lib/tasks.sh` | Native task-store reads, resume logic, pause/agent flags, drift canary. |
+| `lib/tasks.sh` | Native task-store reads, resume logic, pause/agent flags, the intent-of-record file, drift canary. |
 | `lib/project.sh` | Detect the committed roadmap/backlog file + the `claude-companion` marker. |
 | `lib/capture.sh` | Multi-step/consequential heuristics; shared alignment clause. |
 

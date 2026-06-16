@@ -7,7 +7,9 @@
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   CAPTURE="$ROOT/bin/tq-capture.sh"
+  VERIFY="$ROOT/bin/tq-verify.sh"
   export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
+  export CLAUDE_TQ_STATE_DIR="$(mktemp -d)"          # isolate intent-of-record writes
   # Isolated repo for cwd so the alignment clause keys off fixture docs, not this
   # repo's own ROADMAP/decisions. Tests that want the clause drop docs into REPO.
   REPO="$(mktemp -d)/proj"; mkdir -p "$REPO"; git -C "$REPO" init -q
@@ -15,7 +17,15 @@ setup() {
   MULTI="Add the login form and then wire the auth endpoint and update the tests"
 }
 
-teardown() { rm -rf "$CLAUDE_TQ_TASKS_DIR" "$(dirname "$REPO")"; }
+teardown() { rm -rf "$CLAUDE_TQ_TASKS_DIR" "$CLAUDE_TQ_STATE_DIR" "$(dirname "$REPO")"; }
+
+intent_file() { printf '%s/intent-%s' "$CLAUDE_TQ_STATE_DIR" "${1:-sess}"; }
+# Feed the Stop hook a payload; echo its stdout.
+run_verify() {
+  local sid="${1:-sess}" json
+  json="$(jq -nc --arg s "$sid" --arg c "$REPO" '{session_id:$s, cwd:$c, hook_event_name:"Stop"}')"
+  printf '%s' "$json" | "$VERIFY"
+}
 
 make_task() {
   mkdir -p "$CLAUDE_TQ_TASKS_DIR/$1"
@@ -163,4 +173,70 @@ run_capture() {
   [ "$output" = "Y" ]
   run bash -c "$src"' tq_looks_multistep "rename the file" || echo N' bash "$ROOT"
   [ "$output" = "N" ]
+}
+
+# ---- intent of record (capture side) ----------------------------------------
+
+@test "intent: a substantive prompt records the owner's words for the outcome gate" {
+  run run_capture "$MULTI"
+  [ -f "$(intent_file)" ]
+  [ "$(cat "$(intent_file)")" = "$MULTI" ]
+}
+
+@test "intent: a trivial prompt records nothing" {
+  run run_capture "fix the typo"
+  [ ! -f "$(intent_file)" ]
+}
+
+@test "intent: a paused repo records nothing (opted out of the loop)" {
+  export CLAUDE_TQ_PAUSE_DIR="$CLAUDE_TQ_STATE_DIR/paused"; mkdir -p "$CLAUDE_TQ_PAUSE_DIR"
+  : > "$CLAUDE_TQ_PAUSE_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
+  run run_capture "$MULTI"
+  [ ! -f "$(intent_file)" ]
+}
+
+@test "intent: capture is disabled via CLAUDE_TQ_INTENT_GATE=0" {
+  CLAUDE_TQ_INTENT_GATE=0 run run_capture "$MULTI"
+  [ ! -f "$(intent_file)" ]
+}
+
+# ---- intent→outcome gate (tq-verify, Stop) ----------------------------------
+
+@test "intent gate: blocks on a dirty tree, replaying the ask and the change" {
+  printf '%s' "$MULTI" > "$(intent_file)"
+  printf 'form\n' > "$REPO/login.js"                 # a change landed (untracked → dirty)
+  run run_verify
+  [[ "$output" == *'"decision":"block"'* ]]
+  [[ "$output" == *"owner asked"* ]]
+  [[ "$output" == *"login form"* ]]                  # replays their words
+  [[ "$output" == *"login.js"* ]]                    # shows what changed
+  [ ! -f "$(intent_file)" ]                          # consumed → fires once
+}
+
+@test "intent gate: silent on a clean tree, intent kept for a later stop" {
+  printf '%s' "$MULTI" > "$(intent_file)"
+  git -C "$REPO" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  run run_verify
+  [ -z "$output" ]
+  [ -f "$(intent_file)" ]                            # not consumed
+}
+
+@test "intent gate: silent when there is no captured intent" {
+  printf 'x\n' > "$REPO/x.txt"                       # dirty, but nothing was captured
+  run run_verify
+  [ -z "$output" ]
+}
+
+@test "intent gate: fires once — a second dirty stop allows (no loop)" {
+  printf '%s' "$MULTI" > "$(intent_file)"
+  printf 'form\n' > "$REPO/login.js"
+  run run_verify; [[ "$output" == *block* ]]
+  run run_verify; [ -z "$output" ]                   # intent consumed → silent
+}
+
+@test "intent gate: disabled via CLAUDE_TQ_INTENT_GATE=0" {
+  printf '%s' "$MULTI" > "$(intent_file)"
+  printf 'form\n' > "$REPO/login.js"
+  CLAUDE_TQ_INTENT_GATE=0 run run_verify
+  [ -z "$output" ]
 }

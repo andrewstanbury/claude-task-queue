@@ -44,6 +44,7 @@ case "$prompt" in '/'*|'!'*) exit 0 ;; esac          # slash / bang commands are
 
 cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)"
 [ -n "$cwd" ] || cwd="$PWD"
+sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
 
 # Classify: a consequential/irreversible request, or multi-step work, is
 # SUBSTANTIVE and gets the review loop. A trivial single-step prompt is left to
@@ -58,6 +59,14 @@ fi
 # Honor pause: when the review loop is paused for this repo, stay silent and let
 # substantive work run straight in auto (the user opted out of the checkpoint).
 tq_is_paused "$(tq_root_for_cwd "$cwd")" && exit 0
+
+# Record the INTENT OF RECORD for the outcome gate (tq-verify, Stop): the owner's
+# own words for this substantive ask, replayed at "done" to check the change
+# against the request (the owner-loop's close — they verify by seeing, not reading
+# code). Best-effort side effect; disabled with CLAUDE_TQ_INTENT_GATE=0.
+if [ "${CLAUDE_TQ_INTENT_GATE:-1}" != "0" ]; then
+  { mkdir -p "$(tq_state_dir)" 2>/dev/null && printf '%s' "$prompt" > "$(tq_intent_file "$sid")"; } 2>/dev/null || true
+fi
 
 # The loop instruction (shared). The hook injects it; the model runs it in-loop —
 # the interaction (AskUserQuestion) and the queuing (TaskCreate) are the model's.

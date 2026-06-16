@@ -44,7 +44,7 @@ and reason about. It accrues from 0–4; don't chase it directly.
 
 | Plugin | Responsibility |
 |---|---|
-| **task-queue** | **Orchestrate** — the interpret→present→approve review loop, capture, order, cross-session resume, pause (gates the loop) |
+| **task-queue** | **Orchestrate** — the interpret→present→approve review loop, capture, order, cross-session resume, pause (gates the loop), the Stop-time intent→outcome gate (loop close) |
 | **tidy** | **Change safely & cleanly** — format/lint on touch, blast-radius, verification floor, automatic prune |
 | **charter** | **Know the project + own the owner loop** — doc gate, map, decisions anchor (+ Stop-time alignment floor), conventions, outcome memory, intent→demo→consent posture |
 | **hud** | **Show** — a consolidated read-only status line (the owner's at-a-glance trust signal) |
@@ -65,7 +65,14 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   fan-out, **present its understanding + candid per-task recommendations (incl. skip)
   via AskUserQuestion**, and TaskCreate only what the user approves — weighed against
   recorded direction. Trivial prompts stay silent. **Pause** suppresses the review
-  loop so substantive prompts run straight through in auto.
+  loop so substantive prompts run straight through in auto. On Stop, the
+  **intent→outcome gate** closes the loop: the substantive prompt's plain-language
+  ask is stashed at capture time (the *intent of record*) and replayed at "done"
+  against the actual diff — blocking **once** (consumed per ask, so it can't loop)
+  so the model verifies the OUTCOME matches the request and recaps in plain language,
+  surfacing "built the wrong thing / only part / something extra" to the non-technical
+  owner before declaring done. `CLAUDE_TQ_INTENT_GATE=0` disables it; pause suppresses
+  capture too.
 - **tidy** — on touch: format + lint (Go/web/Python/shell, fast file-scoped tools) +
   blast-radius + coverage/size nudges. On Stop: the **verification floor**
   (run the project's tests, block until green, bounded); the **regression gate**
@@ -151,81 +158,43 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   session). Chose **a few lean Claude-context files** (CLAUDE.md + map + decisions +
   per-plugin CONTRACTs); charter's model is unchanged.
 
-## Status — 2026-06-16 (regression-on-fix loop)
+## Status — 2026-06-16 (anti-rework loops + outcome memory)
 
-Second feature in the "prevent future rework" line — and it **closes the scar-tissue
-loop**. charter's outcome memory *detects* repeatedly-fixed files but nothing forced
-a regression test, so a debt-magnet could keep regressing. Now it does:
+Turned the system's own purpose inward: a line of work to **prevent future
+audit/rework**. The durable result is a taxonomy of rework causes, each now closed by
+a **bounded, disable-able, detect-not-decide Stop-time floor** (the hook supplies
+facts; the model judges):
 
-- **tidy gains a regression gate** (in `tidy-verify.sh`, the existing Stop floor):
-  block when a changed file is BOTH a scar-tissue hotspot (repeatedly fixed) AND
-  still has no test. The next touch of an uncharacterized debt-magnet must pin it
-  with a test — detect repeat-fixes → force a test → regression can't silently
-  recur. Reuses tidy's coverage/test machinery (`tidy_untested_changed`,
-  `tidy_has_test_for`); adds only the hotspot detector + the intersection
-  (`tidy_untested_hotspots`).
-- **Narrow on purpose (YAGNI).** It's the always-on coverage ratchet *scoped to the
-  files that earned it* — only untested hotspots, not every untested file (that's
-  the opt-in broad ratchet). Precise trigger → safe default-on → quiet the moment a
-  test lands. The broader "a tested hotspot's fix should add a NEW case" tier was
-  **deliberately not built** (over-nags); revisit only if real misses surface.
-- **Install boundary handled the same way as the doc detectors.** Hotspot detection
-  lives in charter; tidy can't share its lib, so `tidy_hotspots` is a hand mirror of
-  `charter_hotspots`, and `tests/drift-guard.bats` now asserts the two are
-  **byte-identical** (CI fails if they drift) — the sanctioned pattern for the
-  intentional cross-plugin duplication.
-- **Bounded + reversible** like the rest: per-session attempt cap (can't loop),
-  `CLAUDE_TIDY_REGRESSION_GATE=0` disables, stands down when the broad ratchet runs.
+| Open loop (cause of future rework) | Closed by | Disable |
+|---|---|---|
+| Tests red at "done" | tidy verification floor | `CLAUDE_TIDY_CHECKS=0` |
+| Regression of a repeatedly-fixed file | tidy regression gate (← charter scar tissue) | `CLAUDE_TIDY_REGRESSION_GATE=0` |
+| Silent reversal of a recorded decision | charter alignment floor | `CLAUDE_CHARTER_ALIGN_GATE=0` |
+| Built ≠ what the owner asked | task-queue intent→outcome gate | `CLAUDE_TQ_INTENT_GATE=0` |
 
-Outcome-memory is now a full loop: charter **detects** scar tissue (SessionStart) →
-tidy **prevents** its recurrence (Stop). Two of the taxonomy's three open loops are
-closed (regression ✓, decision-reversal ✓); intent→outcome verification remains.
+Durable decisions from this line (detail in git history + each plugin's CONTRACT):
 
-## Status — 2026-06-16 (alignment floor)
-
-First feature in the "prevent future audit/rework" line (the system's own purpose,
-turned inward). The taxonomy of future rework had two **open loops**: scar tissue
-*detects* repeat-fixes but nothing forced a regression guard; the owner loop
-*captures* intent but never checked the finished work against it; and recorded
-decisions could be reversed unnoticed. This closes the decisions one:
-
-- **charter gains a `Stop` hook (`charter-align-gate.sh`)** — the alignment floor.
-  After a substantive change, if the project records decisions AND the change
-  plausibly bears on one, it blocks **once** and surfaces the recorded decisions for
-  the model to adjudicate: honor them, or surface+confirm a reversal in plain
-  language before it lands. The semantic judgment is the model's; the hook is
-  deterministic plumbing (detect-not-decide, like the rest of charter).
-- **Cheap pre-filter (`lib/align.sh`, `charter_change_touches_decisions`)** keeps it
-  quiet on routine edits — it only escalates on decision-bearing surfaces (dependency
-  manifests, config, infra, migrations/schema) or when a backtick-fenced decision
-  token shows up in the diff/new files. Precision over recall: a false block is
-  noise, so the filter is conservative.
-- **Bounded like the test floor** — a per-tree fingerprint (won't re-ask the same
-  change) + a per-session attempt cap (`CLAUDE_CHARTER_ALIGN_MAX`, default 2) make it
-  loop-proof; `CLAUDE_CHARTER_ALIGN_GATE=0` disables it.
-- **Alignment is now checked at both ends** — intent-time (task-queue's review loop
-  weighs against recorded direction) and outcome-time (this gate, on the real diff).
-- **Note:** charter previously wrote *nothing*; the throttle needs state, so it now
-  writes a **cache-only** dir (`$HOME/.claude/state/charter`, like tidy) — never the
-  project. CONTRACT updated.
-
-## Status — 2026-06-16 (outcome memory)
-
-Added **outcome memory** to charter — the project's own scar tissue as live context:
-
-- **`charter_hotspots` (lib/charter.sh)** mines the last 300 commits and flags files
-  with a high **rework ratio** — fix/revert/regression commits (word-boundaried, so
-  "prefix" ≠ "fix") over total commits touching the file ≥ 0.34, at least 2 reworks,
-  and only files that still exist. This measures the *disease* (repeated correction),
-  not raw churn — active development and a debt magnet look identical by churn alone.
-- **SessionStart surfaces it** (charter-standard.sh) even in quiet mode, framed as
-  high-risk: understand *why* a hotspot churns before extending, cover it with tests,
-  prefer the smallest change — and consider that the churn means the abstraction is
-  *wrong* (over-built) and should be simplified, not added to. Feeds the review loop's
-  per-task risk judgment with real history.
-- **tidy's verification floor** now also prompts, on a recurring test failure, to
-  record the lesson in the project's recorded decisions (what changed, what broke,
-  what to do instead) — outcome memory the model writes, not just reads.
+- **Outcome memory is charter's, prevention is the verifiers'.** charter
+  *detects* scar tissue — `charter_hotspots` flags files by the **rework ratio**
+  (fix/revert commits ÷ total touching a file ≥ 0.34, ≥ 2 reworks, existing files),
+  the *disease* not raw churn — and surfaces it at SessionStart. tidy's regression
+  gate then *prevents* recurrence: a changed file that is both a hotspot and untested
+  must be pinned before "done".
+- **Alignment is verified at both ends of the loop** — intent-time (the review loop
+  weighs new work against recorded direction) and outcome-time (charter's align gate
+  on the real diff; task-queue's intent gate on the captured ask vs. the diffstat).
+- **Cheap pre-filters keep the gates quiet** — the align gate escalates only on
+  decision-bearing surfaces (deps/config/migrations) or fenced-token overlap; the
+  regression gate fires only on the hotspot subset. Precision over recall: a false
+  block is noise.
+- **Loop-proof + small-footprint** — each gate bounds itself (per-tree/per-ask
+  consume or a per-session cap). charter and task-queue now write **cache-only** state
+  (never the project) for their throttles, alongside tidy's existing footprint.
+- **Install boundary, again:** tidy's `tidy_hotspots` is a hand mirror of
+  `charter_hotspots`; `tests/drift-guard.bats` asserts they're byte-identical.
+- **YAGNI held:** the broader "a *tested* hotspot's fix should add a new case" tier was
+  deliberately not built (over-nags). The taxonomy is closed; further work is
+  demand-driven (see the closing note).
 
 ## Status — 2026-06-16 (token-efficiency pass)
 

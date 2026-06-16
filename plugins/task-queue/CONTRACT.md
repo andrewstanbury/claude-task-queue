@@ -6,7 +6,7 @@ are documented, stable APIs** — they are observed behaviour. This file records
 exactly what we lean on so that, when something breaks after a Claude Code
 update, you know where to look first.
 
-> **Observed against:** Claude Code 2.x · last verified **2026-05-30**.
+> **Observed against:** Claude Code 2.x · last verified **2026-06-16**.
 > If you re-verify on a newer version, bump that date.
 
 All of this knowledge is centralized in [`lib/tasks.sh`](./lib/tasks.sh) and the
@@ -102,9 +102,29 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
   paused (§ pause flag), the checkpoint is suppressed and substantive prompts run
   straight through in auto without presenting for approval. Disabled with
   `CLAUDE_TQ_CAPTURE_DISABLED`.
+- **Intent of record (side effect):** on a substantive, non-paused prompt it also
+  stashes the prompt text to `tq_intent_file($session_id)` (in the state dir) for the
+  Stop gate below. Best-effort; gated off by `CLAUDE_TQ_INTENT_GATE=0`.
 - **Output contract:** same shape, with `"hookEventName": "UserPromptSubmit"`.
 - **If it changes:** the loop instruction silently stops; capture still relies on
   the SessionStart policy.
+
+### 4b. `Stop` hook payload (stdin) — the intent→outcome gate
+
+- **Script:** `bin/tq-verify.sh`. **Fields read:** `cwd` (resolved to the repo
+  root) and `session_id` (keys the stashed intent).
+- **Behavior:** the close of the owner loop. On the first **dirty** Stop after a
+  substantive ask was captured (§4), it replays the **intent of record** + a
+  `git diff --stat` of what changed and blocks **once** (`decision: block`) so the
+  model verifies the OUTCOME matches the ask and recaps in plain language —
+  surfacing "wrong thing / only part / something extra" to the non-technical owner
+  before "done". The intent is **consumed on fire**, so it can never loop; it's the
+  outcome-time complement to §4's intent-time review.
+- **Silent when:** no intent was captured (trivial/conversational turn), the tree is
+  clean (work not done → intent kept for a later Stop), outside a git repo, or
+  `CLAUDE_TQ_INTENT_GATE=0`. Best-effort — any internal error degrades to "allow the
+  stop" (it re-asserts `set +e` after sourcing `lib/tasks.sh`, which enables `-e`).
+- **If it changes:** the gate silently stops; the rest of the plugin is unaffected.
 
 ### 5. Hook wiring & env
 
@@ -139,6 +159,10 @@ A few small files, all outside `~/.claude/tasks`:
 
 - **Root cache** — `${CLAUDE_PLUGIN_DATA}/root-cache.tsv` (session→repo mapping;
   in plugin data so it survives updates).
+- **Intent of record** — `<state-dir>/intent-<session_id>` (the latest substantive
+  prompt, written by `tq-capture.sh`, read+consumed by `tq-verify.sh`). Both hooks
+  run with `CLAUDE_TQ_STATE_DIR=${CLAUDE_PLUGIN_DATA}`, so they share the path; not
+  the task store.
 - **Pause flags** — `~/.claude/state/task-queue/paused/<encoded-repo-root>`
   (overridable via `CLAUDE_TQ_PAUSE_DIR`). One empty file per paused repo; its
   presence is the pause, which **suppresses the interpret→present→approve review
