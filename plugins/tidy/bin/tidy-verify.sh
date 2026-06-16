@@ -72,13 +72,11 @@ if [ "${CLAUDE_TIDY_COVERAGE_RATCHET:-0}" = "1" ]; then
     gcount="${gcount//[^0-9]/}"; [ -n "$gcount" ] || gcount=0
     if [ "$gcount" -ge "$gmax" ]; then
       rm -f "$gfile" 2>/dev/null || true             # gave it enough tries → allow
-      tidy_log verify "coverage-gate give-up attempts=$gcount"
       jq -cn --arg m "⚠️ Coverage ratchet: still untested after $gcount prompts — characterize these when you can: $(printf '%s' "$untested" | tr '\n' ' ')" \
         '{systemMessage: $m}'
       exit 0
     fi
     { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$((gcount + 1))" > "$gfile"; } 2>/dev/null || true
-    tidy_log verify "coverage-gate block attempt=$((gcount + 1))"
     jq -cn --arg r "Coverage ratchet: these changed source files have no test — characterize them (pin current behavior with a test) before finishing, so the project accrues a spec:"$'\n\n'"$untested" \
       '{decision: "block", reason: $r}'
     exit 0
@@ -98,7 +96,6 @@ tidy_set_result() { { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$1" > "$rfile
 # clears the fingerprint, so we never skip past red tests.)
 cur="$(tidy_tree_hash "$root" 2>/dev/null || true)"
 if [ -n "$cur" ] && [ -f "$hfile" ] && [ "$(cat "$hfile" 2>/dev/null || true)" = "$cur" ]; then
-  tidy_log verify "skip unchanged"
   allow
 fi
 
@@ -108,7 +105,6 @@ if [ "$rc" -eq 0 ]; then
   rm -f "$cfile" 2>/dev/null || true                  # green → reset counter
   if [ -n "$cur" ]; then { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$cur" > "$hfile"; } 2>/dev/null || true; fi
   tidy_set_result pass
-  tidy_log verify "pass cmd=$cmd"
   allow
 fi
 
@@ -117,7 +113,6 @@ rm -f "$hfile" 2>/dev/null || true                    # not green → drop the s
 if [ "$rc" -eq 124 ]; then                            # timed out — can't verify; don't loop on it
   rm -f "$cfile" 2>/dev/null || true
   tidy_set_result timeout
-  tidy_log verify "timeout cmd=$cmd"
   jq -cn --arg m "⚠️ Tests timed out (> ${CLAUDE_TIDY_VERIFY_TIMEOUT:-180}s, \`$cmd\`) — couldn't verify this change; run them manually if needed." \
     '{systemMessage: $m}'
   exit 0
@@ -131,7 +126,6 @@ count="${count//[^0-9]/}"; [ -n "$count" ] || count=0
 if [ "$count" -ge "$max" ]; then
   rm -f "$cfile" 2>/dev/null || true                  # gave it enough tries
   tidy_set_result fail
-  tidy_log verify "give-up cmd=$cmd attempts=$count"
   jq -cn --arg m "⚠️ Tests are still failing after $count fix attempts ($cmd) — this needs attention before the change is trusted." \
     '{systemMessage: $m}'
   exit 0
@@ -139,6 +133,5 @@ fi
 
 { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$((count + 1))" > "$cfile"; } 2>/dev/null || true
 tidy_set_result fail
-tidy_log verify "block cmd=$cmd attempt=$((count + 1))"
 jq -cn --arg r "The project's tests are failing after your change — nothing is done until they're green. Run \`$cmd\`, read the failure, and fix it:"$'\n\n'"$out" \
   '{decision: "block", reason: $r}'

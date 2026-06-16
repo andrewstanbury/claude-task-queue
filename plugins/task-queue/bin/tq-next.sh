@@ -48,20 +48,16 @@ root=""
 if [ -n "$cwd" ]; then root="$(tq_root_for_cwd "$cwd")"
 else root="$(tq_session_root "$sid" 2>/dev/null || true)"; fi
 if tq_is_paused "$root"; then
-  tq_log "advance" "silent (paused)" "$sid"
   exit 0
 fi
 
 next="$(tq_next_context "$sid" "$done_id" 2>/dev/null || true)"
 if [ -z "$next" ]; then
-  tq_log "advance" "silent (nothing actionable)" "$sid"   # in_progress or queue drained
-  exit 0
+  exit 0                                                  # in_progress or queue drained
 fi
 
 IFS=$'\t' read -r nid nsubj nopen <<<"$next"
 ctx="[task-queue] Next unblocked task: #${nid} — ${nsubj} (${nopen} open). Pick it up next unless the user redirects."
-
-tq_log "advance" "-> #${nid} (${nopen} open)" "$sid"
 
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "TaskCompleted", additionalContext: $c}}'

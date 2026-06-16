@@ -51,7 +51,5 @@ done <<< "$rows"
 
 ctx="⚠️ [task-queue] OPEN DECISION(S) the user has not resolved (a question may have been queued past):$list"$'\n'"Before starting unrelated new work: re-ask these with the AskUserQuestion tool so they're visible. If the user's message just now answers one, resolve it: bash \"$ask\" resolve <id>. If a decision has already been surfaced and is still unanswered, proceed with its **recommended** option and say so — don't stall."
 
-tq_log "decisions" "surfaced=$(printf '%s\n' "$rows" | grep -c .)" "$sid"
-
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $c}}'

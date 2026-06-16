@@ -13,7 +13,6 @@ setup() {
   export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
   export CLAUDE_TQ_PROJECTS_DIR="$(mktemp -d)"
   export CLAUDE_TQ_PAUSE_DIR="$(mktemp -d)"
-  export CLAUDE_TQ_LOG_DIR="$(mktemp -d)"
 
   REPO="$(mktemp -d)/proj"
   mkdir -p "$REPO" && git -C "$REPO" init -q
@@ -21,7 +20,7 @@ setup() {
 
 teardown() {
   rm -rf "$CLAUDE_TQ_TASKS_DIR" "$CLAUDE_TQ_PROJECTS_DIR" \
-         "$CLAUDE_TQ_PAUSE_DIR" "$CLAUDE_TQ_LOG_DIR" "$(dirname "$REPO")"
+         "$CLAUDE_TQ_PAUSE_DIR" "$(dirname "$REPO")"
 }
 
 make_task() {

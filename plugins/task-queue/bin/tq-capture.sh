@@ -54,7 +54,6 @@ cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)"
 if tq_looks_consequential "$prompt"; then
   ctx="[task-queue] This prompt looks CONSEQUENTIAL — irreversible or externally binding (e.g. deletions, data migrations, paid deps, production or destructive ops). Before queuing or starting ANY of it: decompose it into the concrete tasks you would run, then present them to the owner for sign-off via AskUserQuestion — one disposition per task (add to queue / modify / skip) plus your honest recommendation, which may be that none of it should be queued. TaskCreate ONLY what they approve, and don't start the work until they have. If your honest read is 'don't do this', make that the recommended option."
   ctx="$ctx$(tq_alignment_clause "$cwd")"
-  tq_log "capture" "review-gate (consequential)" "$sid"
   jq -cn --arg c "$ctx" \
     '{hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $c}}'
   exit 0
@@ -71,8 +70,6 @@ ctx="[task-queue] This looks like multi-step work and your task queue is empty �
 # already fires — the docs are only resolved here, with local file checks.
 align="$(tq_alignment_clause "$cwd")"
 ctx="$ctx$align"
-
-tq_log "capture" "nudged (multi-step, empty queue$( [ -n "$align" ] && printf ', aligned' ))" "$sid"
 
 jq -cn --arg c "$ctx" \
   '{hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $c}}'

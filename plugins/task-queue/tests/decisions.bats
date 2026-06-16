@@ -2,7 +2,7 @@
 #
 # Tests for the open-decisions ledger: the CLI (tq-ask.sh), the UserPromptSubmit
 # re-injector (tq-decisions.sh), and the Notification alert (tq-notify.sh).
-# Faked via a temp repo + CLAUDE_TQ_DECISIONS_DIR / CLAUDE_TQ_LOG_DIR overrides.
+# Faked via a temp repo + CLAUDE_TQ_DECISIONS_DIR override.
 
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -10,11 +10,10 @@ setup() {
   DEC="$ROOT/bin/tq-decisions.sh"
   NOTIFY="$ROOT/bin/tq-notify.sh"
   export CLAUDE_TQ_DECISIONS_DIR="$(mktemp -d)"
-  export CLAUDE_TQ_LOG_DIR="$(mktemp -d)"
   REPO="$(mktemp -d)/proj"; mkdir -p "$REPO"; git -C "$REPO" init -q
 }
 
-teardown() { rm -rf "$CLAUDE_TQ_DECISIONS_DIR" "$CLAUDE_TQ_LOG_DIR" "$(dirname "$REPO")"; }
+teardown() { rm -rf "$CLAUDE_TQ_DECISIONS_DIR" "$(dirname "$REPO")"; }
 
 # Run the CLI from inside the repo (it keys off $PWD's repo root).
 ask() { ( cd "$REPO" && "$ASK" "$@" ); }

@@ -1,18 +1,15 @@
 #!/usr/bin/env bats
 #
 # Tests for the charter plugin: the quality-attributes gate + source-aware
-# SessionStart nudge, and charter-doctor. Faked via a temp git repo and
-# CLAUDE_CHARTER_* overrides.
+# SessionStart nudge. Faked via a temp git repo.
 
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   STANDARD="$ROOT/bin/charter-standard.sh"
-  DOCTOR="$ROOT/bin/charter-doctor.sh"
   REPO="$(mktemp -d)/proj"; mkdir -p "$REPO"; git -C "$REPO" init -q
-  export CLAUDE_CHARTER_LOG_DIR="$(mktemp -d)"
 }
 
-teardown() { rm -rf "$(dirname "$REPO")" "$CLAUDE_CHARTER_LOG_DIR"; }
+teardown() { rm -rf "$(dirname "$REPO")"; }
 
 run_standard() {
   local src="${1:-startup}" json
@@ -99,14 +96,6 @@ run_standard() {
   [ "$output" = "documented" ]
 }
 
-@test "doctor reports QA status (missing then documented)" {
-  run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
-  [[ "$output" == *"not documented"* ]]
-  : > "$REPO/QUALITY.md"
-  run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
-  [[ "$output" == *"quality attributes are documented"* ]]
-}
-
 @test "roadmap-status: missing, then present via docs/ROADMAP.md" {
   src='. "$1/lib/charter.sh";'
   run bash -c "$src"' charter_roadmap_status "$2"' bash "$ROOT" "$REPO"
@@ -141,14 +130,6 @@ run_standard() {
   [[ "$output" != *"backlog"* ]]
 }
 
-@test "doctor reports roadmap status (missing then present)" {
-  run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
-  [[ "$output" == *"no roadmap/backlog file"* ]]
-  mkdir -p "$REPO/docs"; : > "$REPO/docs/ROADMAP.md"
-  run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
-  [[ "$output" == *"docs/ROADMAP.md"* ]]
-}
-
 @test "map-status: missing, then present via docs/MAP.md (and ARCHITECTURE.md)" {
   src='. "$1/lib/charter.sh";'
   run bash -c "$src"' charter_map_status "$2"' bash "$ROOT" "$REPO"
@@ -177,14 +158,6 @@ run_standard() {
   [[ "$output" == *"ARCHITECTURE.md"* ]]
   [[ "$output" == *"consult as relevant"* ]]
   [[ "$output" != *"project map (docs/MAP.md)"* ]]   # not in the baseline gap list
-}
-
-@test "doctor reports project-map status (missing then present)" {
-  run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
-  [[ "$output" == *"no project map"* ]]
-  : > "$REPO/ARCHITECTURE.md"
-  run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
-  [[ "$output" == *"ARCHITECTURE.md"* ]]
 }
 
 @test "is-web: no by default; web via index.html / package.json dep; env override wins" {
@@ -229,12 +202,6 @@ run_standard() {
   CLAUDE_CHARTER_WEB=0 run run_standard startup
   [[ "$output" != *"progressive enhancement"* ]]
   [[ "$output" != *"Core Web Vitals"* ]]
-}
-
-@test "doctor flags a web project's best-practice defaults" {
-  printf '{"dependencies":{"vue":"^3.0.0"}}\n' > "$REPO/package.json"
-  run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$DOCTOR"
-  [[ "$output" == *"web project"* ]]
 }
 
 @test "decisions-status: missing, then present via DECISIONS.md / docs/adr/" {
@@ -355,13 +322,6 @@ run_standard() {
   json="$(jq -nc --arg c "$REPO" '{cwd:$c, source:"startup"}')"
   run bash -c 'printf "%s" "$1" | "$2" | jq -r .hookSpecificOutput.hookEventName' _ "$json" "$STANDARD"
   [ "$output" = "SessionStart" ]
-}
-
-@test "prune: bounds the activity log (no cruft)" {
-  seq 1 2500 > "$CLAUDE_CHARTER_LOG_DIR/activity.log"
-  run bash -c '. "$1/lib/charter.sh"; charter_prune_log' _ "$ROOT"
-  [ "$status" -eq 0 ]
-  [ "$(wc -l < "$CLAUDE_CHARTER_LOG_DIR/activity.log")" -eq 1000 ]
 }
 
 # ---- /charter:align (alignment check) ---------------------------------------

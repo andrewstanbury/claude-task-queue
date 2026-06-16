@@ -22,9 +22,6 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 # shellcheck source=../lib/charter.sh
 . "$PLUGIN_DIR/lib/charter.sh"
 
-# Once per session, keep the activity log bounded so it never becomes cruft.
-charter_prune_log 2>/dev/null || true
-
 input=""
 [ -t 0 ] || input="$(cat 2>/dev/null || true)"
 cwd=""; src=""
@@ -45,10 +42,7 @@ emit() { jq -cn --arg c "$1" '{hookSpecificOutput: {hookEventName: "SessionStart
 # model already oriented this session and can read those docs directly.
 if [ "$lean" -eq 1 ]; then
   if [ "$status" = "missing" ]; then
-    charter_log "session-start" "qa=missing src=${src:-?} mode=lean"
     emit "[charter] (reminder) document this project's quality attributes (perf, security, a11y, reliability, maintainability) before substantive changes."
-  else
-    charter_log "session-start" "qa=documented src=${src:-?} mode=lean"
   fi
   exit 0
 fi
@@ -69,7 +63,6 @@ mstatus="$(charter_map_status "$root" 2>/dev/null || printf 'missing')"
 sstatus="$(charter_stack_status "$root" 2>/dev/null || printf 'missing')"
 conv="$(charter_conventions "$root" 2>/dev/null || true)"
 cstatus="$(charter_conventions_status "$root" 2>/dev/null || printf 'missing')"
-charter_log "session-start" "qa=$status roadmap=$rstatus decisions=$dstatus map=$mstatus stack=$sstatus conv=$cstatus web=$web marked=$documented src=${src:-?} mode=full"
 
 # Baseline gaps (always actionable); QA gap only for web projects.
 gaps=()

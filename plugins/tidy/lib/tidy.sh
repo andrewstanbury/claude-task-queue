@@ -16,7 +16,6 @@ set -uo pipefail
 # ---- locations (overridable for tests) -------------------------------------
 
 tidy_log_dir()  { printf '%s' "${CLAUDE_TIDY_LOG_DIR:-$HOME/.claude/state/tidy}"; }
-tidy_log_file() { printf '%s/activity.log' "$(tidy_log_dir)"; }
 
 # ---- helpers ---------------------------------------------------------------
 
@@ -40,12 +39,14 @@ tidy_root_for_cwd() {
 }
 
 # Run a fast, file-scoped linter with a bounded timeout and emit the touch hook's
-# lint block. On exit 1 WITH output (violations) it logs and prints "0\t<findings>"
+# lint block. On exit 1 WITH output (violations) it prints "0\t<findings>"
 # (changed=0); clean (0), config/crash (2+), and timeout (124) are all no-ops.
 # Collapses the identical timeout/rc/print shape the per-language handlers shared.
+# The leading <lang> <tool> <file> are accepted for call-site symmetry, then
+# shifted away; only <cmd> [args...] are executed.
 # Usage: tidy_run_linter <lang> <tool> <file> <cmd> [args...]
 tidy_run_linter() {
-  local lang="$1" tool="$2" file="$3"; shift 3
+  shift 3
   local out rc
   if tidy_have timeout; then
     out="$(timeout "${CLAUDE_TIDY_LINT_TIMEOUT:-30}" "$@" 2>/dev/null)"; rc=$?
@@ -54,31 +55,16 @@ tidy_run_linter() {
   fi
   [ "$rc" -eq 1 ] || return 0
   [ -n "$out" ] || return 0
-  tidy_log "$lang" "file=$file tool=$tool findings=yes"
   printf '0\t%s' "$(printf '%s\n' "$out" | head -n 25)"
 }
 
 # Best-effort: prune stale per-session state (dedup markers, verify counters/
 # fingerprints) older than CLAUDE_TIDY_STATE_TTL_DAYS (default 7) so they don't
-# accumulate forever. Also trims the activity log if it grows large. Never fails.
+# accumulate forever. Never fails.
 tidy_prune_state() {
-  local base days="${CLAUDE_TIDY_STATE_TTL_DAYS:-7}" log
+  local base days="${CLAUDE_TIDY_STATE_TTL_DAYS:-7}"
   base="$(tidy_log_dir)"
   find "$base/nudged" "$base/verify" "$base/golist" -type f -mtime "+$days" -delete 2>/dev/null || true
-  log="$(tidy_log_file)"
-  if [ -f "$log" ] && [ "$(wc -l < "$log" 2>/dev/null || printf 0)" -gt 2000 ]; then
-    { tail -n 1000 "$log" > "$log.tmp" 2>/dev/null && mv "$log.tmp" "$log"; } 2>/dev/null || true
-  fi
-  return 0
-}
-
-# Append one best-effort log line; never fails the caller. CLAUDE_TIDY_LOG_DISABLED=1 to mute.
-tidy_log() {
-  [ -n "${CLAUDE_TIDY_LOG_DISABLED:-}" ] && return 0
-  local event="$1" detail="${2:-}" ts dir
-  ts="$(date '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null || printf '?')"
-  dir="$(tidy_log_dir)"
-  { mkdir -p "$dir" 2>/dev/null && printf '%s\t%s\t%s\n' "$ts" "$event" "$detail" >> "$(tidy_log_file)"; } 2>/dev/null || true
   return 0
 }
 
@@ -122,7 +108,7 @@ tidy_hash() { cksum "$1" 2>/dev/null | awk '{print $1"-"$2}'; }
 tidy_handle_go() {
   local file="$1"
   [ -f "$file" ] || return 0
-  if tidy_is_generated_go "$file"; then tidy_log skip "generated: $file"; return 0; fi
+  if tidy_is_generated_go "$file"; then return 0; fi
 
   local before after tool="" changed=0
   before="$(tidy_hash "$file")"
@@ -145,7 +131,6 @@ tidy_handle_go() {
   fi
 
   [ "$changed" -eq 0 ] && [ -z "$lint" ] && return 0
-  tidy_log go "file=$file fmt=$tool changed=$changed lint=$( [ -n "$lint" ] && echo yes || echo no )"
   printf '%s\t%s' "$changed" "$lint"
 }
 
@@ -275,7 +260,6 @@ tidy_currency_nudge() {
       [ -n "$reqs" ] && pins="$pins; $reqs" ;;
   esac
 
-  tidy_log currency "manifest=$manifest"
   if [ -n "$pins" ]; then
     printf 'currency: %s pins %s — apply safe (patch/minor) upgrades behind passing tests; surface risky majors plainly.' "$kind" "$pins"
   else

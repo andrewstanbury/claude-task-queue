@@ -36,9 +36,6 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 # shellcheck source=../lib/project.sh
 . "$PLUGIN_DIR/lib/project.sh"
 
-# Once per session, keep the activity log bounded so it never becomes cruft.
-tq_prune_log 2>/dev/null || true
-
 # Trimmed standing policy (re-injected on each fresh SessionStart, so kept lean).
 POLICY='[task-queue] Your native task list IS the live work queue. Capture multi-step work with TaskCreate (skip trivial/chat) before starting, work it in dependency order (honor blockedBy), and advance as you finish — without draining the backlog unprompted.'
 
@@ -93,25 +90,15 @@ else
 fi
 
 # State signals — always shown, regardless of source.
-paused=0
 if tq_is_paused "$root"; then
-  paused=1
   ctx="$ctx"$'\n\n'"⏸ Auto-advance is PAUSED for this repo — completing a task won't surface the next until you resume ($pause_cmd off)."
 fi
-drift=0
 if [ "$(tq_schema_status 2>/dev/null || true)" = "drift" ]; then
-  drift=1
-  ctx="$ctx"$'\n\n'"⚠️ [task-queue] The native task store no longer matches the expected schema — Claude Code may have changed it; carry-over/advance may be degraded. Run $PLUGIN_DIR/bin/tq-doctor.sh (see CONTRACT.md)."
+  ctx="$ctx"$'\n\n'"⚠️ [task-queue] The native task store no longer matches the expected schema — Claude Code may have changed it; carry-over/advance may be degraded (see CONTRACT.md)."
 fi
-agent=0
 if tq_is_agent_mode "$root"; then
-  agent=1
   ctx="$ctx"$'\n\n'"🤖 Agent-mode is ON — DEFAULT to fanning work out to subagents (Task tool) when it pays off in speed: parallel reads/exploration/audits across many files, independent per-item transforms, and parallel verification. Safe to parallelize = unblocked, no shared blockedBy, disjoint files, low blast radius. Keep INLINE: coupled/chained work, edits to shared or high-fan-in files, or when unsure — conflicting parallel edits are the risk the blast-radius principle guards against. Decide per-task from your task list; don't ask each time. ($agent_cmd off to disable for this repo.)"
 fi
-
-tq_log "session-start" \
-  "src=${src:-?} mode=$( [ "$lean" -eq 1 ] && printf 'lean' || printf 'full' )$( [ "$paused" -eq 1 ] && printf ', paused' )$( [ "$drift" -eq 1 ] && printf ', DRIFT' )$( [ "$agent" -eq 1 ] && printf ', AGENT' )" \
-  "$sid"
 
 # Emit as SessionStart additionalContext.
 jq -cn --arg c "$ctx" \

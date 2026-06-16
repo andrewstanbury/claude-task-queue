@@ -35,8 +35,7 @@ input=""
 file="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null || true)"
 if [ -z "$file" ]; then
   # A payload arrived but had no tool_input.file_path — the shape we read may
-  # have changed. Note it (drift canary), then stay silent.
-  tidy_log drift "PostToolUse payload had no tool_input.file_path"
+  # have changed; stay silent.
   exit 0
 fi
 [ -f "$file" ] || exit 0

@@ -35,12 +35,10 @@ case "$action" in
   on|enable)
     mkdir -p "$(tq_agent_dir)" 2>/dev/null || true
     : > "$flag"
-    tq_log "agent" "on ($root)"
     printf 'agent-mode ON — independent tasks may fan out to subagents for %s\n' "$root"
     ;;
   off|disable)
     rm -f "$flag" 2>/dev/null || true
-    tq_log "agent" "off ($root)"
     printf 'agent-mode OFF — inline only (default) for %s\n' "$root"
     ;;
   status)

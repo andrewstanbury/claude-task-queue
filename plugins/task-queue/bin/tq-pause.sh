@@ -34,12 +34,10 @@ case "$action" in
   on|pause)
     mkdir -p "$(tq_pause_dir)" 2>/dev/null || true
     : > "$flag"
-    tq_log "pause" "on ($root)"
     printf 'paused — auto-advance is off for %s\n' "$root"
     ;;
   off|resume)
     rm -f "$flag" 2>/dev/null || true
-    tq_log "pause" "off ($root)"
     printf 'active — auto-advance resumed for %s\n' "$root"
     ;;
   status)

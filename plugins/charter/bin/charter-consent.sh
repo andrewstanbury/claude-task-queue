@@ -34,7 +34,6 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 input=""
 [ -t 0 ] || input="$(cat 2>/dev/null || true)"
 [ -n "$input" ] || exit 0
-tool="$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null || true)"
 cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null || true)"
 file="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null || true)"
 
@@ -57,8 +56,6 @@ elif [ -n "$file" ]; then
 fi
 
 [ -n "$reason" ] || exit 0   # nothing consequential detected → silent, zero cost
-
-charter_log "consent" "surfaced: $reason (tool=$tool)" 2>/dev/null || true
 
 ctx="⚠️ [charter] This looks consequential and hard to undo — $reason. The owner is non-technical and can't review it, so confirm with them in plain language before proceeding (the line is reversibility + cost + data-safety). This is a reminder, not a block."
 

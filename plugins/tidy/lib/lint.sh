@@ -2,7 +2,7 @@
 # tidy — multi-stack edit-time linters beyond Go/web. Surfaces the PROJECT's own
 # linter findings for a touched file, findings-only (no auto-fix — that can change
 # behavior), silent unless the tool is actually present. Sourced by
-# bin/tidy-touch.sh alongside lib/tidy.sh (which provides tidy_have/tidy_log).
+# bin/tidy-touch.sh alongside lib/tidy.sh (which provides tidy_have).
 #
 # Scope boundary: edit-time linting is only for tools that are genuinely FAST and
 # FILE-SCOPED (ruff, shellcheck). Crate-/whole-project tools (clippy, project-wide

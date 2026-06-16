@@ -19,12 +19,6 @@
 
 set -euo pipefail
 
-# Observability (tq_log / tq_prune_log) lives in a sibling lib so this file stays
-# focused and under the size guard; source it so every consumer that sources
-# tasks.sh gets logging transitively (no bin sources it directly).
-# shellcheck source=./log.sh
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/log.sh"
-
 # ---- locations (all overridable for tests) ---------------------------------
 
 tq_tasks_dir()       { printf '%s' "${CLAUDE_TQ_TASKS_DIR:-$HOME/.claude/tasks}"; }

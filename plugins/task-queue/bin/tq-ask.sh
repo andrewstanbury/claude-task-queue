@@ -31,13 +31,11 @@ case "$cmd" in
   open)
     [ -n "${2:-}" ] || { echo "usage: tq-ask.sh open \"<question>\" \"<recommended>\"" >&2; exit 2; }
     id="$(tq_decision_add "$root" "$2" "${3:-}")"
-    tq_log "decision-open" "id=$id q=${2:0:60}" ""
     printf 'Logged open decision #%s — it will be re-surfaced each prompt until you run: tq-ask.sh resolve %s\n' "$id" "$id"
     ;;
   resolve)
     [ -n "${2:-}" ] || { echo "usage: tq-ask.sh resolve <id|all>" >&2; exit 2; }
     tq_decision_resolve "$root" "$2"
-    tq_log "decision-resolve" "id=$2" ""
     printf 'Resolved decision %s. Open now: %s\n' "$2" "$(tq_decision_count "$root")"
     ;;
   list|"")

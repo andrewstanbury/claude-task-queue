@@ -2,7 +2,7 @@
 # tidy — blast-radius library: surface what depends on a touched file so a
 # change's affected surface gets test coverage. Lightweight git grep, not static
 # analysis. Kept in its own unit so lib/tidy.sh stays focused. Sourced by
-# bin/tidy-touch.sh (alongside lib/tidy.sh, which provides tidy_log/tidy_log_dir).
+# bin/tidy-touch.sh (alongside lib/tidy.sh, which provides tidy_log_dir).
 
 set -uo pipefail
 
@@ -132,7 +132,6 @@ tidy_blast_radius() {
     if gi="$(tidy_go_importers "$file" "$label" "$sid")"; then
       [ -n "$gi" ] || return 0                              # go ran, nothing imports it
       n="${gi%%$'\t'*}"; sample="${gi#*$'\t'}"
-      tidy_log blast "file=$file n=$n via=golist"
       printf 'blast-radius (~%d package(s) import %s): cover these with tests as part of this change; e.g. %s' "$n" "$label" "$sample"
       return 0
     fi
@@ -159,6 +158,5 @@ tidy_blast_radius() {
 
   n="$(printf '%s\n' "$hits" | grep -c .)"
   sample="$(printf '%s\n' "$hits" | head -n 3 | tr '\n' ',' | sed 's/,$//; s/,/, /g')"
-  tidy_log blast "file=$file n=$n via=grep"
   printf 'blast-radius (~%d files reference %s): cover these with tests as part of this change; e.g. %s' "$n" "$label" "$sample"
 }

@@ -8,29 +8,6 @@
 
 set -uo pipefail
 
-charter_log_dir()  { printf '%s' "${CLAUDE_CHARTER_LOG_DIR:-$HOME/.claude/state/charter}"; }
-charter_log_file() { printf '%s/activity.log' "$(charter_log_dir)"; }
-
-# Best-effort log line; never fails the hook. CLAUDE_CHARTER_LOG_DISABLED=1 mutes.
-charter_log() {
-  [ -n "${CLAUDE_CHARTER_LOG_DISABLED:-}" ] && return 0
-  local event="$1" detail="${2:-}" ts dir
-  ts="$(date '+%Y-%m-%dT%H:%M:%S%z' 2>/dev/null || printf '?')"
-  dir="$(charter_log_dir)"
-  { mkdir -p "$dir" 2>/dev/null && printf '%s\t%s\t%s\n' "$ts" "$event" "$detail" >> "$(charter_log_file)"; } 2>/dev/null || true
-  return 0
-}
-
-# Best-effort: keep the append-only log bounded so it never becomes cruft.
-charter_prune_log() {
-  local log; log="$(charter_log_file)"
-  [ -f "$log" ] || return 0
-  if [ "$(wc -l < "$log" 2>/dev/null || printf 0)" -gt 2000 ]; then
-    { tail -n 1000 "$log" > "$log.tmp" 2>/dev/null && mv "$log.tmp" "$log"; } 2>/dev/null || true
-  fi
-  return 0
-}
-
 # cwd -> repo root: git toplevel, else walk for .git, else the cwd itself.
 charter_root_for_cwd() {
   local cwd="$1" top dir

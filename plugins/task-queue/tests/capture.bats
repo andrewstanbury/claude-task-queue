@@ -8,14 +8,13 @@ setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   CAPTURE="$ROOT/bin/tq-capture.sh"
   export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
-  export CLAUDE_TQ_LOG_DIR="$(mktemp -d)"
   # Isolated repo for cwd so the alignment clause keys off fixture docs, not this
   # repo's own ROADMAP/decisions. Tests that want the clause drop docs into REPO.
   REPO="$(mktemp -d)/proj"; mkdir -p "$REPO"; git -C "$REPO" init -q
   unset CLAUDE_TQ_CAPTURE_DISABLED
 }
 
-teardown() { rm -rf "$CLAUDE_TQ_TASKS_DIR" "$CLAUDE_TQ_LOG_DIR" "$(dirname "$REPO")"; }
+teardown() { rm -rf "$CLAUDE_TQ_TASKS_DIR" "$(dirname "$REPO")"; }
 
 make_task() {
   mkdir -p "$CLAUDE_TQ_TASKS_DIR/$1"
