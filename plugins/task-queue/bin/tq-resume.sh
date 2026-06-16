@@ -63,18 +63,18 @@ case "$src" in
 esac
 
 if [ "$lean" -eq 1 ]; then
-  ctx="[task-queue] (reminder) native task list = live queue: substantive work → interpret→present→approve (sign-off via AskUserQuestion) before TaskCreate, then work in dependency order and advance as you finish. Pause/resume: $pause_cmd on|off."
+  ctx="[task-queue] (reminder) native task list = live queue: substantive work → interpret→present→approve (sign-off via AskUserQuestion) before TaskCreate, then work in dependency order and advance as you finish. Pause/resume the review loop: $pause_cmd on|off."
 elif tq_policy_documented "$root"; then
   # Quiet mode: the standing policy lives in this project's CLAUDE.md (always
   # loaded), so re-anchor in one line — but still surface state below (carryover,
   # hydration, pause/drift), which is not policy and must not be suppressed.
-  ctx="[task-queue] (policy in CLAUDE.md) native task list = live queue; pause/resume: $pause_cmd on|off."
+  ctx="[task-queue] (policy in CLAUDE.md) native task list = live queue; pause/resume the review loop: $pause_cmd on|off."
   resume="$(tq_resume_context "$root" "$sid" 2>/dev/null || true)"
   [ -n "$resume" ] && ctx="$ctx"$'\n\n'"$resume"
   roadmap="$(tq_roadmap_path "$root" 2>/dev/null || true)"
   [ -n "$roadmap" ] && ctx="$ctx"$'\n\n'"[task-queue] Backlog at $roadmap — adopt its open items into your task list with TaskCreate; reflect finished work back."
 else
-  pause_hint="Pause/resume auto-advance on request: $pause_cmd on|off (per repo, persists). Agent-mode (fan independent tasks to subagents, opt-in): $agent_cmd on|off."
+  pause_hint="Pause/resume the review loop on request: $pause_cmd on|off (per repo, persists). Agent-mode (fan independent tasks to subagents, opt-in): $agent_cmd on|off."
   # Bootstrap nudge: once the policy is recorded in CLAUDE.md, this goes lean.
   tip="Tip: record this standing policy in your CLAUDE.md and mark it with \"claude-companion\" — then this nudge re-anchors in one line each session instead of repeating in full."
   # Orientation/project-knowledge nudges live in the charter plugin (know-the-project),
@@ -91,7 +91,7 @@ fi
 
 # State signals — always shown, regardless of source.
 if tq_is_paused "$root"; then
-  ctx="$ctx"$'\n\n'"⏸ Auto-advance is PAUSED for this repo — completing a task won't surface the next until you resume ($pause_cmd off)."
+  ctx="$ctx"$'\n\n'"⏸ The review loop is PAUSED for this repo — substantive prompts run straight in auto without the interpret→present→approve checkpoint ($pause_cmd off to resume)."
 fi
 if [ "$(tq_schema_status 2>/dev/null || true)" = "drift" ]; then
   ctx="$ctx"$'\n\n'"⚠️ [task-queue] The native task store no longer matches the expected schema — Claude Code may have changed it; carry-over/advance may be degraded (see CONTRACT.md)."

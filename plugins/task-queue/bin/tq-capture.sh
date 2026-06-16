@@ -55,6 +55,10 @@ if [ "$consequential" -eq 0 ] && ! tq_looks_multistep "$prompt"; then
   exit 0
 fi
 
+# Honor pause: when the review loop is paused for this repo, stay silent and let
+# substantive work run straight in auto (the user opted out of the checkpoint).
+tq_is_paused "$(tq_root_for_cwd "$cwd")" && exit 0
+
 # The loop instruction (shared). The hook injects it; the model runs it in-loop —
 # the interaction (AskUserQuestion) and the queuing (TaskCreate) are the model's.
 loop="Before queuing or starting this work, run the interpret→present→approve loop: (1) INTERPRET — restate in one plain-language line the outcome the user wants; (2) DECOMPOSE — break it into concrete tasks in dependency order (smallest blast-radius first; flag any step touching a high-fan-in module); (3) JUDGE each task — mark PARALLEL (independent, disjoint files, low blast radius → fan out to subagents) vs INLINE (coupled / high-fan-in), and give a candid per-task recommendation, including a skip (don't do it) where that is your honest read; (4) PRESENT via AskUserQuestion — your one-line understanding plus the task list with a per-task disposition (queue / modify / skip) and your recommendations; (5) TaskCreate ONLY what the user approves, then let it auto-advance — don't start until they have signed off."

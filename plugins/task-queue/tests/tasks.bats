@@ -8,7 +8,6 @@
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   RESUME="$ROOT/bin/tq-resume.sh"
-  NEXT="$ROOT/bin/tq-next.sh"
   AGENT="$ROOT/bin/tq-agent.sh"
 
   export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
@@ -38,26 +37,6 @@ make_task() {
   jq -n --arg id "$id" --arg s "$status" --arg subj "$subject" \
     '{id:$id, subject:$subj, status:$s, blocks:[], blockedBy:[]}' \
     > "$CLAUDE_TQ_TASKS_DIR/$sid/$id.json"
-}
-
-# Write a native task file with a blockedBy list (space-separated ids).
-make_task_blocked() {
-  local sid="$1" id="$2" status="$3" subject="$4" blockers="$5"
-  mkdir -p "$CLAUDE_TQ_TASKS_DIR/$sid"
-  local by; by="$(printf '%s\n' $blockers | jq -R . | jq -sc .)"
-  jq -n --arg id "$id" --arg s "$status" --arg subj "$subject" --argjson by "$by" \
-    '{id:$id, subject:$subj, status:$s, blocks:[], blockedBy:$by}' \
-    > "$CLAUDE_TQ_TASKS_DIR/$sid/$id.json"
-}
-
-# Feed the TaskCompleted hook a payload (session id + completed task id) and
-# return the injected additionalContext, or empty string when it stays silent.
-run_next() {
-  local sid="$1" done_id="$2" json out
-  json="$(jq -nc --arg sid "$sid" --arg id "$done_id" \
-            '{session_id:$sid, task_id:$id, hook_event_name:"TaskCompleted"}')"
-  out="$(printf '%s' "$json" | "$NEXT" || true)"
-  [ -n "$out" ] && printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext' || true
 }
 
 # Feed the hook a SessionStart payload (session id + cwd) and return the
@@ -286,7 +265,7 @@ resume_with_source() {
   grep -q "alpha" "$CLAUDE_TQ_STATE_DIR/root-cache.tsv"
 }
 
-@test "a real-captured task file parses through resume and advance" {
+@test "a real-captured task file parses through resume" {
   # tests/fixtures/real-task.json is the exact key set Claude Code writes, so
   # this guards our parsing against the true on-disk shape (not a hand-made fake).
   make_session "s1" "/home/x/alpha"
@@ -294,77 +273,5 @@ resume_with_source() {
   cp "$ROOT/tests/fixtures/real-task.json" "$CLAUDE_TQ_TASKS_DIR/s1/7.json"
   run run_resume "s2" "/home/x/alpha"
   [[ "$output" == *"Wire the auth middleware"* ]]      # resume parses the real shape
-  run run_next "s1" "1"
-  [[ "$output" == *"#7 — Wire the auth middleware"* ]]  # advance parses blockedBy
 }
 
-# ---- auto-advance (TaskCompleted -> next unblocked task) -------------------
-
-@test "advance names the next unblocked pending task after a completion" {
-  make_task s1 1 completed   "First"
-  make_task s1 2 pending     "Second"
-  make_task s1 3 pending     "Third"
-  run run_next "s1" "1"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"Next unblocked task: #2 — Second"* ]]
-  [[ "$output" == *"(2 open)"* ]]
-}
-
-@test "advance picks the lowest-numbered unblocked task, not file order" {
-  make_task s1 10 pending "Ten"
-  make_task s1 2  pending "Two"
-  run run_next "s1" "99"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"#2 — Two"* ]]
-}
-
-@test "advance treats the just-completed task as closed for blockedBy" {
-  # #2 is blocked only by #1; completing #1 should unblock it even if the
-  # store still shows #1 as pending (hook fired before the native write).
-  make_task         s1 1 pending "Blocker"
-  make_task_blocked s1 2 pending "Dependent" "1"
-  run run_next "s1" "1"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"#2 — Dependent"* ]]
-}
-
-@test "advance stays silent while another task is in_progress" {
-  make_task s1 1 completed   "Done"
-  make_task s1 2 in_progress "Busy"
-  make_task s1 3 pending     "Waiting"
-  run run_next "s1" "1"
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]
-}
-
-@test "advance stays silent when every pending task is blocked by an open task" {
-  # Mutual block: both pending, each blocked by the other (still-open) task.
-  make_task_blocked s1 2 pending "Blocked by 3" "3"
-  make_task_blocked s1 3 pending "Blocked by 2" "2"
-  run run_next "s1" "1"
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]
-}
-
-@test "advance surfaces a task whose blocker was completed earlier (file removed)" {
-  # Claude Code removes a completed task's file, so a done blocker is simply
-  # absent. #5 was blocked only by the now-gone #1; completing unrelated #2
-  # must surface #5 — an absent blocker can't block.
-  make_task_blocked s1 5 pending "Was blocked by removed 1" "1"
-  run run_next "s1" "2"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"#5 — Was blocked by removed 1"* ]]
-}
-
-@test "advance stays silent when the queue is drained" {
-  make_task s1 1 completed "Only task"
-  run run_next "s1" "1"
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]
-}
-
-@test "advance stays silent when the session has no task folder" {
-  run run_next "ghost" "1"
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]
-}

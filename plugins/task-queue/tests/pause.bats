@@ -1,18 +1,19 @@
 #!/usr/bin/env bats
 #
-# Tests for the per-repo pause: bin/tq-pause.sh, the TaskCompleted hook honoring
-# it, and the SessionStart banner. Everything is faked via CLAUDE_TQ_* overrides
-# and temp git repos — no real store, no model calls.
+# Tests for the per-repo pause: bin/tq-pause.sh, the capture hook honoring it
+# (the review loop stays silent when paused), and the SessionStart banner.
+# Everything faked via CLAUDE_TQ_* overrides and temp git repos — no model calls.
 
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   PAUSE="$ROOT/bin/tq-pause.sh"
-  NEXT="$ROOT/bin/tq-next.sh"
+  CAPTURE="$ROOT/bin/tq-capture.sh"
   RESUME="$ROOT/bin/tq-resume.sh"
 
   export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
   export CLAUDE_TQ_PROJECTS_DIR="$(mktemp -d)"
   export CLAUDE_TQ_PAUSE_DIR="$(mktemp -d)"
+  unset CLAUDE_TQ_CAPTURE_DISABLED
 
   REPO="$(mktemp -d)/proj"
   mkdir -p "$REPO" && git -C "$REPO" init -q
@@ -23,21 +24,14 @@ teardown() {
          "$CLAUDE_TQ_PAUSE_DIR" "$(dirname "$REPO")"
 }
 
-make_task() {
-  local sid="$1" id="$2" status="$3"
-  mkdir -p "$CLAUDE_TQ_TASKS_DIR/$sid"
-  jq -n --arg id "$id" --arg s "$status" \
-    '{id:$id, subject:("t"+$id), status:$s, blocks:[], blockedBy:[]}' \
-    > "$CLAUDE_TQ_TASKS_DIR/$sid/$id.json"
+# Feed tq-capture a substantive prompt for $REPO; echo injected text or "".
+run_capture() {
+  local prompt="$1" json
+  json="$(jq -nc --arg p "$prompt" --arg c "$REPO" '{prompt:$p, session_id:"sess", cwd:$c}')"
+  printf '%s' "$json" | "$CAPTURE" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null || true
 }
 
-# Run tq-next.sh as the TaskCompleted hook for $REPO; echo injected text or "".
-run_next() {
-  local sid="$1" done_id="$2" json
-  json="$(jq -nc --arg s "$sid" --arg d "$done_id" --arg c "$REPO" \
-            '{session_id:$s, task_id:$d, cwd:$c}')"
-  printf '%s' "$json" | "$NEXT" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null || true
-}
+SUBSTANTIVE="add the login form and then wire the auth endpoint and update the tests"
 
 # ---- tq-pause.sh -----------------------------------------------------------
 
@@ -66,30 +60,24 @@ run_next() {
   [[ "$output" == paused* ]]
 }
 
-# ---- TaskCompleted honoring the pause --------------------------------------
+# ---- the review loop honoring the pause ------------------------------------
 
-@test "advance fires when not paused (control)" {
-  make_task sess 1 completed
-  make_task sess 2 pending
-  run run_next sess 1
-  [[ "$output" == *"Next unblocked task: #2"* ]]
+@test "review loop fires on a substantive prompt when not paused (control)" {
+  run run_capture "$SUBSTANTIVE"
+  [[ "$output" == *"interpret→present→approve"* ]]
 }
 
-@test "advance stays silent when the repo is paused" {
-  make_task sess 1 completed
-  make_task sess 2 pending
+@test "review loop stays silent when the repo is paused" {
   bash -c 'cd "$1" && bash "$2" on' _ "$REPO" "$PAUSE"
-  run run_next sess 1
+  run run_capture "$SUBSTANTIVE"
   [ -z "$output" ]
 }
 
-@test "resuming re-enables advance" {
-  make_task sess 1 completed
-  make_task sess 2 pending
+@test "resuming re-enables the review loop" {
   bash -c 'cd "$1" && bash "$2" on'  _ "$REPO" "$PAUSE"
   bash -c 'cd "$1" && bash "$2" off' _ "$REPO" "$PAUSE"
-  run run_next sess 1
-  [[ "$output" == *"Next unblocked task: #2"* ]]
+  run run_capture "$SUBSTANTIVE"
+  [[ "$output" == *"interpret→present→approve"* ]]
 }
 
 # ---- SessionStart surfacing -------------------------------------------------

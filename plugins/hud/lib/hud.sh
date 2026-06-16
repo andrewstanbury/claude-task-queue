@@ -13,7 +13,7 @@ hud_pause_dir()  { printf '%s' "${CLAUDE_HUD_PAUSE_DIR:-$HOME/.claude/state/task
 hud_agent_dir()  { printf '%s' "${CLAUDE_HUD_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}"; }
 hud_verify_dir() { printf '%s' "${CLAUDE_HUD_VERIFY_DIR:-$HOME/.claude/state/tidy/verify}"; }
 
-# Is auto-advance paused for this repo? prints 1 / 0.
+# Is the review loop paused for this repo? prints 1 / 0.
 hud_paused() {
   local root="$1" flag
   [ -n "$root" ] || { printf '0'; return 0; }
