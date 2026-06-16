@@ -40,7 +40,7 @@ and reason about. It accrues from 0–4; don't chase it directly.
 
 | Plugin | Responsibility |
 |---|---|
-| **task-queue** | **Orchestrate** — the interpret→present→approve loop, capture, order, advance, cross-session resume, pause |
+| **task-queue** | **Orchestrate** — the interpret→present→approve review loop, capture, order, cross-session resume, pause (gates the loop) |
 | **tidy** | **Change safely & cleanly** — format/lint on touch, blast-radius, verification floor, automatic prune |
 | **charter** | **Know the project + own the owner loop** — doc gate, map, decisions anchor, conventions, intent→demo→consent posture |
 | **hud** | **Show** — a consolidated read-only status line (the owner's at-a-glance trust signal) |
@@ -53,16 +53,17 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
 - **task-queue** — SessionStart policy (native task list = live queue) +
   cross-session **resume bridge** (the native list starts empty each session; this
   re-surfaces a repo's unfinished tasks — the system's confirmed native gap) +
-  auto-advance + per-repo pause + opt-in agent-mode + roadmap hydration + an
-  open-decisions ledger + schema-drift canary. Its centerpiece is the
-  **interpret→present→approve loop**: on any substantive prompt (multi-step OR
-  consequential) the capture hook has the model interpret the request, decompose it,
-  judge each task for risk/alignment and parallel-vs-inline fan-out, **present its
-  understanding + candid per-task recommendations (incl. skip) via AskUserQuestion**,
-  and TaskCreate only what the user approves — weighed against recorded direction.
-  Trivial prompts stay silent and run under auto mode.
+  per-repo pause + opt-in agent-mode + roadmap hydration + schema-drift canary.
+  (Moving down the queue is left to Claude Code's native task nudges.) Its
+  centerpiece is the **interpret→present→approve review loop**: on any substantive
+  prompt (multi-step OR consequential) the capture hook has the model interpret the
+  request, decompose it, judge each task for risk/alignment and parallel-vs-inline
+  fan-out, **present its understanding + candid per-task recommendations (incl. skip)
+  via AskUserQuestion**, and TaskCreate only what the user approves — weighed against
+  recorded direction. Trivial prompts stay silent. **Pause** suppresses the review
+  loop so substantive prompts run straight through in auto.
 - **tidy** — on touch: format + lint (Go/web/Python/shell, fast file-scoped tools) +
-  blast-radius + coverage/size/currency nudges. On Stop: the **verification floor**
+  blast-radius + coverage/size nudges. On Stop: the **verification floor**
   (run the project's tests, block until green, bounded). The **deliberate prune**
   fires automatically at SessionStart when over-budget files cross a threshold
   (`CLAUDE_TIDY_PRUNE_THRESHOLD`, default 3) — a weight report (`tidy-distill.sh`) +

@@ -48,7 +48,7 @@ observed behaviour, not documented APIs.
 - **Stack notes:** `STACK.md`, `docs/STACK.md`, or a `## Stack` / `## Tech stack`
   heading in `CLAUDE.md` / `AGENTS.md` / `README.md`. Override via
   `CLAUDE_CHARTER_STACK_FILE`. Present → consult; missing → capture
-  languages/frameworks/versions (durable context for currency/modernization).
+  languages/frameworks/versions (durable context for the model's own judgment).
 - **Established conventions** (`lib/conventions.sh`): inferred read-only from
   `package.json` deps + a few config files/dirs — UI/component library
   (`components.json` → shadcn, `@mui/material`, `@chakra-ui/react`, `antd`, …),

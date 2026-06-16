@@ -72,12 +72,6 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
 - The plugin **does not install tools**; it detects them and honors the project's
   own config (e.g. `.golangci.yml`, `eslint.config.js`, `.stylelintrc`,
   `ruff.toml`/`pyproject.toml`, `.shellcheckrc`).
-- **Currency/modernization:** on touch it walks up from the file to the nearest
-  manifest (`package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`,
-  `requirements.txt`, `Gemfile`, `composer.json`, `pom.xml`, `build.gradle[.kts]`)
-  and surfaces its **pinned versions** once per manifest per session, with a
-  nudge to flag deprecated/behind-latest tech. Judgment is the model's (world
-  knowledge); the hook never upgrades. Disable with `CLAUDE_TIDY_CURRENCY=0`.
 - **Blast-radius:** for a touched *source* file, surface what depends on it so the
   affected surface gets test coverage (deduped per file per session). **Go** uses
   the toolchain's own import graph — `go list -e -f '{{.ImportPath}} {{.Imports}}…'

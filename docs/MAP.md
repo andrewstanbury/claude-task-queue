@@ -23,32 +23,27 @@ Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 `lib/` (logic), `tests/`. (charter's `/charter:align` and hud's `/hud:setup` are
 the only `commands/` left; task-queue and tidy are hook-only now.)
 
-## task-queue — *orchestrate the work* (hooks: SessionStart, TaskCompleted, UserPromptSubmit, Notification)
+## task-queue — *orchestrate the work* (hooks: SessionStart, UserPromptSubmit)
 
 | File | Responsibility |
 |---|---|
 | `bin/tq-resume.sh` | SessionStart: standing policy + cross-session resume + roadmap hydration + quiet-mode + pause/agent/drift signals. |
-| `bin/tq-next.sh` | TaskCompleted: advance to the next unblocked task. |
-| `bin/tq-capture.sh` | UserPromptSubmit: on any substantive prompt, inject the interpret→present→approve loop (interpret → decompose → judge risk/fan-out → AskUserQuestion → create only approved → auto-advance); silent on trivial prompts. |
-| `bin/tq-decisions.sh` | UserPromptSubmit: re-surface open decisions every prompt so a question isn't lost to queued input. |
-| `bin/tq-notify.sh` | Notification: desktop/terminal alert when idle with an open decision. |
-| `bin/tq-ask.sh` | Control: the model's CLI for the open-decisions ledger (open/resolve/list). |
-| `bin/tq-pause.sh` | Control: pause/resume auto-advance (per repo). |
+| `bin/tq-capture.sh` | UserPromptSubmit: on any substantive prompt, inject the interpret→present→approve review loop (interpret → decompose → judge risk/fan-out → AskUserQuestion → create only approved); silent on trivial prompts; suppressed when the repo is paused. |
+| `bin/tq-pause.sh` | Control: pause/resume the review loop (per repo) — paused runs prompts straight through in auto. |
 | `bin/tq-agent.sh` | Control: opt-in agent-mode (parallel subagent fan-out). |
-| `lib/tasks.sh` | Native task-store reads, resume logic, pause/agent flags, drift canary, auto-advance. |
+| `lib/tasks.sh` | Native task-store reads, resume logic, pause/agent flags, drift canary. |
 | `lib/project.sh` | Detect the committed roadmap/backlog file + the `claude-companion` marker. |
 | `lib/capture.sh` | Multi-step/consequential heuristics; shared alignment clause. |
-| `lib/decisions.sh` | Open-decisions ledger (per-repo): add/resolve/list/count. |
 
 ## tidy — *change safely & cleanly* (hooks: SessionStart, PostToolUse[Edit\|Write], Stop)
 
 | File | Responsibility |
 |---|---|
 | `bin/tidy-standard.sh` | SessionStart: the clean-as-you-go standard (trimmed to anchors) + automatic deliberate prune — below `CLAUDE_TIDY_PRUNE_THRESHOLD` (default 3) over-budget files it lists decomposition candidates; at/above it runs `tidy-distill.sh` and injects the weight report + a run-a-subtractive-prune-now instruction (cuts routed through the task-queue loop). |
-| `bin/tidy-touch.sh` | PostToolUse: format + lint (Go/web/Python/shell) + blast-radius + coverage nudge + size + currency for the edited file. |
+| `bin/tidy-touch.sh` | PostToolUse: format + lint (Go/web/Python/shell) + blast-radius + coverage nudge + size for the edited file. |
 | `bin/tidy-verify.sh` | Stop: the verification floor — run the project's tests, block until green (bounded, timeout, change-throttled); opt-in coverage gate. |
 | `bin/tidy-distill.sh` | Read-only whole-project weight report (the prune-report generator, run by `tidy-standard.sh` over threshold). |
-| `lib/tidy.sh` | Language dispatch, Go/web handlers, size/currency nudges, state dir (`tidy_log_dir`); shared `tidy_root_for_cwd` + `tidy_run_linter`. |
+| `lib/tidy.sh` | Language dispatch, Go/web handlers, size nudge, state dir (`tidy_log_dir`); shared `tidy_root_for_cwd` + `tidy_run_linter`. |
 | `lib/lint.sh` | Multi-stack edit-time linters (Python ruff, shell shellcheck) — findings-only, project's own tool. |
 | `lib/coverage.sh` | Coverage ratchet: per-language test detection, characterize-before-change nudge, untested-changed lister for the opt-in gate. |
 | `lib/checks.sh` | Test-command discovery + bounded run + working-tree fingerprint (verify throttle). |

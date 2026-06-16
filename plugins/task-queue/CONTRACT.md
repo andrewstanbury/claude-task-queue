@@ -17,7 +17,7 @@ the fix goes — nothing else in the repo encodes these assumptions.
 
 **We never write Claude Code's task store.** `~/.claude/tasks` belongs to the
 model; the plugin only ever *reads* it or *injects context that nudges the
-model*. It never calls `TaskCreate`/`TaskUpdate` and never edits a task file.
+model*. It never calls `TaskUpdate` and never edits a task file.
 This is the line that keeps the plugin from becoming a second, desyncing source
 of truth — do not cross it. See the `never-mutate-native-store` design note.
 
@@ -30,23 +30,17 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
 - **Fields read:** `id` (string), `subject`, `status`
   (`"pending" | "in_progress" | "completed"`), `blockedBy` (array of ids).
   We also use file **mtime** as a recency signal.
-- **Used by:** the resume bridge (open tasks from prior sessions) and the
-  advance hook (next unblocked task).
+- **Used by:** the resume bridge (open tasks from prior sessions).
 - **Lifecycle (observed 2026-05-30):** while a session's list has **any open
   task**, completed entries are **retained** on disk (status `completed`); the
   folder appears to be cleared only once the list is **fully drained**. So the
   store may hold a mix of `pending`/`in_progress`/`completed` files, or be empty.
   *(An earlier revision of this file claimed completed files are removed
   individually on completion — that was a misread of a fully-drained list, and
-  is corrected here.)* The plugin is built to be robust either way:
-  - The resume bridge **selects only** `pending`/`in_progress`, so lingering
-    completed entries never leak into carry-over.
-  - The advance hook judges "blocked" against the set of still-**OPEN** tasks,
-    never a "completed" set — so a completed blocker (whether its file lingers as
-    `completed` or has been cleared) doesn't block, and an absent `blockedBy` id
-    is treated as satisfied. Correct in both cases.
-- **If it changes:** carry-over and/or auto-advance silently stop. The plugin
-  degrades to policy-only injection — it does not error out.
+  is corrected here.)* The resume bridge is robust either way: it **selects only**
+  `pending`/`in_progress`, so lingering completed entries never leak into carry-over.
+- **If it changes:** carry-over silently stops. The plugin degrades to
+  policy-only injection — it does not error out.
 
 ### 2. Transcript → repo mapping
 
@@ -57,8 +51,7 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
   This is how a task folder (keyed by session id) is scoped to a repo. Result is
   cached in `${CLAUDE_TQ_STATE_DIR}/root-cache.tsv` (a session's cwd is immutable).
 - **If it changes:** sessions can't be mapped to repos, so cross-session resume
-  stops surfacing tasks. Advance is unaffected (it uses the session id from the
-  hook payload directly).
+  stops surfacing tasks.
 
 ### 2b. Committed roadmap/backlog file (read-only, optional)
 
@@ -92,53 +85,28 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
   `{ "hookSpecificOutput": { "hookEventName": "SessionStart", "additionalContext": "<text>" } }`
   — injected into the session context.
 
-### 4. `TaskCompleted` hook payload (stdin)
-
-- **Fields read:** `session_id`, `task_id` (the just-completed task), and `cwd`
-  (used to resolve the repo root for the pause check; falls back to the session
-  transcript if absent).
-- **Timing is treated as unknown:** we do **not** assume the store file has been
-  rewritten when the hook fires. The advance logic treats `task_id` as closed
-  for `blockedBy` purposes, so it is correct whether the hook runs before or
-  after the native write.
-- **Output contract:** same shape as above, with
-  `"hookEventName": "TaskCompleted"`.
-
-### 5. `UserPromptSubmit` hook payload (stdin)
+### 4. `UserPromptSubmit` hook payload (stdin)
 
 - **Fields read:** `prompt` (the user's text) and `session_id`.
 - **Behavior (`tq-capture.sh`):** runs on every prompt (local bash/jq checks — no
   model cost) but stays silent on trivial prompts. On a **multi-step OR
   consequential** prompt (`tq_looks_multistep` / `tq_looks_consequential` in
-  `lib/capture.sh`) it injects the **interpret→present→approve loop** instruction:
-  (1) interpret the request in one line, (2) decompose into tasks, (3) judge each
-  for risk/alignment and PARALLEL-vs-INLINE fan-out, (4) PRESENT understanding +
-  per-task disposition + candid skip recommendations via AskUserQuestion,
-  (5) `TaskCreate` **only approved** tasks, then auto-advance. Consequential
-  prompts get the same loop with extra "recommend against if warranted" scrutiny.
-  It fires **regardless of existing queue state** (the old empty-queue gate and
-  `tq_open_count` were removed). Disabled with `CLAUDE_TQ_CAPTURE_DISABLED`.
+  `lib/capture.sh`) it injects the **interpret→present→approve review loop**
+  instruction: (1) interpret the request in one line, (2) decompose into tasks,
+  (3) judge each for risk/alignment and PARALLEL-vs-INLINE fan-out, (4) PRESENT
+  understanding + per-task disposition + candid skip recommendations via
+  AskUserQuestion, (5) `TaskCreate` **only approved** tasks. Consequential prompts
+  get the same loop with extra "recommend against if warranted" scrutiny. It fires
+  **regardless of existing queue state** (the old empty-queue gate and
+  `tq_open_count` were removed). **Pause gates the review loop:** when the repo is
+  paused (§ pause flag), the checkpoint is suppressed and substantive prompts run
+  straight through in auto without presenting for approval. Disabled with
+  `CLAUDE_TQ_CAPTURE_DISABLED`.
 - **Output contract:** same shape, with `"hookEventName": "UserPromptSubmit"`.
 - **If it changes:** the loop instruction silently stops; capture still relies on
   the SessionStart policy.
-- **Second UserPromptSubmit hook (`tq-decisions.sh`):** reads `cwd` + `session_id`;
-  if the repo has open decisions in the ledger, re-injects them as
-  `additionalContext` so a question the model asked isn't lost to queued/typed-
-  ahead prompts. Silent (zero cost) when the ledger is empty. Disabled with
-  `CLAUDE_TQ_DECISIONS_DISABLED`.
 
-### 5b. `Notification` hook payload (stdin)
-
-- **Fields read:** `cwd` and `notification_type`.
-- **Behavior (`tq-notify.sh`):** on idle/waiting notifications, if the repo has
-  open decisions, emits an OSC 777/9 **terminal/desktop alert** naming them, so
-  the user is pinged exactly when an answer is needed. Silent otherwise.
-- **Output contract:** `{ "terminalSequence": "<allow-listed OSC escape>" }`.
-  Only OSC 0/1/2/9/99/777 + BEL are honored; unsupported terminals ignore them.
-- **If it changes:** the alert silently stops; the UserPromptSubmit re-injection
-  still surfaces open decisions in-context.
-
-### 6. Hook wiring & env
+### 5. Hook wiring & env
 
 - `hooks/hooks.json` wires all entrypoints; Claude Code expands
   `${CLAUDE_PLUGIN_ROOT}` (plugin dir) and `${CLAUDE_PLUGIN_DATA}` (writable
@@ -161,9 +129,9 @@ The real boundary is therefore verified three other ways:
   result is surfaced at SessionStart. This is the live-environment check that the
   fakes can't provide — heed it first when something stops working.
 - **Manual end-to-end:** after `claude plugin update task-queue`, start a fresh
-  session, create two tasks, complete the first, and confirm the
-  `Next unblocked task: #…` note appears. Run this whenever you bump the
-  "observed against" version above.
+  session, leave a task open, end the session, and start a new session in the same
+  repo — confirm the cross-session resume note re-surfaces the unfinished task.
+  Run this whenever you bump the "observed against" version above.
 
 ## Where the plugin writes (never the task store)
 
@@ -173,9 +141,10 @@ A few small files, all outside `~/.claude/tasks`:
   in plugin data so it survives updates).
 - **Pause flags** — `~/.claude/state/task-queue/paused/<encoded-repo-root>`
   (overridable via `CLAUDE_TQ_PAUSE_DIR`). One empty file per paused repo; its
-  presence is the pause. A fixed home for the same reason as the log: the
-  `TaskCompleted` hook and `bin/tq-pause.sh` (run by the model in plain bash)
-  must resolve the identical path.
+  presence is the pause, which **suppresses the interpret→present→approve review
+  loop** so substantive prompts run straight through in auto. A fixed home so the
+  `tq-capture.sh` hook and `bin/tq-pause.sh` (run by the model in plain bash) both
+  resolve the identical path.
 - **Agent-mode flags** — `~/.claude/state/task-queue/agent/<encoded-repo-root>`
   (overridable via `CLAUDE_TQ_AGENT_DIR`). Same scheme as pause: an empty file
   per repo where agent-mode is explicitly enabled. `bin/tq-agent.sh` writes it; the
@@ -183,11 +152,6 @@ A few small files, all outside `~/.claude/tasks`:
   **Global default:** `CLAUDE_TQ_AGENT_MODE=on|1` (e.g. in settings.json `env`)
   turns agent-mode on everywhere without a per-repo flag — for users who prefer
   speed over token-thrift. Per-repo flag OR the env enables it; off otherwise.
-- **Open-decisions ledger** — `~/.claude/state/task-queue/decisions/<encoded-repo-root>.jsonl`
-  (overridable via `CLAUDE_TQ_DECISIONS_DIR`). One JSON line per open decision
-  (`{id,q,rec,ts}`). Keyed by repo (fixed home) so `bin/tq-ask.sh` (plain bash)
-  and the UserPromptSubmit/Notification hooks resolve the same file. Removed on
-  resolve; survives restarts until then.
 
 If a dependency here drifts, prefer making the plugin **degrade quietly** (no
 output) over guessing — a missing nudge is invisible; a wrong one is noise.
