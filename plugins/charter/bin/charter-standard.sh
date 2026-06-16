@@ -123,6 +123,16 @@ if [ "$documented" -eq 0 ] && [ "${#present[@]}" -gt 0 ]; then
   parts+=("[charter] Summarise these in CLAUDE.md and mark it \"claude-companion\" to make this brief go silent.")
 fi
 
+# Outcome memory — scar tissue: files this project has REPEATEDLY had to FIX (from
+# git history; the rework ratio, not raw churn). STATE, not policy — surfaced even
+# in quiet mode so the review loop can weigh real history when it plans. Silent on
+# a clean/new repo (no rework signal).
+hot="$(charter_hotspots "$root" 2>/dev/null || true)"
+if [ -n "$hot" ]; then
+  hotlist="$(printf '%s\n' "$hot" | awk -F'\t' '{printf "%s%s (%d fixes/%d changes)", sep, $3, $1, $2; sep=", "}')"
+  parts+=("[charter] Scar tissue — files this project has repeatedly had to FIX (outcome memory, from git): $hotlist. If your plan touches these, treat them as high-risk: understand WHY they churn before extending, cover them with tests, prefer the smallest change — and consider whether the churn means the abstraction is wrong (over-engineered) and should be simplified, not added to.")
+fi
+
 # Join non-empty parts; silent when there's nothing to say (baseline present + marked).
 ctx=""
 if [ "${#parts[@]}" -gt 0 ]; then

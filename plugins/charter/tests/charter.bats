@@ -413,3 +413,43 @@ CONV_SRC='. "$1/lib/charter.sh";'   # charter.sh transitively sources convention
   run run_standard startup
   [[ "$output" != *"Established conventions detected"* ]]
 }
+
+# ---- outcome memory (scar-tissue hotspots) ----------------------------------
+
+@test "hotspots: flags files repeatedly fixed (rework), not healthy churn" {
+  git -C "$REPO" config user.email t@t; git -C "$REPO" config user.name t
+  for i in 1 2 3; do echo "$i" > "$REPO/active.txt"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m "feat: extend active $i"; done
+  echo a > "$REPO/scar.txt"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m "feat: add scar"
+  echo b > "$REPO/scar.txt"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m "fix: scar bug"
+  echo c > "$REPO/scar.txt"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m "fix: scar regression"
+  echo d > "$REPO/scar.txt"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m 'Revert "scar"'
+  run bash -c '. "$1/lib/charter.sh"; charter_hotspots "$2"' bash "$ROOT" "$REPO"
+  [[ "$output" == *"scar.txt"* ]]            # 3 reworks / 4 changes → flagged
+  [[ "$output" != *"active.txt"* ]]          # healthy churn, no fixes → not flagged
+  [[ "$output" == *"3"$'\t'"4"$'\t'"scar.txt"* ]]
+}
+
+@test "hotspots: 'prefix' in a subject is NOT counted as a fix (word boundary)" {
+  git -C "$REPO" config user.email t@t; git -C "$REPO" config user.name t
+  for i in 1 2 3; do echo "$i" > "$REPO/p.txt"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m "refactor prefix handling $i"; done
+  run bash -c '. "$1/lib/charter.sh"; charter_hotspots "$2"' bash "$ROOT" "$REPO"
+  [ -z "$output" ]
+}
+
+@test "hotspots: silent with no rework history, and on a non-git dir" {
+  run bash -c '. "$1/lib/charter.sh"; charter_hotspots "$2"' bash "$ROOT" "$REPO"   # fresh repo, no commits
+  [ -z "$output" ]
+  run bash -c '. "$1/lib/charter.sh"; charter_hotspots "$2"' bash "$ROOT" "$(mktemp -d)"
+  [ -z "$output" ]
+}
+
+@test "session start surfaces scar tissue when the repo has rework hotspots" {
+  git -C "$REPO" config user.email t@t; git -C "$REPO" config user.name t
+  echo a > "$REPO/auth.go"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m "feat: auth"
+  echo b > "$REPO/auth.go"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m "fix: auth session bug"
+  echo c > "$REPO/auth.go"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m "fix: auth regression"
+  run run_standard startup
+  [[ "$output" == *"Scar tissue"* ]]
+  [[ "$output" == *"auth.go"* ]]
+  [[ "$output" == *"2 fixes/3 changes"* ]]
+}

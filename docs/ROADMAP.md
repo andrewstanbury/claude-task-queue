@@ -80,7 +80,12 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
 - **charter** — at SessionStart, a compact **proportional brief** gating substantive
   work on the project's Claude manual (quality attributes, map, decisions anchor,
   roadmap, stack, established conventions), detect-not-author, quiet once summarised
-  in CLAUDE.md. Owns the **owner loop** (confirm intent → demonstrate → recap). On
+  in CLAUDE.md. Also surfaces **outcome memory ("scar tissue")** — files the project
+  has *repeatedly had to FIX*, derived from git history by the **rework ratio**
+  (fix/revert commits ÷ total commits touching a file ≥ 0.34, min 2 reworks, existing
+  files only), not raw churn — so the review loop treats debt magnets as high-risk
+  before extending them. State, not policy: surfaced even in quiet mode, silent on a
+  clean/new repo. Owns the **owner loop** (confirm intent → demonstrate → recap). On
   demand: `/charter:align`. Action-time consent is native (see below) — charter
   carries only the standing posture, no hook.
 - **hud** — a static health beacon + paused + agent + the verification floor's ✓/✗
@@ -131,6 +136,24 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   charter's separate-file detection (it would nag "missing map/roadmap" every
   session). Chose **a few lean Claude-context files** (CLAUDE.md + map + decisions +
   per-plugin CONTRACTs); charter's model is unchanged.
+
+## Status — 2026-06-16 (outcome memory)
+
+Added **outcome memory** to charter — the project's own scar tissue as live context:
+
+- **`charter_hotspots` (lib/charter.sh)** mines the last 300 commits and flags files
+  with a high **rework ratio** — fix/revert/regression commits (word-boundaried, so
+  "prefix" ≠ "fix") over total commits touching the file ≥ 0.34, at least 2 reworks,
+  and only files that still exist. This measures the *disease* (repeated correction),
+  not raw churn — active development and a debt magnet look identical by churn alone.
+- **SessionStart surfaces it** (charter-standard.sh) even in quiet mode, framed as
+  high-risk: understand *why* a hotspot churns before extending, cover it with tests,
+  prefer the smallest change — and consider that the churn means the abstraction is
+  *wrong* (over-built) and should be simplified, not added to. Feeds the review loop's
+  per-task risk judgment with real history.
+- **tidy's verification floor** now also prompts, on a recurring test failure, to
+  record the lesson in the project's recorded decisions (what changed, what broke,
+  what to do instead) — outcome memory the model writes, not just reads.
 
 ## Status — 2026-06-16 (token-efficiency pass)
 

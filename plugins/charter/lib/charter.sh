@@ -21,6 +21,28 @@ charter_root_for_cwd() {
   printf '%s' "$cwd"
 }
 
+# Outcome memory — "scar tissue": files this project has REPEATEDLY had to FIX,
+# derived from git history. NOT raw churn (active development looks identical); the
+# rework RATIO — fix/revert commits over total commits touching a file — is what
+# flags a debt magnet. Prints "<fixes>\t<changes>\t<path>" per flagged file, most-
+# reworked first; empty when there's no rework signal or no git history. Bounded to
+# the last 300 commits; read-only. Word-boundaried keywords so "prefix" ≠ "fix".
+# Only files that STILL EXIST are reported — a scar on a deleted file isn't actionable.
+charter_hotspots() {
+  local root="$1" max="${2:-5}"
+  [ -d "$root" ] || return 0
+  git -C "$root" rev-parse >/dev/null 2>&1 || return 0
+  git -C "$root" log -n 300 --no-merges --pretty=format:':C:%s' --name-only 2>/dev/null \
+    | awk '
+        /^:C:/ { rw = (tolower($0) ~ /(^|[^a-z])(fix|bugfix|hotfix|bug|revert|undo|rollback|regression|rework)([^a-z]|$)/) ? 1 : 0; next }
+        NF     { c[$0]++; if (rw) r[$0]++ }
+        END    { for (f in r) if (r[f] >= 2 && r[f] / c[f] >= 0.34) printf "%d\t%d\t%s\n", r[f], c[f], f }
+      ' 2>/dev/null \
+    | sort -rn -k1,1 \
+    | while IFS=$'\t' read -r rf cf pf; do [ -f "$root/$pf" ] && printf '%s\t%s\t%s\n' "$rf" "$cf" "$pf"; done \
+    | head -n "$max"
+}
+
 # Does the project document its quality attributes? Prints "documented" or
 # "missing". Accepts a dedicated file or a QA section in a manual doc. (ADRs are
 # NOT counted here — they're *decisions*, a separate dimension; see

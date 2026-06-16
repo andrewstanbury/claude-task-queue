@@ -89,6 +89,14 @@ observed behaviour, not documented APIs.
 - **Recent history (read-only):** when a roadmap is present, `git log --no-merges
   --format=%s -n 5` supplies recently-merged subjects next to the reconcile
   reminder. A repo with no commits (git log exits 128) degrades to silence.
+- **Outcome memory / scar tissue** (`charter_hotspots`): `git log -n 300 --no-merges
+  --pretty=format:':C:%s' --name-only` over the repo root. A commit counts as
+  *rework* when its subject word-matches `fix|bugfix|hotfix|bug|revert|undo|rollback|
+  regression|rework`; a file is flagged when its rework ratio (rework ÷ total commits
+  touching it) is ≥ 0.34 with ≥ 2 reworks, and the file still exists on disk. Prints
+  `<fixes>\t<changes>\t<path>`, most-reworked first, bounded to 5 by default. Read-only;
+  silent outside a git repo, on a bare repo, or with no rework signal. **If the commit
+  format / `--name-only` output changes,** the scar-tissue surfacing silently stops.
 
 ### 3. The `/charter:align` command (user-invoked)
 
@@ -114,14 +122,16 @@ to any log. It only reads files and emits SessionStart `additionalContext`.
 
 - `tests/charter.bats` fakes a project via a temp git repo and `CLAUDE_CHARTER_*`
   overrides — QA-, roadmap-, and map-status detection, the full/lean nudge by
-  source, the owner-loop posture, and `/charter:align`'s anchor output
-  (no-anchor, decisions, roadmap, and recent-commit cases).
+  source, the owner-loop posture, `/charter:align`'s anchor output (no-anchor,
+  decisions, roadmap, and recent-commit cases), and outcome memory (rework vs.
+  healthy churn, the word-boundary guard, silence on no-rework / non-git, and the
+  SessionStart scar-tissue surfacing).
 
 ## Status (see docs/ROADMAP.md)
 
 Shipped: the quality-attributes gate, roadmap/backlog awareness, the project map,
-recorded-decisions anchor, stack notes, the owner-loop consent posture, and
-`/charter:align`. Action-time consent is now **native** (Claude Code permissions
+recorded-decisions anchor, stack notes, the owner-loop consent posture, outcome
+memory (the git rework-ratio scar-tissue surfacing), and `/charter:align`. Action-time consent is now **native** (Claude Code permissions
 in settings.json), not a charter hook. The subtractive/prune force lives in
 **tidy** (its automatic prune + the size guard); hooks are already
 **bootstrap-once + drift-detect** (they go quiet once the policy is recorded in

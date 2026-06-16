@@ -54,10 +54,10 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 
 | File | Responsibility |
 |---|---|
-| `bin/charter-standard.sh` | SessionStart: the proportional project brief (baseline gaps + consult line + owner-loop consent posture (intent → demo → consent) + quiet-mode). Action-time consent is native (settings.json), not a charter hook. |
+| `bin/charter-standard.sh` | SessionStart: the proportional project brief (baseline gaps + consult line + owner-loop consent posture (intent → demo → consent) + scar-tissue/outcome-memory surfacing + quiet-mode). Action-time consent is native (settings.json), not a charter hook. |
 | `bin/charter-align.sh` | Deterministic alignment anchors (decisions + roadmap + recent commits) for `/charter:align`. |
 | `commands/align.md` | `/charter:align` — reconcile open/proposed work against the recorded direction (clean ≠ correct). |
-| `lib/charter.sh` | Detect QA / roadmap / decisions / map / stack / web; recent commits; the `claude-companion` marker. |
+| `lib/charter.sh` | Detect QA / roadmap / decisions / map / stack / web; recent commits; the `claude-companion` marker; `charter_hotspots` (outcome memory — the git rework-ratio scar-tissue metric). |
 | `lib/conventions.sh` | Detect the project's established conventions (UI/component lib, styling, state, components dir, tests) + their recorded-status, for the reuse-before-create brief. |
 
 ## hud — *show what's happening* (a statusLine, not a hook)
