@@ -34,10 +34,11 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   reversible; honor the owner's *outcome* not their implementation; autonomy on the
   reversible, plain-language consent on the consequential.
 - **3 · Subtract as you add** — net surface flat or smaller; reuse before create;
-  ratchet, never sweep. **4 · Deliberate prune** (`/tidy:audit` + `/tidy:distill`)
-  for cross-module debt.
-- **Native task list = the live queue**; **document proportionally** (token
-  efficiency is the payoff, not a separate chase).
+  ratchet, never sweep. **4 · Deliberate prune** fires automatically when debt
+  crosses a threshold (over-budget files), routed through the task-queue loop.
+- **Native task list = the live queue** — substantive prompts run the
+  interpret→present→approve loop (sign-off via AskUserQuestion) before queuing;
+  **document proportionally** (token efficiency is the payoff, not a separate chase).
 
 Project docs: **[AGENTS.md](./AGENTS.md)**, **[docs/ROADMAP.md](./docs/ROADMAP.md)**,
 **[docs/MAP.md](./docs/MAP.md)**.

@@ -1,10 +1,12 @@
 # CONTRACT — what the charter plugin depends on
 
-`charter` reads a SessionStart hook payload (and a PreToolUse payload) and
-inspects the project's files. It is **read-only over your project** — it never
-writes your files, and the PreToolUse hook **never blocks** an action (it only
-surfaces a reminder). The Claude Code internals below are observed behaviour, not
-documented APIs.
+`charter` reads a SessionStart hook payload and inspects the project's files. It
+is **read-only over your project** — it never writes your files. Action-time
+consent for consequential/irreversible operations is handled **natively** by
+Claude Code permissions (the user's `~/.claude/settings.json`), not by a charter
+hook; charter's SessionStart brief only carries the plain-language owner-loop
+consent *posture* (intent → demo → consent). The Claude Code internals below are
+observed behaviour, not documented APIs.
 
 > **Observed against:** Claude Code 2.x · last verified **2026-05-31**.
 
@@ -20,22 +22,17 @@ documented APIs.
   something to say; silent when QA is documented and the source is compact/resume.
 - **If it changes:** the quality-attributes gate silently stops.
 
-### 1b. `PreToolUse` hook payload (stdin) — the consent surfacing
+### 1b. Action-time consent is native (not a charter hook)
 
-- **Fields read:** `tool_name`, `tool_input.command` (Bash) and
-  `tool_input.file_path` (Edit/Write). Matched against a small set of
-  *consequential* patterns — dependency adds (`npm/yarn/pnpm/bun add`, `go get`,
-  `pip install`, `cargo add`, …), destructive filesystem/history (`rm -rf`,
-  `git reset --hard`, `git clean -f`, `git push --force`), destructive DB ops
-  (`DROP TABLE/DATABASE`, `TRUNCATE`, `DELETE FROM`), data migrations
-  (`*migrate*`), and schema/migration file paths.
-- **Output contract:** `{ "hookSpecificOutput": { "hookEventName": "PreToolUse",
-  "additionalContext": "<text>" } }` — emitted **only** when a pattern matches.
-  It **never** sets `permissionDecision`, so it cannot block the action; it always
-  exits 0. Silent (no output) otherwise, so it costs nothing per tool call.
-- **Wired:** `hooks/hooks.json` PreToolUse with `matcher: "Bash|Edit|Write"`.
-  Disable with `CLAUDE_CHARTER_CONSENT_DISABLED=1`.
-- **If it changes:** the consent reminder silently stops (the action still runs).
+- charter has **no `PreToolUse` hook**; `hooks/hooks.json` wires only
+  `SessionStart`. Consent for consequential/irreversible operations is enforced
+  by Claude Code's own permissions: the user's `~/.claude/settings.json` sets
+  `permissions.defaultMode="auto"` (auto-approve with background safety checks),
+  plus a **deny** set (`rm -rf` of `/`, `~`) and an **ask** set (`git push
+  --force`, `git reset --hard`).
+- charter's SessionStart brief still carries the plain-language owner-loop consent
+  *posture* (intent → demo → consent) so the model surfaces consequential work to
+  a non-technical owner — but that is brief text, not an enforcement hook.
 
 ### 2. The project's own files (read-only)
 
@@ -110,29 +107,22 @@ documented APIs.
 
 ## Where the plugin writes
 
-- **Activity log** — `~/.claude/state/charter/activity.log` (override
-  `CLAUDE_CHARTER_LOG_DIR`, disable `CLAUDE_CHARTER_LOG_DISABLED`). Best-effort,
-  append-only; never blocks a hook. A fixed home so `charter-doctor`, run by
-  hand, reads the same file the hook writes.
-
-It writes **nothing** to your project and nothing to Claude Code's state.
+charter writes **nothing** — not to your project, not to Claude Code's state, not
+to any log. It only reads files and emits SessionStart `additionalContext`.
 
 ## How this is verified
 
 - `tests/charter.bats` fakes a project via a temp git repo and `CLAUDE_CHARTER_*`
   overrides — QA-, roadmap-, and map-status detection, the full/lean nudge by
-  source, the owner-loop posture, the doctor, and `/charter:align`'s anchor output
+  source, the owner-loop posture, and `/charter:align`'s anchor output
   (no-anchor, decisions, roadmap, and recent-commit cases).
-- `tests/consent.bats` exercises the PreToolUse consent hook — each consequential
-  pattern surfaces, benign commands stay silent, it never blocks (exits 0, no
-  `permissionDecision`), and the env kill-switch works.
-- `bin/charter-doctor.sh` checks the same against a live project on demand.
 
 ## Status (see docs/ROADMAP.md)
 
 Shipped: the quality-attributes gate, roadmap/backlog awareness, the project map,
-recorded-decisions anchor, stack notes, the owner loop + PreToolUse consent
-surfacing, and `/charter:align`. The subtractive/prune force now lives in **tidy**
-(`/tidy:distill` + the size guard); hooks are already **bootstrap-once +
-drift-detect** (they go quiet once the policy is recorded in CLAUDE.md). Further
-work is demand-driven, not a planned phase.
+recorded-decisions anchor, stack notes, the owner-loop consent posture, and
+`/charter:align`. Action-time consent is now **native** (Claude Code permissions
+in settings.json), not a charter hook. The subtractive/prune force lives in
+**tidy** (its automatic prune + the size guard); hooks are already
+**bootstrap-once + drift-detect** (they go quiet once the policy is recorded in
+CLAUDE.md). Further work is demand-driven, not a planned phase.

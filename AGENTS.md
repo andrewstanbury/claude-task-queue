@@ -11,8 +11,10 @@ A small **marketplace of self-contained Claude Code companion plugins**:
 
 - **`plugins/task-queue/`** — makes Claude Code's native task list a live work
   queue: a SessionStart policy + cross-session resume bridge + auto-advance to
-  the next unblocked task + a per-repo pause + a *conditional* (silent-unless-
-  needed) UserPromptSubmit capture nudge. **Read-only** over `~/.claude/tasks`.
+  the next unblocked task + a per-repo pause + a UserPromptSubmit
+  *interpret→present→approve* loop (on any substantive prompt: interpret →
+  decompose → judge risk/fan-out → present via AskUserQuestion → create only
+  approved tasks; trivial prompts stay silent). **Read-only** over `~/.claude/tasks`.
 - **`plugins/tidy/`** — *tidy-as-you-touch*: formats and lint-checks the file you
   just edited (fixing only what's safe) so a project converges toward clean code
   over time, scoped to the touched file.
@@ -26,10 +28,9 @@ A small **marketplace of self-contained Claude Code companion plugins**:
 Each plugin has a `CONTRACT.md` (the **undocumented Claude Code internals it
 depends on** — read it before changing any hook input/output); its `plugin.json`
 `description` says what it does. The system's direction lives in
-[docs/ROADMAP.md](./docs/ROADMAP.md), with the version-by-version history distilled
-into [docs/CHANGELOG.md](./docs/CHANGELOG.md) (one consolidated, Claude-facing
-changelog — **no per-plugin READMEs or CHANGELOGs**). These Claude-facing docs
-(this file, each CONTRACT, the ROADMAP, the CHANGELOG) are the manual.
+[docs/ROADMAP.md](./docs/ROADMAP.md); **git history is the changelog** (no
+per-plugin READMEs or CHANGELOGs, no human-facing docs). These Claude-facing docs
+(this file, each CONTRACT, the ROADMAP, the MAP) are the manual.
 
 ## The one rule that drives the architecture: the install boundary
 
@@ -40,7 +41,7 @@ own subdirectory exists** (reachable via `${CLAUDE_PLUGIN_ROOT}`). Therefore:
   inside its own `plugins/<name>/`.
 - **Do NOT extract a cross-plugin shared library, and do NOT add a build step**
   to de-duplicate. The small repeated bits (the symlink-resolve preamble in each
-  `bin/` script, the `*_log` helper, the `hookSpecificOutput` JSON emission) are
+  `bin/` script, the `hookSpecificOutput` JSON emission) are
   duplicated **on purpose** — that's the price of independent installability.
   Trying to DRY them across plugins would break standalone installs.
 - **Mirrored detection is drift-guarded, not shared.** charter is the source of
@@ -59,8 +60,8 @@ own subdirectory exists** (reachable via `${CLAUDE_PLUGIN_ROOT}`). Therefore:
 .github/workflows/ci.yml          # runs ./check.sh on push (the backstop)
 check.sh                          # single source of truth for "what we check"
 .editorconfig
-AGENTS.md  CLAUDE.md  LICENSE  README.md   # README = orientation; AGENTS.md = the maintainer SSOT
-docs/ROADMAP.md
+AGENTS.md  CLAUDE.md  LICENSE   # AGENTS.md = the maintainer SSOT (Claude-context only; no human-facing docs)
+docs/ROADMAP.md  docs/MAP.md
 plugins/<name>/
   .claude-plugin/plugin.json      # version MUST equal the marketplace entry
   hooks/hooks.json                # wires the hooks (absent for hud — it's a statusLine)
@@ -95,8 +96,9 @@ plugins/<name>/
   must leave net surface **flat or smaller**: reuse before create, delete what the
   change makes redundant. Without it, even individually-clean changes grow the
   project monotonically into debt. What touch-time bounding skips (cross-module,
-  rarely-touched debt) is caught by a deliberate prune pass (`/tidy:distill`,
-  `/tidy:audit`), not incremental nibbling.
+  rarely-touched debt) is caught by tidy's **automatic** deliberate prune (at
+  SessionStart, over a debt threshold it injects the weight report + a run-a-prune
+  instruction), not incremental nibbling.
 - **Non-technical-owner posture (the target projects' owners can't read code).**
   *Autonomy on the reversible, consent on the consequential* — resolve safe/reversible
   findings yourself, but the dividing line is **reversibility + cost + data-safety,
@@ -118,8 +120,9 @@ plugins/<name>/
   (it reads, or nudges the model — it never writes the task store); tidy
   **only auto-applies behavior-preserving fixes** (formatting) and surfaces
   everything else.
-- **Locations are env-overridable** (`CLAUDE_TQ_*`, `CLAUDE_TIDY_*`) so tests are
-  hermetic — temp dirs, no mocking framework.
+- **Locations are env-overridable** (`CLAUDE_TQ_*`, `CLAUDE_TIDY_*`, e.g.
+  `CLAUDE_TIDY_LOG_DIR` for tidy's state dir) so tests are hermetic — temp dirs,
+  no mocking framework.
 - **Prefer locality over decomposition.** A file an agent can load whole beats
   many fragments it must chase. Keep files cohesive; the CI **300-line guard** is
   the trigger to split — split only when it actually fires.
@@ -161,11 +164,15 @@ so green locally means green in CI (modulo locally-skipped tools).
 - Don't add a cross-plugin shared lib or a build step (install boundary).
 - Don't add anything that runs per prompt.
 - Don't re-introduce the heavyweight features the project deliberately dropped
-  (a bespoke task store, Haiku auto-decompose, autopilot, a *blocking*
-  destructive-action gate, a CLI, a status bar). The project's whole arc was
+  (a bespoke task store, Haiku auto-decompose, autopilot, a plugin-side
+  destructive-action gate, human-facing docs). The project's whole arc was
   *removing* these because they cost tokens, duplicated native Claude Code
   behavior, or couldn't be owned reliably by a plugin (git history has the
-  details). **Note:** charter's PreToolUse *consent surfacing* is **not** the
-  rejected gate — it only reminds, never blocks (see docs/ROADMAP.md "Decided
-  against").
+  details). **Note:** action-time consent for consequential/irreversible
+  operations is now **native** — the user's `~/.claude/settings.json` runs
+  `permissions.defaultMode="auto"` (auto-approve with background safety checks)
+  plus a deny set (`rm -rf` of `/`, `~`) and an ask set (`git push --force`,
+  `git reset --hard`). Charter's SessionStart brief still carries the
+  plain-language owner-loop consent *posture* (intent → demo → consent), but there
+  is no charter consent hook (see docs/ROADMAP.md "Decided against").
 - Don't decompose preemptively; let the 300-line guard decide.

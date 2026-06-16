@@ -1,312 +1,148 @@
 # ROADMAP — the vibe-coding companion system
 
-A living **design record**: the direction, the decisions, and what's next. The
-version-by-version shipped history lives in [CHANGELOG.md](./CHANGELOG.md) so this
-file stays lean (the project's own subtractive principle, applied to its own docs).
+A living **design record**: the direction, the durable decisions, and what's next.
+Per-version history lives in git, not here (the human-facing CHANGELOG was removed
+— see the 2026-06-16 redesign). Read [AGENTS.md](../AGENTS.md) for the conventions
+and hard invariants that constrain everything below.
 
-The goal of this marketplace is a set of Claude Code plugins that let you
-**vibe-code an entire project** while Claude keeps it clean, well-documented,
-token-efficient, and low-debt — **proactively, with minimal input** (pausing the
-backlog is the one control you need).
-
-Read [AGENTS.md](../AGENTS.md) first for the conventions and hard invariants that
-constrain everything below.
+The goal: a set of Claude Code plugins that let you **vibe-code an entire project**
+while Claude keeps it clean, well-documented, token-efficient, and low-debt —
+**proactively, with minimal input**, entirely through the CLI. The owner reads no
+code, no docs, and runs no commands; the system is automatic and artifact-free
+(only **lean Claude-context** files, never human-facing prose).
 
 ## Prioritized criteria (in order)
 
-The ordering is tuned for the system's real target: **existing, often legacy,
-under-tested, under-documented projects that must stay clean *as they grow*.** The
-forces that contain debt lead; the intent loop and the payoff follow. (This list
-supersedes the older flat six-criteria ranking — those criteria survive, re-seated
-under the layers below.)
+Tuned for **existing, often legacy, under-tested projects that must stay clean as
+they grow.** The forces that contain debt lead; the intent loop and payoff follow.
 
-**0. Keep the project self-describing — and its growth visible.** *(precondition)*
-Maintain the project's *"Claude operating manual"* — project map, quality
-attributes, recorded decisions/ADRs, stack notes — and keep growth **observable**
-with a size guard. You can't contain ripple in a project you can't load, or prune
-cruft you can't see. Bootstrap it if missing; **gate substantive work on it
-existing.** The manual is for Claude, but keep a thin **plain-language owner layer**
-too — *what this is, how it works, how to run it* — so a non-technical owner isn't
-locked to one Claude session (the bus-factor safety net). (charter authors/keeps the
-manual; tidy's size guard keeps growth visible.)
+- **0 · Keep the project self-describing** *(precondition)* — a project map
+  (file→responsibility, for blast radius), recorded decisions/ADRs, quality
+  attributes, stack notes. Bootstrap if missing; gate substantive work on it. Kept
+  as **lean Claude-context** files (charter authors them), not human docs.
+- **1 · Contain blast radius** — know what a change ripples into (code +
+  architectural) and cover it; one owner per concern; watch total coupling. **YAGNI:
+  the burden of proof is on *adding* a dep/abstraction/layer.**
+- **2 · Verify + stay aligned** — confirm intent in plain language; characterize
+  before you change (no tests → pin current behaviour first); suite green before
+  done (the verification floor); weigh work against recorded decisions (clean ≠
+  correct); honor the owner's *outcome*, not their proposed implementation.
+- **3 · Subtract as you add** — a new requirement leaves net surface flat or
+  smaller; reuse before create, delete what a change makes redundant.
+- **4 · Periodic deliberate prune** — for the cross-module debt touch-time bounding
+  skips; now **automatic** (fires on a debt threshold, see tidy below).
 
-**1. Contain blast radius — per change *and* as a system trend.** Minimize and
-understand the blast radius of every change: *code* ripple (what a touched file
-flows into) and *architectural* ripple (how far a structural change reaches). This
-is the primary safety net when tests/specs don't exist *and* the bound on where you
-clean up. At scale it has a second level — watch that **total coupling isn't
-climbing** as features land (one owner per concern, contracts not copies, low
-fan-in), because **compounding debt is a blast-radius-*at-scale* problem**. The
-upstream driver of that climb is **unwarranted complexity** — every needless
-dependency, abstraction, or layer widens reach — so the **burden of proof is on
-*adding* complexity (YAGNI)**, not on keeping it simple (see the Design model). tidy
-surfaces dependents (Go `go list` / guarded `git grep`) and the **complexity surface**
-(`/tidy:distill`: dep + layer count), charter marks high-fan-in modules in the map,
-task-queue sequences low-reach-first and keeps high-blast work off parallel agents.
+**Payoff — token efficiency:** not *fewest* tokens but *highest-leverage* ones. A
+well-mapped, small-filed, clean project is automatically cheap for Claude to load
+and reason about. It accrues from 0–4; don't chase it directly.
 
-**2. Verify + stay aligned — the Steward intent loop.** The safety net the
-**non-technical owner can't produce**, so Claude must. Establish and **confirm
-intent in the owner's plain language** (ask only about product/outcome, never
-implementation); build the simplest thing that meets it; **characterize before you
-change** (no tests → pin the affected surface's current behavior first — blast
-radius says what to pin, so coverage accrues on the worked surface); **verify
-against that intent** (suite green before done — the verification floor enforces
-it); and **weigh the work against recorded decisions** so it's the *right* change,
-not merely a clean one. **Honor the owner's *outcome*, not their proposed
-*implementation*** — a non-technical owner often requests complexity they can't
-evaluate (cargo-culted patterns, premature scale); re-anchor on what they want to
-happen, build the simplest thing that achieves it, and surface in plain language
-when their requested complexity isn't warranted. **Claude is the only gatekeeper
-against over-engineering**, including the owner's own.
+## Architecture — four self-contained plugins
 
-**3. Subtract as you add.** The anti-entropy rule: a new requirement leaves net
-surface **flat or smaller** — reuse before create, delete what the change makes
-redundant. Without it, a project of individually-clean changes still grows
-*monotonically* into debt. Applied at touch-time (tidy's subtractive posture) and
-on-demand (`/tidy:distill`).
+| Plugin | Responsibility |
+|---|---|
+| **task-queue** | **Orchestrate** — the interpret→present→approve loop, capture, order, advance, cross-session resume, pause |
+| **tidy** | **Change safely & cleanly** — format/lint on touch, blast-radius, verification floor, automatic prune |
+| **charter** | **Know the project + own the owner loop** — doc gate, map, decisions anchor, conventions, intent→demo→consent posture |
+| **hud** | **Show** — a consolidated read-only status line (the owner's at-a-glance trust signal) |
 
-**4. Periodic deliberate prune — for what touch-time bounding skips.** "Clean as
-you touch, bounded by blast radius" converges only the *active* surface (untouched
-stable code is left alone — refactoring ripple you can't see is itself a top rework
-risk). Cross-module and rarely-touched debt therefore accrues invisibly; a
-scheduled, **characterized** audit/prune pass (`/tidy:audit` + `/tidy:distill`)
-catches it. Large pre-existing architectural debt needs this deliberate pass, not
-incremental nibbling.
-
-**Cross-cutting (applied throughout, not a step):**
-
-- **Proportionality** — every practice scaled to complexity/risk, never exhaustive.
-- **Follow the stack's recommended patterns** — and **flag outdated/deprecated tech
-  within the touched scope**, so cruft is modernized as you go, not left to rot.
-- **Streamlined orchestration** — seamless, pausable, shows the work, processes the
-  backlog optimally (fan out to agents *or* auto-order the work).
-- **Token efficiency (the payoff — named so it isn't forgotten).** Not *fewest*
-  tokens but *highest-leverage* ones: a well-mapped, small-filed, clean,
-  pattern-following project is automatically cheap for Claude to load and reason
-  about. It **accrues from 0–4** plus the already-lean plugins — *don't chase it
-  directly* (that's what causes under-testing and under-documenting).
-
-**Through-line:** reduce tech debt as you go; bake **blast-radius awareness +
-verify-against-intent + subtract-as-you-add** into every change — and run a
-deliberate prune for what incremental work can't reach.
-
-## Unifying insight
-
-The list has **one root and one payoff.** The root is **#0**: most of what "good"
-means — loadable, right-sized, quality-attribute-driven, pattern-following — is just
-*the project describing itself well*. That's the same discipline this repo gives
-itself (AGENTS.md + CONTRACT + checks + size guard), created and kept current
-**automatically** for whatever project Claude is pointed at. The payoff is **token
-efficiency**: not a separate mechanism but the consequence of 0–4 plus the
-already-lean plugins — a well-mapped, small-filed, clean project is cheap for Claude
-to load and reason about.
-
-## Architecture — four self-contained plugins, by responsibility
-
-| Plugin | Responsibility | Serves |
-|---|---|---|
-| **task-queue** | **Orchestrate the work** — capture, order, advance, pause, show tasks | 1 (sequence low-reach-first), orchestration |
-| **tidy** | **Make each change safely & cleanly** — format/lint/TDD on touch, blast-radius, verification floor | 1, 2, 3, 4 (+ size guard for 0) — the change-time engine |
-| **charter** | **Know the project + own the owner relationship** — QA gate, roadmap/backlog, project map, decisions anchor, stack notes, `/charter:align`, the **owner loop** (intent → demo → consent) + a PreToolUse **consent surfacing** | 0, 2 (alignment + owner loop) |
-| **hud** | **Show what's happening** — a consolidated, read-only status line over the others' state | visibility (0 growth), orchestration |
-
-Single responsibility: **orchestrate / change-safely / know-the-project-&-own-the-owner-loop / show.**
 Each plugin stays independently installable (the install boundary forbids shared
 code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
 
 ## What each plugin does now
 
-Version history → [CHANGELOG.md](./CHANGELOG.md).
-
 - **task-queue** — SessionStart policy (native task list = live queue) +
-  cross-session **resume bridge** + auto-advance + per-repo **pause** + opt-in
-  **agent-mode** (fan independent tasks to subagents) + **roadmap/backlog
-  hydration** + **alignment-aware capture** (weigh new work against the recorded
-  direction) + schema-drift canary.
-- **tidy** — on touch: format + lint (**Go, web, Python ruff, shell shellcheck** —
-  fast file-scoped tools only) + TDD nudge + **size-vs-complexity** flag +
-  **currency** (surface manifest pins, never auto-upgrade) + **blast-radius**
-  (Go via the exact `go list` import graph, else a guarded `git grep`). On Stop:
-  the **verification floor** runs the project's own tests and blocks until green.
-  On demand: **`/tidy:distill`** (weight report) and **`/tidy:audit`**. Holds the
-  **subtractive posture** (subtract as you add; reuse before create).
-- **charter** — at SessionStart, a compact **proportional brief** that gates
-  substantive work on the project's "Claude manual": **quality attributes**
-  (Lighthouse-aligned defaults for web), **roadmap/backlog**, **project map**,
-  **decisions/ADRs** (the alignment anchor), **stack notes**, a **plain-language
-  owner doc layer** (bus factor) — detect-not-author (the model writes the docs),
-  quiet once they're summarised in CLAUDE.md. It also owns the **owner loop** for a
-  non-technical owner: a standing posture (confirm intent in plain language →
-  demonstrate the result back → recap) plus a **PreToolUse consent surfacing** that,
-  on a consequential/irreversible action (paid dep, destructive command, DB drop,
-  data migration), reminds the model to confirm with the owner first — *surfaces,
-  never blocks*. On demand: **`/charter:align`** reconciles open/proposed work
-  against the recorded decisions + roadmap.
-- **hud** — a static **health beacon** + tasks + paused + agent-mode + the
-  verification floor's **✓/✗ tests** + **docs-health** + last tidy +
-  **context-window fill %** + branch & dirty-count + model. Read-only, no idle
-  timer, zero model-token cost.
+  cross-session **resume bridge** (the native list starts empty each session; this
+  re-surfaces a repo's unfinished tasks — the system's confirmed native gap) +
+  auto-advance + per-repo pause + opt-in agent-mode + roadmap hydration + an
+  open-decisions ledger + schema-drift canary. Its centerpiece is the
+  **interpret→present→approve loop**: on any substantive prompt (multi-step OR
+  consequential) the capture hook has the model interpret the request, decompose it,
+  judge each task for risk/alignment and parallel-vs-inline fan-out, **present its
+  understanding + candid per-task recommendations (incl. skip) via AskUserQuestion**,
+  and TaskCreate only what the user approves — weighed against recorded direction.
+  Trivial prompts stay silent and run under auto mode.
+- **tidy** — on touch: format + lint (Go/web/Python/shell, fast file-scoped tools) +
+  blast-radius + coverage/size/currency nudges. On Stop: the **verification floor**
+  (run the project's tests, block until green, bounded). The **deliberate prune**
+  fires automatically at SessionStart when over-budget files cross a threshold
+  (`CLAUDE_TIDY_PRUNE_THRESHOLD`, default 3) — a weight report (`tidy-distill.sh`) +
+  an instruction to prune now, routing cuts through the task-queue loop. No slash
+  commands.
+- **charter** — at SessionStart, a compact **proportional brief** gating substantive
+  work on the project's Claude manual (quality attributes, map, decisions anchor,
+  roadmap, stack, established conventions), detect-not-author, quiet once summarised
+  in CLAUDE.md. Owns the **owner loop** (confirm intent → demonstrate → recap). On
+  demand: `/charter:align`. Action-time consent is native (see below) — charter
+  carries only the standing posture, no hook.
+- **hud** — a static health beacon + paused + agent + the verification floor's ✓/✗
+  tests + context-window fill % + branch & dirty + model. Read-only, zero token cost.
+  With no logs or docs to read, this beacon is the owner's primary trust signal.
 
-### Currency / modernization — why it's split model-vs-hook
+## Durable design decisions
 
-Detecting "this is outdated" is **the model's job, not the hook's** — it's world
-knowledge a hook can't have offline. So: the *judgment* is a currency clause in
-tidy's standard (notice deprecated patterns / behind-latest versions in scope);
-the *facts* are the **pinned versions from the nearest manifest**, surfaced on
-touch, scoped to the touched area. Guardrail: **nudge, never auto-upgrade** (a dep
-bump is the highest-blast-radius change there is). A network "latest stable" check
-(`npm view …`) is **deliberately not done** — edit-time network calls would break
-the offline, zero-per-prompt-cost posture. charter holds durable stack notes so
-the judgment has context. Other "best practice" axes (security, a11y, performance)
-aren't separate mechanisms — they're **quality attributes** documented via charter.
-
-## Design principles (the durable decisions)
-
-### Proportionality over maximalism
-
-The deepest bias to resist: applying good practices *exhaustively* instead of *in
-proportion to complexity/risk* — "test everything," "document everything," "nudge
-on everything." charter emits one **compact, proportional brief** (baseline map +
-what's-next always; QA for web; decisions/stack by judgment — *don't over-document
-a small project*); tidy's standard is trimmed to anchors (inform, don't teach) and
-frames tests as "verify where it earns its keep." Per-touch nudges stay terse,
-failures first.
-
-### Design model — verification + simplicity, not methodology labels
-
-TDD / DDD / SOLID are different levels, not alternatives. For LLM-written code
-owned by **non-technical** people, the leverage is **verification + simplicity**:
-
-- **Tests are a safety net, not a ritual — and verification must be *observable*.**
-  Cover changed behavior; nothing's done until the suite is green (the
-  **verification floor** — Stop hook runs the project's own tests, blocks until
-  green, bounded — is the net a non-technical owner can't produce). But green is
-  proof for *Claude*, not the owner: on user-visible changes, **demonstrate it
-  working and recap in plain language** (`/run`, `/verify`) — a non-technical owner
-  verifies by *seeing* it work, not by reading test names, and trust comes from a
-  working demo, not a checkmark they can't interpret.
-- **SOLID's essence, not the label**; **DDD's ubiquitous language only** (name
-  code/docs in the owner's domain words); **YAGNI — the burden of proof is on
-  *adding* complexity** (the simplest maintainable solution the *present*
-  requirement demands; a new dependency, abstraction, layer, or config knob must be
-  justified by a real current need, never a hypothetical future one — *unwarranted
-  complexity is the upstream driver of a growing blast radius*); and **boring &
-  reversible by default** — prefer mainstream, replaceable tech and decisions that
-  can be backed out, because architecture here gets *no human review* (blast radius +
-  the prune pass are its only checks) and the owner can't recover from an
-  irreversible or exotic choice.
-- **Non-technical posture — autonomy on the reversible, consent on the
-  consequential.** Resolve safe/reversible findings autonomously (formatting, safe
-  upgrades behind passing tests, delete provably-dead code, sensible defaults). But
-  the dividing line that matters here is **reversibility + cost + data-safety, not
-  technical-vs-product**: before anything consequential or hard to undo — a **paid**
-  dependency, an **irreversible data migration/deletion**, **vendor lock-in** — get
-  a plain-language heads-up-and-yes first, even though it's "technical." The owner
-  can't consent to what they can't see, or recover from what they didn't choose.
-  And the autonomy cuts the other way too: **push back on unwarranted complexity the
-  owner *requests*** — separate their outcome from their proposed implementation,
-  and offer the simpler path. Claude is the only gatekeeper against over-engineering.
-
-### The subtractive force + quiet hooks
-
-The system optimises for *Claude to read & maintain* a project at low token cost
-**over time**. Every mechanism must not only change cleanly but keep the project
-*small*. Three primitives realise this:
-
-1. **A maintained project map** — growth stays visible and loading stays cheap.
-2. **A subtractive prune force** — touch-time (*subtract as you add*) and
-   on-demand (`/tidy:distill`): *add requirement → net surface flat or smaller*.
-3. **Bootstrap-once + drift-detect hooks** — record the standing policy in the
-   project's `CLAUDE.md` (always loaded) and mark it `claude-companion`; the hook
-   then re-anchors in **one line** instead of re-injecting the full policy.
-   **State** (carry-over, hydration, drift) is never suppressed — only the policy
-   prose. All SessionStart re-injectors are quiet-able.
-
-### Direction & signal — clean ≠ correct
-
-Changing cleanly and shedding cruft still doesn't guarantee a change is the
-**right** change. Three disciplines:
-
-1. **Alignment** — route charter's project-knowledge (decisions/ADRs, roadmap)
-   into the orchestration loop: as work is captured and picked up, **weigh it
-   against the documented direction** and surface drift/decision-contradictions
-   *before* the work is done. Shipped as three arms: the decisions anchor
-   (charter), alignment-aware capture (task-queue), and on-demand `/charter:align`.
-2. **Feedback-loop disciplines** — the suite is a stack of loops at different
-   latencies: **per-touch** → **on-stop** (verification floor) → **on-demand**
-   (`/tidy:audit`, `/tidy:distill`, `/charter:align`) → **CI**. *The fastest loop
-   that can catch a class of problem owns it* — push signal as close to the change
-   as it'll go. (Edit-time linting is therefore limited to fast, file-scoped tools;
-   slow whole-project linters stay with the verification floor.)
-3. **Refined token philosophy — earn the token, don't just save it.** Not *fewest
-   tokens* but *highest-leverage* tokens: the project map (sublinear vs.
-   re-scanning the tree), policy-stated-once, conditional/silent hooks (cost zero
-   unless they fire), quiet-mode. Build what raises signal-per-token over time;
-   cut what raises cost without raising signal.
-
-## Honest limits (what hooks can and can't do)
-
-- Hooks **nudge; they don't enforce.** The QA "gate" is a strong instruction, not
-  a hard block.
-- **Agent fan-out** = nudging the model to use the Task tool (a hook can't spawn
-  agents); it costs tokens, so it's opt-in.
-- **Blast radius** = lightweight dependent-surfacing (`go list` / `git grep`),
-  language-specific — not full static analysis.
-- **Consent surfacing** (charter's PreToolUse) = a *reminder* on consequential
-  actions; it **never blocks** (the heavyweight destructive-action *gate* stays
-  rejected — see below). It pattern-matches a small known set, so it can miss novel
-  consequential actions and is no substitute for the model's own judgment.
-- Plugins act **only within a Claude session** — no out-of-session daemon.
-- Consistent with the token-efficiency, avoid-complexity, and
-  read-only/conservative-mutation principles in AGENTS.md.
+- **Native-first.** Where Claude Code does it natively, use the native mechanism and
+  don't reimplement: the native **task list** (the queue), native **permissions /
+  `auto` mode** (safe autonomy + destructive-action gating), native **statusLine**
+  (hud), native **AskUserQuestion** (the present-before-queue interaction), native
+  **subagents** (agent-mode fan-out). Hooks earn their keep only where they *execute*
+  on an event or read state a session can't see.
+- **Run in auto.** The user's `~/.claude/settings.json` sets
+  `permissions.defaultMode: "auto"` (auto-approve **with background safety checks**)
+  plus a hard-block `deny` set (`rm -rf /` and `~`) and an `ask` set (force-push,
+  `reset --hard`). This is the safe-autonomy posture the owner asked for.
+- **Proportionality over maximalism** — every practice scaled to complexity/risk.
+- **Verification + simplicity over methodology labels** — tests as a safety net (the
+  floor), SOLID's essence, DDD's ubiquitous language, **YAGNI**, boring & reversible.
+- **Non-technical-owner posture** — autonomy on the reversible, plain-language
+  consent on the consequential (the line is reversibility + cost + data-safety).
+  Verification must be **observable** (demo it working; the owner verifies by seeing,
+  not by reading tests or docs).
+- **Subtractive force + quiet hooks** — bootstrap-once (policy in CLAUDE.md, marked
+  `claude-companion`) then re-anchor in one line; state (carry-over, drift) is never
+  suppressed, only policy prose.
+- **Clean ≠ correct** — route charter's decisions/roadmap into the loop so new work
+  is weighed against recorded direction before it lands.
 
 ## Decided against
 
-- **Consolidating the 4 plugins into 1** (2026-05-31) — the duplication isn't
-  painful and the migration would disrupt a working install; revisit only if the
-  duplication bites. *Not a pending item — recorded so it isn't re-litigated.*
-- **A charter doc-inventory state file as a runtime single-source-of-truth**
-  (2026-06-01) — proposed to stop the charter↔hud↔task-queue detection mirrors
-  drifting. Rejected: the install boundary forces each consumer to keep a fallback
-  detector anyway, so the inventory is *net-additive* (doesn't remove the
-  duplication) and adds a mid-session staleness lag. Chose the cheaper, subtractive
-  alternative — a **CI drift-guard test** (`tests/drift-guard.bats`).
-- **A hard destructive-action *gate*** (blocking) — still rejected: a plugin can't
-  own a reliable block, and a false block that stops a legitimate action is worse
-  than the risk. **But** (2026-06-01, revisited) since *consent on the consequential*
-  became a first-class principle (non-technical owners can't review), a **non-blocking
-  surfacing** was added — charter's PreToolUse hook reminds, never blocks. The gate
-  stays out; the reminder is in. **Extended (2026-06-10):** task-queue's capture hook
-  gained a **prompt-time review-gate** — on a consequential prompt it asks the model
-  to decompose the request and get per-task owner sign-off (via AskUserQuestion)
-  *before* anything is queued. Still non-blocking at the hook level (it only injects
-  the instruction; the review pause is the model's, in-loop), so the recorded
-  decision holds. It complements charter's *just-in-time action* surfacing with an
-  *up-front interpretation* check — the owner confirms how Claude read the prompt.
+- **Consolidating the 4 plugins into 1** (2026-05-31; **reaffirmed 2026-06-16**) —
+  after the redesign's deletions the duplication is small; consolidation is deferred
+  ("delete first, then judge"). Revisit only if it bites.
+- **A charter doc-inventory state file** (2026-06-01) — the install boundary forces a
+  fallback detector anyway, so it's net-additive. Chose the CI drift-guard test.
+- **A hard, plugin-owned destructive-action *gate*** — a plugin can't own a reliable
+  block. **Superseded 2026-06-16:** the gating is now **native** (`permissions.deny`/
+  `ask` + `auto`-mode safety checks), which *is* harness-enforced. See the reversal
+  below.
+- **Native plan mode for the present-before-work step** (2026-06-16) — rejected in
+  favour of the task-queue's interpret→present→approve loop: plan mode is read-only
+  and all-or-nothing per session, whereas the owner wants to run in auto and review
+  only the *queue interpretation*. The loop is that, owned by task-queue.
+- **One single CLAUDE.md as the only doc** (2026-06-16) — would conflict with
+  charter's separate-file detection (it would nag "missing map/roadmap" every
+  session). Chose **a few lean Claude-context files** (CLAUDE.md + map + decisions +
+  per-plugin CONTRACTs); charter's model is unchanged.
 
-## Status — 2026-06-10
+## Status — 2026-06-16 (native-leaning redesign)
 
-- **task-queue 0.21.0** · **tidy 0.30.0** · **charter 0.16.0** · **hud 0.4.0**.
-- **The planned roadmap (Phases 1–3) and the direction-&-signal layer are
-  complete.** The system changes cleanly, sheds cruft, checks alignment, and lints
-  across Go/web/Python/shell with a toolchain-accurate Go blast-radius.
-- **Conventions awareness + self-audit (2026-06-10):** charter now detects a
-  project's **established conventions** (component/UI library, styling, state,
-  components dir, tests) and surfaces them with a *reuse-before-create* framing so
-  new features extend what's there instead of adding a parallel pattern — automatic
-  until recorded, then quiet (charter 0.16.0). A ruthless self-audit also pruned the
-  system's own drift: deleted a duplicate 396-line doc, canonicalised the priority
-  order in this file, aligned tidy's size nudge to the 300-line CI guard and DRY'd
-  its in-plugin copy-paste (0.30.0), split task-queue's logging out of an
-  at-the-limit `tasks.sh`, and **scoped hud to its unique signals** — dropping the
-  tasks/docs/last-tidy slots that re-rendered state shown elsewhere, which removed
-  the heaviest cross-plugin mirrors (0.4.0).
-- **Owner loop (2026-06-01):** the principles were re-tuned for **non-technical
-  owners** (consent on the consequential, boring & reversible, observable
-  verification, a plain-language owner doc layer), and charter gained the **owner
-  loop** — a standing intent→demo→consent posture plus a **PreToolUse consent
-  surfacing** (reminds, never blocks). tidy's standard was trimmed to pure
-  change-time mechanics so the owner relationship has one home (charter).
-- **What's next:** nothing planned — further work is **demand-driven** (a new
-  stack to lint, an Expo/React-Native-Web QA profile, a pain point that surfaces),
-  not new layers.
+Reoriented the system to be **CLI-only, automatic, and artifact-free** for an owner
+who reads no code/docs and runs no commands:
+
+- **Removed the human-readable logging subsystem + the three `*-doctor.sh`
+  diagnostics** — nobody reads them. Kept the functional state dir and the
+  schema-drift canary.
+- **Replaced charter's PreToolUse consent regex with native permissions.**
+  *Reversal recorded:* the 2026-06-01 "non-blocking consent surfacing" hook is
+  removed — it was fragile (it false-fired on `rm -rf` substrings inside unrelated
+  commands) and only reminded. Native `auto` mode + `deny`/`ask` is harness-enforced
+  and stronger; charter keeps the plain-language consent *posture*.
+- **Generalized the task-queue review-gate into the default interpret→present→approve
+  loop** for any substantive prompt (the centerpiece the owner values).
+- **Made the deliberate prune automatic** (debt-threshold trigger) and deleted the
+  `/tidy:distill` + `/tidy:audit` slash commands.
+- **Deleted the human-facing docs** (README, CHANGELOG); kept lean Claude-context.
+
+**What's next:** demand-driven only — a new stack to lint, a real owner-not-at-the-
+terminal scenario (the one place an MCP integration, e.g. emailing the owner a
+plain-language recap, would earn its keep), or a pain point that surfaces. No new
+layers planned.

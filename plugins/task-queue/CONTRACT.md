@@ -9,8 +9,7 @@ update, you know where to look first.
 > **Observed against:** Claude Code 2.x · last verified **2026-05-30**.
 > If you re-verify on a newer version, bump that date.
 
-All of this knowledge is centralized in [`lib/tasks.sh`](./lib/tasks.sh) (with
-best-effort logging in the sibling [`lib/log.sh`](./lib/log.sh) it sources) and the
+All of this knowledge is centralized in [`lib/tasks.sh`](./lib/tasks.sh) and the
 entrypoints in [`bin/`](./bin). If a dependency below changes, that is where
 the fix goes — nothing else in the repo encodes these assumptions.
 
@@ -108,12 +107,20 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
 ### 5. `UserPromptSubmit` hook payload (stdin)
 
 - **Fields read:** `prompt` (the user's text) and `session_id`.
-- **Behavior:** runs on every prompt but stays silent unless the prompt looks
-  multi-step *and* the session queue is empty (local bash/jq checks — no model
-  cost). Disabled with `CLAUDE_TQ_CAPTURE_DISABLED`.
+- **Behavior (`tq-capture.sh`):** runs on every prompt (local bash/jq checks — no
+  model cost) but stays silent on trivial prompts. On a **multi-step OR
+  consequential** prompt (`tq_looks_multistep` / `tq_looks_consequential` in
+  `lib/capture.sh`) it injects the **interpret→present→approve loop** instruction:
+  (1) interpret the request in one line, (2) decompose into tasks, (3) judge each
+  for risk/alignment and PARALLEL-vs-INLINE fan-out, (4) PRESENT understanding +
+  per-task disposition + candid skip recommendations via AskUserQuestion,
+  (5) `TaskCreate` **only approved** tasks, then auto-advance. Consequential
+  prompts get the same loop with extra "recommend against if warranted" scrutiny.
+  It fires **regardless of existing queue state** (the old empty-queue gate and
+  `tq_open_count` were removed). Disabled with `CLAUDE_TQ_CAPTURE_DISABLED`.
 - **Output contract:** same shape, with `"hookEventName": "UserPromptSubmit"`.
-- **If it changes:** the proactive capture nudge silently stops; capture still
-  relies on the SessionStart policy.
+- **If it changes:** the loop instruction silently stops; capture still relies on
+  the SessionStart policy.
 - **Second UserPromptSubmit hook (`tq-decisions.sh`):** reads `cwd` + `session_id`;
   if the repo has open decisions in the ledger, re-injects them as
   `additionalContext` so a question the model asked isn't lost to queued/typed-
@@ -149,10 +156,10 @@ The real boundary is therefore verified three other ways:
 
 - **`tests/packaging.bats`** guards the shipped artifact (version sync, valid
   JSON, hook scripts exist) — see CI.
-- **`bin/tq-doctor.sh`** is the on-demand check: it validates every dependency
-  above against the *live* environment (not a fake), including a **schema
-  canary** that samples real task files and confirms they still carry the
-  `id`/`status` fields we read. Run it first when something stops working.
+- **Schema-drift canary:** `tq_schema_status` (in `lib/tasks.sh`) samples real
+  task files and confirms they still carry the `id`/`status` fields we read; its
+  result is surfaced at SessionStart. This is the live-environment check that the
+  fakes can't provide — heed it first when something stops working.
 - **Manual end-to-end:** after `claude plugin update task-queue`, start a fresh
   session, create two tasks, complete the first, and confirm the
   `Next unblocked task: #…` note appears. Run this whenever you bump the
@@ -160,14 +167,10 @@ The real boundary is therefore verified three other ways:
 
 ## Where the plugin writes (never the task store)
 
-Three small files, all outside `~/.claude/tasks`:
+A few small files, all outside `~/.claude/tasks`:
 
 - **Root cache** — `${CLAUDE_PLUGIN_DATA}/root-cache.tsv` (session→repo mapping;
   in plugin data so it survives updates).
-- **Activity log** — `~/.claude/state/task-queue/activity.log` (overridable via
-  `CLAUDE_TQ_LOG_DIR`, disabled via `CLAUDE_TQ_LOG_DISABLED`). A fixed home, so
-  `tq-doctor` — run by hand with no plugin env — reads the same file the hooks
-  write. Best-effort and append-only; it never blocks a hook.
 - **Pause flags** — `~/.claude/state/task-queue/paused/<encoded-repo-root>`
   (overridable via `CLAUDE_TQ_PAUSE_DIR`). One empty file per paused repo; its
   presence is the pause. A fixed home for the same reason as the log: the

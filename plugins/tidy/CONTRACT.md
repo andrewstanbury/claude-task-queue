@@ -129,31 +129,34 @@ deduped per file per session, and disable-able (`CLAUDE_TIDY_COVERAGE=0`); it's
 tuned for the target case (legacy app code with per-file or absent tests). Don't
 make the opt-in **gate** the default without weighing this.
 
-### 5. The `/tidy:distill` and `/tidy:audit` commands (user-invoked)
+### 5. The automatic deliberate prune (SessionStart, no command)
 
-- **Files:** `commands/distill.md` (auto-discovered, namespaced `/tidy:distill`)
-  inlines the stdout of `bin/tidy-distill.sh` via the `!` prefix, then instructs
-  the model to run the subtractive pass (dead code, duplication, doc↔code drift).
-- **`bin/tidy-distill.sh`** is **read-only** and language-agnostic: it enumerates
-  files with `git ls-files --cached --others --exclude-standard` (fallback
-  `find`) and reports file/line counts, the heaviest + over-budget files, cruft
-  markers, and junk artefacts. Tunables: `CLAUDE_TIDY_SIZE_BUDGET` (default 400),
-  `CLAUDE_TIDY_DISTILL_TOP` (default 10). It never writes and never hard-fails.
-  The *judgment* (what to actually delete) is the model's, gated on confirmation.
-- **`/tidy:audit`** (`commands/audit.md`) reuses the same weight report, then drives
-  a read-only, proportional whole-project audit — running the project's own
-  tests/linters, flagging dead code/duplication, checking doc proportionality and
-  currency, and reporting in plain language. Read-only; offers to fix afterward.
+The slash commands are gone — the deliberate prune now fires **automatically**
+from `bin/tidy-standard.sh` at SessionStart, gated on a debt threshold:
+
+- It checks how many files are over the size budget. **Below**
+  `CLAUDE_TIDY_PRUNE_THRESHOLD` (default 3) it just lists them as decomposition
+  candidates. **At/above** the threshold it runs `bin/tidy-distill.sh` and injects
+  the full weight report plus an instruction to **run a subtractive prune NOW**
+  (dead code, duplication, doc↔code drift) — no command to invoke. The cuts are
+  routed through the task-queue interpret→present→approve loop.
+- **`bin/tidy-distill.sh`** is the **read-only**, language-agnostic report
+  generator: it enumerates files with `git ls-files --cached --others
+  --exclude-standard` (fallback `find`) and reports file/line counts, the heaviest
+  + over-budget files, cruft markers, and junk artefacts. Tunables:
+  `CLAUDE_TIDY_SIZE_BUDGET` (default 400), `CLAUDE_TIDY_DISTILL_TOP` (default 10).
+  It never writes and never hard-fails. The *judgment* (what to actually delete)
+  is the model's, gated on confirmation.
 
 ## Where the plugin writes
 
 - **Your source files** — formatter output, in place, for the touched file only.
-- **Activity log** — `~/.claude/state/tidy/activity.log` (override
-  `CLAUDE_TIDY_LOG_DIR`, disable `CLAUDE_TIDY_LOG_DISABLED`). Best-effort,
-  append-only; never blocks a hook.
+- **State dir** — `~/.claude/state/tidy/` (override `CLAUDE_TIDY_LOG_DIR` — the
+  env name is historical; `tidy_log_dir()` returns this functional **state** dir).
+  No activity log is written; the dir only holds the dedup/verify state below.
 - **TDD-nudge markers** — empty files under `~/.claude/state/tidy/nudged/`
   (one per session+file) so the test nudge fires at most once per file per
-  session. Same fixed home as the log; safe to delete anytime.
+  session. Safe to delete anytime.
 - **`go list` cache** — the per-module-per-session import graph under
   `~/.claude/state/tidy/golist/` so the blast-radius scan runs at most once per
   module. All of `nudged/`, `verify/`, `golist/` are pruned after
@@ -168,8 +171,5 @@ It writes **nothing** to Claude Code's own state.
   no-op, payload-drift canary, Python `ruff`/shell `shellcheck` findings, and the
   `go list` exact-importer path vs. its grep fallback) is verified without
   installing `goimports`/`golangci-lint`/`ruff`/`shellcheck`/`go`.
-- **`bin/tidy-doctor.sh`** is the on-demand check: it validates the dependencies
-  above against the *live* environment (jq, a Go formatter, golangci-lint) and
-  prints the activity-log tail. Run it first when tidy seems to do nothing.
 - The real toolchain boundary is exercised by using the plugin on an actual Go
   project.
