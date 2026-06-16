@@ -14,7 +14,7 @@ fail=0
 have()    { command -v "$1" >/dev/null 2>&1; }
 section() { printf '\n== %s ==\n' "$1"; }
 
-scripts=(check.sh plugins/*/bin/*.sh plugins/*/lib/*.sh)
+scripts=(check.sh flow.sh plugins/*/bin/*.sh plugins/*/lib/*.sh)
 manifests=(plugins/*/.claude-plugin/plugin.json plugins/*/hooks/hooks.json)
 
 section "JSON valid"

@@ -9,7 +9,9 @@ The goal: a set of Claude Code plugins that let you **vibe-code an entire projec
 while Claude keeps it clean, well-documented, token-efficient, and low-debt —
 **proactively, with minimal input**, entirely through the CLI. The owner reads no
 code, no docs, and runs no commands; the system is automatic and artifact-free
-(only **lean Claude-context** files, never human-facing prose).
+(only **lean Claude-context** files, never human-facing prose). *One sanctioned
+exception (owner-requested):* `flow.sh` at the repo root (`make flow`) renders an
+at-a-glance workflow diagram — keep it in sync with the lifecycle; don't prune it.
 
 ## Prioritized criteria (in order)
 
