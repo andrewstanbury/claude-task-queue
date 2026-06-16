@@ -69,6 +69,9 @@ charter_change_touches_decisions() {
              git -C "$root" ls-files --others --exclude-standard 2>/dev/null \
                | while IFS= read -r f; do cat "$root/$f" 2>/dev/null; done; } )"
   [ -n "$diff" ] || return 0
+  # The backticks below are literal regex chars (matching `fenced` tokens), not a
+  # command substitution — SC2016 misreads them.
+  # shellcheck disable=SC2016
   case "$path" in
     */) toks="$(grep -rhoE '`[A-Za-z0-9_.@/-]{3,}`' "$root/$path" 2>/dev/null)" ;;
     *)  toks="$(grep -ohE  '`[A-Za-z0-9_.@/-]{3,}`' "$root/$path" 2>/dev/null)" ;;
