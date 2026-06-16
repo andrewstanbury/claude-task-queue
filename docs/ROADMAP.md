@@ -64,11 +64,15 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   loop so substantive prompts run straight through in auto.
 - **tidy** — on touch: format + lint (Go/web/Python/shell, fast file-scoped tools) +
   blast-radius + coverage/size nudges. On Stop: the **verification floor**
-  (run the project's tests, block until green, bounded). The **deliberate prune**
-  fires automatically at SessionStart when over-budget files cross a threshold
-  (`CLAUDE_TIDY_PRUNE_THRESHOLD`, default 3) — a weight report (`tidy-distill.sh`) +
-  an instruction to prune now, routing cuts through the task-queue loop. No slash
-  commands.
+  (run the project's tests, block until green, bounded) and — only after a clean
+  verify on a dirty tree — the **deliberate prune** when over-budget files cross a
+  threshold (`CLAUDE_TIDY_PRUNE_THRESHOLD`, default 3): a weight report
+  (`tidy-distill.sh`) + an instruction to prune now, as a **non-blocking
+  systemMessage throttled once per debt episode** (re-fires only after debt drops
+  below the threshold and re-crosses), routing cuts through the task-queue loop.
+  Firing post-turn keeps it from derailing the user's intent. SessionStart no longer
+  surfaces whole-project debt; the per-touch size nudge covers reactive size. No
+  slash commands.
 - **charter** — at SessionStart, a compact **proportional brief** gating substantive
   work on the project's Claude manual (quality attributes, map, decisions anchor,
   roadmap, stack, established conventions), detect-not-author, quiet once summarised
@@ -123,6 +127,25 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   charter's separate-file detection (it would nag "missing map/roadmap" every
   session). Chose **a few lean Claude-context files** (CLAUDE.md + map + decisions +
   per-plugin CONTRACTs); charter's model is unchanged.
+
+## Status — 2026-06-16 (token-efficiency pass)
+
+A follow-up tightening for "token efficiency first" (builds on the redesign below):
+
+- **Cut currency / auto-advance / the open-decisions ledger** (earlier today) — net
+  surface down, no per-prompt cost they didn't pay back.
+- **Agent-mode is off by default** — the global `CLAUDE_TQ_AGENT_MODE=on` is removed
+  from settings. Subagent fan-out spends more tokens to save wall-clock, so it's now
+  opt-in (per-repo via `tq-agent.sh`, or that env var).
+- **Auto-prune moved SessionStart → Stop, throttled** — it now fires after the turn's
+  work (clean verify on a dirty tree) as a non-blocking systemMessage, once per debt
+  episode, instead of re-injecting a big report every session before the user's intent
+  is known. The sub-threshold "light distill" list is gone (the per-touch size nudge
+  covers reactive size).
+- **Review loop made proportional** — a brief inline plan + one-line confirmation for
+  a few obvious low-risk tasks; the full AskUserQuestion present-and-approve only for
+  larger or higher-risk work. Consequential prompts keep the full ceremony regardless
+  of size.
 
 ## Status — 2026-06-16 (native-leaning redesign)
 

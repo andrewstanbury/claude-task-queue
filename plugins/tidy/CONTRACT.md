@@ -41,10 +41,9 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
 - Reads `source` (full standard on `startup`/`clear`/unknown, lean re-anchor on
   `compact`/`resume`) and `cwd` (to resolve the repo root). Emits
   `additionalContext` with `hookEventName: "SessionStart"`.
-- **Light distill (auto, no manual trigger):** on a fresh context it lists files
-  over the size budget (one read-only `wc -l` pass over `git ls-files`, fallback
-  `find`) as decomposition candidates — quiet when nothing is over. This is state,
-  so it appends even in quiet mode; omitted on `compact`/`resume`.
+- **No whole-project debt surfacing here.** SessionStart carries only the
+  clean-as-you-go standard; the deliberate prune fires post-turn from the Stop hook
+  (§4), and reactive size is covered by the per-touch size nudge (§1).
 - **Quiet mode (bootstrap-once + drift-detect):** if the repo root's `CLAUDE.md`
   / `AGENTS.md` / `docs/CLAUDE.md` carries the `claude-companion` marker, the
   full standard is replaced by a one-line re-anchor (the manual is always
@@ -123,17 +122,24 @@ deduped per file per session, and disable-able (`CLAUDE_TIDY_COVERAGE=0`); it's
 tuned for the target case (legacy app code with per-file or absent tests). Don't
 make the opt-in **gate** the default without weighing this.
 
-### 5. The automatic deliberate prune (SessionStart, no command)
+#### The automatic deliberate prune (same Stop hook, no command)
 
 The slash commands are gone — the deliberate prune now fires **automatically**
-from `bin/tidy-standard.sh` at SessionStart, gated on a debt threshold:
+from `bin/tidy-verify.sh` (Stop), **after** the turn's work, gated on a debt
+threshold. It runs only when the tree is dirty *and* the verification floor passed
+clean, so it never derails the user's intent (the old SessionStart trigger fired
+before intent was known and re-injected a big report every session):
 
-- It checks how many files are over the size budget. **Below**
-  `CLAUDE_TIDY_PRUNE_THRESHOLD` (default 3) it just lists them as decomposition
-  candidates. **At/above** the threshold it runs `bin/tidy-distill.sh` and injects
+- It checks how many files are over the size budget. **At/above**
+  `CLAUDE_TIDY_PRUNE_THRESHOLD` (default 3) it runs `bin/tidy-distill.sh` and emits
   the full weight report plus an instruction to **run a subtractive prune NOW**
-  (dead code, duplication, doc↔code drift) — no command to invoke. The cuts are
-  routed through the task-queue interpret→present→approve loop.
+  (dead code, duplication, doc↔code drift) as a **non-blocking `systemMessage`** —
+  no command to invoke. The cuts are routed through the task-queue
+  interpret→present→approve loop. (There is no sub-threshold "light distill" list;
+  the per-touch size nudge in §1 covers reactive size.)
+- **Throttled once per debt episode:** a flag file under the state dir suppresses
+  re-firing while debt persists; it re-fires only after the over-budget count drops
+  below the threshold and later re-crosses it. So it won't nag turn after turn.
 - **`bin/tidy-distill.sh`** is the **read-only**, language-agnostic report
   generator: it enumerates files with `git ls-files --cached --others
   --exclude-standard` (fallback `find`) and reports file/line counts, the heaviest

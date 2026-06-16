@@ -39,10 +39,10 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 
 | File | Responsibility |
 |---|---|
-| `bin/tidy-standard.sh` | SessionStart: the clean-as-you-go standard (trimmed to anchors) + automatic deliberate prune — below `CLAUDE_TIDY_PRUNE_THRESHOLD` (default 3) over-budget files it lists decomposition candidates; at/above it runs `tidy-distill.sh` and injects the weight report + a run-a-subtractive-prune-now instruction (cuts routed through the task-queue loop). |
+| `bin/tidy-standard.sh` | SessionStart: the clean-as-you-go standard (trimmed to anchors) + the state prune. No longer surfaces whole-project debt — the deliberate prune now fires from `tidy-verify.sh` (Stop). |
 | `bin/tidy-touch.sh` | PostToolUse: format + lint (Go/web/Python/shell) + blast-radius + coverage nudge + size for the edited file. |
-| `bin/tidy-verify.sh` | Stop: the verification floor — run the project's tests, block until green (bounded, timeout, change-throttled); opt-in coverage gate. |
-| `bin/tidy-distill.sh` | Read-only whole-project weight report (the prune-report generator, run by `tidy-standard.sh` over threshold). |
+| `bin/tidy-verify.sh` | Stop: the verification floor — run the project's tests, block until green (bounded, timeout, change-throttled); opt-in coverage gate. Plus, after a clean verify on a dirty tree, the throttled deliberate-prune nudge — over `CLAUDE_TIDY_PRUNE_THRESHOLD` over-budget files injects `tidy-distill.sh`'s weight report as a non-blocking systemMessage, once per debt episode. |
+| `bin/tidy-distill.sh` | Read-only whole-project weight report (the prune-report generator, run by `tidy-verify.sh` over threshold). |
 | `lib/tidy.sh` | Language dispatch, Go/web handlers, size nudge, state dir (`tidy_log_dir`); shared `tidy_root_for_cwd` + `tidy_run_linter`. |
 | `lib/lint.sh` | Multi-stack edit-time linters (Python ruff, shell shellcheck) — findings-only, project's own tool. |
 | `lib/coverage.sh` | Coverage ratchet: per-language test detection, characterize-before-change nudge, untested-changed lister for the opt-in gate. |
