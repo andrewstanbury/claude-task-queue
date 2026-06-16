@@ -128,6 +128,12 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
 - **Proportionality over maximalism** — every practice scaled to complexity/risk.
 - **Verification + simplicity over methodology labels** — tests as a safety net (the
   floor), SOLID's essence, DDD's ubiquitous language, **YAGNI**, boring & reversible.
+  YAGNI made *testable* (concepts absorbed, not tooling): **no seam until something
+  actually varies across it** (1 adapter = hypothetical, 2 = real) + the **deletion
+  test** (if removing a module only relocates its complexity it was a pass-through) in
+  the tidy standard; and a **diagnose loop** in the test-fail block (reproduce → ranked
+  falsifiable hypotheses → tagged `[DEBUG-x]` instrumentation → fix + regression test →
+  grep-cleanup) that composes with the regression gate.
 - **Non-technical-owner posture** — autonomy on the reversible, plain-language
   consent on the consequential (the line is reversibility + cost + data-safety).
   Verification must be **observable** (demo it working; the owner verifies by seeing,

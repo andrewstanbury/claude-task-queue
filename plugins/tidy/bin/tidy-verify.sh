@@ -187,5 +187,5 @@ fi
 
 { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$((count + 1))" > "$cfile"; } 2>/dev/null || true
 tidy_set_result fail
-jq -cn --arg r "The project's tests are failing after your change — nothing is done until they're green. Run \`$cmd\`, read the failure, and fix it. If this is a recurring trap (not a one-off), record the lesson in the project's recorded decisions — what changed, what broke, what to do instead — so the next change avoids it (outcome memory):"$'\n\n'"$out" \
+jq -cn --arg r "The project's tests are failing after your change — nothing is done until they're green. Diagnose, don't guess: (1) reproduce — confirm the failing signal (\`$cmd\`); (2) form 2-3 falsifiable hypotheses for the cause and what each predicts — don't anchor on the first idea; (3) if you add debug logging to test one, tag it (e.g. [DEBUG-x9f2]) so removing it after is a single grep; (4) fix the root cause and add a regression test that pins the bug; (5) remove the tagged instrumentation. If this is a recurring trap (not a one-off), record the lesson in the project's recorded decisions — what changed, what broke, what to do instead — so the next change avoids it (outcome memory):"$'\n\n'"$out" \
   '{decision: "block", reason: $r}'

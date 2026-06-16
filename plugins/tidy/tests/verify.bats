@@ -214,3 +214,16 @@ scar_repo() {
   [[ "$output" == *"Coverage ratchet"* ]]               # the ratchet's message…
   [[ "$output" != *"REPEATEDLY FIXED"* ]]               # …not the regression gate's
 }
+
+# ---- diagnose discipline in the fail-block ----------------------------------
+
+@test "verify: the fail-block carries the diagnose loop (hypotheses, tagged logs, regression test)" {
+  local repo="$WORK/vdiag"; mkdir -p "$repo"; git -C "$repo" init -q
+  : > "$repo/x.txt"
+  export CLAUDE_TIDY_TEST_CMD='echo BOOM; exit 1'
+  run run_verify "$repo" sd
+  [[ "$output" == *'"decision":"block"'* ]]
+  [[ "$output" == *"hypotheses"* ]]                    # ranked falsifiable hypotheses
+  [[ "$output" == *"DEBUG-"* ]]                        # tagged instrumentation for one-grep cleanup
+  [[ "$output" == *"regression test"* ]]               # pin the bug (composes with the regression gate)
+}

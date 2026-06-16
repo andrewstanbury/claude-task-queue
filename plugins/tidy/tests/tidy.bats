@@ -526,3 +526,18 @@ sc_stub() {  # $1 = SC code to emit; empty = clean (exit 0)
   sc_stub SC2086; run run_touch "$WORK/run.sh"
   [[ "$output" == *"SC2086"* ]]                 # reintroduced → surfaces again
 }
+
+# ---- sharpened YAGNI: seam + deletion-test heuristics ------------------------
+
+@test "standard: YAGNI carries the seam + deletion-test heuristics (full + quiet)" {
+  run run_standard startup
+  [[ "$output" == *"varies across it"* ]]              # no seam until something varies
+  [[ "$output" == *"deletion test"* ]]
+  [[ "$output" == *"hypothetical seam"* ]]             # one adapter = hypothetical, two = real
+  # the quiet (claude-companion-marked) re-anchor still carries the rule
+  printf '# CLAUDE.md\nx <!-- claude-companion -->\n' > "$WORK/CLAUDE.md"
+  run run_standard startup "$WORK"
+  [[ "$output" == *"standard in CLAUDE.md"* ]]         # confirm we're on the quiet path
+  [[ "$output" == *"varies across it"* ]]
+  [[ "$output" == *"deletion test"* ]]
+}

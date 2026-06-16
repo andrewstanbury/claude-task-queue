@@ -27,7 +27,9 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   plain-language owner layer (what it is / how to run it).
 - **1 · Contain blast radius** — cover the dependents of what you touch; one owner
   per concern; watch that total coupling doesn't climb. **YAGNI: burden of proof is
-  on adding** a dep/abstraction/layer.
+  on adding** a dep/abstraction/layer — no seam until something *actually varies*
+  across it (1 adapter = hypothetical, 2 = real); deletion test: if removing a module
+  only relocates its complexity, it was a pass-through.
 - **2 · Verify + stay aligned** — confirm intent in plain language; characterize
   before you change (no tests → pin current behaviour first); suite green before
   done; weigh against recorded decisions. Verify observably; keep choices boring &
