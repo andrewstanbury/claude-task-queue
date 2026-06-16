@@ -147,3 +147,70 @@ run_verify() {
   run run_verify "$repo" d4
   [ -z "$output" ]
 }
+
+# ---- regression gate (untested scar-tissue hotspots) ------------------------
+
+# A repo whose scar.sh is a scar-tissue hotspot (repeatedly FIXED) with NO test,
+# plus a healthy.sh that only ever saw feature work. Leaves the tree CLEAN.
+scar_repo() {
+  local repo="$1" i; mkdir -p "$repo"; git -C "$repo" init -q
+  git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
+  printf '#!/usr/bin/env bash\necho a\n' > "$repo/scar.sh"
+  git -C "$repo" add -A; git -C "$repo" commit -q -m "feat: add scar"
+  printf 'echo b\n' >> "$repo/scar.sh"; git -C "$repo" add -A; git -C "$repo" commit -q -m "fix: scar bug"
+  printf 'echo c\n' >> "$repo/scar.sh"; git -C "$repo" add -A; git -C "$repo" commit -q -m "fix: scar regression"
+  for i in 1 2 3; do printf 'v%s\n' "$i" > "$repo/healthy.sh"; git -C "$repo" add -A; git -C "$repo" commit -q -m "feat: extend $i"; done
+}
+
+@test "regression gate: blocks a touched file that is an untested scar-tissue hotspot" {
+  local repo="$WORK/rg1"; scar_repo "$repo"
+  printf 'echo d\n' >> "$repo/scar.sh"                 # touch the hotspot again (dirty)
+  run run_verify "$repo" rg1
+  [[ "$output" == *'"decision":"block"'* ]]
+  [[ "$output" == *"REPEATEDLY FIXED"* ]]
+  [[ "$output" == *"scar.sh"* ]]
+}
+
+@test "regression gate: silent on a touched file that is NOT a hotspot" {
+  local repo="$WORK/rg2"; scar_repo "$repo"
+  printf 'v4\n' > "$repo/healthy.sh"                   # healthy file → no rework history
+  run run_verify "$repo" rg2
+  [ -z "$output" ]
+}
+
+@test "regression gate: goes quiet once the hotspot has a test (loop closed)" {
+  local repo="$WORK/rg3"; scar_repo "$repo"
+  printf '#!/usr/bin/env bats\n@test x { run true; }\n' > "$repo/scar.bats"
+  git -C "$repo" add -A; git -C "$repo" commit -q -m "test: scar"
+  printf 'echo e\n' >> "$repo/scar.sh"                 # edit the now-tested hotspot
+  run run_verify "$repo" rg3
+  [ -z "$output" ]
+}
+
+@test "regression gate: bounded — gives up after the cap with a soft note" {
+  local repo="$WORK/rg4"; scar_repo "$repo"
+  printf 'echo d\n' >> "$repo/scar.sh"
+  export CLAUDE_TIDY_VERIFY_MAX=2
+  run run_verify "$repo" rgc; [[ "$output" == *block* ]]      # attempt 1
+  run run_verify "$repo" rgc; [[ "$output" == *block* ]]      # attempt 2
+  run run_verify "$repo" rgc
+  [[ "$output" == *"systemMessage"* ]]                        # gave up
+  [[ "$output" == *"Regression gate"* ]]
+  [[ "$output" != *block* ]]
+}
+
+@test "regression gate: disabled via CLAUDE_TIDY_REGRESSION_GATE=0" {
+  local repo="$WORK/rg5"; scar_repo "$repo"
+  printf 'echo d\n' >> "$repo/scar.sh"
+  CLAUDE_TIDY_REGRESSION_GATE=0 run run_verify "$repo" rg5
+  [ -z "$output" ]
+}
+
+@test "regression gate: stands down when the broad coverage ratchet is forcing" {
+  local repo="$WORK/rg6"; scar_repo "$repo"
+  printf 'echo d\n' >> "$repo/scar.sh"
+  CLAUDE_TIDY_COVERAGE_RATCHET=1 run run_verify "$repo" rg6
+  [[ "$output" == *'"decision":"block"'* ]]
+  [[ "$output" == *"Coverage ratchet"* ]]               # the ratchet's message…
+  [[ "$output" != *"REPEATEDLY FIXED"* ]]               # …not the regression gate's
+}

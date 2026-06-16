@@ -68,8 +68,13 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   loop so substantive prompts run straight through in auto.
 - **tidy** — on touch: format + lint (Go/web/Python/shell, fast file-scoped tools) +
   blast-radius + coverage/size nudges. On Stop: the **verification floor**
-  (run the project's tests, block until green, bounded) and — only after a clean
-  verify on a dirty tree — the **deliberate prune** when over-budget files cross a
+  (run the project's tests, block until green, bounded); the **regression gate**
+  (block when a changed file is BOTH a scar-tissue hotspot — repeatedly fixed, by
+  the same rework-ratio detector charter uses, mirrored + drift-guarded — AND still
+  untested, so a fix to a proven debt-magnet gets pinned before it can silently
+  regress; default-on but narrow, quiet once a test lands, `CLAUDE_TIDY_REGRESSION_GATE=0`
+  to disable); and — only after a clean verify on a dirty tree — the **deliberate
+  prune** when over-budget files cross a
   threshold (`CLAUDE_TIDY_PRUNE_THRESHOLD`, default 3): a weight report
   (`tidy-distill.sh`) + an instruction to prune now, as a **non-blocking
   systemMessage throttled once per debt episode** (re-fires only after debt drops
@@ -145,6 +150,36 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   charter's separate-file detection (it would nag "missing map/roadmap" every
   session). Chose **a few lean Claude-context files** (CLAUDE.md + map + decisions +
   per-plugin CONTRACTs); charter's model is unchanged.
+
+## Status — 2026-06-16 (regression-on-fix loop)
+
+Second feature in the "prevent future rework" line — and it **closes the scar-tissue
+loop**. charter's outcome memory *detects* repeatedly-fixed files but nothing forced
+a regression test, so a debt-magnet could keep regressing. Now it does:
+
+- **tidy gains a regression gate** (in `tidy-verify.sh`, the existing Stop floor):
+  block when a changed file is BOTH a scar-tissue hotspot (repeatedly fixed) AND
+  still has no test. The next touch of an uncharacterized debt-magnet must pin it
+  with a test — detect repeat-fixes → force a test → regression can't silently
+  recur. Reuses tidy's coverage/test machinery (`tidy_untested_changed`,
+  `tidy_has_test_for`); adds only the hotspot detector + the intersection
+  (`tidy_untested_hotspots`).
+- **Narrow on purpose (YAGNI).** It's the always-on coverage ratchet *scoped to the
+  files that earned it* — only untested hotspots, not every untested file (that's
+  the opt-in broad ratchet). Precise trigger → safe default-on → quiet the moment a
+  test lands. The broader "a tested hotspot's fix should add a NEW case" tier was
+  **deliberately not built** (over-nags); revisit only if real misses surface.
+- **Install boundary handled the same way as the doc detectors.** Hotspot detection
+  lives in charter; tidy can't share its lib, so `tidy_hotspots` is a hand mirror of
+  `charter_hotspots`, and `tests/drift-guard.bats` now asserts the two are
+  **byte-identical** (CI fails if they drift) — the sanctioned pattern for the
+  intentional cross-plugin duplication.
+- **Bounded + reversible** like the rest: per-session attempt cap (can't loop),
+  `CLAUDE_TIDY_REGRESSION_GATE=0` disables, stands down when the broad ratchet runs.
+
+Outcome-memory is now a full loop: charter **detects** scar tissue (SessionStart) →
+tidy **prevents** its recurrence (Stop). Two of the taxonomy's three open loops are
+closed (regression ✓, decision-reversal ✓); intent→outcome verification remains.
 
 ## Status — 2026-06-16 (alignment floor)
 

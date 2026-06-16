@@ -68,6 +68,40 @@ tidy_coverage_nudge() {
     "$(basename "$file")"
 }
 
+# Scar-tissue hotspots — files this repo has REPEATEDLY had to FIX, by the git
+# rework ratio (NOT raw churn), most-reworked first. Format: "<fixes>\t<changes>\t
+# <path>". A hand mirror of charter_hotspots (the install boundary forbids a shared
+# lib; tests/drift-guard.bats asserts the two stay byte-identical). Empty outside a
+# git repo or with no rework signal. Word-boundaried keywords so "prefix" ≠ "fix".
+tidy_hotspots() {
+  local root="$1" max="${2:-5}"
+  [ -d "$root" ] || return 0
+  git -C "$root" rev-parse >/dev/null 2>&1 || return 0
+  git -C "$root" log -n 300 --no-merges --pretty=format:':C:%s' --name-only 2>/dev/null \
+    | awk '
+        /^:C:/ { rw = (tolower($0) ~ /(^|[^a-z])(fix|bugfix|hotfix|bug|revert|undo|rollback|regression|rework)([^a-z]|$)/) ? 1 : 0; next }
+        NF     { c[$0]++; if (rw) r[$0]++ }
+        END    { for (f in r) if (r[f] >= 2 && r[f] / c[f] >= 0.34) printf "%d\t%d\t%s\n", r[f], c[f], f }
+      ' 2>/dev/null \
+    | sort -rn -k1,1 \
+    | while IFS=$'\t' read -r rf cf pf; do [ -f "$root/$pf" ] && printf '%s\t%s\t%s\n' "$rf" "$cf" "$pf"; done \
+    | head -n "$max"
+}
+
+# The regression gate's target: changed source files that are BOTH untested AND
+# scar-tissue hotspots — a repeatedly-fixed file, still uncharacterized, being
+# touched again (the highest regression risk in the tree). Intersection of
+# tidy_untested_changed and tidy_hotspots' paths. Empty when there's no such file.
+tidy_untested_hotspots() {
+  local root="$1" untested hot f
+  untested="$(tidy_untested_changed "$root")"; [ -n "$untested" ] || return 0
+  hot="$(tidy_hotspots "$root" 50 | cut -f3)"; [ -n "$hot" ] || return 0
+  printf '%s\n' "$untested" | while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    printf '%s\n' "$hot" | grep -qxF -- "$f" && printf '%s\n' "$f"
+  done
+}
+
 # List changed source files (vs HEAD + untracked) that have no test — the surface
 # the opt-in Stop gate would require characterizing. Empty outside a git repo.
 tidy_untested_changed() {

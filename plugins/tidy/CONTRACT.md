@@ -110,6 +110,25 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   vs HEAD), not just files touched this session, so pre-existing uncommitted
   untested files also trip it — another reason it's opt-in.
 
+- **Regression gate (always-on, same Stop hook):** before the test run, it blocks
+  when a changed file is BOTH a **scar-tissue hotspot** (repeatedly fixed — by the
+  git rework ratio) AND **untested** (`tidy_untested_hotspots` = `tidy_untested_changed`
+  ∩ `tidy_hotspots`). This is the always-on coverage ratchet *scoped to the files
+  that have earned it*, so it's safe to default on; it goes quiet the moment a test
+  lands. **Reads git history:** `git log -n 300 --no-merges --pretty=format:':C:%s'
+  --name-only`, classifying a commit as rework when its subject word-matches
+  `fix|bugfix|hotfix|bug|revert|undo|rollback|regression|rework` and flagging a file
+  at rework-ratio ≥ 0.34 with ≥ 2 reworks (existing files only). **Bounded** like the
+  test path (`CLAUDE_TIDY_VERIFY_MAX` blocks → `systemMessage`, never loops). Disable
+  with `CLAUDE_TIDY_REGRESSION_GATE=0`; stands down when the broad ratchet is forcing.
+  **Limit:** existence-based like the ratchet — a hotspot that already has *any* test
+  passes, even if the test doesn't cover the new change.
+- **Drift guard for the hotspot mirror:** `tidy_hotspots` is a hand copy of
+  `charter_hotspots` (the install boundary forbids a shared lib). `tests/drift-guard.bats`
+  asserts the two produce **byte-identical** output, so CI fails if charter's
+  detector changes and tidy's mirror doesn't. If `charter_hotspots` changes,
+  update `tidy_hotspots` in lockstep.
+
 #### Coverage ratchet (how test-detection works, and its limits)
 
 `lib/coverage.sh` decides "does this source file have a test?" by **filename
@@ -171,5 +190,12 @@ It writes **nothing** to Claude Code's own state.
   no-op, payload-drift canary, Python `ruff`/shell `shellcheck` findings, and the
   `go list` exact-importer path vs. its grep fallback) is verified without
   installing `goimports`/`golangci-lint`/`ruff`/`shellcheck`/`go`.
+- **`tests/verify.bats`** drives the Stop hook over temp git repos — the test
+  floor (block-until-green, timeout, throttle, attempt cap), the debt/prune surface,
+  and the **regression gate** (blocks an untested scar-tissue hotspot, silent on a
+  non-hotspot, quiet once a test lands, bounded, disable switch, and standing down
+  under the broad ratchet).
+- **`tests/drift-guard.bats`** asserts `tidy_hotspots` is byte-identical to
+  `charter_hotspots` (the cross-plugin mirror guard).
 - The real toolchain boundary is exercised by using the plugin on an actual Go
   project.

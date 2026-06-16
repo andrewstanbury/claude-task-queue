@@ -17,7 +17,7 @@ what it depends on; each plugin's `tests/*.bats` exercises it.
 | `flow.sh` | Render the colored workflow diagram in the terminal, derived live from the repo (`./flow.sh` / `make flow`) — the one sanctioned human-facing artifact. |
 | `.claude-plugin/marketplace.json` | Marketplace manifest (the 4 plugins + versions). |
 | `.github/workflows/ci.yml` | CI — provisions tools, runs `check.sh`. |
-| `tests/drift-guard.bats` | Cross-plugin guard: asserts hud/task-queue doc-detection mirrors agree with charter (the source of truth). |
+| `tests/drift-guard.bats` | Cross-plugin guard: asserts task-queue doc-detection + tidy's scar-tissue (`tidy_hotspots`) mirrors agree with charter (the source of truth). |
 
 Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 (event wiring), `CONTRACT.md` (dependencies), `bin/` (hook entrypoints + controls),
@@ -42,11 +42,11 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 |---|---|
 | `bin/tidy-standard.sh` | SessionStart: the clean-as-you-go standard (trimmed to anchors) + the state prune. No longer surfaces whole-project debt — the deliberate prune now fires from `tidy-verify.sh` (Stop). |
 | `bin/tidy-touch.sh` | PostToolUse: format + lint (Go/web/Python/shell) + blast-radius + coverage nudge + size for the edited file. |
-| `bin/tidy-verify.sh` | Stop: the verification floor — run the project's tests, block until green (bounded, timeout, change-throttled); opt-in coverage gate. Plus, after a clean verify on a dirty tree, the throttled deliberate-prune nudge — over `CLAUDE_TIDY_PRUNE_THRESHOLD` over-budget files injects `tidy-distill.sh`'s weight report as a non-blocking systemMessage, once per debt episode. |
+| `bin/tidy-verify.sh` | Stop: the verification floor — run the project's tests, block until green (bounded, timeout, change-throttled); opt-in coverage gate; the **regression gate** (block when a changed file is both a scar-tissue hotspot and untested — bounded, default-on, `CLAUDE_TIDY_REGRESSION_GATE=0` to disable). Plus, after a clean verify on a dirty tree, the throttled deliberate-prune nudge — over `CLAUDE_TIDY_PRUNE_THRESHOLD` over-budget files injects `tidy-distill.sh`'s weight report as a non-blocking systemMessage, once per debt episode. |
 | `bin/tidy-distill.sh` | Read-only whole-project weight report (the prune-report generator, run by `tidy-verify.sh` over threshold). |
 | `lib/tidy.sh` | Language dispatch, Go/web handlers, size nudge, state dir (`tidy_log_dir`); shared `tidy_root_for_cwd` + `tidy_run_linter`. |
 | `lib/lint.sh` | Multi-stack edit-time linters (Python ruff, shell shellcheck) — findings-only, project's own tool. |
-| `lib/coverage.sh` | Coverage ratchet: per-language test detection, characterize-before-change nudge, untested-changed lister for the opt-in gate. |
+| `lib/coverage.sh` | Coverage ratchet: per-language test detection, characterize-before-change nudge, untested-changed lister for the opt-in gate; `tidy_hotspots` (scar-tissue mirror of charter, drift-guarded) + `tidy_untested_hotspots` (the regression gate's target — untested ∩ hotspot). |
 | `lib/checks.sh` | Test-command discovery + bounded run + working-tree fingerprint (verify throttle). |
 | `lib/blast.sh` | Blast-radius (Go: exact `go list` importers, cached, → git grep fallback; basename heuristic elsewhere). |
 

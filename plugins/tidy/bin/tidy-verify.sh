@@ -57,6 +57,7 @@ cfile="$cdir/$key"
 hfile="$cdir/hash-$key"
 rfile="$cdir/result-$key"          # last verification outcome, for hud's tests slot
 gfile="$cdir/covgate-$key"         # coverage-ratchet block counter
+rgfile="$cdir/regress-$key"        # regression-gate block counter
 pfile="$cdir/prune-$key"           # debt-surfaced-this-episode flag (Stop debt nudge)
 
 # Whole-project debt surface (moved here from SessionStart so it fires AFTER the
@@ -106,6 +107,35 @@ if [ "${CLAUDE_TIDY_COVERAGE_RATCHET:-0}" = "1" ]; then
     exit 0
   fi
   rm -f "$gfile" 2>/dev/null || true                 # satisfied → reset the counter
+fi
+
+# Regression gate (always-on, NARROW): a changed file that is BOTH a scar-tissue
+# hotspot (repeatedly fixed — charter's outcome-memory signal) AND untested is the
+# highest regression risk in the tree — a fix here can silently come back. Block
+# until it's characterized, closing the loop charter's scar-tissue *detection*
+# opens. Unlike the broad coverage ratchet above (opt-in, every untested file),
+# this is safe to keep ON by default because it only fires on files that have
+# PROVEN they regress, and goes quiet the moment a test lands. Bounded like the
+# test floor (can't loop). Disable with CLAUDE_TIDY_REGRESSION_GATE=0; skipped when
+# the broad ratchet is already forcing (it covers these too).
+if [ "${CLAUDE_TIDY_REGRESSION_GATE:-1}" != "0" ] && [ "${CLAUDE_TIDY_COVERAGE_RATCHET:-0}" != "1" ]; then
+  hotun="$(tidy_untested_hotspots "$root" 2>/dev/null | head -n 20)"
+  if [ -n "$hotun" ]; then
+    rmax="${CLAUDE_TIDY_VERIFY_MAX:-3}"; rcount=0
+    [ -f "$rgfile" ] && rcount="$(cat "$rgfile" 2>/dev/null || printf 0)"
+    rcount="${rcount//[^0-9]/}"; [ -n "$rcount" ] || rcount=0
+    if [ "$rcount" -ge "$rmax" ]; then
+      rm -f "$rgfile" 2>/dev/null || true             # gave it enough tries → allow
+      jq -cn --arg m "⚠️ Regression gate: still uncharacterized after $rcount prompts — these repeatedly-fixed files need a regression test when you can: $(printf '%s' "$hotun" | tr '\n' ' ')" \
+        '{systemMessage: $m}'
+      exit 0
+    fi
+    { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$((rcount + 1))" > "$rgfile"; } 2>/dev/null || true
+    jq -cn --arg r "These changed files have been REPEATEDLY FIXED before (scar tissue, from git history) and still have NO test — a fix here can silently regress, which is exactly how they became debt magnets. Pin the current/fixed behavior with a regression test before finishing, so the file stops churning (this is the outcome-memory loop closing: detect repeat-fixes → force a test on the next touch):"$'\n\n'"$hotun" \
+      '{decision: "block", reason: $r}'
+    exit 0
+  fi
+  rm -f "$rgfile" 2>/dev/null || true                 # no untested hotspot → reset
 fi
 
 cmd="$(tidy_test_command "$root" 2>/dev/null || true)"

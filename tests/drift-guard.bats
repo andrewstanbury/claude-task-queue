@@ -20,6 +20,10 @@ setup() {
   R="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   . "$R/plugins/charter/lib/charter.sh"
   . "$R/plugins/task-queue/lib/project.sh"
+  # tidy mirrors charter's scar-tissue detector (tidy_hotspots) for its regression
+  # gate — sourced here so the guard below can assert byte-identical output.
+  . "$R/plugins/tidy/lib/tidy.sh"
+  . "$R/plugins/tidy/lib/coverage.sh"
   REPO="$(mktemp -d)/proj"; mkdir -p "$REPO"
 }
 teardown() { rm -rf "$(dirname "$REPO")"; }
@@ -52,4 +56,18 @@ assert_decisions_agree() {   # charter vs task-queue
   : > "$REPO/docs/adr/0001-x.md"; assert_decisions_agree; rm -rf "$REPO/docs/adr"
   mkdir -p "$REPO/docs/decisions"
   : > "$REPO/docs/decisions/0001-y.md"; assert_decisions_agree
+}
+
+@test "hotspots detection: tidy_hotspots is byte-identical to charter_hotspots" {
+  git -C "$REPO" init -q; git -C "$REPO" config user.email t@t; git -C "$REPO" config user.name t
+  # mixed history: a scar file (fixes) + a healthy file (no fixes) + a deleted file.
+  echo a > "$REPO/scar.txt"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m "feat: add scar"
+  echo b > "$REPO/scar.txt"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m "fix: scar bug"
+  echo c > "$REPO/scar.txt"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m "fix: scar regression"
+  for i in 1 2 3; do echo "$i" > "$REPO/active.txt"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m "feat: extend $i"; done
+  local c t
+  c="$(charter_hotspots "$REPO" 5 || true)"
+  t="$(tidy_hotspots "$REPO" 5 || true)"
+  [ "$c" = "$t" ]
+  [ -n "$c" ]                                  # guard the guard: there IS a hotspot to compare
 }

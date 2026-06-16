@@ -35,7 +35,7 @@ blurb() {
     tq-resume.sh)         printf 'queue policy · resume bridge · hydrate backlog' ;;
     tq-capture.sh)        printf 'the interpret→present→approve review loop' ;;
     tidy-touch.sh)        printf 'format · lint · blast-radius · size' ;;
-    tidy-verify.sh)       printf 'tests block-until-green + throttled prune' ;;
+    tidy-verify.sh)       printf 'tests green · regression gate (untested hotspots) · prune' ;;
     *)                   purpose "$1" ;;
   esac
 }
