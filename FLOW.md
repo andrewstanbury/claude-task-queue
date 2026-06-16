@@ -1,6 +1,6 @@
 # Companion workflow — current state
 
-_Derived from the repo @ `cda57bf` by `./flow.sh`. Manual refresh: `./flow.sh` (or `make flow`). No cron — pull, not push._
+_Derived from the repo @ `42863c5` by `./flow.sh`. Manual refresh: `./flow.sh` (or `make flow`). No cron — pull, not push._
 
 **Always-on** — native permissions `defaultMode=auto · deny(4) · ask(3) · agent-mode=off` · statusLine → `hud` 0.4.0
 

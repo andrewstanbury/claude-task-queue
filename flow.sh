@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016  # backticks in printf formats are literal Markdown, not command substitution
 # flow.sh — generate FLOW.md, a human-reviewable snapshot of the workflow,
 # DERIVED LIVE from the repo so it can't drift: the lifecycle wiring from each
 # plugin's hooks.json, one-line purposes from each script's header, the review-
