@@ -29,12 +29,13 @@ purpose() { local p; p="$(sed -n '2p' "$1" 2>/dev/null | sed 's/^# *//')"; case 
 # curated one-line role blurb by basename; falls back to the header purpose.
 blurb() {
   case "$(basename "$1")" in
-    charter-standard.sh) printf 'gate docs · decisions anchor · owner loop · scar tissue' ;;
-    tidy-standard.sh)    printf 'clean-as-you-go standard' ;;
-    tq-resume.sh)        printf 'queue policy · resume bridge · hydrate backlog' ;;
-    tq-capture.sh)       printf 'the interpret→present→approve review loop' ;;
-    tidy-touch.sh)       printf 'format · lint · blast-radius · size' ;;
-    tidy-verify.sh)      printf 'tests block-until-green + throttled prune' ;;
+    charter-standard.sh)  printf 'gate docs · decisions anchor · owner loop · scar tissue' ;;
+    charter-align-gate.sh) printf 'align change vs recorded decisions · block on a reversal' ;;
+    tidy-standard.sh)     printf 'clean-as-you-go standard' ;;
+    tq-resume.sh)         printf 'queue policy · resume bridge · hydrate backlog' ;;
+    tq-capture.sh)        printf 'the interpret→present→approve review loop' ;;
+    tidy-touch.sh)        printf 'format · lint · blast-radius · size' ;;
+    tidy-verify.sh)       printf 'tests block-until-green + throttled prune' ;;
     *)                   purpose "$1" ;;
   esac
 }
@@ -109,9 +110,16 @@ fi
 
 line "  ${W}⚙ Claude works the queue${X} ${D}· native task list ·${X}"
 line "  ${D}┊${X}"
-pt="$(first_path PostToolUse)"; st="$(first_path Stop)"
-[ -n "$pt" ] && line "  ${D}┊${X} ${D}on each edit →${X} ${G}$(basename "$pt" .sh)${X}  ${D}$(blurb "$pt")${X}"
-[ -n "$st" ] && line "  ${D}┊${X} ${D}on finish    →${X} ${G}$(basename "$st" .sh)${X}  ${D}$(blurb "$st")${X}"
+while IFS='|' read -r plug path; do
+  [ -n "$path" ] || continue
+  line "  ${D}┊${X} ${D}on each edit →${X} $(pcolor "$plug")$(basename "$path" .sh)${X}  ${D}$(blurb "$path")${X}"
+done <<< "$(wired PostToolUse)"
+first=1
+while IFS='|' read -r plug path; do
+  [ -n "$path" ] || continue
+  if [ "$first" = 1 ]; then lbl="on finish    →"; first=0; else lbl="             →"; fi
+  line "  ${D}┊${X} ${D}${lbl}${X} $(pcolor "$plug")$(basename "$path" .sh)${X}  ${D}$(blurb "$path")${X}"
+done <<< "$(wired Stop)"
 line "  ${D}▼${X}"
 line "  ${G}✓${X} ${W}done${X}  ${D}→${X} ${B}hud${X} ${D}flips to${X} ${G}✓ tests${X}"
 line ""

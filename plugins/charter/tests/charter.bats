@@ -453,3 +453,90 @@ CONV_SRC='. "$1/lib/charter.sh";'   # charter.sh transitively sources convention
   [[ "$output" == *"auth.go"* ]]
   [[ "$output" == *"2 fixes/3 changes"* ]]
 }
+
+# ---- alignment floor (Stop-time decision-alignment gate) --------------------
+
+# A committed baseline: recorded decisions + a dependency manifest. State dir is a
+# sibling of REPO (never inside it, or the throttle's own writes would dirty the tree).
+align_baseline() {
+  git -C "$REPO" config user.email t@t; git -C "$REPO" config user.name t
+  printf 'we chose `Postgres`, not `Mongo`.\n' > "$REPO/DECISIONS.md"
+  printf '{"name":"app"}\n' > "$REPO/package.json"
+  git -C "$REPO" add -A; git -C "$REPO" commit -q -m init
+}
+run_gate() {                                   # $1 = session_id (default s1)
+  local sid="${1:-s1}" json
+  json="$(jq -nc --arg c "$REPO" --arg s "$sid" '{cwd:$c, session_id:$s}')"
+  printf '%s' "$json" | CLAUDE_CHARTER_LOG_DIR="$(dirname "$REPO")/state" "$ROOT/bin/charter-align-gate.sh"
+}
+
+@test "align gate: blocks and surfaces decisions when a dep manifest changes" {
+  align_baseline
+  printf '{"name":"app","dependencies":{"mongodb":"^6"}}\n' > "$REPO/package.json"
+  run run_gate s1
+  [[ "$output" == *'"decision":"block"'* ]]
+  [[ "$output" == *"recorded decisions"* ]]
+  [[ "$output" == *"Postgres"* ]]              # the excerpt is put in front of the model
+}
+
+@test "align gate: silent on a routine edit that touches no decision surface" {
+  align_baseline
+  printf 'just some notes\n' > "$REPO/notes.txt"   # not a dep/config; no fenced token
+  run run_gate s1
+  [ -z "$output" ]
+}
+
+@test "align gate: a new file naming a fenced decision token is flagged" {
+  align_baseline
+  printf 'we use Mongo here now\n' > "$REPO/store.txt"   # untracked; `Mongo` is fenced in DECISIONS
+  run run_gate s1
+  [[ "$output" == *'"decision":"block"'* ]]
+}
+
+@test "align gate: throttled — the same tree is not blocked twice in a session" {
+  align_baseline
+  printf '{"name":"app","dependencies":{"mongodb":"^6"}}\n' > "$REPO/package.json"
+  run run_gate s1
+  [[ "$output" == *'"decision":"block"'* ]]     # first time blocks
+  run run_gate s1
+  [ -z "$output" ]                              # same tree, same session → silent
+}
+
+@test "align gate: silent when the project records no decisions" {
+  git -C "$REPO" config user.email t@t; git -C "$REPO" config user.name t
+  printf '{"name":"app"}\n' > "$REPO/package.json"
+  git -C "$REPO" add -A; git -C "$REPO" commit -q -m init
+  printf '{"name":"app","dependencies":{"mongodb":"^6"}}\n' > "$REPO/package.json"
+  run run_gate s1
+  [ -z "$output" ]
+}
+
+@test "align gate: silent on a clean tree (nothing landed)" {
+  align_baseline
+  run run_gate s1
+  [ -z "$output" ]
+}
+
+@test "align gate: disabled via CLAUDE_CHARTER_ALIGN_GATE=0" {
+  align_baseline
+  printf '{"name":"app","dependencies":{"mongodb":"^6"}}\n' > "$REPO/package.json"
+  json="$(jq -nc --arg c "$REPO" '{cwd:$c, session_id:"s1"}')"
+  run bash -c 'printf "%s" "$1" | CLAUDE_CHARTER_ALIGN_GATE=0 CLAUDE_CHARTER_LOG_DIR="$2" "$3"' \
+    bash "$json" "$(dirname "$REPO")/state" "$ROOT/bin/charter-align-gate.sh"
+  [ -z "$output" ]
+}
+
+@test "align gate: bounded — stops blocking after the attempt cap, with a soft note" {
+  align_baseline
+  printf '{"name":"app","dependencies":{"mongodb":"^6"}}\n' > "$REPO/package.json"
+  json1="$(jq -nc --arg c "$REPO" '{cwd:$c, session_id:"cap"}')"
+  run bash -c 'printf "%s" "$1" | CLAUDE_CHARTER_ALIGN_MAX=1 CLAUDE_CHARTER_LOG_DIR="$2" "$3"' \
+    bash "$json1" "$(dirname "$REPO")/state" "$ROOT/bin/charter-align-gate.sh"
+  [[ "$output" == *'"decision":"block"'* ]]     # 1st block (count → 1)
+  printf 'and use Mongo too\n' > "$REPO/more.txt"   # new distinct tree, still touches decisions
+  run bash -c 'printf "%s" "$1" | CLAUDE_CHARTER_ALIGN_MAX=1 CLAUDE_CHARTER_LOG_DIR="$2" "$3"' \
+    bash "$json1" "$(dirname "$REPO")/state" "$ROOT/bin/charter-align-gate.sh"
+  [[ "$output" == *"systemMessage"* ]]          # cap reached → soft note, not a block
+  [[ "$output" == *"Alignment gate"* ]]
+  [[ "$output" != *'"decision":"block"'* ]]
+}

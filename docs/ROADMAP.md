@@ -46,7 +46,7 @@ and reason about. It accrues from 0–4; don't chase it directly.
 |---|---|
 | **task-queue** | **Orchestrate** — the interpret→present→approve review loop, capture, order, cross-session resume, pause (gates the loop) |
 | **tidy** | **Change safely & cleanly** — format/lint on touch, blast-radius, verification floor, automatic prune |
-| **charter** | **Know the project + own the owner loop** — doc gate, map, decisions anchor, conventions, intent→demo→consent posture |
+| **charter** | **Know the project + own the owner loop** — doc gate, map, decisions anchor (+ Stop-time alignment floor), conventions, outcome memory, intent→demo→consent posture |
 | **hud** | **Show** — a consolidated read-only status line (the owner's at-a-glance trust signal) |
 
 Each plugin stays independently installable (the install boundary forbids shared
@@ -85,9 +85,18 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   (fix/revert commits ÷ total commits touching a file ≥ 0.34, min 2 reworks, existing
   files only), not raw churn — so the review loop treats debt magnets as high-risk
   before extending them. State, not policy: surfaced even in quiet mode, silent on a
-  clean/new repo. Owns the **owner loop** (confirm intent → demonstrate → recap). On
-  demand: `/charter:align`. Action-time consent is native (see below) — charter
-  carries only the standing posture, no hook.
+  clean/new repo. Owns the **owner loop** (confirm intent → demonstrate → recap).
+  On Stop, the **alignment floor**: when a finished change plausibly bears on a
+  recorded decision (a dependency manifest / config / migration changed, or a
+  backtick-fenced decision token appears in the diff — a cheap deterministic
+  pre-filter that stays silent on routine edits), it blocks **once** and puts the
+  recorded decisions in front of the model — honor them, or, on a reversal, surface
+  it to the owner in plain language and confirm before it lands. Bounded like tidy's
+  test floor (per-tree throttle + `CLAUDE_CHARTER_ALIGN_MAX` cap, never loops);
+  `CLAUDE_CHARTER_ALIGN_GATE=0` disables it. This is the **outcome-time** complement
+  to the review loop's **intent-time** alignment — alignment is now checked at both
+  ends. On demand: `/charter:align`. Action-time consent is native (see below) —
+  charter carries only the standing posture, no hook.
 - **hud** — a static health beacon + paused + agent + the verification floor's ✓/✗
   tests + context-window fill % + branch & dirty + model. Read-only, zero token cost.
   With no logs or docs to read, this beacon is the owner's primary trust signal.
@@ -136,6 +145,34 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   charter's separate-file detection (it would nag "missing map/roadmap" every
   session). Chose **a few lean Claude-context files** (CLAUDE.md + map + decisions +
   per-plugin CONTRACTs); charter's model is unchanged.
+
+## Status — 2026-06-16 (alignment floor)
+
+First feature in the "prevent future audit/rework" line (the system's own purpose,
+turned inward). The taxonomy of future rework had two **open loops**: scar tissue
+*detects* repeat-fixes but nothing forced a regression guard; the owner loop
+*captures* intent but never checked the finished work against it; and recorded
+decisions could be reversed unnoticed. This closes the decisions one:
+
+- **charter gains a `Stop` hook (`charter-align-gate.sh`)** — the alignment floor.
+  After a substantive change, if the project records decisions AND the change
+  plausibly bears on one, it blocks **once** and surfaces the recorded decisions for
+  the model to adjudicate: honor them, or surface+confirm a reversal in plain
+  language before it lands. The semantic judgment is the model's; the hook is
+  deterministic plumbing (detect-not-decide, like the rest of charter).
+- **Cheap pre-filter (`lib/align.sh`, `charter_change_touches_decisions`)** keeps it
+  quiet on routine edits — it only escalates on decision-bearing surfaces (dependency
+  manifests, config, infra, migrations/schema) or when a backtick-fenced decision
+  token shows up in the diff/new files. Precision over recall: a false block is
+  noise, so the filter is conservative.
+- **Bounded like the test floor** — a per-tree fingerprint (won't re-ask the same
+  change) + a per-session attempt cap (`CLAUDE_CHARTER_ALIGN_MAX`, default 2) make it
+  loop-proof; `CLAUDE_CHARTER_ALIGN_GATE=0` disables it.
+- **Alignment is now checked at both ends** — intent-time (task-queue's review loop
+  weighs against recorded direction) and outcome-time (this gate, on the real diff).
+- **Note:** charter previously wrote *nothing*; the throttle needs state, so it now
+  writes a **cache-only** dir (`$HOME/.claude/state/charter`, like tidy) — never the
+  project. CONTRACT updated.
 
 ## Status — 2026-06-16 (outcome memory)
 

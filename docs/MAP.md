@@ -50,15 +50,17 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 | `lib/checks.sh` | Test-command discovery + bounded run + working-tree fingerprint (verify throttle). |
 | `lib/blast.sh` | Blast-radius (Go: exact `go list` importers, cached, → git grep fallback; basename heuristic elsewhere). |
 
-## charter — *know the project + own the owner relationship* (hooks: SessionStart)
+## charter — *know the project + own the owner relationship* (hooks: SessionStart, Stop)
 
 | File | Responsibility |
 |---|---|
 | `bin/charter-standard.sh` | SessionStart: the proportional project brief (baseline gaps + consult line + owner-loop consent posture (intent → demo → consent) + scar-tissue/outcome-memory surfacing + quiet-mode). Action-time consent is native (settings.json), not a charter hook. |
+| `bin/charter-align-gate.sh` | Stop: the **alignment floor** — when a finished change plausibly bears on a recorded decision, block once and put the recorded decisions in front of the model (honor, or surface+confirm a reversal). Bounded (per-tree throttle + attempt cap) so it can't loop; the outcome-time complement to the review loop's intent-time alignment. |
 | `bin/charter-align.sh` | Deterministic alignment anchors (decisions + roadmap + recent commits) for `/charter:align`. |
 | `commands/align.md` | `/charter:align` — reconcile open/proposed work against the recorded direction (clean ≠ correct). |
 | `lib/charter.sh` | Detect QA / roadmap / decisions / map / stack / web; recent commits; the `claude-companion` marker; `charter_hotspots` (outcome memory — the git rework-ratio scar-tissue metric). |
 | `lib/conventions.sh` | Detect the project's established conventions (UI/component lib, styling, state, components dir, tests) + their recorded-status, for the reuse-before-create brief. |
+| `lib/align.sh` | Alignment-floor helpers: cache-only state dir, working-tree fingerprint (throttle), bounded decisions excerpt, and the cheap deterministic pre-filter (decision-bearing surfaces + fenced-token overlap) that keeps the gate silent on routine edits. |
 
 ## hud — *show what's happening* (a statusLine, not a hook)
 

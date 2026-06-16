@@ -1,14 +1,16 @@
 # CONTRACT — what the charter plugin depends on
 
-`charter` reads a SessionStart hook payload and inspects the project's files. It
-is **read-only over your project** — it never writes your files. Action-time
+`charter` reads `SessionStart` and `Stop` hook payloads and inspects the project's
+files. It is **read-only over your project** — it never writes your files (its one
+write is cache-only throttle state outside the project; see *Where the plugin
+writes*). Action-time
 consent for consequential/irreversible operations is handled **natively** by
 Claude Code permissions (the user's `~/.claude/settings.json`), not by a charter
 hook; charter's SessionStart brief only carries the plain-language owner-loop
 consent *posture* (intent → demo → consent). The Claude Code internals below are
 observed behaviour, not documented APIs.
 
-> **Observed against:** Claude Code 2.x · last verified **2026-05-31**.
+> **Observed against:** Claude Code 2.x · last verified **2026-06-16**.
 
 ## Dependencies
 
@@ -22,10 +24,33 @@ observed behaviour, not documented APIs.
   something to say; silent when QA is documented and the source is compact/resume.
 - **If it changes:** the quality-attributes gate silently stops.
 
+### 1a. `Stop` hook payload (stdin) — the alignment floor
+
+- **Script:** `bin/charter-align-gate.sh`. **Fields read:** `cwd` (resolved to the
+  repo root) and `session_id` (namespaces the throttle state).
+- **Fires only when** the working tree is dirty (a real change landed), the project
+  records decisions (`charter_decisions_path`), and the change plausibly bears on a
+  decision per the cheap pre-filter (`charter_change_touches_decisions`: a
+  decision-bearing surface — dependency manifest / lockfile / config / Dockerfile /
+  `*.tf` / migrations / schema / `*.sql` — changed, **or** a backtick-fenced token
+  from the decisions doc appears in the tracked diff or a new file). Otherwise silent.
+- **Output contract:** `{ "decision": "block", "reason": "<recorded decisions + an
+  instruction to honor-or-surface>" }` on the first qualifying change for a given
+  working-tree fingerprint; a non-blocking `{ "systemMessage": … }` once the
+  per-session attempt cap is reached; silent (exit 0) otherwise.
+- **Bounding (cannot loop):** a tree-hash fingerprint (`charter_tree_hash`) so the
+  same change is never re-blocked, plus at most `CLAUDE_CHARTER_ALIGN_MAX` (default
+  2) blocks per session. Disable entirely with `CLAUDE_CHARTER_ALIGN_GATE=0`.
+- **Semantic judgment is the model's**, never the hook's — the hook only guarantees
+  the recorded decisions are in front of the model at the moment of "done".
+- **If it changes:** the alignment floor silently stops (best-effort: any internal
+  error degrades to "allow the stop", so it never breaks the turn).
+
 ### 1b. Action-time consent is native (not a charter hook)
 
-- charter has **no `PreToolUse` hook**; `hooks/hooks.json` wires only
-  `SessionStart`. Consent for consequential/irreversible operations is enforced
+- charter has **no `PreToolUse` hook**; `hooks/hooks.json` wires `SessionStart`
+  (the brief) and `Stop` (the alignment floor). Consent for consequential/
+  irreversible operations is enforced
   by Claude Code's own permissions: the user's `~/.claude/settings.json` sets
   `permissions.defaultMode="auto"` (auto-approve with background safety checks),
   plus a **deny** set (`rm -rf` of `/`, `~`) and an **ask** set (`git push
@@ -115,23 +140,32 @@ observed behaviour, not documented APIs.
 
 ## Where the plugin writes
 
-charter writes **nothing** — not to your project, not to Claude Code's state, not
-to any log. It only reads files and emits SessionStart `additionalContext`.
+charter writes **nothing to your project**. Its only write is **cache-only throttle
+state** for the alignment floor — the working-tree fingerprint and the per-session
+block counter — under `$HOME/.claude/state/charter` (override with
+`CLAUDE_CHARTER_LOG_DIR`), the same cache footprint tidy already has. This dir must
+live **outside** any project repo (the default does); if it were placed inside a
+repo, the gate's own writes would dirty that repo's tree. Everything else is reads +
+`SessionStart` `additionalContext` and `Stop` decisions.
 
 ## How this is verified
 
 - `tests/charter.bats` fakes a project via a temp git repo and `CLAUDE_CHARTER_*`
   overrides — QA-, roadmap-, and map-status detection, the full/lean nudge by
   source, the owner-loop posture, `/charter:align`'s anchor output (no-anchor,
-  decisions, roadmap, and recent-commit cases), and outcome memory (rework vs.
+  decisions, roadmap, and recent-commit cases), outcome memory (rework vs.
   healthy churn, the word-boundary guard, silence on no-rework / non-git, and the
-  SessionStart scar-tissue surfacing).
+  SessionStart scar-tissue surfacing), and the alignment floor (blocks on a
+  decision-bearing change, silent on routine edits / no-decisions / clean tree,
+  fenced-token overlap on new files, the per-tree throttle, the disable switch,
+  and the attempt cap).
 
 ## Status (see docs/ROADMAP.md)
 
 Shipped: the quality-attributes gate, roadmap/backlog awareness, the project map,
 recorded-decisions anchor, stack notes, the owner-loop consent posture, outcome
-memory (the git rework-ratio scar-tissue surfacing), and `/charter:align`. Action-time consent is now **native** (Claude Code permissions
+memory (the git rework-ratio scar-tissue surfacing), the Stop-time alignment floor
+(decision-reversal gate), and `/charter:align`. Action-time consent is now **native** (Claude Code permissions
 in settings.json), not a charter hook. The subtractive/prune force lives in
 **tidy** (its automatic prune + the size guard); hooks are already
 **bootstrap-once + drift-detect** (they go quiet once the policy is recorded in

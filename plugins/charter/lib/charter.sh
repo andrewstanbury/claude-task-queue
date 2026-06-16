@@ -210,8 +210,12 @@ charter_is_web() {
   printf 'no'
 }
 
-# Conventions detection (charter_conventions / charter_conventions_status) lives
-# in a sibling lib so this file stays focused and under the size guard; source it
-# so every consumer of charter.sh gets it transitively (no bin sources it directly).
+# Conventions detection (charter_conventions / charter_conventions_status) and the
+# alignment-floor helpers (charter_log_dir / charter_tree_hash /
+# charter_decisions_excerpt / charter_change_touches_decisions) live in sibling
+# libs so this file stays focused and under the size guard; source them so every
+# consumer of charter.sh gets them transitively (no bin sources them directly).
 # shellcheck source=./conventions.sh
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/conventions.sh"
+# shellcheck source=./align.sh
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/align.sh"
