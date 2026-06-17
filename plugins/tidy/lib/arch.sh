@@ -53,3 +53,23 @@ tidy_cycles_changed() {
     done
   done | sort -u
 }
+
+# A cheap, deterministic proxy for coupling DENSITY: import/require/include edges
+# per source file across the repo's tracked files, as a centi-integer (edges*100/
+# files). DENSITY, not raw count — a healthily growing project (more files,
+# proportional imports) keeps density flat, so this only climbs when each file
+# genuinely depends on more (real coupling creep). A trend signal, not a precise
+# graph. Prints 0 on a non-git repo or with fewer than 5 source files (too small
+# to trend meaningfully).
+tidy_coupling_density() {
+  local root="$1" list files edges
+  git -C "$root" rev-parse >/dev/null 2>&1 || { printf 0; return 0; }
+  list="$(cd "$root" 2>/dev/null && git ls-files 2>/dev/null \
+          | grep -iE '\.(go|js|jsx|ts|tsx|mjs|cjs|vue|svelte|py|rb|rs|java|kt|kts|c|h|cc|cpp|hpp|cs|php|swift|scala)$')"
+  [ -n "$list" ] || { printf 0; return 0; }
+  files="$(printf '%s\n' "$list" | grep -c .)"
+  [ "$files" -ge 5 ] || { printf 0; return 0; }
+  edges="$( ( cd "$root" 2>/dev/null && printf '%s\n' "$list" | tr '\n' '\0' \
+              | xargs -0 grep -hE '^[[:space:]]*(import|from|require|#include|use)[[:space:](]' 2>/dev/null ) | grep -c . )"
+  printf '%s' "$(( edges * 100 / files ))"
+}

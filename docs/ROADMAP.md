@@ -101,7 +101,10 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   detect-and-run package.json scripts, install/invent nothing, heavy Lighthouse/CWV
   audits stay in CI — block until green, bounded; `CLAUDE_TIDY_QUALITY_FLOOR=0` to
   disable); the **import-cycle check** (madge, post-green, surface cycles touching the
-  change); the **regression gate**
+  change); the **coupling-density trend** (nudge when import-edges-per-file — a
+  size-normalized proxy, so healthy growth doesn't false-alarm — climbs past a
+  threshold vs the last check; per-repo baseline, `CLAUDE_TIDY_COUPLING_TREND=0` to
+  disable); the **regression gate**
   (block when a changed file is BOTH a scar-tissue hotspot — repeatedly fixed, by
   the same rework-ratio detector charter uses, mirrored + drift-guarded — AND still
   untested, so a fix to a proven debt-magnet gets pinned before it can silently
