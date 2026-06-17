@@ -27,6 +27,8 @@ PLUGIN_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 . "$PLUGIN_DIR/lib/checks.sh"
 # shellcheck source=../lib/coverage.sh
 . "$PLUGIN_DIR/lib/coverage.sh"
+# shellcheck source=../lib/arch.sh
+. "$PLUGIN_DIR/lib/arch.sh"
 
 allow() { exit 0; }                                   # let the stop proceed
 
@@ -59,27 +61,43 @@ rfile="$cdir/result-$key"          # last verification outcome, for hud's tests 
 gfile="$cdir/covgate-$key"         # coverage-ratchet block counter
 rgfile="$cdir/regress-$key"        # regression-gate block counter
 pfile="$cdir/prune-$key"           # debt-surfaced-this-episode flag (Stop debt nudge)
+cyfile="$cdir/cycles-$key"         # last-surfaced import-cycle set (content hash)
 
-# Whole-project debt surface (moved here from SessionStart so it fires AFTER the
-# turn's work, not before the user's intent). On a dirty tree that verified clean,
-# if over-budget files cross the prune threshold, recommend a subtractive prune
-# pass — once per episode (a flag file, $pfile), so it doesn't nag while debt
-# persists and re-fires only after it drops below and re-crosses. Non-blocking.
+# Post-work architecture + debt surface (fires AFTER the turn's work, not before
+# the user's intent). On a dirty tree that verified clean it surfaces, NON-blocking
+# and in one message: (a) any import CYCLE involving a file changed this turn
+# (clean-architecture — always a problem), content-deduped so an unchanged cycle
+# set stays quiet; and (b) a subtractive PRUNE pass when over-budget files cross
+# the threshold, throttled once per debt episode ($pfile).
 surface_debt_then_allow() {
-  local over n threshold budget report
+  local msg="" cyc chash over n threshold budget report dmsg
+  # (a) clean-architecture: import cycles touching this change (zero owner config).
+  cyc="$(tidy_cycles_changed "$root" 2>/dev/null | head -n 10 || true)"
+  if [ -n "$cyc" ]; then
+    chash="$(printf '%s' "$cyc" | cksum | tr -d ' ')"
+    if [ "$(cat "$cyfile" 2>/dev/null || true)" != "$chash" ]; then   # new cycle set → surface
+      { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$chash" > "$cyfile"; } 2>/dev/null || true
+      msg="[tidy] Circular dependency involving a file you changed — a cycle is always a problem (break one edge: invert a dependency, or extract the shared piece into a module both can depend on):"$'\n'"$cyc"
+    fi
+  else
+    rm -f "$cyfile" 2>/dev/null || true        # no cycle → reset the dedup
+  fi
+  # (b) subtractive prune when debt crosses the threshold (throttled per episode).
   over="$(tidy_oversized_files "$root" 2>/dev/null || true)"
   n="$(printf '%s\n' "$over" | grep -c . 2>/dev/null || printf 0)"
   threshold="${CLAUDE_TIDY_PRUNE_THRESHOLD:-3}"
   if [ -n "$over" ] && [ "$n" -ge "$threshold" ]; then
-    [ -f "$pfile" ] && exit 0                 # already surfaced this episode → quiet
-    { mkdir -p "$cdir" 2>/dev/null && : > "$pfile"; } 2>/dev/null || true
-    budget="$(tidy_size_budget)"
-    report="$("$PLUGIN_DIR/bin/tidy-distill.sh" "$root" 2>/dev/null || true)"
-    jq -cn --arg m "[tidy] Debt threshold crossed — $n files over the $budget-line budget. Consider a subtractive prune pass: dead code, duplication, now-redundant surface, doc↔code drift — net complexity down; route any cuts through the task-queue review loop. Weight report:"$'\n'"$report" \
-      '{systemMessage: $m}'
-    exit 0
+    if [ ! -f "$pfile" ]; then                 # not yet surfaced this episode
+      { mkdir -p "$cdir" 2>/dev/null && : > "$pfile"; } 2>/dev/null || true
+      budget="$(tidy_size_budget)"
+      report="$("$PLUGIN_DIR/bin/tidy-distill.sh" "$root" 2>/dev/null || true)"
+      dmsg="[tidy] Debt threshold crossed — $n files over the $budget-line budget. Consider a subtractive prune pass: dead code, duplication, now-redundant surface, doc↔code drift — net complexity down; route any cuts through the task-queue review loop. Weight report:"$'\n'"$report"
+      [ -n "$msg" ] && msg="$msg"$'\n\n'"$dmsg" || msg="$dmsg"
+    fi
+  else
+    rm -f "$pfile" 2>/dev/null || true          # below threshold → reset the episode
   fi
-  rm -f "$pfile" 2>/dev/null || true          # below threshold → reset the episode
+  [ -n "$msg" ] && jq -cn --arg m "$msg" '{systemMessage: $m}'
   exit 0
 }
 

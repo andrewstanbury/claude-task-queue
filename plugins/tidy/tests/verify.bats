@@ -227,3 +227,58 @@ scar_repo() {
   [[ "$output" == *"DEBUG-"* ]]                        # tagged instrumentation for one-grep cleanup
   [[ "$output" == *"regression test"* ]]               # pin the bug (composes with the regression gate)
 }
+
+# ---- import-cycle check (clean architecture, detect-and-run madge) -----------
+
+# A fake `madge` on PATH that prints the given --circular --json output.
+madge_stub() {
+  mkdir -p "$WORK/fakebin"
+  printf '%s' "$1" > "$WORK/madge-out.json"
+  printf '#!/usr/bin/env bash\ncat %q\n' "$WORK/madge-out.json" > "$WORK/fakebin/madge"
+  chmod +x "$WORK/fakebin/madge"
+}
+run_verify_madge() {
+  local repo="$1" sid="${2:-cyc}" json
+  json="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c, session_id:$s}')"
+  printf '%s' "$json" | PATH="$WORK/fakebin:$PATH" CLAUDE_TIDY_TEST_CMD='true' "$VERIFY"
+}
+cyc_repo() {
+  mkdir -p "$1/src"; git -C "$1" init -q
+  git -C "$1" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+}
+
+@test "cycle check: surfaces an import cycle involving a changed file (post-green)" {
+  local repo="$WORK/cy1"; cyc_repo "$repo"
+  printf 'import "./b"\n' > "$repo/src/a.ts"                 # dirty (untracked)
+  madge_stub '[["src/a.ts","src/b.ts"]]'
+  run run_verify_madge "$repo" c1
+  [[ "$output" == *"Circular dependency"* ]]
+  [[ "$output" == *"src/a.ts → src/b.ts → src/a.ts"* ]]
+}
+
+@test "cycle check: deduped — the same cycle set is not re-surfaced" {
+  local repo="$WORK/cy2"; cyc_repo "$repo"
+  printf 'x\n' > "$repo/src/a.ts"
+  madge_stub '[["src/a.ts","src/b.ts"]]'
+  run run_verify_madge "$repo" c2; [[ "$output" == *"Circular"* ]]
+  run run_verify_madge "$repo" c2; [ -z "$output" ]         # unchanged set → quiet
+}
+
+@test "cycle check: only cycles touching a changed file are surfaced" {
+  local repo="$WORK/cy3"; cyc_repo "$repo"
+  printf 'x\n' > "$repo/src/a.ts"                           # only a.ts changed
+  madge_stub '[["src/x.ts","src/y.ts"]]'                    # cycle is unrelated
+  run run_verify_madge "$repo" c3
+  [ -z "$output" ]
+}
+
+@test "cycle check: silent without madge, and when disabled" {
+  local repo="$WORK/cy4"; cyc_repo "$repo"
+  printf 'import "./b"\n' > "$repo/src/a.ts"
+  run run_verify "$repo" c4                                  # no madge on PATH
+  [ -z "$output" ]
+  madge_stub '[["src/a.ts","src/b.ts"]]'
+  json="$(jq -nc --arg c "$repo" --arg s c5 '{cwd:$c, session_id:$s}')"
+  run bash -c 'printf "%s" "$1" | PATH="$2:$PATH" CLAUDE_TIDY_TEST_CMD=true CLAUDE_TIDY_CYCLE_CHECK=0 "$3"' _ "$json" "$WORK/fakebin" "$VERIFY"
+  [ -z "$output" ]
+}
