@@ -12,6 +12,8 @@ Hard invariants (do not violate):
 - **`task-queue` is read-only** over `~/.claude/tasks`; **`tidy` only auto-applies
   behavior-preserving fixes** (formatting), surfacing everything else.
 - **Zero per-prompt cost**; keep files cohesive (CI fails scripts over 300 lines).
+  Per-hook **token budgets** are CI-enforced (`tests/token-budget.bats`) — growing
+  one is a deliberate ratchet, bumped in the same change.
 
 Verify everything with **`./check.sh`** — CI runs the same script.
 

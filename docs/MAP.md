@@ -17,7 +17,8 @@ what it depends on; each plugin's `tests/*.bats` exercises it.
 | `flow.sh` | Render the colored workflow diagram in the terminal, derived live from the repo (`./flow.sh` / `make flow`) — the one sanctioned human-facing artifact. |
 | `.claude-plugin/marketplace.json` | Marketplace manifest (the 4 plugins + versions). |
 | `.github/workflows/ci.yml` | CI — provisions tools, runs `check.sh`. |
-| `tests/drift-guard.bats` | Cross-plugin guard: asserts task-queue doc-detection + tidy's scar-tissue (`tidy_hotspots`) mirrors agree with charter (the source of truth). |
+| `tests/drift-guard.bats` | Cross-plugin guard: asserts task-queue doc-detection + tidy's scar-tissue (`tidy_hotspots`) + hud's open-questions mirrors agree with charter/task-queue (the source of truth). |
+| `tests/token-budget.bats` | The **token-budget NFR**: runs each hook in its representative path and fails CI if its injected text exceeds a per-hook character budget — token efficiency (the defining quality attribute) made enforceable. Growing a budget is a deliberate ratchet. |
 
 Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 (event wiring), `CONTRACT.md` (dependencies), `bin/` (hook entrypoints + controls),

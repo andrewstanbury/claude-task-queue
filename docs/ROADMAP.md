@@ -45,7 +45,13 @@ they grow.** The forces that contain debt lead; the intent loop and payoff follo
 
 **Payoff — token efficiency:** not *fewest* tokens but *highest-leverage* ones. A
 well-mapped, small-filed, clean project is automatically cheap for Claude to load
-and reason about. It accrues from 0–4; don't chase it directly.
+and reason about. It accrues from 0–4; don't chase it directly. **Enforced as an
+NFR:** `tests/token-budget.bats` runs each hook in its representative path and fails
+CI if its injected text exceeds a per-hook **character budget** (~4 chars/token) —
+recurring injections (SessionStart steady-state, per-prompt) budgeted tightest,
+per-event Stop blocks given more room. Growing a budget is a deliberate ratchet
+(bump the number in the same change). So the system's defining quality attribute
+can't silently regress.
 
 ## Architecture — four self-contained plugins
 
