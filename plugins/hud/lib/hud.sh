@@ -12,6 +12,24 @@ set -uo pipefail
 hud_pause_dir()  { printf '%s' "${CLAUDE_HUD_PAUSE_DIR:-$HOME/.claude/state/task-queue/paused}"; }
 hud_agent_dir()  { printf '%s' "${CLAUDE_HUD_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}"; }
 hud_verify_dir() { printf '%s' "${CLAUDE_HUD_VERIFY_DIR:-$HOME/.claude/state/tidy/verify}"; }
+hud_tasks_dir()  { printf '%s' "${CLAUDE_HUD_TASKS_DIR:-${CLAUDE_TQ_TASKS_DIR:-$HOME/.claude/tasks}}"; }
+
+# Count of OPEN QUESTIONS the user still owes an answer on this session — native
+# tasks whose subject starts with "❓", pending/in_progress, deduped by subject.
+# Read-only mirror of task-queue's tq_open_questions (install boundary forbids
+# sharing the lib; drift-guard.bats keeps the two in agreement). Prints a number.
+hud_open_questions() {
+  local sid="$1" tdir f c
+  [ -n "$sid" ] || { printf '0'; return 0; }
+  tdir="$(hud_tasks_dir)/$sid"
+  [ -d "$tdir" ] || { printf '0'; return 0; }
+  c="$(for f in "$tdir"/*.json; do
+        [ -f "$f" ] || continue
+        jq -r 'select((.status=="pending" or .status=="in_progress")
+                      and ((.subject // "") | startswith("❓"))) | (.subject // "")' "$f" 2>/dev/null
+      done | awk 'NF && !seen[$0]++' | grep -c .)"
+  printf '%s' "${c:-0}"
+}
 
 # Is the review loop paused for this repo? prints 1 / 0.
 hud_paused() {

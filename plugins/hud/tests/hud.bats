@@ -104,3 +104,27 @@ teardown() {
   jq -e '.statusLine.command' "$s"
   rm -rf "$(dirname "$s")"
 }
+
+@test "hud_open_questions counts pending/in_progress ❓ tasks (deduped), ignores the rest" {
+  export CLAUDE_HUD_TASKS_DIR="$(mktemp -d)"
+  mkdir -p "$CLAUDE_HUD_TASKS_DIR/sQ"
+  jq -n '{id:"1",subject:"❓ Block or warn?",status:"pending"}'      > "$CLAUDE_HUD_TASKS_DIR/sQ/1.json"
+  jq -n '{id:"2",subject:"❓ Which style?",status:"in_progress"}'    > "$CLAUDE_HUD_TASKS_DIR/sQ/2.json"
+  jq -n '{id:"3",subject:"Do some work",status:"pending"}'          > "$CLAUDE_HUD_TASKS_DIR/sQ/3.json"
+  jq -n '{id:"4",subject:"❓ already answered",status:"completed"}'  > "$CLAUDE_HUD_TASKS_DIR/sQ/4.json"
+  run bash -c "$SRC"' hud_open_questions sQ' bash "$ROOT"
+  [ "$output" = "2" ]
+  run bash -c "$SRC"' hud_open_questions none' bash "$ROOT"
+  [ "$output" = "0" ]
+  rm -rf "$CLAUDE_HUD_TASKS_DIR"
+}
+
+@test "status line shows ❓N when open questions exist for the session" {
+  export CLAUDE_HUD_TASKS_DIR="$(mktemp -d)"
+  mkdir -p "$CLAUDE_HUD_TASKS_DIR/sR"
+  jq -n '{id:"1",subject:"❓ pending one",status:"pending"}' > "$CLAUDE_HUD_TASKS_DIR/sR/1.json"
+  json="$(jq -nc --arg s sR --arg c "$REPO" '{model:{display_name:"Opus"},session_id:$s,cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *"❓1"* ]]
+  rm -rf "$CLAUDE_HUD_TASKS_DIR"
+}

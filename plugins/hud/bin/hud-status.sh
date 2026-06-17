@@ -91,6 +91,11 @@ case "$VERIFY" in
   timeout) printf "%s⚠ tests%s%s" "$Y$B" "$X" "$SEP" ;;
 esac
 
+# 4b) Open questions — unanswered ❓ items you still owe an answer on this session.
+# Ambient nudge so lingering questions get NOTICED without anyone re-raising them.
+OPENQ="$(hud_open_questions "$SID" 2>/dev/null || printf 0)"
+[ "${OPENQ:-0}" -gt 0 ] 2>/dev/null && printf "%s❓%s%s%s" "$Y$B" "$OPENQ" "$X" "$SEP"
+
 # 5) Context-window fill % — "how close to a compaction" (color ramp). Uses the
 # payload's pre-computed used_percentage; silent when absent (e.g. before the
 # first API call or right after /compact).

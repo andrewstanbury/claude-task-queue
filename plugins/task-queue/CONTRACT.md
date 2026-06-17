@@ -112,6 +112,13 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
   single-sentence ask; a *consequential* visual change keeps the consequential
   scrutiny and appends a design-preview note. Relies on AskUserQuestion supporting
   `preview` (monospace ASCII).
+- **Open-questions reminder (always, if any):** before the loop logic, it reads the
+  native task store for this session (`tq_open_questions` — pending/in_progress tasks
+  whose subject starts with `❓`) and, if any exist, prepends a reminder so the model
+  re-raises them. Fires on EVERY prompt (trivial or paused included) — a new prompt is
+  when unanswered questions get buried. The model records them (TaskCreate `❓ …`) and
+  clears them (TaskUpdate → completed); recording is model-assisted (the hook only
+  re-surfaces). Disable with `CLAUDE_TQ_OPEN_Q=0`. hud mirrors the count (`❓N`).
 - **Intent of record (side effect):** on a substantive, non-paused prompt it also
   stashes the prompt text to `tq_intent_file($session_id)` (in the state dir) for the
   Stop gate below. Best-effort; gated off by `CLAUDE_TQ_INTENT_GATE=0`.

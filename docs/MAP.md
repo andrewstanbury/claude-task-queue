@@ -29,11 +29,11 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 | File | Responsibility |
 |---|---|
 | `bin/tq-resume.sh` | SessionStart: standing policy + cross-session resume + roadmap hydration + quiet-mode + pause/agent/drift signals. |
-| `bin/tq-capture.sh` | UserPromptSubmit: on any substantive prompt, inject the interpret→present→approve review loop (interpret → decompose → judge risk/fan-out → AskUserQuestion → create only approved) AND stash the prompt as the intent of record; on a **visual/design** prompt, inject the design-preview loop instead (recommended + alternatives as faithful ASCII mockups in the AskUserQuestion preview, arrow-keys + Enter to pick, build only the chosen one — demonstrate before build); silent on trivial prompts; suppressed when the repo is paused. |
+| `bin/tq-capture.sh` | UserPromptSubmit: on any substantive prompt, inject the interpret→present→approve review loop (interpret → decompose → judge risk/fan-out → AskUserQuestion → create only approved) AND stash the prompt as the intent of record; on a **visual/design** prompt, inject the design-preview loop instead (recommended + alternatives as faithful wireframe mockups in the AskUserQuestion preview, arrow-keys + Enter to pick, build only the chosen one — demonstrate before build); **always** re-surfaces any open-question (`❓`) the user hasn't answered (even on a trivial/paused prompt) so it isn't buried; silent on trivial prompts otherwise; loop suppressed when the repo is paused. |
 | `bin/tq-verify.sh` | Stop: the **intent→outcome gate** (loop close) — replay the stashed intent against the actual diff, block once (consumed per ask) so the model verifies the outcome matches the ask and recaps in plain language before "done". `CLAUDE_TQ_INTENT_GATE=0` to disable. |
 | `bin/tq-pause.sh` | Control: pause/resume the review loop (per repo) — paused runs prompts straight through in auto. |
 | `bin/tq-agent.sh` | Control: opt-in agent-mode (parallel subagent fan-out). |
-| `lib/tasks.sh` | Native task-store reads, resume logic, pause/agent flags, the intent-of-record file, drift canary. |
+| `lib/tasks.sh` | Native task-store reads, resume logic, pause/agent flags, the intent-of-record file, `tq_open_questions` (unanswered `❓` tasks this session), drift canary. |
 | `lib/project.sh` | Detect the committed roadmap/backlog file + the `claude-companion` marker. |
 | `lib/capture.sh` | Multi-step / consequential / **visual-design** heuristics; shared alignment clause. |
 
@@ -68,7 +68,7 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 
 | File | Responsibility |
 |---|---|
-| `bin/hud-status.sh` | The status-line renderer: health beacon · paused · agent · ✓/✗ tests · ctx % · branch+dirty · model. |
+| `bin/hud-status.sh` | The status-line renderer: health beacon · paused · agent · ✓/✗ tests · **❓ open-questions count** · ctx % · branch+dirty · model. |
 | `bin/hud-install.sh` | Wire the status line into `settings.json`, version-resilient, no refreshInterval (`/hud:setup`). |
 | `commands/setup.md` | `/hud:setup`. |
-| `lib/hud.sh` | Read-only accessors over the other plugins' state (paused, agent, verify result, branch, dirty). |
+| `lib/hud.sh` | Read-only accessors over the other plugins' state (paused, agent, verify result, branch, dirty, `hud_open_questions` ❓-count — mirror of task-queue, drift-guarded). |

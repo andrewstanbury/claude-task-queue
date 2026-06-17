@@ -32,6 +32,25 @@ tq_root_cache_file() { printf '%s/root-cache.tsv' "$(tq_state_dir)"; }
 # lives in the state dir (both hooks share CLAUDE_TQ_STATE_DIR=CLAUDE_PLUGIN_DATA).
 tq_intent_file()     { printf '%s/intent-%s' "$(tq_state_dir)" "$(printf '%s' "${1:-nosession}" | sed 's:/:-:g')"; }
 
+# Open QUESTIONS the user still owes an answer on (so a new prompt doesn't bury
+# them). Modelled as native tasks whose subject is marked with a leading "❓": the
+# model creates one with TaskCreate when it leaves an answer-worthy question
+# hanging, and marks it completed once the user answers or drops it. Lists the
+# subject of each pending/in_progress ❓ task for the GIVEN session (this
+# conversation), deduped, newest-file first. Empty when none / no session / no store.
+tq_open_questions() {
+  local sid="$1" tdir f
+  [ -n "$sid" ] || return 0
+  tdir="$(tq_tasks_dir)/$sid"
+  [ -d "$tdir" ] || return 0
+  for f in $(ls -t "$tdir"/*.json 2>/dev/null); do
+    [ -f "$f" ] || continue
+    jq -r 'select((.status=="pending" or .status=="in_progress")
+                  and ((.subject // "") | startswith("❓")))
+           | (.subject // "")' "$f" 2>/dev/null || true
+  done | awk 'NF && !seen[$0]++'
+}
+
 # Pause flags use a FIXED home (independent of any per-hook state-dir override) so
 # the capture hook that reads the flag (CLAUDE_TQ_STATE_DIR=CLAUDE_PLUGIN_DATA) and
 # bin/tq-pause.sh (run by the model in plain bash, no plugin env) resolve the SAME

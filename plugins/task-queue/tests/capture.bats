@@ -290,3 +290,44 @@ run_capture() {
   [[ "$output" == *"New substantive work"* ]]
   [[ "$output" != *"WIREFRAME"* ]]
 }
+
+# ---- open-questions reminder (don't let answers get buried) ------------------
+
+make_question() {   # $1=session $2=id $3=subject
+  mkdir -p "$CLAUDE_TQ_TASKS_DIR/$1"
+  jq -n --arg id "$2" --arg s "$3" '{id:$id, subject:$s, status:"pending", blocks:[], blockedBy:[]}' \
+    > "$CLAUDE_TQ_TASKS_DIR/$1/$2.json"
+}
+
+@test "open questions: a lingering ❓ is re-surfaced even on a TRIVIAL new prompt" {
+  make_question sess q1 "❓ Should the gate block or warn?"
+  run run_capture "fix the typo"                 # trivial → normally silent
+  [[ "$output" == *"unanswered question"* ]]
+  [[ "$output" == *"block or warn"* ]]
+}
+
+@test "open questions: the reminder rides ALONGSIDE the review loop on substantive work" {
+  make_question sess q1 "❓ Which design did you want?"
+  run run_capture "$MULTI"
+  [[ "$output" == *"unanswered question"* ]]
+  [[ "$output" == *"New substantive work"* ]]    # loop instruction still present
+}
+
+@test "open questions: silent when there are none" {
+  run run_capture "fix the typo"
+  [ -z "$output" ]
+}
+
+@test "open questions: a completed ❓ does not count" {
+  mkdir -p "$CLAUDE_TQ_TASKS_DIR/sess"
+  jq -n '{id:"q",subject:"❓ already answered",status:"completed",blocks:[],blockedBy:[]}' \
+    > "$CLAUDE_TQ_TASKS_DIR/sess/q.json"
+  run run_capture "fix the typo"
+  [ -z "$output" ]
+}
+
+@test "open questions: disabled via CLAUDE_TQ_OPEN_Q=0" {
+  make_question sess q1 "❓ x"
+  CLAUDE_TQ_OPEN_Q=0 run run_capture "fix the typo"
+  [ -z "$output" ]
+}

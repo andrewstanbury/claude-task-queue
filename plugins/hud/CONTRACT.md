@@ -46,11 +46,16 @@ heaviest cross-plugin doc-detection mirrors. Remaining reads:
   `CLAUDE_HUD_VERIFY_DIR`.
 - **Dirty tree:** `git status --porcelain` count for the cwd, shown as `*N` next
   to the branch.
+- **Open questions:** the native task store (`~/.claude/tasks/<session-id>/*.json`),
+  counting pending/in_progress tasks whose subject starts with `❓`, rendered as
+  `❓N`. A read of the *native task store schema* (`subject`/`status`) — the same
+  schema task-queue depends on — and a mirror of `tq_open_questions`. Override:
+  `CLAUDE_HUD_TASKS_DIR` (falls back to `CLAUDE_TQ_TASKS_DIR`).
 
 This is a **soft coupling via file paths**: if a sibling plugin changes where it
 writes, hud's defaults need updating in step. Documented here so that's traceable.
-(The `tq_roadmap_path`/`tq_decisions_path` mirrors task-queue still keeps are
-covered by `tests/drift-guard.bats`.)
+(The `tq_roadmap_path`/`tq_decisions_path` and now `tq_open_questions` mirrors of
+task-queue are covered by `tests/drift-guard.bats`.)
 
 ### 3. Environment
 

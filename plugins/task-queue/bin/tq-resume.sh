@@ -37,7 +37,7 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/project.sh"
 
 # Trimmed standing policy (re-injected on each fresh SessionStart, so kept lean).
-POLICY='[task-queue] Your native task list IS the live work queue. For substantive/multi-step work, FIRST run the interpret→present→approve loop: show your one-line reading of the request and a proposed task breakdown (mark parallel-vs-inline, give candid per-task recommendations incl. skip) and get the user'"'"'s sign-off via AskUserQuestion BEFORE queuing. Then TaskCreate the approved tasks, work them in dependency order (honor blockedBy), and advance as you finish — without draining the backlog unprompted. Trivial prompts: just do them.'
+POLICY='[task-queue] Your native task list IS the live work queue. For substantive/multi-step work, FIRST run the interpret→present→approve loop: show your one-line reading of the request and a proposed task breakdown (mark parallel-vs-inline, give candid per-task recommendations incl. skip) and get the user'"'"'s sign-off via AskUserQuestion BEFORE queuing. Then TaskCreate the approved tasks, work them in dependency order (honor blockedBy), and advance as you finish — without draining the backlog unprompted. Trivial prompts: just do them. Open questions: when you end a turn with a question the user should answer but might move on without (an offer, a clarification, a decision left to them), TaskCreate it as "❓ <the question>" so it is not lost; mark it completed once they answer or explicitly drop it. Prefer a blocking AskUserQuestion for anything that genuinely needs an answer.'
 
 # SessionStart hands us JSON on stdin: { session_id, cwd, source, ... }.
 input=""

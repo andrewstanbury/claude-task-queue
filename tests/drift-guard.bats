@@ -71,3 +71,20 @@ assert_decisions_agree() {   # charter vs task-queue
   [ "$c" = "$t" ]
   [ -n "$c" ]                                  # guard the guard: there IS a hotspot to compare
 }
+
+@test "open-questions: hud_open_questions count agrees with task-queue's tq_open_questions" {
+  . "$R/plugins/task-queue/lib/tasks.sh"
+  . "$R/plugins/hud/lib/hud.sh"
+  export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
+  mkdir -p "$CLAUDE_TQ_TASKS_DIR/sD"
+  jq -n '{id:"1",subject:"❓ one",status:"pending"}'        > "$CLAUDE_TQ_TASKS_DIR/sD/1.json"
+  jq -n '{id:"2",subject:"❓ two",status:"in_progress"}'    > "$CLAUDE_TQ_TASKS_DIR/sD/2.json"
+  jq -n '{id:"3",subject:"plain work",status:"pending"}'   > "$CLAUDE_TQ_TASKS_DIR/sD/3.json"
+  jq -n '{id:"4",subject:"❓ done",status:"completed"}'     > "$CLAUDE_TQ_TASKS_DIR/sD/4.json"
+  local hud_n tq_n
+  hud_n="$(hud_open_questions sD)"
+  tq_n="$(tq_open_questions sD | grep -c .)"
+  [ "$hud_n" = "$tq_n" ]
+  [ "$hud_n" = "2" ]
+  rm -rf "$CLAUDE_TQ_TASKS_DIR"
+}

@@ -79,7 +79,14 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   so the model verifies the OUTCOME matches the request and recaps in plain language,
   surfacing "built the wrong thing / only part / something extra" to the non-technical
   owner before declaring done. `CLAUDE_TQ_INTENT_GATE=0` disables it; pause suppresses
-  capture too.
+  capture too. **Open-questions tracker:** answer-owed questions the model leaves
+  hanging are recorded as native `❓` tasks; the capture hook re-surfaces any
+  unanswered one on the **next** prompt (even a trivial/paused one — a new prompt is
+  exactly when they get buried), and **hud** shows an ambient `❓N` count so they get
+  *noticed* without anyone re-raising them. Model-assisted recording (it judges which
+  questions are answer-worthy; the hooks make them persistent + visible);
+  `CLAUDE_TQ_OPEN_Q=0` disables. hud's count is a drift-guarded mirror of
+  `tq_open_questions`.
 - **tidy** — on touch: format + lint (Go/web/Python/shell, fast file-scoped tools) +
   blast-radius + coverage/size nudges. On Stop: the **verification floor**
   (run the project's tests, block until green, bounded); the **regression gate**
