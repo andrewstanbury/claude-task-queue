@@ -62,6 +62,7 @@ gfile="$cdir/covgate-$key"         # coverage-ratchet block counter
 rgfile="$cdir/regress-$key"        # regression-gate block counter
 pfile="$cdir/prune-$key"           # debt-surfaced-this-episode flag (Stop debt nudge)
 cyfile="$cdir/cycles-$key"         # last-surfaced import-cycle set (content hash)
+qfile="$cdir/quality-$key"         # quality-floor block counter
 
 # Post-work architecture + debt surface (fires AFTER the turn's work, not before
 # the user's intent). On a dirty tree that verified clean it surfaces, NON-blocking
@@ -99,6 +100,44 @@ surface_debt_then_allow() {
   fi
   [ -n "$msg" ] && jq -cn --arg m "$msg" '{systemMessage: $m}'
   exit 0
+}
+
+# Quality floor: enforce the project's OWN declared quality gates (typecheck, a11y/
+# perf, dependency-rule architecture — discovered by tidy_quality_commands) the same
+# way as the test command — detect-and-run, block until green, bounded. Reaching the
+# green test branch (which stores the throttle hash) therefore means quality AND
+# tests both passed. Heavy audits (Lighthouse/CWV) stay in the project's CI; this
+# only runs the gates the project already wired into package.json. On the first
+# failing gate it blocks (bounded by $qfile, like the test floor: a give-up
+# systemMessage after the cap, a timeout note that won't loop). Returns when all
+# gates pass / none exist. Disable with CLAUDE_TIDY_QUALITY_FLOOR=0.
+run_quality_floor() {
+  local gates label cmd qout qrc qmax qcount
+  gates="$(tidy_quality_commands "$root" 2>/dev/null || true)"
+  [ -n "$gates" ] || return 0
+  while IFS=$'\t' read -r label cmd; do
+    [ -n "$cmd" ] || continue
+    qout="$(tidy_run_checks "$root" "$cmd" 2>/dev/null)"; qrc=$?
+    [ "$qrc" -eq 0 ] && continue
+    if [ "$qrc" -eq 124 ]; then
+      jq -cn --arg m "⚠️ Quality gate '$label' timed out ($cmd) — couldn't verify; run it manually if needed." '{systemMessage: $m}'
+      exit 0
+    fi
+    qmax="${CLAUDE_TIDY_VERIFY_MAX:-3}"; qcount=0
+    [ -f "$qfile" ] && qcount="$(cat "$qfile" 2>/dev/null || printf 0)"
+    qcount="${qcount//[^0-9]/}"; [ -n "$qcount" ] || qcount=0
+    if [ "$qcount" -ge "$qmax" ]; then
+      rm -f "$qfile" 2>/dev/null || true
+      jq -cn --arg m "⚠️ Quality gate '$label' still failing after $qcount attempts ($cmd) — needs attention before it's trusted." '{systemMessage: $m}'
+      exit 0
+    fi
+    { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$((qcount + 1))" > "$qfile"; } 2>/dev/null || true
+    jq -cn --arg r "The project's '$label' quality gate is failing after your change — nothing is done until it passes. Run \`$cmd\`, read the output, and fix what your change introduced (leave unrelated pre-existing issues alone):"$'\n\n'"$qout" \
+      '{decision: "block", reason: $r}'
+    exit 0
+  done <<< "$gates"
+  rm -f "$qfile" 2>/dev/null || true                  # all gates green → reset counter
+  return 0
 }
 
 # Coverage ratchet (opt-in, strict): block the stop until every changed source
@@ -157,19 +196,24 @@ if [ "${CLAUDE_TIDY_REGRESSION_GATE:-1}" != "0" ] && [ "${CLAUDE_TIDY_COVERAGE_R
 fi
 
 cmd="$(tidy_test_command "$root" 2>/dev/null || true)"
-[ -n "$cmd" ] || surface_debt_then_allow              # no tests → still surface debt
 
 # Record the last outcome (pass|fail|timeout) so the status line can show it.
 # Best-effort; never affects the stop decision.
 tidy_set_result() { { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$1" > "$rfile"; } 2>/dev/null || true; }
 
 # Throttle: if the tree is byte-for-byte what it was at the last GREEN verify,
-# nothing changed since — skip the (possibly slow) run. (A failed/timeout verify
-# clears the fingerprint, so we never skip past red tests.)
+# nothing changed since — skip the (possibly slow) quality + test run. (A failed/
+# timeout verify clears the fingerprint, so we never skip past red tests/gates.)
 cur="$(tidy_tree_hash "$root" 2>/dev/null || true)"
 if [ -n "$cur" ] && [ -f "$hfile" ] && [ "$(cat "$hfile" 2>/dev/null || true)" = "$cur" ]; then
   allow
 fi
+
+# Enforce the project's own declared quality gates first (typecheck/a11y/dep-rules).
+# Blocks on a failing gate; returns when they pass / none exist.
+run_quality_floor
+
+[ -n "$cmd" ] || surface_debt_then_allow              # no test command → still surface debt/cycles
 
 out="$(tidy_run_checks "$root" "$cmd" 2>/dev/null)"; rc=$?
 

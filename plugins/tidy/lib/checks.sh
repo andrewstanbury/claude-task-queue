@@ -75,3 +75,31 @@ tidy_run_checks() {
   printf '%s' "$out" | tail -n 30
   return "$rc"
 }
+
+# Discover the project's OWN declared quality gates beyond its test command —
+# typecheck, a11y/perf, and architecture (dependency rules) — as package.json
+# scripts (npm/pnpm/yarn). The verification floor runs these so the bar the
+# PROJECT already set is enforced, without inventing or installing anything
+# (detect-and-run, like tidy_test_command). Prints "label<TAB>command" per gate.
+# CLAUDE_TIDY_QUALITY_CMD overrides with a single synthetic gate (manual/testing).
+# Empty when disabled, no package.json, or no recognised scripts.
+tidy_quality_commands() {
+  local root="$1" pm pkg s label
+  [ "${CLAUDE_TIDY_QUALITY_FLOOR:-1}" = "0" ] && return 0
+  if [ -n "${CLAUDE_TIDY_QUALITY_CMD:-}" ]; then
+    printf 'quality\t%s\n' "$CLAUDE_TIDY_QUALITY_CMD"; return 0
+  fi
+  pkg="$root/package.json"; [ -f "$pkg" ] || return 0
+  pm=npm
+  [ -f "$root/pnpm-lock.yaml" ] && pm=pnpm
+  [ -f "$root/yarn.lock" ] && pm=yarn
+  while IFS= read -r s; do
+    case "$s" in
+      typecheck|type-check|tsc|types)                         label=typecheck ;;
+      a11y|test:a11y|lighthouse|lhci|test:lighthouse)         label='a11y/perf' ;;
+      depcruise|dependency-cruiser|deps:check|arch|arch:check|boundaries) label=architecture ;;
+      *) continue ;;
+    esac
+    printf '%s\t%s run %s\n' "$label" "$pm" "$s"
+  done < <(jq -r '.scripts // {} | keys[]' "$pkg" 2>/dev/null)
+}

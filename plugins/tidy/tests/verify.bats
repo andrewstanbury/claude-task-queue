@@ -282,3 +282,52 @@ cyc_repo() {
   run bash -c 'printf "%s" "$1" | PATH="$2:$PATH" CLAUDE_TIDY_TEST_CMD=true CLAUDE_TIDY_CYCLE_CHECK=0 "$3"' _ "$json" "$WORK/fakebin" "$VERIFY"
   [ -z "$output" ]
 }
+
+# ---- quality floor (the project's own typecheck/a11y/dep-rule gates) ---------
+
+@test "quality floor: discovers the project's typecheck/a11y/arch scripts (not test/lint)" {
+  local repo="$WORK/q0"; mkdir -p "$repo"
+  printf '{"scripts":{"test":"jest","typecheck":"tsc","a11y":"axe","lint":"eslint","arch":"depcruise"}}\n' > "$repo/package.json"
+  src='. "$1/lib/checks.sh";'
+  run bash -c "$src"' tidy_quality_commands "$2"' bash "$ROOT" "$repo"
+  [[ "$output" == *"typecheck"* ]]
+  [[ "$output" == *"a11y/perf"* ]]
+  [[ "$output" == *"architecture"* ]]
+  [[ "$output" != *"jest"* ]]                 # the test script is the floor, not a gate
+  [[ "$output" != *"eslint"* ]]               # project-wide lint stays at edit time
+}
+
+@test "quality floor: blocks on a failing gate, before the tests even run" {
+  local repo="$WORK/q1"; mkdir -p "$repo"; git -C "$repo" init -q; : > "$repo/x.txt"
+  export CLAUDE_TIDY_QUALITY_CMD='echo TYPE-ERR; exit 1' CLAUDE_TIDY_TEST_CMD='echo SHOULD-NOT-RUN'
+  run run_verify "$repo" q1
+  [[ "$output" == *'"decision":"block"'* ]]
+  [[ "$output" == *"quality gate"* ]]
+  [[ "$output" == *"TYPE-ERR"* ]]
+  [[ "$output" != *"SHOULD-NOT-RUN"* ]]        # quality blocked before the test command ran
+}
+
+@test "quality floor: silent when the gate passes (tests then run)" {
+  local repo="$WORK/q2"; mkdir -p "$repo"; git -C "$repo" init -q; : > "$repo/x.txt"
+  export CLAUDE_TIDY_QUALITY_CMD='true' CLAUDE_TIDY_TEST_CMD='true'
+  run run_verify "$repo" q2
+  [ -z "$output" ]
+}
+
+@test "quality floor: disabled via CLAUDE_TIDY_QUALITY_FLOOR=0" {
+  local repo="$WORK/q3"; mkdir -p "$repo"; git -C "$repo" init -q; : > "$repo/x.txt"
+  export CLAUDE_TIDY_QUALITY_CMD='exit 1' CLAUDE_TIDY_QUALITY_FLOOR=0 CLAUDE_TIDY_TEST_CMD='true'
+  run run_verify "$repo" q3
+  [ -z "$output" ]
+}
+
+@test "quality floor: bounded — gives up after the cap with a soft note" {
+  local repo="$WORK/q4"; mkdir -p "$repo"; git -C "$repo" init -q; : > "$repo/x.txt"
+  export CLAUDE_TIDY_QUALITY_CMD='exit 1' CLAUDE_TIDY_VERIFY_MAX=2
+  run run_verify "$repo" q4; [[ "$output" == *block* ]]
+  run run_verify "$repo" q4; [[ "$output" == *block* ]]
+  run run_verify "$repo" q4
+  [[ "$output" == *"systemMessage"* ]]
+  [[ "$output" == *"Quality gate"* ]]
+  [[ "$output" != *block* ]]
+}

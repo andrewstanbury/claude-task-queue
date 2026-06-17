@@ -116,6 +116,16 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   vs HEAD), not just files touched this session, so pre-existing uncommitted
   untested files also trip it — another reason it's opt-in.
 
+- **Quality floor (always-on, same Stop hook):** before the test run, it enforces
+  the project's OWN declared quality gates beyond its test command — `tidy_quality_commands`
+  discovers package.json scripts named `typecheck`/`type-check`/`tsc`, `a11y`/`lighthouse`/
+  `lhci`, `depcruise`/`dependency-cruiser`/`arch`/`boundaries` (run via the lockfile's
+  package manager) — and blocks until each passes, **bounded** like the test floor
+  (`$qfile` counter → give-up `systemMessage` after `CLAUDE_TIDY_VERIFY_MAX`; timeouts
+  don't loop). Detect-and-run only: it installs/invents nothing and runs nothing the
+  project didn't wire up; heavy Lighthouse/CWV audits stay in CI. `CLAUDE_TIDY_QUALITY_CMD`
+  overrides with a single synthetic gate; `CLAUDE_TIDY_QUALITY_FLOOR=0` disables. It
+  runs after the throttle, so a stored green hash means quality **and** tests passed.
 - **Regression gate (always-on, same Stop hook):** before the test run, it blocks
   when a changed file is BOTH a **scar-tissue hotspot** (repeatedly fixed — by the
   git rework ratio) AND **untested** (`tidy_untested_hotspots` = `tidy_untested_changed`
