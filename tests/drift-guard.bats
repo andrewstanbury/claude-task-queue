@@ -88,3 +88,13 @@ assert_decisions_agree() {   # charter vs task-queue
   [ "$hud_n" = "2" ]
   rm -rf "$CLAUDE_TQ_TASKS_DIR"
 }
+
+@test "README plugin versions match the marketplace (can't silently drift)" {
+  local readme="$R/README.md" market="$R/.claude-plugin/marketplace.json" p mv rv
+  for p in task-queue tidy charter hud; do
+    mv="$(jq -r --arg n "$p" '.plugins[]|select(.name==$n)|.version' "$market")"
+    rv="$(grep -E "^\| \*\*$p\*\* \|" "$readme" | sed -E 's/^\| \*\*[a-z-]+\*\* \| *([0-9.]+) *\|.*/\1/')"
+    [ -n "$mv" ]
+    [ "$rv" = "$mv" ] || { echo "README $p=$rv but marketplace=$mv"; false; }
+  done
+}

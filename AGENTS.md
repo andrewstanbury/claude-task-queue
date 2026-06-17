@@ -149,8 +149,9 @@ so green locally means green in CI (modulo locally-skipped tools).
   reviews. It can't run `shellcheck`/`gitleaks` locally (not installed), so for
   shell-heavy changes CI may catch what local can't; if CI reddens, **fix
   forward** with another commit (brief red `main` is fine — no other consumers).
-- **Versions** in `plugin.json` + the marketplace entry must match (a packaging
-  test enforces it); bump only when it's meaningful, not every change.
+- **Versions** in `plugin.json` + the marketplace entry **+ the README's plugin
+  table** must match (a packaging test + `tests/drift-guard.bats` enforce both); bump
+  only when it's meaningful, not every change.
 
 ## Add a plugin
 

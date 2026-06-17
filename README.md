@@ -38,12 +38,12 @@ steer. Built for an owner who reads no code and runs no commands.
 
 ## The four plugins
 
-| Plugin | Role | Highlights |
-|---|---|---|
-| **task-queue** | Orchestrate | review loop · wireframe design preview · intent→outcome gate · open-questions tracker · cross-session resume |
-| **tidy** | Change safely | format/lint on touch · blast-radius · verification floor · regression gate · quality floor · import-cycle check · auto-prune |
-| **charter** | Know the project | doc & decisions gate · alignment floor · outcome-memory "scar tissue" · conventions · owner loop |
-| **hud** | Show | one read-only status line — health · tests · open-Qs · context % · branch · model |
+| Plugin | Ver | Role | Highlights |
+|---|---|---|---|
+| **task-queue** | 0.27.1 | Orchestrate | review loop · wireframe design preview · intent→outcome gate · open-questions tracker · cross-session resume |
+| **tidy** | 0.38.1 | Change safely | format/lint on touch · blast-radius · verification floor · regression gate · quality floor · import-cycle check · auto-prune |
+| **charter** | 0.19.0 | Know the project | doc & decisions gate · alignment floor · outcome-memory "scar tissue" · conventions · owner loop |
+| **hud** | 0.6.0 | Show | one read-only status line — health · tests · open-Qs · context % · branch · model |
 
 Each plugin is independently installable · Bash + `jq` · zero build.
 
