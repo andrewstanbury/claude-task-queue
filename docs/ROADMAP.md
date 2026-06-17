@@ -9,11 +9,18 @@ The goal: a set of Claude Code plugins that let you **vibe-code an entire projec
 while Claude keeps it clean, well-documented, token-efficient, and low-debt —
 **proactively, with minimal input**, entirely through the CLI. The owner reads no
 code, no docs, and runs no commands; the system is automatic and artifact-free
-(only **lean Claude-context** files, never human-facing prose). *One sanctioned
-exception (owner-requested):* `flow.sh` at the repo root (`./flow.sh` / `make flow`)
-renders an at-a-glance colored workflow diagram in the terminal — in the hand-drawn
-visual format, but **derived live** from the repo (hook wiring, the review-loop steps,
-versions, permission state) so it can't drift. Keep it; don't prune it.
+(only **lean Claude-context** files, never human-facing prose). *Two sanctioned
+human-facing surfaces (owner-requested):* (1) `flow.sh` at the repo root (`./flow.sh`
+/ `make flow`) renders an at-a-glance colored workflow diagram in the terminal — in
+the hand-drawn visual format, but **derived live** from the repo (hook wiring, the
+review-loop steps, versions, permission state) so it can't drift; and (2) a lean
+`README.md` for **GitHub discoverability** — a *different audience* than the
+artifact-free principle addresses (repo visitors deciding whether to install, not the
+owner operating the system). The README is deliberately high-level (what it is, the
+flow, the 4 plugins, install) so it ages slowly, and points at `flow.sh` for the live
+flow. Keep both; don't prune them. *(2026-06-17: README re-added — the original
+redesign deleted it as an owner-workflow doc; this restores it for discoverability,
+which that decision didn't contemplate.)*
 
 ## Prioritized criteria (in order)
 
