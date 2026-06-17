@@ -69,7 +69,7 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 
 | File | Responsibility |
 |---|---|
-| `bin/hud-status.sh` | The status-line renderer: health beacon · paused · agent · ✓/✗ tests · **❓ open-questions count** · ctx % · branch+dirty · model. |
+| `bin/hud-status.sh` | The status-line renderer: health beacon · paused · agent · ✓/✗ tests · **❓ open-questions count** · **🔗↑ coupling-rising** · ctx % · branch+dirty · model. |
 | `bin/hud-install.sh` | Wire the status line into `settings.json`, version-resilient, no refreshInterval (`/hud:setup`). |
 | `commands/setup.md` | `/hud:setup`. |
-| `lib/hud.sh` | Read-only accessors over the other plugins' state (paused, agent, verify result, branch, dirty, `hud_open_questions` ❓-count — mirror of task-queue, drift-guarded). |
+| `lib/hud.sh` | Read-only accessors over the other plugins' state (paused, agent, verify result, branch, dirty, `hud_open_questions` ❓-count, `hud_coupling` 🔗↑ direction — read-only mirrors/markers). |

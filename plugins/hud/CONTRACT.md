@@ -51,6 +51,12 @@ heaviest cross-plugin doc-detection mirrors. Remaining reads:
   `❓N`. A read of the *native task store schema* (`subject`/`status`) — the same
   schema task-queue depends on — and a mirror of `tq_open_questions`. Override:
   `CLAUDE_HUD_TASKS_DIR` (falls back to `CLAUDE_TQ_TASKS_DIR`).
+- **Coupling trend:** tidy-verify's cached direction marker at
+  `~/.claude/state/tidy/coupling-hud/<encoded-root>` (`up`/`steady`), rendered as
+  `🔗↑` only when `up`. hud **never computes** coupling density itself (a repo-wide
+  scan is too heavy for a per-render status line) — it only reads the marker tidy
+  writes at Stop, so the indicator reflects the last verify. Override:
+  `CLAUDE_HUD_COUPLING_DIR`.
 
 This is a **soft coupling via file paths**: if a sibling plugin changes where it
 writes, hud's defaults need updating in step. Documented here so that's traceable.

@@ -96,6 +96,12 @@ esac
 OPENQ="$(hud_open_questions "$SID" 2>/dev/null || printf 0)"
 [ "${OPENQ:-0}" -gt 0 ] 2>/dev/null && printf "%s❓%s%s%s" "$Y$B" "$OPENQ" "$X" "$SEP"
 
+# 4c) Coupling trend — 🔗↑ only when import density climbed past the threshold at
+# tidy's last verify (cached read; hud never computes it). Hidden when steady.
+case "$(hud_coupling "$ROOT" 2>/dev/null)" in
+  up*) printf "%s🔗↑%s%s" "$Y$B" "$X" "$SEP" ;;
+esac
+
 # 5) Context-window fill % — "how close to a compaction" (color ramp). Uses the
 # payload's pre-computed used_percentage; silent when absent (e.g. before the
 # first API call or right after /compact).

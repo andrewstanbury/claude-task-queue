@@ -62,6 +62,7 @@ gfile="$cdir/covgate-$key"         # coverage-ratchet block counter
 rgfile="$cdir/regress-$key"        # regression-gate block counter
 pfile="$cdir/prune-$key"           # debt-surfaced-this-episode flag (Stop debt nudge)
 cpfile="$(tidy_log_dir)/coupling/$(printf '%s' "$root" | sed 's:/:-:g')"  # coupling-density baseline (per repo)
+chfile="$(tidy_log_dir)/coupling-hud/$(printf '%s' "$root" | sed 's:/:-:g')"  # cached coupling direction for hud (up|steady)
 cyfile="$cdir/cycles-$key"         # last-surfaced import-cycle set (content hash)
 qfile="$cdir/quality-$key"         # quality-floor block counter
 
@@ -72,7 +73,7 @@ qfile="$cdir/quality-$key"         # quality-floor block counter
 # set stays quiet; and (b) a subtractive PRUNE pass when over-budget files cross
 # the threshold, throttled once per debt episode ($pfile).
 surface_debt_then_allow() {
-  local msg="" cyc chash over n threshold budget report dmsg ccur cprev delta pct thr cmsg
+  local msg="" cyc chash over n threshold budget report dmsg ccur cprev delta pct thr cmsg cstate
   # (a) clean-architecture: import cycles touching this change (zero owner config).
   cyc="$(tidy_cycles_changed "$root" 2>/dev/null | head -n 10 || true)"
   if [ -n "$cyc" ]; then
@@ -107,6 +108,7 @@ surface_debt_then_allow() {
     ccur="$(tidy_coupling_density "$root" 2>/dev/null || printf 0)"
     ccur="${ccur//[^0-9]/}"; [ -n "$ccur" ] || ccur=0
     if [ "$ccur" -gt 0 ]; then
+      cstate=steady                          # hud cache: up only on a threshold climb
       cprev=""; [ -f "$cpfile" ] && cprev="$(cat "$cpfile" 2>/dev/null || true)"
       cprev="${cprev//[^0-9]/}"
       if [ -z "$cprev" ] || [ "$ccur" -le "$cprev" ]; then
@@ -114,12 +116,15 @@ surface_debt_then_allow() {
       else
         delta=$((ccur - cprev)); pct=$((delta * 100 / cprev)); thr="${CLAUDE_TIDY_COUPLING_DELTA:-15}"
         if [ "$pct" -ge "$thr" ]; then
+          cstate=up
           { mkdir -p "$(dirname "$cpfile")" 2>/dev/null && printf '%s' "$ccur" > "$cpfile"; } 2>/dev/null || true
           cmsg="[tidy] Coupling trend — import density up ${pct}% ($(printf '%d.%02d' $((cprev/100)) $((cprev%100))) → $(printf '%d.%02d' $((ccur/100)) $((ccur%100))) imports/file) since the last check. Coupling is climbing faster than the file count; consider a boundary pass (one owner per concern, reuse before create, invert a dependency) before it compounds — route any cuts through the task-queue review loop."
           [ -n "$msg" ] && msg="$msg"$'\n\n'"$cmsg" || msg="$cmsg"
         fi
         # grew but below threshold → leave the baseline so creep accumulates
       fi
+      # cache the direction for hud's ambient 🔗↑ indicator (read-only, cheap)
+      { mkdir -p "$(dirname "$chfile")" 2>/dev/null && printf '%s' "$cstate" > "$chfile"; } 2>/dev/null || true
     fi
   fi
   [ -n "$msg" ] && jq -cn --arg m "$msg" '{systemMessage: $m}'

@@ -13,6 +13,18 @@ hud_pause_dir()  { printf '%s' "${CLAUDE_HUD_PAUSE_DIR:-$HOME/.claude/state/task
 hud_agent_dir()  { printf '%s' "${CLAUDE_HUD_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}"; }
 hud_verify_dir() { printf '%s' "${CLAUDE_HUD_VERIFY_DIR:-$HOME/.claude/state/tidy/verify}"; }
 hud_tasks_dir()  { printf '%s' "${CLAUDE_HUD_TASKS_DIR:-${CLAUDE_TQ_TASKS_DIR:-$HOME/.claude/tasks}}"; }
+hud_coupling_dir() { printf '%s' "${CLAUDE_HUD_COUPLING_DIR:-$HOME/.claude/state/tidy/coupling-hud}"; }
+
+# Coupling-density trend direction for this repo — "up" when tidy's last verify saw
+# import density climbing past the threshold, else "steady"/"" (empty when never
+# computed / too-small repo). A cheap read of the cached marker tidy-verify writes;
+# hud never computes density itself (too heavy for a per-render status line).
+hud_coupling() {
+  local root="$1" f
+  [ -n "$root" ] || return 0
+  f="$(hud_coupling_dir)/$(printf '%s' "$root" | sed 's:/:-:g')"
+  [ -f "$f" ] && cat "$f" 2>/dev/null
+}
 
 # Count of OPEN QUESTIONS the user still owes an answer on this session — native
 # tasks whose subject starts with "❓", pending/in_progress, deduped by subject.

@@ -369,3 +369,13 @@ cd_repo() {  # $1=repo : 6 source files, 2 imports each → density 200
   run run_verify "$repo" d2
   [ -z "$output" ]
 }
+
+@test "coupling trend: writes the hud direction marker (up on climb, steady otherwise)" {
+  local repo="$WORK/ch"; cd_repo "$repo"
+  export CLAUDE_TIDY_TEST_CMD='true'
+  local enc; enc="$(printf '%s' "$repo" | sed 's:/:-:g')"
+  printf 'x\n' >> "$repo/f1.js"; run run_verify "$repo" h1
+  [ "$(cat "$CLAUDE_TIDY_LOG_DIR/coupling-hud/$enc" 2>/dev/null)" = "steady" ]
+  printf 'import c\nimport d\nimport e\nimport f\n' >> "$repo/f2.js"; run run_verify "$repo" h2
+  [ "$(cat "$CLAUDE_TIDY_LOG_DIR/coupling-hud/$enc" 2>/dev/null)" = "up" ]
+}
