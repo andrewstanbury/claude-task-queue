@@ -260,14 +260,18 @@ run_capture() {
   done
 }
 
-@test "design change triggers the ASCII-preview present loop, even when short" {
+@test "design change triggers the wireframe-preview present loop, even when short" {
   run run_capture "make the login page look cleaner"   # 6 words: not multi-step, still fires
   [[ "$output" == *"Design change"* ]]
-  [[ "$output" == *"ASCII mockup"* ]]
+  [[ "$output" == *"WIREFRAME mockup"* ]]
   [[ "$output" == *"AskUserQuestion"* ]]
   [[ "$output" == *"(Recommended)"* ]]
   [[ "$output" == *"arrow keys"* ]]
   [[ "$output" == *"Enter"* ]]
+  # the chosen wireframe convention is specified (weight via shading/fill/border)
+  [[ "$output" == *"▒"* ]]
+  [[ "$output" == *"█"* ]]
+  [[ "$output" == *"heavy box border"* ]]
 }
 
 @test "design change is substantive → its intent is recorded for the outcome gate" {
@@ -278,11 +282,11 @@ run_capture() {
 @test "a consequential design change keeps CONSEQUENTIAL scrutiny + a design-preview note" {
   run run_capture "redesign and migrate the checkout to the paid stripe widget"
   [[ "$output" == *"CONSEQUENTIAL"* ]]
-  [[ "$output" == *"ASCII mockups"* ]]            # design note appended to the consequential path
+  [[ "$output" == *"WIREFRAME mockups"* ]]        # design note appended to the consequential path
 }
 
-@test "a plain non-visual substantive prompt still uses the generic loop (no ASCII)" {
+@test "a plain non-visual substantive prompt still uses the generic loop (no wireframe)" {
   run run_capture "$MULTI"
   [[ "$output" == *"New substantive work"* ]]
-  [[ "$output" != *"ASCII"* ]]
+  [[ "$output" != *"WIREFRAME"* ]]
 }
