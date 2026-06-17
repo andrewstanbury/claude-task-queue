@@ -57,7 +57,9 @@ if [ "${CLAUDE_TQ_OPEN_Q:-1}" != "0" ]; then
   if [ -n "$openq" ]; then
     qn="$(printf '%s\n' "$openq" | grep -c .)"
     qlist="$(printf '%s\n' "$openq" | sed 's/^/  • /')"
-    qreminder="↩ [task-queue] Before this — the user has $qn unanswered question(s) still open from earlier (they may have moved on without answering):"$'\n'"$qlist"$'\n'"Re-raise them in plain language so they're not lost; mark each done (TaskUpdate) once it's answered or explicitly dropped."
+    # Terse on purpose: the how-to (re-raise, mark done via TaskUpdate) lives in the
+    # SessionStart policy, so this recurring per-prompt nudge carries only the LIST.
+    qreminder="↩ [task-queue] $qn unanswered question(s) still open — re-raise before continuing:"$'\n'"$qlist"
   fi
 fi
 
