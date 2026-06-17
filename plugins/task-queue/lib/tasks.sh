@@ -37,13 +37,13 @@ tq_intent_file()     { printf '%s/intent-%s' "$(tq_state_dir)" "$(printf '%s' "$
 # model creates one with TaskCreate when it leaves an answer-worthy question
 # hanging, and marks it completed once the user answers or drops it. Lists the
 # subject of each pending/in_progress ❓ task for the GIVEN session (this
-# conversation), deduped, newest-file first. Empty when none / no session / no store.
+# conversation), deduped by subject. Empty when none / no session / no store.
 tq_open_questions() {
   local sid="$1" tdir f
   [ -n "$sid" ] || return 0
   tdir="$(tq_tasks_dir)/$sid"
   [ -d "$tdir" ] || return 0
-  for f in $(ls -t "$tdir"/*.json 2>/dev/null); do
+  for f in "$tdir"/*.json; do
     [ -f "$f" ] || continue
     jq -r 'select((.status=="pending" or .status=="in_progress")
                   and ((.subject // "") | startswith("❓")))
