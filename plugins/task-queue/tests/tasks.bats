@@ -192,8 +192,8 @@ resume_with_source() {
   make_task s1 3 completed   "Init repo"
   run run_resume "s2" "/home/x/alpha"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"[doing] Wire engine"* ]]
-  [[ "$output" == *"[todo]  Build login"* ]]
+  [[ "$output" == *"⏳ Wire engine"* ]]
+  [[ "$output" == *"◻ Build login"* ]]
   # completed tasks are not carried over
   [[ "$output" != *"Init repo"* ]]
 }
@@ -223,7 +223,7 @@ resume_with_source() {
   make_task s1 1 in_progress "Deep work"
   run run_resume "s2" "$repo/c"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"[doing] Deep work"* ]]
+  [[ "$output" == *"⏳ Deep work"* ]]
   rm -rf "$(dirname "$repo")"
 }
 
@@ -243,7 +243,7 @@ resume_with_source() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"10 open tasks carry over"* ]]
   [[ "$output" == *"…and 7 more"* ]]
-  shown="$(printf '%s\n' "$output" | grep -c '• \[todo\]')"
+  shown="$(printf '%s\n' "$output" | grep -c '◻ ')"
   [ "$shown" -eq 3 ]
 }
 

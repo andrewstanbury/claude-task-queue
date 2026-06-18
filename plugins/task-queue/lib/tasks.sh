@@ -227,8 +227,8 @@ tq_resume_context() {
       shown = (tn > max ? max : tn)
       more  = tn - shown
       printf "%d open task%s carry over from earlier Claude Code sessions in this project (your native task list starts empty each session). If the user is continuing this work, recreate the relevant ones with TaskCreate (set any that were in progress back to in_progress); otherwise ignore this note.\n", n, (n==1?"":"s")
-      for (i=0;i<dn;i++)    printf "  • [doing] %s\n", dsub[i]
-      for (i=0;i<shown;i++) printf "  • [todo]  %s\n", tsub[i]
+      for (i=0;i<dn;i++)    printf "  ⏳ %s\n", dsub[i]
+      for (i=0;i<shown;i++) printf "  ◻ %s\n", tsub[i]
       if (more > 0) printf "  …and %d more todo%s.\n", more, (more==1?"":"s")
     }'
 }
