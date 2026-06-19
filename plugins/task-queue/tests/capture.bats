@@ -267,13 +267,18 @@ run_capture() {
   src='. "$1/lib/tasks.sh"; . "$1/lib/capture.sh";'
   for p in "redesign the login page" "make the dashboard cleaner" "move the sidebar to the right" \
            "restyle the navbar" "lay out the settings screen" "show me a wireframe for the hero" \
-           "center the modal and make it look modern" "change the layout of the pricing cards"; do
+           "center the modal and make it look modern" "change the layout of the pricing cards" \
+           "redesign the homepage" "redesign the client homepage" "reskin the app" \
+           "prettify the profile page" "update the colour palette" "redesign the settings page" \
+           "make the onboarding feel cleaner"; do
     run bash -c "$src"' tq_looks_design "$2" && echo Y' bash "$ROOT" "$p"
     [ "$output" = "Y" ]
   done
-  # architecture/API "design" + functional edits must NOT fire (precision)
+  # architecture/API "design" + functional edits must NOT fire (precision) — the
+  # noun gate must hold even for the strong verb "redesign".
   for p in "design the database schema" "design the public API surface" "add a logout button" \
            "fix the slow report page" "move the auth module to a new package" \
+           "redesign the API" "redesign how we handle error retries" \
            "format the JSON output" "update the user table"; do
     run bash -c "$src"' tq_looks_design "$2" || echo N' bash "$ROOT" "$p"
     [ "$output" = "N" ]
