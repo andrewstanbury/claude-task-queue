@@ -24,6 +24,36 @@ observed behaviour, not documented APIs.
   something to say; silent when QA is documented and the source is compact/resume.
 - **If it changes:** the quality-attributes gate silently stops.
 
+### 1c. `SessionStart` hook — the MCP reachability probe
+
+- **Script:** `bin/charter-mcp-probe.sh` (+ `lib/mcp-probe.sh`), wired as a second
+  `SessionStart` hook alongside the brief. **Fields read:** `cwd` (resolved to the
+  repo root) and `source` (probes only on `startup`/`clear`/unknown — **never** on
+  `compact`/`resume`, since it spawns processes).
+- **What it reads (read-only):** the MCP servers DECLARED for this repo, merged from
+  `~/.claude.json` (top-level `.mcpServers` **and** `.projects[<root>].mcpServers`;
+  override the path with `CLAUDE_MCP_HOME_CONFIG`), `<root>/.mcp.json`, and
+  `<root>/.claude/settings.json` + `settings.local.json` — each file's `.mcpServers`
+  object. Server-config shapes understood: stdio (`command` + `args` + `env`) and
+  remote (`type: http|sse|streamable-http|ws` + `url` + `headers`).
+- **How it probes (bounded):** each server in parallel, hard-capped at
+  `CLAUDE_CHARTER_MCP_TIMEOUT` seconds each (default 3) and `CLAUDE_CHARTER_MCP_MAX`
+  servers (default 25). stdio → spawn under `timeout` and send the MCP `initialize`
+  handshake (a JSON-RPC `result`/`error` reply = reachable); skipped silently when
+  `timeout` is unavailable. http/sse → POST `initialize` via `curl --max-time` (any
+  HTTP status, **incl. 401/403**, = reachable; only a connection failure is "down");
+  skipped silently when `curl` is absent.
+- **Output contract:** `{ "hookSpecificOutput": { "hookEventName": "SessionStart",
+  "additionalContext": "<plain-language warning naming the dead servers>" } }` when
+  one or more declared servers don't respond; **silent (exit 0)** when all respond,
+  none are declared, the source is compact/resume, or the probe is disabled. Never
+  blocks; any internal error degrades to silence. Disable with
+  `CLAUDE_CHARTER_MCP_PROBE=0`.
+- **Why:** silent tool-unavailability (a mis-installed/unreachable server whose tools
+  just never appear) is invisible to a non-technical owner — the probe surfaces it.
+- **If it changes** (the config locations or server-config shape): the probe silently
+  stops (best-effort; it never breaks session start).
+
 ### 1a. `Stop` hook payload (stdin) — the alignment floor
 
 - **Script:** `bin/charter-align-gate.sh`. **Fields read:** `cwd` (resolved to the
@@ -145,8 +175,10 @@ state** for the alignment floor — the working-tree fingerprint and the per-ses
 block counter — under `$HOME/.claude/state/charter` (override with
 `CLAUDE_CHARTER_LOG_DIR`), the same cache footprint tidy already has. This dir must
 live **outside** any project repo (the default does); if it were placed inside a
-repo, the gate's own writes would dirty that repo's tree. Everything else is reads +
-`SessionStart` `additionalContext` and `Stop` decisions.
+repo, the gate's own writes would dirty that repo's tree. The MCP probe's only write
+is a **transient `mktemp -d` scratch dir** (per-server probe output, removed before
+the hook returns) under the system temp dir — never the project. Everything else is
+reads + `SessionStart` `additionalContext` and `Stop` decisions.
 
 ## How this is verified
 
@@ -159,13 +191,21 @@ repo, the gate's own writes would dirty that repo's tree. Everything else is rea
   decision-bearing change, silent on routine edits / no-decisions / clean tree,
   fenced-token overlap on new files, the per-tree throttle, the disable switch,
   and the attempt cap).
+- `tests/mcp-probe.bats` fakes MCP servers with stub commands on `PATH` and a
+  controlled config — silence when none declared, a healthy stdio server not
+  flagged, the three down-states (command missing, starts-but-mute, http endpoint
+  unreachable), an HTTP auth challenge counted as reachable, discovery from the
+  `~/.claude.json` project-scoped block, the compact/resume skip, and the disable
+  switch. The token budget for the probe (silent at rest, bounded when warning)
+  is enforced in `tests/token-budget.bats`.
 
 ## Status (see docs/ROADMAP.md)
 
 Shipped: the quality-attributes gate, roadmap/backlog awareness, the project map,
 recorded-decisions anchor, stack notes, the owner-loop consent posture, outcome
 memory (the git rework-ratio scar-tissue surfacing), the Stop-time alignment floor
-(decision-reversal gate), and `/charter:align`. Action-time consent is now **native** (Claude Code permissions
+(decision-reversal gate), `/charter:align`, and the SessionStart MCP reachability
+probe. Action-time consent is now **native** (Claude Code permissions
 in settings.json), not a charter hook. The subtractive/prune force lives in
 **tidy** (its automatic prune + the size guard); hooks are already
 **bootstrap-once + drift-detect** (they go quiet once the policy is recorded in

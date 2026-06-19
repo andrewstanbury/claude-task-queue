@@ -11,7 +11,10 @@ on-disk state files and prints one line. It never writes anything.
 
 - **Fields read:** `.model.display_name` / `.model.id`, `.session_id`,
   `.workspace.current_dir` / `.cwd`, `.context_window.used_percentage`,
-  `.terminal_width`.
+  `.terminal_width`, `.cost.total_cost_usd`.
+- **Cost note:** `.cost.total_cost_usd` is the payload's running session spend.
+  hud renders it as `$N.NN` (a low-key, color-neutral slot), shed on narrow
+  terminals and silent when the field is absent or still `0.00`.
 - **Context note:** `used_percentage` is the payload's pre-computed input-context
   fill (since Claude Code v2.1.132 the `context_window.*` figures reflect
   *current* context, not cumulative session totals). hud renders it as `ctx N%`
@@ -46,6 +49,11 @@ heaviest cross-plugin doc-detection mirrors. Remaining reads:
   `CLAUDE_HUD_VERIFY_DIR`.
 - **Dirty tree:** `git status --porcelain` count for the cwd, shown as `*N` next
   to the branch.
+- **Unpushed/unpulled:** `git rev-list --count --left-right @{upstream}...HEAD`
+  for the cwd, shown next to the branch as `↑N` (commits ahead of / not yet pushed
+  to the upstream) and `↓N` (behind / not yet pulled). Silent when there's no
+  upstream. Computed only on wide terminals in a repo (same gate as the dirty
+  count), so it adds no git call to a narrow render.
 - **Open questions:** the native task store (`~/.claude/tasks/<session-id>/*.json`),
   counting pending/in_progress tasks whose subject starts with `❓`, rendered as
   `❓N`. A read of the *native task store schema* (`subject`/`status`) — the same

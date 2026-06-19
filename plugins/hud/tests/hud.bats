@@ -129,6 +129,47 @@ teardown() {
   rm -rf "$CLAUDE_HUD_TASKS_DIR"
 }
 
+@test "hud_ahead_behind: empty without an upstream, '<ahead> <behind>' with one" {
+  run bash -c "$SRC"' hud_ahead_behind "$2"' bash "$ROOT" "$REPO"   # no upstream yet
+  [ -z "$output" ]
+  # Build a bare "remote", track it, then commit locally so HEAD is ahead by 2.
+  local up; up="$(mktemp -d)/up.git"; git init -q --bare "$up"
+  git -C "$REPO" config user.email t@t; git -C "$REPO" config user.name t
+  git -C "$REPO" commit -q --allow-empty -m base
+  git -C "$REPO" remote add origin "$up"
+  git -C "$REPO" push -q origin HEAD:refs/heads/main
+  git -C "$REPO" branch -q --set-upstream-to=origin/main
+  git -C "$REPO" commit -q --allow-empty -m a
+  git -C "$REPO" commit -q --allow-empty -m b
+  run bash -c "$SRC"' hud_ahead_behind "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "2 0" ]                                             # 2 ahead, 0 behind
+  rm -rf "$(dirname "$up")"
+}
+
+@test "status line shows ↑N for unpushed commits next to the branch" {
+  local up; up="$(mktemp -d)/up.git"; git init -q --bare "$up"
+  git -C "$REPO" config user.email t@t; git -C "$REPO" config user.name t
+  git -C "$REPO" commit -q --allow-empty -m base
+  git -C "$REPO" remote add origin "$up"; git -C "$REPO" push -q origin HEAD:refs/heads/main
+  git -C "$REPO" branch -q --set-upstream-to=origin/main
+  git -C "$REPO" commit -q --allow-empty -m unpushed
+  json="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *"↑1"* ]]
+  rm -rf "$(dirname "$up")"
+}
+
+@test "status line shows session cost from the payload, hidden at zero" {
+  json="$(jq -nc --arg c "$REPO" \
+    '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200,cost:{total_cost_usd:0.4231}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *'$0.42'* ]]
+  json="$(jq -nc --arg c "$REPO" \
+    '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200,cost:{total_cost_usd:0}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" != *'$0.00'* ]]
+}
+
 @test "hud_coupling reads tidy's cached direction marker" {
   export CLAUDE_HUD_COUPLING_DIR="$(mktemp -d)"
   printf 'up' > "$CLAUDE_HUD_COUPLING_DIR/-some-repo"

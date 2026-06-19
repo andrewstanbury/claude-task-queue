@@ -5,7 +5,8 @@
 # writes — it only reads and prints, so it can't interfere with anything.
 #
 # Slots (left → right), each collapses when its data is absent:
-#   health beacon · ⏸ paused · 🤖 agent · ✓/✗ tests · ctx % · git branch (+ dirty) · model
+#   health beacon · ⏸ paused · 🤖 agent · ✓/✗ tests · ❓ open-Qs · 🔗↑ coupling ·
+#   ctx % · $ session-cost · git branch (+ dirty * · ↑ahead ↓behind) · model
 #
 # Scoped to signals a status line is the BEST surface for — persistent
 # state/health you want at a glance. Deliberately NOT re-rendered here: the task
@@ -50,10 +51,11 @@ mapfile -t F < <(printf '%s' "$INPUT" | jq -r '[
     (.session_id // ""),
     (.workspace.current_dir // .cwd // ""),
     (.context_window.used_percentage // ""),
-    (.terminal_width // 0)
+    (.terminal_width // 0),
+    (.cost.total_cost_usd // "")
   ] | .[]' 2>/dev/null)
 MODEL="${F[0]:-?}"; SID="${F[1]:-}"; CWD="${F[2]:-$PWD}"
-CTX_PCT="${F[3]:-}"; TERM_W="${F[4]:-0}"
+CTX_PCT="${F[3]:-}"; TERM_W="${F[4]:-0}"; COST="${F[5]:-}"
 [ -z "$CWD" ] && CWD="$PWD"
 [ "${TERM_W:-0}" -le 0 ] && TERM_W="${COLUMNS:-0}"
 [ "$TERM_W" -le 0 ] && TERM_W=200
@@ -66,10 +68,13 @@ PAUSED="$(hud_paused "$ROOT")"
 AGENT="$(hud_agent "$ROOT")"
 VERIFY="$(hud_verify "$SID")"
 BRANCH="$(hud_branch "$CWD")"
-# Dirty-count is only shown next to the branch (wide terminals, in a repo). Skip
-# its `git status --porcelain` worktree scan otherwise — it runs every render.
-DIRTY=""
-[ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ] && DIRTY="$(hud_dirty "$CWD")"
+# Dirty-count + ahead/behind are only shown next to the branch (wide terminals, in
+# a repo). Skip their git calls otherwise — they run every render.
+DIRTY=""; AB=""
+if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
+  DIRTY="$(hud_dirty "$CWD")"
+  AB="$(hud_ahead_behind "$CWD")"
+fi
 
 # 1) Health beacon — STATIC dot, colored by overall health: red = tests failing,
 # yellow = paused, green otherwise. No animation → no timer needed.
@@ -111,10 +116,22 @@ if [ -n "$CTX_PCT" ]; then
   printf "%sctx%s %s%s%%%s%s" "$D" "$X" "$PCOL$B" "$PCT" "$X" "$SEP"
 fi
 
-# 6) Branch (+ dirty-file count), shed on narrow
+# 5b) Session cost — running $ spend this session (color-neutral, low-key). From
+# the payload's pre-computed total; silent when absent or still zero. Shed on narrow.
+if [ "$NARROW" -eq 0 ] && [ -n "$COST" ]; then
+  CDOL="$(printf '%.2f' "$COST" 2>/dev/null || true)"
+  [ -n "$CDOL" ] && [ "$CDOL" != "0.00" ] && printf '%s$%s%s%s' "$D" "$CDOL" "$X" "$SEP"
+fi
+
+# 6) Branch (+ dirty-file count + unpushed/unpulled), shed on narrow
 if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
   printf "%s⎇ %s%s" "$C$B" "$BRANCH" "$X"
   [ -n "$DIRTY" ] && printf " %s*%s%s" "$Y$B" "$DIRTY" "$X"
+  if [ -n "$AB" ]; then
+    AHEAD="${AB%% *}"; BEHIND="${AB##* }"
+    [ "${AHEAD:-0}" -gt 0 ] 2>/dev/null && printf " %s↑%s%s" "$C$B" "$AHEAD" "$X"
+    [ "${BEHIND:-0}" -gt 0 ] 2>/dev/null && printf " %s↓%s%s" "$Y$B" "$BEHIND" "$X"
+  fi
   printf "%s" "$SEP"
 fi
 

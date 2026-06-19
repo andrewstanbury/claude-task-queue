@@ -81,6 +81,21 @@ hud_dirty() {
   [ "$n" -gt 0 ] && printf '%s' "$n"
 }
 
+# Commits HEAD is ahead / behind its upstream — i.e. unpushed work (ahead) and
+# unpulled work (behind). Prints "<ahead> <behind>" or empty when there's no
+# upstream (nothing to compare). One cheap rev-list over the symmetric range; the
+# branch slot already shells to git, so this is the "you have unpushed commits"
+# companion to the dirty-file count's "you have uncommitted changes".
+hud_ahead_behind() {
+  local cwd="$1" out behind ahead
+  git -C "$cwd" rev-parse '@{upstream}' >/dev/null 2>&1 || return 0
+  out="$(git -C "$cwd" rev-list --count --left-right '@{upstream}...HEAD' 2>/dev/null)" || return 0
+  [ -n "$out" ] || return 0
+  # rev-list --left-right prints "<behind>\t<ahead>" (left = upstream-only commits).
+  read -r behind ahead <<< "$out"
+  printf '%s %s' "${ahead:-0}" "${behind:-0}"
+}
+
 # Current git branch for a dir (short SHA when detached), or empty.
 hud_branch() {
   local cwd="$1" b

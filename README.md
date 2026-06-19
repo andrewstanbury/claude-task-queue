@@ -40,10 +40,10 @@ steer. Built for an owner who reads no code and runs no commands.
 
 | Plugin | Ver | Role | Highlights |
 |---|---|---|---|
-| **task-queue** | 0.27.1 | Orchestrate | review loop · wireframe design preview · intent→outcome gate · open-questions tracker · cross-session resume |
+| **task-queue** | 0.28.0 | Orchestrate | review loop (steelman→challenge critique) · wireframe design preview · intent→outcome gate · open-questions tracker · cross-session resume |
 | **tidy** | 0.38.1 | Change safely | format/lint on touch · blast-radius · verification floor · regression gate · quality floor · import-cycle check · auto-prune |
-| **charter** | 0.19.0 | Know the project | doc & decisions gate · alignment floor · outcome-memory "scar tissue" · conventions · owner loop |
-| **hud** | 0.6.0 | Show | one read-only status line — health · tests · open-Qs · context % · branch · model |
+| **charter** | 0.20.0 | Know the project | doc & decisions gate · alignment floor · outcome-memory "scar tissue" · conventions · owner loop · MCP reachability probe |
+| **hud** | 0.7.0 | Show | one read-only status line — health · tests · open-Qs · context % · session-cost · branch (+unpushed) · model |
 
 Each plugin is independently installable · Bash + `jq` · zero build.
 

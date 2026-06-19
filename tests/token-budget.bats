@@ -58,11 +58,24 @@ marked_repo() {
   local repo="$WORK/p"; mkdir -p "$repo"; git -C "$repo" init -q
   cap() { jq -nc --arg p "$1" --arg s s --arg c "$repo" '{prompt:$p, session_id:$s, cwd:$c}' \
             | "$R/plugins/task-queue/bin/tq-capture.sh" | ctx; }
-  within "capture substantive" 1250 "$(cap 'add the login form and wire it and test it')"
+  # Ratchet 2026-06-19: +critique posture (steelman→challenge, contradiction/bias
+  # check, recommend-against) prepended to the review-loop instruction — measured ~1215.
+  within "capture substantive" 1400 "$(cap 'add the login form and wire it and test it')"
   within "capture design"      1800 "$(cap 'make the login page cleaner')"
   mkdir -p "$CLAUDE_TQ_TASKS_DIR/s"
   jq -n '{id:"1",subject:"❓ Block or warn?",status:"pending"}' > "$CLAUDE_TQ_TASKS_DIR/s/1.json"
   within "open-Q reminder"     280  "$(cap 'thanks')"
+}
+
+@test "token budget: MCP probe is silent at rest, bounded when warning" {
+  local repo="$WORK/mcp"; mkdir -p "$repo"; git -C "$repo" init -q
+  export CLAUDE_MCP_HOME_CONFIG="$WORK/no-home.json"   # never read real ~/.claude.json
+  export CLAUDE_CHARTER_MCP_TIMEOUT=1
+  local ss; ss="$(jq -nc --arg c "$repo" '{cwd:$c, source:"startup"}')"
+  probe() { printf '%s' "$ss" | "$R/plugins/charter/bin/charter-mcp-probe.sh" | ctx; }
+  within "mcp probe at rest" 0 "$(probe)"             # no servers declared → silent
+  printf '%s' '{"mcpServers":{"ghost":{"command":"definitely-not-a-real-cmd-xyz"}}}' > "$repo/.mcp.json"
+  within "mcp probe warning" 560 "$(probe)"           # pay-per-event, one down server
 }
 
 @test "token budget: Stop-gate blocks (pay-per-event)" {

@@ -143,7 +143,15 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   `CLAUDE_CHARTER_ALIGN_GATE=0` disables it. This is the **outcome-time** complement
   to the review loop's **intent-time** alignment — alignment is now checked at both
   ends. On demand: `/charter:align`. Action-time consent is native (see below) —
-  charter carries only the standing posture, no hook.
+  charter carries only the standing posture, no hook. A second SessionStart hook is
+  the **MCP reachability probe**: it reads the MCP servers *declared* for the repo
+  (merged from `~/.claude.json`, `.mcp.json`, `.claude/settings*.json`) and checks
+  each actually responds — a bounded, parallel `initialize` handshake to stdio
+  servers and a POST to http/sse endpoints — so the silent failure mode (a
+  mis-installed/unreachable server whose tools just never appear) is surfaced to a
+  non-technical owner in plain language. An HTTP auth challenge counts as reachable;
+  only a fresh start probes (not compact/resume); self-disables when no servers are
+  declared; never blocks; `CLAUDE_CHARTER_MCP_PROBE=0` disables it.
 - **hud** — a static health beacon + paused + agent + the verification floor's ✓/✗
   tests + context-window fill % + branch & dirty + model. Read-only, zero token cost.
   With no logs or docs to read, this beacon is the owner's primary trust signal.
@@ -178,6 +186,20 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   suppressed, only policy prose.
 - **Clean ≠ correct** — route charter's decisions/roadmap into the loop so new work
   is weighed against recorded direction before it lands.
+- **Critique posture: selective, substantive-gated, bidirectional, self-challengeable**
+  (2026-06-19) — the review loop EVALUATES before executing (steelman → challenge →
+  recommend-against when warranted), challenging **both** the project's recorded
+  constraints *and* the owner's own accumulated requirements/bias when they contradict
+  or force a poor/over-engineered design. **Not on every prompt** — only the
+  substantive/consequential gate: mandated on-everything critique becomes theater and
+  *false pushback trains rubber-stamping*, and per-prompt critique on trivial work
+  breaks the zero-cost invariant. Claims only what's feasible (contradiction +
+  named-anti-pattern detection; **not** general "bias" — no reference frame). Shipped
+  in task-queue's existing UserPromptSubmit injection (no new hook/plugin).
+  **Deferred** until the gap proves real (a YAGNI call): bidirectional charter
+  alignment (challenge a standing decision, not just protect it) and an on-demand
+  `/charter:challenge` audit. The mandate stays **challengeable** — "always question my
+  requirements" must not become the one requirement never questioned.
 
 ## Decided against
 

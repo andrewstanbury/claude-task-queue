@@ -47,6 +47,26 @@ run_capture() {
   [[ "$output" != *"CONSEQUENTIAL"* ]]      # benign multi-step is not consequential
 }
 
+@test "substantive prompt carries the critique posture (challenge before executing)" {
+  run run_capture "$MULTI"
+  [[ "$output" == *"steelman"* ]]                  # steelman then challenge the ask
+  [[ "$output" == *"challenge it"* ]]
+  [[ "$output" == *"contradiction"* ]]             # incl. the owner's own earlier requests
+  [[ "$output" == *"recommend against it"* ]]      # may push back on the whole ask
+  [[ "$output" == *"SELECTIVE"* ]]                 # anti-theater: only on real signal
+}
+
+@test "critique posture is SELECTIVE — absent on a trivial prompt (not on everything)" {
+  run run_capture "fix the typo"
+  [ -z "$output" ]                                 # trivial stays silent → no critique
+}
+
+@test "consequential prompt also carries the critique posture" {
+  run run_capture "delete the user accounts table"
+  [[ "$output" == *"steelman"* ]]
+  [[ "$output" == *"CONSEQUENTIAL"* ]]
+}
+
 @test "fires regardless of an existing queue — new substantive work is always reviewed" {
   make_task sess 1 pending
   run run_capture "$MULTI"

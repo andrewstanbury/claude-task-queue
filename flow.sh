@@ -67,7 +67,7 @@ else
 fi
 sl=''; for d in plugins/*/; do [ -f "${d}hooks/hooks.json" ] || sl="$(basename "$d")"; done
 sha="$(git rev-parse --short HEAD 2>/dev/null || printf '?')"
-LOOPRAW="$(grep -m1 'loop="Run' plugins/task-queue/bin/tq-capture.sh 2>/dev/null \
+LOOPRAW="$(grep -m1 '(1) INTERPRET —' plugins/task-queue/bin/tq-capture.sh 2>/dev/null \
            | awk '{gsub(/\([0-9]\)/,"\n&")}1' | grep -E '^\([0-9]\)')"
 
 # --- render ----------------------------------------------------------------
