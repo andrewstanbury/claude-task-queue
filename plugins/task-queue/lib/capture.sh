@@ -49,19 +49,26 @@ tq_looks_consequential() {
 # a line of code is written — the "demonstrate" half of the owner loop, moved ahead
 # of the work. PRECISION-tuned like tq_looks_consequential: it must NOT fire on
 # architecture/API "design" or functional edits (add a button, fix a slow page) —
-# only on a visual/appearance INTENT applied to a UI element, or an inherently-
-# visual term on its own. Returns 0 yes / 1 no.
+# only on a visual/appearance INTENT applied to a UI element, an unambiguous
+# visual VERB on its own (restyle/reskin/recolour…), or an inherently-visual
+# term on its own. Returns 0 yes / 1 no.
 tq_looks_design() {
   local p="$1" low
   low="$(printf '%s' "$p" | tr '[:upper:]' '[:lower:]')"
   # (A) inherently-visual terms — fire on their own.
   printf '%s' "$low" | grep -Eq \
-    '(^|[^a-z])(layouts?|wireframes?|mock[- ]?ups?|ui|ux|user interface|design system|style[ -]?guides?)([^a-z]|$)' && return 0
-  # (B) a visual/appearance INTENT *and* a UI NOUN must both be present.
+    '(^|[^a-z])(layouts?|wireframes?|mock[- ]?ups?|ui|ux|user interface|design systems?|style[ -]?guides?|colou?r schemes?|colou?r palettes?|palettes?|typograph(y|ic))([^a-z]|$)' && return 0
+  # (A2) unambiguous visual-appearance VERBS — fire on their own. These have no
+  # non-visual meaning, so they need no paired noun ("restyle it", "reskin the app").
   printf '%s' "$low" | grep -Eq \
-    '(^|[^a-z])((re-?)?design|(re-?)?lay[ -]?out|restyle|re-?skin|reposition|rearrange|re-?order|re-?align|realign|resize|recolou?r|move|cent(er|re)|style|theme|skin|looks?|looking|appearance|responsive|cleaner|prettier|sleeker|modern|polished|spacing|align(ment)?)([^a-z]|$)' || return 1
+    '(^|[^a-z])(re-?style|re-?skin|re-?colou?r|re-?theme|re-?paint|prettif(y|ied)|beautif(y|ied))([^a-z]|$)' && return 0
+  # (B) an AMBIGUOUS visual/appearance INTENT *and* a UI NOUN must both be present.
+  # "design"/"move"/"style" alone could be architecture, so a UI noun is required —
+  # this is what keeps "redesign the API/schema" from tripping the preview.
   printf '%s' "$low" | grep -Eq \
-    '(^|[^a-z])(buttons?|pages?|screens?|views?|forms?|modals?|dialogs?|navs?|navbars?|navigation|sidebars?|menus?|headers?|footers?|heroe?s?|banners?|cards?|dashboards?|landing|panels?|tabs?|toolbars?|components?|widgets?|icons?|logos?|popups?|drop[- ]?downs?|tooltips?|badges?|avatars?|carousels?|accordions?|grids?|sections?|tables?|lists?)([^a-z]|$)' || return 1
+    '(^|[^a-z])((re-?)?design|(re-?)?lay[ -]?out|reposition|rearrange|re-?order|re-?align|realign|resize|move|cent(er|re)|style|theme|skin|looks?|looking|appearance|responsive|cleaner|prettier|sleeker|modern|polished|spacing|align(ment)?|visuals?|aesthetics?)([^a-z]|$)' || return 1
+  printf '%s' "$low" | grep -Eq \
+    '(^|[^a-z])(buttons?|pages?|home[- ]?pages?|landing[- ]?pages?|web[- ]?pages?|screens?|home[- ]?screens?|splash|views?|forms?|modals?|dialogs?|navs?|navbars?|navigation|sidebars?|menus?|headers?|footers?|heroe?s?|banners?|cards?|dashboards?|landing|panels?|tabs?|toolbars?|components?|widgets?|icons?|logos?|popups?|drop[- ]?downs?|tooltips?|badges?|avatars?|carousels?|accordions?|grids?|sections?|tables?|lists?|profiles?|settings|onboarding|checkouts?|paywalls?|drawers?|galler(y|ies)|feeds?|chips?|toasts?|snackbars?|spinners?|loaders?|skeletons?|empty states?)([^a-z]|$)' || return 1
   return 0
 }
 
