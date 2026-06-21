@@ -100,8 +100,13 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   questions are answer-worthy; the hooks make them persistent + visible);
   `CLAUDE_TQ_OPEN_Q=0` disables. hud's count is a drift-guarded mirror of
   `tq_open_questions`.
-- **tidy** — on touch: format + lint (Go/web/Python/shell, fast file-scoped tools) +
-  blast-radius + coverage/size nudges. On Stop: the **verification floor**
+- **tidy** — **before** a write (PreToolUse): the **secret floor** — scan the content
+  a write would land for hardcoded credentials (prefix-anchored shapes + a
+  placeholder-filtered generic pattern, pure regex so it works without gitleaks) and
+  **block before it reaches disk**; tidy's one deliberate hard-stop, everything else
+  fails open (`CLAUDE_TIDY_SECSCAN=0` disables). On touch: format + lint
+  (Go/web/Python/shell, fast file-scoped tools) + blast-radius + coverage/size nudges.
+  On Stop: the **verification floor**
   (run the project's tests, block until green, bounded); the **quality floor**
   (before the tests, run the project's OWN declared typecheck/a11y/dep-rule gates —
   detect-and-run package.json scripts, install/invent nothing, heavy Lighthouse/CWV
@@ -173,8 +178,11 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   floor), SOLID's essence, DDD's ubiquitous language, **YAGNI**, boring & reversible.
   YAGNI made *testable* (concepts absorbed, not tooling): **no seam until something
   actually varies across it** (1 adapter = hypothetical, 2 = real) + the **deletion
-  test** (if removing a module only relocates its complexity it was a pass-through) in
-  the tidy standard; and a **diagnose loop** in the test-fail block (reproduce → ranked
+  test** (if removing a module only relocates its complexity it was a pass-through) +
+  **unit cohesion** (one thing — split on "and"; the testable form of SRP) and
+  **complexity-altitude** (flat/early-return over deep nesting; branching cost, which
+  the size nudge misses) in the tidy standard — SOLID's essence as concrete
+  generation-time rules, not the label (a "SOLID checker" isn't mechanically viable); and a **diagnose loop** in the test-fail block (reproduce → ranked
   falsifiable hypotheses → tagged `[DEBUG-x]` instrumentation → fix + regression test →
   grep-cleanup) that composes with the regression gate.
 - **Non-technical-owner posture** — autonomy on the reversible, plain-language
@@ -211,7 +219,14 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
 - **A hard, plugin-owned destructive-action *gate*** — a plugin can't own a reliable
   block. **Superseded 2026-06-16:** the gating is now **native** (`permissions.deny`/
   `ask` + `auto`-mode safety checks), which *is* harness-enforced. See the reversal
-  below.
+  below. **Narrow exception (2026-06-21):** tidy's PreToolUse **secret floor** does
+  block a write — the one place a plugin gate earns its keep, because native
+  permissions scan bash *commands*/code *style* but nothing scans file *content* an
+  agent writes for committed credentials, and a leaked key is irreversible. Kept
+  high-precision (prefix-anchored) so false blocks stay near-zero. This is the single
+  concept imported from `SPEC.md` (claude-governance's T3 obligations); its audit
+  log, tier vocabulary, approver chains, and CI floor stay out (org-compliance
+  machinery, not this system's single-owner bet).
 - **Native plan mode for the present-before-work step** (2026-06-16) — rejected in
   favour of the task-queue's interpret→present→approve loop: plan mode is read-only
   and all-or-nothing per session, whereas the owner wants to run in auto and review

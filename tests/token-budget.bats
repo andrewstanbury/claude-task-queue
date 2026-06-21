@@ -91,4 +91,9 @@ marked_repo() {
   within "intent block"  850 "$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-verify.sh" | rsn)"
   within "quality block" 360 "$(printf '%s' "$S" | CLAUDE_TIDY_QUALITY_CMD='echo ERR; exit 1' "$R/plugins/tidy/bin/tidy-verify.sh" | rsn)"
   within "diagnose block" 950 "$(printf '%s' "$S" | CLAUDE_TIDY_LOG_DIR="$WORK/dl" CLAUDE_TIDY_TEST_CMD='echo BOOM; exit 1' "$R/plugins/tidy/bin/tidy-verify.sh" | rsn)"
+  # secret block writes its reason to STDERR (PreToolUse exit-2 convention), not JSON.
+  # Key shape assembled at runtime so the literal isn't contiguous in this source.
+  local k; k="AKIA""ABCDEFGHIJKLMNOP"
+  local sj; sj="$(jq -nc --arg p "/x/config.py" --arg c "API_KEY = '$k'" '{tool_name:"Write", tool_input:{file_path:$p, content:$c}}')"
+  within "secret block" 420 "$(printf '%s' "$sj" | "$R/plugins/tidy/bin/tidy-presecret.sh" 2>&1 || true)"
 }

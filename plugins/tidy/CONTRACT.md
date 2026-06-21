@@ -15,7 +15,11 @@ This plugin is deliberately conservative because it *mutates files*:
   findings are *surfaced as context*, never silently rewritten.
 - **Scoped to the single file** named in the hook payload — never repo-wide.
 - **Never breaks the triggering edit** — every step is best-effort; on any
-  error or missing tool the hook exits 0 with no output.
+  error or missing tool the hook exits 0 with no output. **One deliberate
+  exception:** the PreToolUse secret floor (§5) blocks a write that carries a
+  hardcoded credential. A leaked key is irreversible, so this is the sole place
+  tidy hard-stops an edit; the match is prefix-anchored to keep false blocks
+  near-zero, and any internal error still degrades to allow.
 
 ## Dependencies
 
@@ -41,6 +45,32 @@ This plugin is deliberately conservative because it *mutates files*:
 
 **Size-check tunables** (both hooks): `CLAUDE_TIDY_SIZE_BUDGET` (lines/file,
 default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
+
+### 5. `PreToolUse` hook payload (stdin) — the secret floor
+
+- **Matcher:** `Edit|Write|MultiEdit`. Script: `bin/tidy-presecret.sh`.
+- **Fields read:** `tool_input.file_path` (to skip exempt paths), and the content
+  about to be written — `tool_input.content` (Write) / `.new_string` (Edit) /
+  `.edits[].new_string` (MultiEdit), joined.
+- **Timing:** PreToolUse fires *before* the tool writes, so a hit stops the secret
+  from ever reaching disk (this is why it's a Pre, not Post, hook).
+- **Output contract:** on a confirmed hit it writes a plain-language reason to
+  **stderr and exits 2** (Claude Code's block convention — the reason is fed to the
+  model, the write is cancelled). On clean content, disable, exempt path, or any
+  error → **exit 0, silent** (the write proceeds). It emits nothing on stdout.
+- **What it catches** (`lib/secscan.sh`, pure regex, no external tool so it works in
+  a project without gitleaks): prefix-anchored credential shapes — AWS `AKIA…`,
+  GitHub `ghp_/gho_/…`/`github_pat_`, Slack `xox…`, Stripe `sk_live_/rk_live_`,
+  Google `AIza…`, PEM `BEGIN … PRIVATE KEY` blocks — plus a generic
+  long-quoted-literal-after-a-secret-keyword pattern that skips obvious placeholders
+  (`your_…`, `example`, `${…}`, `os.environ`, `<…>`, etc.). Secrets only; TLS-off /
+  eval / SQL patterns from SPEC.md are intentionally out (fuzzier → would block real
+  edits). The reason is **redacted** — it reports the line + kind, never the literal.
+- **Exempt paths** (`tidy_secscan_excluded`): `*.md`, and `tests/`/`fixtures/`/
+  `testdata/`/`*_test.*`/`*.spec.*`/`*.bats` — docs and fixtures legitimately carry
+  secret-shaped strings.
+- **Disable:** `CLAUDE_TIDY_SECSCAN=0`. **If the payload shape changes:** the floor
+  silently stops blocking (fail-open, like every other tidy step).
 
 ### 2. `SessionStart` hook payload (stdin)
 
@@ -212,6 +242,10 @@ It writes **nothing** to Claude Code's own state.
   and the **regression gate** (blocks an untested scar-tissue hotspot, silent on a
   non-hotspot, quiet once a test lands, bounded, disable switch, and standing down
   under the broad ratchet).
+- **`tests/secscan.bats`** drives the PreToolUse secret floor — blocks
+  (exit 2) on runtime-assembled AWS-key/PEM/generic-credential shapes, stays silent
+  (exit 0) on ordinary code / placeholders / env-var refs / exempt paths, honors the
+  disable switch, scans MultiEdit, and never echoes the raw secret back.
 - **`tests/drift-guard.bats`** asserts `tidy_hotspots` is byte-identical to
   `charter_hotspots` (the cross-plugin mirror guard).
 - The real toolchain boundary is exercised by using the plugin on an actual Go
