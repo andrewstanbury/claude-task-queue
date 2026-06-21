@@ -22,6 +22,15 @@ for f in .claude-plugin/marketplace.json "${manifests[@]}"; do
   if jq empty "$f" 2>/dev/null; then echo "  ok   $f"; else echo "  FAIL $f"; fail=1; fi
 done
 
+section "Marketplace manifest"
+if have claude; then
+  if claude plugin validate . >/dev/null 2>&1; then echo "  ok"; else
+    echo "  FAIL — claude plugin validate ."; claude plugin validate . 2>&1 | sed 's/^/    /'; fail=1
+  fi
+else
+  echo "  SKIP — claude CLI not installed (run locally before publishing)"
+fi
+
 section "ShellCheck"
 if have shellcheck; then
   # SC1091: libs are sourced by a computed path at runtime — expected.
