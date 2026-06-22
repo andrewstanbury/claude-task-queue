@@ -316,6 +316,26 @@ run_capture() {
   [[ "$output" != *"WIREFRAME"* ]]
 }
 
+@test "Godot project: the wireframe design-preview stands down (no ASCII mockup for game visuals)" {
+  : > "$REPO/project.godot"                        # mark the repo as a Godot project
+  run run_capture "make the main menu look cleaner" # would trip the design preview on a web project
+  [[ "$output" != *"WIREFRAME"* ]]                 # no wireframe mockup
+  [[ "$output" != *"Design change"* ]]             # not routed to the design loop
+}
+
+@test "Godot project: a multi-step visual prompt still gets the normal loop (no wireframe)" {
+  : > "$REPO/project.godot"
+  run run_capture "redesign the HUD and then wire the pause menu and update the tests"
+  [[ "$output" == *"New substantive work"* ]]      # substantive via multi-step, normal loop
+  [[ "$output" != *"WIREFRAME"* ]]
+}
+
+@test "design preview still fires on a non-Godot project (no project.godot)" {
+  run run_capture "make the main menu look cleaner" # same prompt, but REPO has no project.godot
+  [[ "$output" == *"Design change"* ]]
+  [[ "$output" == *"WIREFRAME mockup"* ]]
+}
+
 # ---- open-questions reminder (don't let answers get buried) ------------------
 
 make_question() {   # $1=session $2=id $3=subject

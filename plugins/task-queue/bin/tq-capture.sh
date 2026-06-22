@@ -45,6 +45,7 @@ case "$prompt" in '/'*|'!'*) exit 0 ;; esac          # slash / bang commands are
 cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)"
 [ -n "$cwd" ] || cwd="$PWD"
 sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
+root="$(tq_root_for_cwd "$cwd")"
 
 # OPEN-QUESTIONS reminder: if the user has answer-owed questions still open from
 # earlier in this conversation (❓ tasks), surface them NOW — a new prompt is exactly
@@ -70,8 +71,13 @@ fi
 consequential=0; design=0; substantive=1; paused=0
 tq_looks_consequential "$prompt" && consequential=1
 tq_looks_design "$prompt" && design=1
+# Godot: the wireframe design-preview is a web-UI convention that misleads on a
+# game's scene/sprite visuals, so stand it down — the prompt falls back to the
+# normal substantive loop (or runs straight through if that's all it was), and the
+# owner sees the change by running the game.
+[ "$design" -eq 1 ] && tq_is_godot_project "$root" && design=0
 if [ "$consequential" -eq 0 ] && [ "$design" -eq 0 ] && ! tq_looks_multistep "$prompt"; then substantive=0; fi
-tq_is_paused "$(tq_root_for_cwd "$cwd")" && paused=1
+tq_is_paused "$root" && paused=1
 
 loopctx=""
 if [ "$substantive" -eq 1 ] && [ "$paused" -eq 0 ]; then

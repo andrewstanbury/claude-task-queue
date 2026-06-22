@@ -36,7 +36,7 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 | `bin/tq-agent.sh` | Control: opt-in agent-mode (parallel subagent fan-out). |
 | `lib/tasks.sh` | Native task-store reads, resume logic, pause/agent flags, the intent-of-record file, `tq_open_questions` (unanswered `❓` tasks this session), drift canary. |
 | `lib/project.sh` | Detect the committed roadmap/backlog file + the `claude-companion` marker. |
-| `lib/capture.sh` | Multi-step / consequential / **visual-design** heuristics; shared alignment clause. |
+| `lib/capture.sh` | Multi-step / consequential / **visual-design** heuristics (the design-preview stands down on Godot projects — `tq_is_godot_project`); shared alignment clause. |
 
 ## tidy — *change safely & cleanly* (hooks: SessionStart, PreToolUse[Edit\|Write\|MultiEdit], PostToolUse[Edit\|Write], Stop)
 
