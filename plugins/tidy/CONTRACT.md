@@ -154,10 +154,7 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   the project's OWN declared quality gates beyond its test command — `tidy_quality_commands`
   discovers package.json scripts named `typecheck`/`type-check`/`tsc`, `a11y`/`lighthouse`/
   `lhci`, `depcruise`/`dependency-cruiser`/`arch`/`boundaries` (run via the lockfile's
-  package manager), **plus a configured Python type-checker** (`tidy_py_typecheck_gate`:
-  `mypy` given a `mypy.ini`/`[tool.mypy]`/`[mypy]` config, else `pyright` given a
-  `pyrightconfig.json`/`[tool.pyright]` — tool must be on PATH; no package.json needed)
-  — and blocks until each passes, **bounded** like the test floor
+  package manager) — and blocks until each passes, **bounded** like the test floor
   (`$qfile` counter → give-up `systemMessage` after `CLAUDE_TIDY_VERIFY_MAX`; timeouts
   don't loop). Detect-and-run only: it installs/invents nothing and runs nothing the
   project didn't wire up; heavy Lighthouse/CWV audits stay in CI. `CLAUDE_TIDY_QUALITY_CMD`

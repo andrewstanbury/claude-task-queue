@@ -6,11 +6,11 @@
 # present. Sourced by bin/tidy-touch.sh alongside lib/tidy.sh (provides tidy_have).
 #
 # Scope boundary: edit-time linting is only for tools that are genuinely FAST and
-# FILE-SCOPED (ruff, shellcheck). Crate-/whole-project tools (clippy, project-wide
-# mypy/pyright) stay with the verification floor — the Stop hook's quality floor
-# runs a configured mypy/pyright (lib/checks.sh tidy_py_typecheck_gate). The
-# fastest loop that can catch a class of problem owns it, and a slow whole-project
-# linter doesn't belong on the edit path.
+# FILE-SCOPED (ruff, shellcheck). Slow whole-project type-checkers (clippy, mypy,
+# pyright) aren't run on the edit path, and tidy does NOT reach for them on its
+# own — they run only if the PROJECT declares one as its own check (its test
+# command / a package.json quality script), which the Stop verification floor then
+# executes. The fastest loop that can catch a class of problem owns it.
 
 set -uo pipefail
 

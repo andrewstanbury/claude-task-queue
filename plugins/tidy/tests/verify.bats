@@ -297,43 +297,6 @@ cyc_repo() {
   [[ "$output" != *"eslint"* ]]               # project-wide lint stays at edit time
 }
 
-@test "quality floor: discovers a Python mypy typecheck (no package.json needed)" {
-  local repo="$WORK/qpy"; mkdir -p "$repo/bin"
-  printf '[tool.mypy]\nstrict = true\n' > "$repo/pyproject.toml"
-  printf '#!/usr/bin/env bash\nexit 0\n' > "$repo/bin/mypy"; chmod +x "$repo/bin/mypy"
-  src='. "$1/lib/checks.sh";'
-  run env PATH="$repo/bin:$PATH" bash -c "$src"' tidy_quality_commands "$2"' bash "$ROOT" "$repo"
-  [[ "$output" == *"typecheck"* ]]
-  [[ "$output" == *"mypy ."* ]]               # whole-project mypy, no package.json present
-}
-
-@test "quality floor: discovers a pyright typecheck via pyrightconfig.json" {
-  local repo="$WORK/qpyr"; mkdir -p "$repo/bin"
-  : > "$repo/pyrightconfig.json"
-  printf '#!/usr/bin/env bash\nexit 0\n' > "$repo/bin/pyright"; chmod +x "$repo/bin/pyright"
-  src='. "$1/lib/checks.sh";'
-  run env PATH="$repo/bin:$PATH" bash -c "$src"' tidy_quality_commands "$2"' bash "$ROOT" "$repo"
-  [[ "$output" == *"typecheck"* ]]
-  [[ "$output" == *"pyright"* ]]
-}
-
-@test "quality floor: silent on a mypy config when mypy is not installed" {
-  command -v mypy >/dev/null 2>&1 && skip "mypy present on PATH"
-  local repo="$WORK/qpy0"; mkdir -p "$repo"
-  printf '[tool.mypy]\n' > "$repo/pyproject.toml"          # config but no tool
-  src='. "$1/lib/checks.sh";'
-  run bash -c "$src"' tidy_quality_commands "$2"' bash "$ROOT" "$repo"
-  [ -z "$output" ]
-}
-
-@test "quality floor: no Python config → no typecheck gate (detect-not-invent)" {
-  local repo="$WORK/qpy1"; mkdir -p "$repo/bin"
-  printf '#!/usr/bin/env bash\nexit 0\n' > "$repo/bin/mypy"; chmod +x "$repo/bin/mypy"  # tool but no config
-  src='. "$1/lib/checks.sh";'
-  run env PATH="$repo/bin:$PATH" bash -c "$src"' echo "[$(tidy_quality_commands "$2")]"' bash "$ROOT" "$repo"
-  [ "$output" = "[]" ]
-}
-
 @test "quality floor: blocks on a failing gate, before the tests even run" {
   local repo="$WORK/q1"; mkdir -p "$repo"; git -C "$repo" init -q; : > "$repo/x.txt"
   export CLAUDE_TIDY_QUALITY_CMD='echo TYPE-ERR; exit 1' CLAUDE_TIDY_TEST_CMD='echo SHOULD-NOT-RUN'
