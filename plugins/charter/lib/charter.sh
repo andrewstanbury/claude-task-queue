@@ -185,11 +185,28 @@ charter_stack_status() {
   [ -n "$(charter_stack_path "${1:-}")" ] && printf 'present' || printf 'missing'
 }
 
+# Is this a React Native project? RN ships `react` in package.json so it would
+# trip charter_is_web's react match — but it's NOT web (no DOM, so web-only gates
+# like Lighthouse/CWV and DOM a11y don't apply). Detect it via a strong native
+# signal: a Metro bundler config, a react-native/expo dep, or an Expo app manifest.
+# Returns 0 yes / 1 no. (Reused by the conventions detector.)
+charter_is_react_native() {
+  local root="$1"
+  [ -n "$root" ] || return 1
+  { [ -f "$root/metro.config.js" ] || [ -f "$root/metro.config.ts" ]; } && return 0
+  if [ -f "$root/package.json" ]; then
+    grep -qiE '"(react-native|expo)"[[:space:]]*:' "$root/package.json" 2>/dev/null && return 0
+  fi
+  [ -f "$root/app.json" ] && grep -q '"expo"' "$root/app.json" 2>/dev/null && return 0
+  return 1
+}
+
 # Is this a web project? Lets charter seed Lighthouse-aligned quality-attribute
 # defaults (CWV, a11y, print CSS, progressive enhancement, components-by-default)
 # so web best practices are designed-in, not audited after. Prints "web" or "no".
 # CLAUDE_CHARTER_WEB=1|0 overrides; else infer from a web framework dep in
-# package.json, an index.html, or a known web config file.
+# package.json, an index.html, or a known web config file. React Native is
+# excluded first — it has `react` but no DOM, so the web gates don't fit.
 charter_is_web() {
   local root="$1" f
   case "${CLAUDE_CHARTER_WEB:-}" in
@@ -197,6 +214,7 @@ charter_is_web() {
     0) printf 'no';  return 0 ;;
   esac
   [ -n "$root" ] || { printf 'no'; return 0; }
+  charter_is_react_native "$root" && { printf 'no'; return 0; }
   [ -f "$root/index.html" ] && { printf 'web'; return 0; }
   for f in next.config.js next.config.mjs next.config.ts nuxt.config.js nuxt.config.ts \
            vite.config.js vite.config.ts astro.config.mjs svelte.config.js angular.json \

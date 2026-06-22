@@ -181,6 +181,39 @@ run_standard() {
   [ "$output" = "web" ]                          # override forces web
 }
 
+@test "react-native is NOT web (it ships react but has no DOM)" {
+  src='. "$1/lib/charter.sh";'
+  # react-native dep → native, even though react would otherwise read as web
+  printf '{"dependencies":{"react":"^18.0.0","react-native":"0.74.0"}}\n' > "$REPO/package.json"
+  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "no" ]
+  run bash -c "$src"' charter_is_react_native "$2" && echo RN' bash "$ROOT" "$REPO"
+  [ "$output" = "RN" ]
+
+  # a Metro config alone is a native signal
+  rm "$REPO/package.json"; : > "$REPO/metro.config.js"
+  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "no" ]
+  rm "$REPO/metro.config.js"
+
+  # an Expo app.json is a native signal
+  printf '{"expo":{"name":"app"}}\n' > "$REPO/app.json"
+  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "no" ]
+  rm "$REPO/app.json"
+}
+
+@test "pure-web React is still web (no react-native signal) and the env override still wins for RN" {
+  src='. "$1/lib/charter.sh";'
+  printf '{"dependencies":{"react":"^18.0.0","react-dom":"^18.0.0"}}\n' > "$REPO/package.json"
+  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "web" ]                           # plain React app unaffected by the RN guard
+
+  printf '{"dependencies":{"react-native":"0.74.0"}}\n' > "$REPO/package.json"
+  CLAUDE_CHARTER_WEB=1 run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "web" ]                           # explicit override still wins (e.g. Expo web)
+}
+
 @test "web project + missing QA: nudge bakes in Lighthouse-aligned defaults (startup)" {
   : > "$REPO/index.html"
   run run_standard startup
