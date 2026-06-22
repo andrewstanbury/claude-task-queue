@@ -218,8 +218,10 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   fallback detector anyway, so it's net-additive. Chose the CI drift-guard test.
 - **A hard, plugin-owned destructive-action *gate*** — a plugin can't own a reliable
   block. **Superseded 2026-06-16:** the gating is now **native** (`permissions.deny`/
-  `ask` + `auto`-mode safety checks), which *is* harness-enforced. See the reversal
-  below. **Narrow exception (2026-06-21):** tidy's PreToolUse **secret floor** does
+  `ask` + `auto`-mode safety checks), which *is* harness-enforced — this also retired
+  charter's fragile 2026-06-01 PreToolUse consent regex (it false-fired on `rm -rf`
+  substrings in unrelated commands and only reminded; charter keeps the plain-language
+  consent *posture*). **Narrow exception (2026-06-21):** tidy's PreToolUse **secret floor** does
   block a write — the one place a plugin gate earns its keep, because native
   permissions scan bash *commands*/code *style* but nothing scans file *content* an
   agent writes for committed credentials, and a leaked key is irreversible. Kept
