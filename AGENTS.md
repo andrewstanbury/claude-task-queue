@@ -187,11 +187,8 @@ so green locally means green in CI (modulo locally-skipped tools).
   destructive-action gate, human-facing docs). The project's whole arc was
   *removing* these because they cost tokens, duplicated native Claude Code
   behavior, or couldn't be owned reliably by a plugin (git history has the
-  details). **Note:** action-time consent for consequential/irreversible
-  operations is now **native** — the user's `~/.claude/settings.json` runs
-  `permissions.defaultMode="auto"` (auto-approve with background safety checks)
-  plus a deny set (`rm -rf` of `/`, `~`) and an ask set (`git push --force`,
-  `git reset --hard`). Charter's SessionStart brief still carries the
-  plain-language owner-loop consent *posture* (intent → demo → consent), but there
-  is no charter consent hook (see docs/ROADMAP.md "Decided against").
+  details). The dropped destructive-action gate is now covered **natively**
+  (settings.json `auto` mode + `deny`/`ask` sets); charter keeps only the
+  plain-language consent *posture*, no hook — see docs/ROADMAP.md ("Run in auto"
+  + "Decided against") for the specifics.
 - Don't decompose preemptively; let the 300-line guard decide.
