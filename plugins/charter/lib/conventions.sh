@@ -19,7 +19,7 @@ set -uo pipefail
 # signal (so non-web projects stay silent rather than guess). One detection per
 # session — token-cheap.
 charter_conventions() {
-  local root="$1" pkg parts=() ui="" style="" state="" tests="" comps="" d
+  local root="$1" pkg parts=() ui="" style="" state="" tests="" comps="" nav="" platform="" d
   [ -n "$root" ] || return 0
   pkg="$root/package.json"
   _has() { [ -f "$pkg" ] && grep -qiE "\"$1\"[[:space:]]*:" "$pkg" 2>/dev/null; }
@@ -35,7 +35,10 @@ charter_conventions() {
   [ -z "$ui" ] && _has 'bootstrap'          && ui="Bootstrap"
   [ -z "$ui" ] && _has 'vuetify'            && ui="Vuetify"
 
-  # Styling system.
+  # Styling system. NativeWind first — it ships a tailwind.config, so it would
+  # otherwise read as plain Tailwind and mislabel a React Native project.
+  _has 'nativewind'                         && style="NativeWind"
+  [ -z "$style" ] && \
   { [ -f "$root/tailwind.config.js" ] || [ -f "$root/tailwind.config.ts" ] || \
     [ -f "$root/tailwind.config.cjs" ] || [ -f "$root/tailwind.config.mjs" ] || _has 'tailwindcss'; } \
                                             && style="Tailwind"
@@ -58,16 +61,25 @@ charter_conventions() {
   [ -z "$tests" ] && { _has '@playwright/test' || _has 'playwright'; } && tests="Playwright"
   [ -z "$tests" ] && _has 'cypress'         && tests="Cypress"
 
+  # React Native specifics. These libs only exist on an RN project, so they're
+  # self-gating (no web false-positives): navigation lib + Expo-vs-bare platform.
+  _has '@react-navigation/native' && nav="React Navigation"
+  [ -z "$nav" ] && _has 'expo-router' && nav="Expo Router"
+  _has 'expo' && platform="Expo"
+  [ -z "$platform" ] && _has 'react-native' && platform="bare React Native"
+
   # Components directory (where to reuse from).
-  for d in src/components app/components components src/lib/components lib/components; do
+  for d in src/components app/components components src/screens screens src/lib/components lib/components; do
     [ -d "$root/$d" ] && { comps="$d/"; break; }
   done
 
   unset -f _has 2>/dev/null || true
+  [ -n "$platform" ] && parts+=("platform: $platform")
   [ -n "$ui" ]    && parts+=("UI: $ui")
   [ -n "$comps" ] && parts+=("components in $comps")
   [ -n "$style" ] && parts+=("styling: $style")
   [ -n "$state" ] && parts+=("state: $state")
+  [ -n "$nav" ]   && parts+=("navigation: $nav")
   [ -n "$tests" ] && parts+=("tests: $tests")
   [ "${#parts[@]}" -gt 0 ] || return 0       # not enough signal → stay silent
 

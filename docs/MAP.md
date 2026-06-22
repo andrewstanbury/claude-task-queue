@@ -66,7 +66,7 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 | `commands/align.md` | `/charter:align` — reconcile open/proposed work against the recorded direction (clean ≠ correct). |
 | `lib/charter.sh` | Detect QA / roadmap / decisions / map / stack / web (React Native excluded from web — `charter_is_react_native`); recent commits; the `claude-companion` marker; `charter_hotspots` (outcome memory — the git rework-ratio scar-tissue metric). |
 | `lib/mcp-probe.sh` | MCP-probe logic: read the MCP servers declared for the repo and check each is reachable (parallel, hard per-server timeout; stdio = command/package starts, http/sse = endpoint responds — a 401/403 auth challenge counts as reachable). Any internal error degrades to silence. |
-| `lib/conventions.sh` | Detect the project's established conventions (UI/component lib, styling, state, components dir, tests) + their recorded-status, for the reuse-before-create brief. |
+| `lib/conventions.sh` | Detect the project's established conventions (UI/component lib, styling, state, components dir, tests; React Native: Expo-vs-bare platform, navigation lib, NativeWind) + their recorded-status, for the reuse-before-create brief. |
 | `lib/align.sh` | Alignment-floor helpers: cache-only state dir, working-tree fingerprint (throttle), bounded decisions excerpt, and the cheap deterministic pre-filter (decision-bearing surfaces + fenced-token overlap) that keeps the gate silent on routine edits. |
 
 ## hud — *show what's happening* (a statusLine, not a hook)

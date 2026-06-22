@@ -422,6 +422,33 @@ CONV_SRC='. "$1/lib/charter.sh";'   # charter.sh transitively sources convention
   [ "$output" = "[]" ]
 }
 
+@test "charter_conventions: React Native — Expo platform, React Navigation, NativeWind" {
+  mkdir -p "$REPO/src/screens"
+  printf '{"dependencies":{"react":"^18","react-native":"0.74.0","expo":"^51","@react-navigation/native":"^6","nativewind":"^4","zustand":"^4"},"devDependencies":{"jest":"^29"}}' > "$REPO/package.json"
+  run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
+  [[ "$output" == *"platform: Expo"* ]]
+  [[ "$output" == *"navigation: React Navigation"* ]]
+  [[ "$output" == *"styling: NativeWind"* ]]      # NativeWind, not mislabeled "Tailwind"
+  [[ "$output" != *"styling: Tailwind"* ]]
+  [[ "$output" == *"state: Zustand"* ]]           # cross-platform libs still detected
+  [[ "$output" == *"components in src/screens/"* ]]
+}
+
+@test "charter_conventions: bare React Native (no Expo) reads as bare + React Navigation" {
+  printf '{"dependencies":{"react-native":"0.74.0","@react-navigation/native":"^6"}}' > "$REPO/package.json"
+  run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
+  [[ "$output" == *"platform: bare React Native"* ]]   # react-native present, no expo
+  [[ "$output" == *"navigation: React Navigation"* ]]
+}
+
+@test "charter_conventions: a Tailwind WEB project is still labeled Tailwind (not NativeWind)" {
+  printf '{"dependencies":{"react":"^18","react-dom":"^18","tailwindcss":"^3"}}' > "$REPO/package.json"
+  run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
+  [[ "$output" == *"styling: Tailwind"* ]]
+  [[ "$output" != *"NativeWind"* ]]
+  [[ "$output" != *"platform:"* ]]                # no RN platform line on a web project
+}
+
 @test "charter_conventions_status: missing until recorded, then documented" {
   run bash -c "$CONV_SRC"' charter_conventions_status "$2"' bash "$ROOT" "$REPO"
   [ "$output" = "missing" ]
