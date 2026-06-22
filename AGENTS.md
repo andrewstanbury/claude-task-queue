@@ -41,18 +41,36 @@ own subdirectory exists** (reachable via `${CLAUDE_PLUGIN_ROOT}`). Therefore:
 - **Every plugin must be fully self-contained.** It may only reference files
   inside its own `plugins/<name>/`.
 - **Do NOT extract a cross-plugin shared library, and do NOT add a build step**
-  to de-duplicate. The small repeated bits (the symlink-resolve preamble in each
-  `bin/` script, the `hookSpecificOutput` JSON emission) are
-  duplicated **on purpose** — that's the price of independent installability.
-  Trying to DRY them across plugins would break standalone installs.
-- **Mirrored detection is drift-guarded, not shared.** charter is the source of
-  truth for project-doc detection (QA / map / roadmap / decisions); hud and
-  task-queue re-implement the same checks (they must work standalone). To stop the
-  copies silently drifting (they once did — `hud_qa` missed `QUALITY.adoc`),
-  **`tests/drift-guard.bats`** runs every recognized doc layout through charter
-  *and* each mirror and asserts they agree. Change charter's rules → update the
-  mirrors → the guard keeps them honest. (A CI check, not a runtime layer: cheaper
-  than an inventory file and no staleness — see docs/ROADMAP.md "Decided against".)
+  to de-duplicate. The small repeated bits are duplicated **on purpose** — that's
+  the price of independent installability; DRYing them would break standalone
+  installs. What's duplicated, and what stops each copy drifting, is the ledger
+  below.
+- **Mirrored detection is drift-guarded, not shared.** Where a plugin must
+  re-implement charter's logic to stay standalone (the copies once silently
+  drifted — `hud_qa` missed `QUALITY.adoc`), **`tests/drift-guard.bats`** asserts
+  they agree instead of sharing code. A runtime inventory file was *Decided
+  against* (docs/ROADMAP.md); the test is the enforcer.
+
+### Intentional-duplication ledger
+
+Duplication across plugins is deliberate. A copy is kept from drifting one of two
+ways: a **guard** (a test reddens when copies disagree) or **mirror-by-copy** (a
+convention — copy a sibling, keep it identical by hand). This table is a reading
+aid, **not** the enforcer: for guarded rows the test is the source of truth (a
+runtime inventory was Decided against — don't promote the bottom rows into one).
+
+| Duplicated across plugins | Source of truth | Kept honest by |
+|---|---|---|
+| Project-doc detection (QA / map / roadmap / decisions) | charter `lib/charter.sh` | **guard** — `drift-guard.bats` (task-queue `tq_*_path` mirror) |
+| Scar-tissue / hotspot detection | charter `tidy_hotspots` | **guard** — `drift-guard.bats` (tidy regression-gate mirror) |
+| Plugin version | `plugins/<n>/plugin.json` | **guard** — packaging test + drift-guard (`marketplace.json` + README table) |
+| `bin/` symlink-resolve + `set -uo pipefail` preamble | any sibling `bin/*.sh` | mirror-by-copy (the "Add a plugin" step) |
+| `hookSpecificOutput` JSON emission shape | any sibling that emits it | mirror-by-copy (+ `token-budget.bats` caps size) |
+| Hook-stdin field reads via `jq` (`tool_input` / `tool_name` / `prompt`) | any sibling hook | mirror-by-copy |
+
+Changing a **guard** row → update the mirror in the same change (it stays red
+until they agree). Changing a **mirror-by-copy** idiom → nothing enforces it, so
+`grep` the siblings and apply it everywhere.
 
 ## Layout
 
