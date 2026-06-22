@@ -2,7 +2,7 @@
 
 A living **design record**: the direction, the durable decisions, and what's next.
 Per-version history lives in git, not here (the human-facing CHANGELOG was removed
-— see the 2026-06-16 redesign). Read [AGENTS.md](../AGENTS.md) for the conventions
+in the 2026-06-16 redesign — git history has the detail). Read [AGENTS.md](../AGENTS.md) for the conventions
 and hard invariants that constrain everything below.
 
 The goal: a set of Claude Code plugins that let you **vibe-code an entire project**
@@ -236,12 +236,10 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   session). Chose **a few lean Claude-context files** (CLAUDE.md + map + decisions +
   per-plugin CONTRACTs); charter's model is unchanged.
 
-## Status — 2026-06-16 (anti-rework loops + outcome memory)
+## Anti-rework floors (the prevention taxonomy)
 
-Turned the system's own purpose inward: a line of work to **prevent future
-audit/rework**. The durable result is a taxonomy of rework causes, each now closed by
-a **bounded, disable-able, detect-not-decide Stop-time floor** (the hook supplies
-facts; the model judges):
+A taxonomy of rework causes, each closed by a **bounded, disable-able,
+detect-not-decide Stop-time floor** (the hook supplies facts; the model judges):
 
 | Open loop (cause of future rework) | Closed by | Disable |
 |---|---|---|
@@ -250,69 +248,26 @@ facts; the model judges):
 | Silent reversal of a recorded decision | charter alignment floor | `CLAUDE_CHARTER_ALIGN_GATE=0` |
 | Built ≠ what the owner asked | task-queue intent→outcome gate | `CLAUDE_TQ_INTENT_GATE=0` |
 
-Durable decisions from this line (detail in git history + each plugin's CONTRACT):
+Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT):
 
-- **Outcome memory is charter's, prevention is the verifiers'.** charter
-  *detects* scar tissue — `charter_hotspots` flags files by the **rework ratio**
-  (fix/revert commits ÷ total touching a file ≥ 0.34, ≥ 2 reworks, existing files),
-  the *disease* not raw churn — and surfaces it at SessionStart. tidy's regression
-  gate then *prevents* recurrence: a changed file that is both a hotspot and untested
-  must be pinned before "done".
-- **Alignment is verified at both ends of the loop** — intent-time (the review loop
-  weighs new work against recorded direction) and outcome-time (charter's align gate
-  on the real diff; task-queue's intent gate on the captured ask vs. the diffstat).
-- **Cheap pre-filters keep the gates quiet** — the align gate escalates only on
-  decision-bearing surfaces (deps/config/migrations) or fenced-token overlap; the
-  regression gate fires only on the hotspot subset. Precision over recall: a false
-  block is noise.
-- **Loop-proof + small-footprint** — each gate bounds itself (per-tree/per-ask
-  consume or a per-session cap). charter and task-queue now write **cache-only** state
-  (never the project) for their throttles, alongside tidy's existing footprint.
-- **Install boundary, again:** tidy's `tidy_hotspots` is a hand mirror of
-  `charter_hotspots`; `tests/drift-guard.bats` asserts they're byte-identical.
-- **YAGNI held:** the broader "a *tested* hotspot's fix should add a new case" tier was
-  deliberately not built (over-nags). The taxonomy is closed; further work is
-  demand-driven (see the closing note).
+- **Outcome memory is charter's, prevention is the verifiers'.** charter *detects*
+  scar tissue — `charter_hotspots` flags files by the **rework ratio** (fix/revert ÷
+  total touching a file ≥ 0.34, ≥ 2 reworks, existing files), the *disease* not raw
+  churn, surfaced at SessionStart; tidy's regression gate then *prevents* recurrence
+  (a changed file that's both a hotspot and untested must be pinned before "done").
+- **Alignment is verified at both ends** — intent-time (the review loop weighs new
+  work against recorded direction) and outcome-time (charter's align gate on the diff;
+  task-queue's intent gate on the captured ask vs. the diffstat).
+- **Cheap pre-filters keep the gates quiet** — escalate only on decision-bearing
+  surfaces (deps/config/migrations), fenced-token overlap, or the hotspot subset.
+  Precision over recall: a false block is noise.
+- **Loop-proof + small-footprint** — each gate bounds itself (per-tree/per-ask consume
+  or a per-session cap) and writes cache-only state, never the project.
+- **YAGNI held** — the broader "a *tested* hotspot's fix should add a new case" tier
+  was deliberately not built (over-nags). Further work is demand-driven.
 
-## Status — 2026-06-16 (token-efficiency pass)
+## What's next
 
-A follow-up tightening for "token efficiency first" (builds on the redesign below):
-
-- **Cut currency / auto-advance / the open-decisions ledger** (earlier today) — net
-  surface down, no per-prompt cost they didn't pay back.
-- **Agent-mode is off by default** — the global `CLAUDE_TQ_AGENT_MODE=on` is removed
-  from settings. Subagent fan-out spends more tokens to save wall-clock, so it's now
-  opt-in (per-repo via `tq-agent.sh`, or that env var).
-- **Auto-prune moved SessionStart → Stop, throttled** — it now fires after the turn's
-  work (clean verify on a dirty tree) as a non-blocking systemMessage, once per debt
-  episode, instead of re-injecting a big report every session before the user's intent
-  is known. The sub-threshold "light distill" list is gone (the per-touch size nudge
-  covers reactive size).
-- **Review loop made proportional** — a brief inline plan + one-line confirmation for
-  a few obvious low-risk tasks; the full AskUserQuestion present-and-approve only for
-  larger or higher-risk work. Consequential prompts keep the full ceremony regardless
-  of size.
-
-## Status — 2026-06-16 (native-leaning redesign)
-
-Reoriented the system to be **CLI-only, automatic, and artifact-free** for an owner
-who reads no code/docs and runs no commands:
-
-- **Removed the human-readable logging subsystem + the three `*-doctor.sh`
-  diagnostics** — nobody reads them. Kept the functional state dir and the
-  schema-drift canary.
-- **Replaced charter's PreToolUse consent regex with native permissions.**
-  *Reversal recorded:* the 2026-06-01 "non-blocking consent surfacing" hook is
-  removed — it was fragile (it false-fired on `rm -rf` substrings inside unrelated
-  commands) and only reminded. Native `auto` mode + `deny`/`ask` is harness-enforced
-  and stronger; charter keeps the plain-language consent *posture*.
-- **Generalized the task-queue review-gate into the default interpret→present→approve
-  loop** for any substantive prompt (the centerpiece the owner values).
-- **Made the deliberate prune automatic** (debt-threshold trigger) and deleted the
-  `/tidy:distill` + `/tidy:audit` slash commands.
-- **Deleted the human-facing docs** (README, CHANGELOG); kept lean Claude-context.
-
-**What's next:** demand-driven only — a new stack to lint, a real owner-not-at-the-
-terminal scenario (the one place an MCP integration, e.g. emailing the owner a
-plain-language recap, would earn its keep), or a pain point that surfaces. No new
-layers planned.
+Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario
+(the one place an MCP integration, e.g. emailing the owner a plain-language recap,
+would earn its keep), or a pain point that surfaces. No new layers planned.

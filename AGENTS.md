@@ -92,12 +92,11 @@ plugins/<name>/
 
 ## Conventions (mirror these in any new plugin)
 
-- **The priority order (full list: [docs/ROADMAP.md](./docs/ROADMAP.md)).** Tuned
-  for *existing, under-tested, under-documented projects that must stay clean as they
-  grow*: **0** keep the project self-describing (map/QA/decisions + a size guard —
-  the precondition) → **1** contain blast radius → **2** verify + stay aligned →
-  **3** subtract as you add → **4** periodic deliberate prune. Token efficiency is
-  the *payoff* of 0–4, not a separate chase.
+- **The priority order — the 0–4 list, its rationale, and the token-efficiency
+  payoff live in [docs/ROADMAP.md](./docs/ROADMAP.md) (§Prioritized criteria);
+  CLAUDE.md carries the one-line-each summary the companion hooks re-anchor to.**
+  Tuned for *existing, under-tested, under-documented projects that must stay clean
+  as they grow*. The per-principle "how" is the bullets below.
 - **Contain blast radius — per change *and* as a system trend (principle #1).** The
   master lever for keeping a project efficient and correct as features are added is
   to **minimize and understand the blast radius of every change**: both *code* blast
