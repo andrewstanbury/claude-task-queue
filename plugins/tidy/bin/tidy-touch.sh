@@ -66,6 +66,9 @@ case "$lang" in
   shell)
     result="$(tidy_handle_shell "$file" 2>/dev/null || true)"   # findings via shellcheck
     ;;
+  gdscript)
+    result="$(tidy_handle_gdscript "$file" 2>/dev/null || true)"  # gdformat + gdlint findings
+    ;;
 esac
 
 # Extract the format-changed flag + lint findings from the handler result.

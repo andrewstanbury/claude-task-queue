@@ -100,7 +100,10 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
 - **Python:** `ruff check` for `.py` — findings only, resolved project-local
   (`.venv`/`venv/bin`, walking up) before PATH. **Shell:** `shellcheck -x` for
   `.sh`/`.bash`. Same exit-code contract as web (1 = findings, 0 = clean, 2+ =
-  no-op). These are the **fast, file-scoped** linters; slow whole-project tools
+  no-op).
+- **GDScript (Godot):** `gdformat` formats `.gd` in place (behavior-preserving),
+  `gdlint` surfaces findings — both from the `gdtoolkit` pip package, detect-and-run
+  (absent → silent). Same exit-code contract for the lint pass. These are the **fast, file-scoped** linters; slow whole-project tools
   (clippy, project-wide mypy) are intentionally left to the verification floor
   (§4) — the fastest loop that can catch a problem owns it. Disable a stack by
   not having its tool installed; `CLAUDE_TIDY_LINT_TIMEOUT` bounds each run.

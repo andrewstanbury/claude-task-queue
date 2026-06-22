@@ -76,6 +76,7 @@ tidy_lang_for_file() {
           printf 'web' ;;
     *.py) printf 'python' ;;
     *.sh|*.bash) printf 'shell' ;;
+    *.gd) printf 'gdscript' ;;
     *)    printf '' ;;
   esac
 }
@@ -167,6 +168,35 @@ tidy_handle_web() {
   bin="$(tidy_node_bin "$file" "$tool")" || return 0
   [ -n "$bin" ] || return 0
   tidy_run_linter web "$tool" "$file" "$bin" "$file"
+}
+
+# ---- GDScript handler (Godot) ----------------------------------------------
+
+# Format the touched GDScript file in place with gdformat (behavior-preserving)
+# and surface gdlint findings for it. Both ship in gdtoolkit (pip); detect-and-run
+# like ruff/shellcheck — silent when neither is installed, so no new bundled dep
+# and no build. Prints "<changed>\t<lintfindings>" (the go/web handler shape) or
+# nothing. Like the web handler, never auto-fixes lint — gdformat is a formatter.
+tidy_handle_gdscript() {
+  local file="$1"
+  [ -f "$file" ] || return 0
+
+  local before after changed=0
+  if tidy_have gdformat; then
+    before="$(tidy_hash "$file")"
+    gdformat "$file" >/dev/null 2>&1 || true
+    after="$(tidy_hash "$file")"
+    [ "$before" != "$after" ] && changed=1
+  fi
+
+  local lint=""
+  if tidy_have gdlint; then
+    lint="$(tidy_run_linter gdscript gdlint "$file" gdlint "$file")"
+    lint="${lint#0$'\t'}"        # drop the "0\t" prefix tidy_run_linter prepends
+  fi
+
+  [ "$changed" -eq 0 ] && [ -z "$lint" ] && return 0
+  printf '%s\t%s' "$changed" "$lint"
 }
 
 # (The test-coverage nudge — generalized across languages as the "characterize

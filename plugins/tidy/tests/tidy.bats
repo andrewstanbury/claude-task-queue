@@ -270,6 +270,42 @@ fake_web_linter() {
   [ -z "$output" ]
 }
 
+# ---- GDScript (Godot): gdformat + gdlint, detect-and-run ---------------------
+
+@test "gdscript: .gd dispatches to the gdscript handler (not unsupported)" {
+  run bash -c '. "$1/lib/tidy.sh"; tidy_lang_for_file foo.gd' _ "$ROOT"
+  [ "$output" = "gdscript" ]
+}
+
+@test "gdscript: auto-formats via gdformat and tells the model to re-read" {
+  # gdformat stub rewrites the file in place so the content hash changes.
+  printf '#!/usr/bin/env bash\nprintf "\\n# tidied\\n" >> "$1"\n' > "$FAKEBIN/gdformat"
+  chmod +x "$FAKEBIN/gdformat"
+  printf 'extends Node\n' > "$WORK/player.gd"
+  run run_touch "$WORK/player.gd"
+  [[ "$output" == *"auto-formatted"* ]]
+  [[ "$output" == *"re-read"* ]]
+  grep -q '# tidied' "$WORK/player.gd"          # gdformat actually ran
+}
+
+@test "gdscript: surfaces gdlint findings for a touched .gd file" {
+  printf '#!/usr/bin/env bash\necho "$1:2: Error: function name is not snake_case (function-name)"\nexit 1\n' \
+    > "$FAKEBIN/gdlint"; chmod +x "$FAKEBIN/gdlint"
+  printf 'extends Node\nfunc DoThing():\n\tpass\n' > "$WORK/enemy.gd"
+  run run_touch "$WORK/enemy.gd"
+  [[ "$output" == *"function-name"* ]]
+  [[ "$output" == *"linter findings"* ]]
+}
+
+@test "gdscript: silent when neither gdformat nor gdlint is installed" {
+  export CLAUDE_TIDY_COVERAGE=0   # isolate from the coverage ratchet
+  command -v gdformat >/dev/null 2>&1 && skip "gdformat present on PATH"
+  command -v gdlint   >/dev/null 2>&1 && skip "gdlint present on PATH"
+  printf 'extends Node\n' > "$WORK/clean.gd"
+  run run_touch "$WORK/clean.gd"
+  [ -z "$output" ]
+}
+
 # ---- size-vs-complexity (automatic, no manual trigger) ----------------------
 
 @test "size: a touched file over budget is flagged for decomposition (any language)" {
