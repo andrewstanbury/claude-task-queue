@@ -176,15 +176,11 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
 - **Proportionality over maximalism** — every practice scaled to complexity/risk.
 - **Verification + simplicity over methodology labels** — tests as a safety net (the
   floor), SOLID's essence, DDD's ubiquitous language, **YAGNI**, boring & reversible.
-  YAGNI made *testable* (concepts absorbed, not tooling): **no seam until something
-  actually varies across it** (1 adapter = hypothetical, 2 = real) + the **deletion
-  test** (if removing a module only relocates its complexity it was a pass-through) +
-  **unit cohesion** (one thing — split on "and"; the testable form of SRP) and
-  **complexity-altitude** (flat/early-return over deep nesting; branching cost, which
-  the size nudge misses) in the tidy standard — SOLID's essence as concrete
-  generation-time rules, not the label (a "SOLID checker" isn't mechanically viable); and a **diagnose loop** in the test-fail block (reproduce → ranked
-  falsifiable hypotheses → tagged `[DEBUG-x]` instrumentation → fix + regression test →
-  grep-cleanup) that composes with the regression gate.
+  The decision: encode these as **concrete generation-time rules** (no-seam,
+  deletion-test, unit-cohesion, complexity-altitude — stated in CLAUDE.md's working
+  standards and the tidy SessionStart standard), **not** as methodology labels, since
+  a "SOLID checker" isn't mechanically viable. The test-fail block's **diagnose loop**
+  composes with the regression gate.
 - **Non-technical-owner posture** — autonomy on the reversible, plain-language
   consent on the consequential (the line is reversibility + cost + data-safety).
   Verification must be **observable** (demo it working; the owner verifies by seeing,

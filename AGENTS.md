@@ -125,10 +125,10 @@ plugins/<name>/
   default** (architecture gets no human review here). **Verification must be
   observable** — demonstrate user-visible changes in plain language, since the owner
   verifies by seeing it work, not by reading tests. Keep a thin plain-language owner
-  doc layer (#0) so they aren't locked to one Claude session. **YAGNI — the burden of
-  proof is on *adding* complexity** (unwarranted complexity is the upstream driver of
-  a growing blast radius), and **honor the owner's outcome, not their proposed
-  implementation** — push back on over-engineering, including the owner's own.
+  doc layer (#0) so they aren't locked to one Claude session. **Honor the owner's
+  outcome, not their proposed implementation** — push back on over-engineering
+  (including the owner's own): unwarranted complexity drives a growing blast radius,
+  so **YAGNI** (CLAUDE.md working standards #1) applies hardest to owner-proposed scope.
 - **Bash + `jq`, zero build.** No compiled languages, nothing to install to run
   a hook. (This is why the plugins are Bash, not Go — a compiled hook needs
   per-platform binaries or a toolchain, which breaks "runs everywhere, no build".)
