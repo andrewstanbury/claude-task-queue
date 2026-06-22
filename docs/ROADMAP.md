@@ -176,10 +176,10 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
 - **Proportionality over maximalism** — every practice scaled to complexity/risk.
 - **Verification + simplicity over methodology labels** — tests as a safety net (the
   floor), SOLID's essence, DDD's ubiquitous language, **YAGNI**, boring & reversible.
-  The decision: encode these as **concrete generation-time rules** (no-seam,
-  deletion-test, unit-cohesion, complexity-altitude — stated in CLAUDE.md's working
-  standards and the tidy SessionStart standard), **not** as methodology labels, since
-  a "SOLID checker" isn't mechanically viable. The test-fail block's **diagnose loop**
+  The decision: encode these as **concrete generation-time rules** — no-seam +
+  deletion-test (CLAUDE.md working standards #1) and unit-cohesion + complexity-altitude
+  (the tidy SessionStart standard) — **not** as methodology labels, since a "SOLID
+  checker" isn't mechanically viable. The test-fail block's **diagnose loop**
   composes with the regression gate.
 - **Non-technical-owner posture** — autonomy on the reversible, plain-language
   consent on the consequential (the line is reversibility + cost + data-safety).
