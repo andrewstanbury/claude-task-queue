@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # tidy — multi-stack edit-time linters beyond Go/web. Surfaces the PROJECT's own
-# linter findings for a touched file, findings-only (no auto-fix — that can change
-# behavior), silent unless the tool is actually present. Sourced by
-# bin/tidy-touch.sh alongside lib/tidy.sh (which provides tidy_have).
+# linter findings for a touched file; for Python it ALSO applies the behavior-
+# preserving formatter (ruff format / black) like the Go handler. No behavior-
+# changing auto-fix (no eslint/ruff `--fix`), silent unless the tool is actually
+# present. Sourced by bin/tidy-touch.sh alongside lib/tidy.sh (provides tidy_have).
 #
 # Scope boundary: edit-time linting is only for tools that are genuinely FAST and
 # FILE-SCOPED (ruff, shellcheck). Crate-/whole-project tools (clippy, project-wide
@@ -29,15 +30,37 @@ tidy_py_bin() {
   command -v "$tool" 2>/dev/null
 }
 
-# Python: surface the project's ruff findings for the touched file. ruff is the
-# fast, file-scoped modern standard; exit 1 = violations, 0 = clean, 2+ = config
-# error/crash (treated as no-op). No `--fix` — report only.
+# Python: auto-format the touched file (behavior-preserving, like gofmt) AND
+# surface ruff findings for it. Format prefers project-local `ruff format`, else
+# `black`; lint is `ruff check` (no `--fix` — that can change behavior). Both are
+# detect-and-run (silent when absent). Prints "<changed>\t<lintfindings>" (the
+# go/web handler shape) or nothing. ruff check: exit 1 = violations, 0 = clean,
+# 2+ = config error/crash (treated as no-op).
 tidy_handle_python() {
-  local file="$1" bin
+  local file="$1" rbin bbin changed=0 before after lint=""
   case "$file" in *.py) ;; *) return 0 ;; esac
-  bin="$(tidy_py_bin "$file" ruff)" || return 0
-  [ -n "$bin" ] || return 0
-  tidy_run_linter python ruff "$file" "$bin" check "$file"
+  rbin="$(tidy_py_bin "$file" ruff)"
+  bbin="$(tidy_py_bin "$file" black)"
+
+  # Format pass — behavior-preserving, so auto-applied. ruff format preferred.
+  if [ -n "$rbin" ] || [ -n "$bbin" ]; then
+    before="$(tidy_hash "$file")"
+    if [ -n "$rbin" ]; then "$rbin" format "$file" >/dev/null 2>&1 || true
+    else                    "$bbin" "$file"        >/dev/null 2>&1 || true
+    fi
+    after="$(tidy_hash "$file")"
+    [ "$before" != "$after" ] && changed=1
+  fi
+
+  # Lint findings via ruff check; strip tidy_run_linter's "0\t" so we emit our own
+  # changed flag.
+  if [ -n "$rbin" ]; then
+    lint="$(tidy_run_linter python ruff "$file" "$rbin" check "$file")"
+    lint="${lint#0$'\t'}"
+  fi
+
+  [ "$changed" -eq 0 ] && [ -z "$lint" ] && return 0
+  printf '%s\t%s' "$changed" "$lint"
 }
 
 # Shell: surface shellcheck findings for the touched script (the same linter this

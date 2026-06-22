@@ -97,8 +97,9 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   walking up from the file) before PATH. Linter exit 1 = problems surfaced; 0 =
   clean; 2+ = config/crash → no-op. This shifts much of Lighthouse's
   accessibility / best-practices audit to edit time.
-- **Python:** `ruff check` for `.py` — findings only, resolved project-local
-  (`.venv`/`venv/bin`, walking up) before PATH. **Shell:** `shellcheck -x` for
+- **Python:** `ruff format` (preferred) / `black` formats `.py` in place
+  (behavior-preserving, like gofmt) + `ruff check` surfaces findings — resolved
+  project-local (`.venv`/`venv/bin`, walking up) before PATH. **Shell:** `shellcheck -x` for
   `.sh`/`.bash`. Same exit-code contract as web (1 = findings, 0 = clean, 2+ =
   no-op).
 - **GDScript (Godot):** `gdformat` formats `.gd` in place (behavior-preserving),

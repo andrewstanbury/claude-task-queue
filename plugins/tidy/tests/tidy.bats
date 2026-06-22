@@ -243,6 +243,37 @@ fake_web_linter() {
   [ -z "$output" ]
 }
 
+@test "python: auto-formats via 'ruff format' and tells the model to re-read" {
+  export CLAUDE_TIDY_COVERAGE=0
+  # ruff stub: `format` rewrites the file; `check` is clean.
+  printf '#!/usr/bin/env bash\n[ "$1" = format ] && { printf "x = 1  # tidied\\n" >> "$2"; exit 0; }\nexit 0\n' \
+    > "$FAKEBIN/ruff"; chmod +x "$FAKEBIN/ruff"
+  printf 'x=1\n' > "$WORK/fmt.py"
+  run run_touch "$WORK/fmt.py"
+  [[ "$output" == *"auto-formatted"* ]]
+  [[ "$output" == *"re-read"* ]]
+  grep -q '# tidied' "$WORK/fmt.py"               # ruff format actually ran
+}
+
+@test "python: falls back to black when ruff is absent" {
+  export CLAUDE_TIDY_COVERAGE=0
+  command -v ruff >/dev/null 2>&1 && skip "ruff present on PATH"
+  printf '#!/usr/bin/env bash\nprintf "# blacked\\n" >> "$1"\n' > "$FAKEBIN/black"; chmod +x "$FAKEBIN/black"
+  printf 'x=1\n' > "$WORK/b.py"
+  run run_touch "$WORK/b.py"
+  [[ "$output" == *"auto-formatted"* ]]
+  grep -q '# blacked' "$WORK/b.py"                # black ran as the fallback formatter
+}
+
+@test "python: silent when neither ruff nor black is installed" {
+  export CLAUDE_TIDY_COVERAGE=0
+  command -v ruff  >/dev/null 2>&1 && skip "ruff present on PATH"
+  command -v black >/dev/null 2>&1 && skip "black present on PATH"
+  printf 'x = 1\n' > "$WORK/none.py"
+  run run_touch "$WORK/none.py"
+  [ -z "$output" ]
+}
+
 @test "python: prefers a project virtualenv ruff over PATH" {
   mkdir -p "$WORK/proj/.venv/bin"
   printf '#!/usr/bin/env bash\n[ "$1" = check ] && { echo "$2:2:1: E701 multiple statements"; exit 1; }\nexit 0\n' \
