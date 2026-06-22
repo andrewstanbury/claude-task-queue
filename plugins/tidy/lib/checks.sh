@@ -76,19 +76,41 @@ tidy_run_checks() {
   return "$rc"
 }
 
+# Detect a CONFIGURED Python type-checker and echo its quality gate
+# ("typecheck<TAB><cmd>"), or nothing. Needs BOTH a project config (so we honor the
+# project's own intent, not a blanket check) AND the tool on PATH — detect-and-run,
+# matching tidy_test_command's pytest discovery; installs nothing. mypy, else
+# pyright. This is the Python arm of the quality floor (no package.json needed).
+tidy_py_typecheck_gate() {
+  local root="$1"
+  if command -v mypy >/dev/null 2>&1 \
+     && { [ -f "$root/mypy.ini" ] \
+          || grep -q '^\[tool\.mypy\]' "$root/pyproject.toml" 2>/dev/null \
+          || grep -q '^\[mypy\]' "$root/setup.cfg" 2>/dev/null; }; then
+    printf 'typecheck\tmypy .\n'; return 0
+  fi
+  if command -v pyright >/dev/null 2>&1 \
+     && { [ -f "$root/pyrightconfig.json" ] \
+          || grep -q '^\[tool\.pyright\]' "$root/pyproject.toml" 2>/dev/null; }; then
+    printf 'typecheck\tpyright\n'; return 0
+  fi
+}
+
 # Discover the project's OWN declared quality gates beyond its test command —
-# typecheck, a11y/perf, and architecture (dependency rules) — as package.json
-# scripts (npm/pnpm/yarn). The verification floor runs these so the bar the
-# PROJECT already set is enforced, without inventing or installing anything
-# (detect-and-run, like tidy_test_command). Prints "label<TAB>command" per gate.
+# typecheck, a11y/perf, and architecture (dependency rules) — from package.json
+# scripts (npm/pnpm/yarn) AND a configured Python type-checker (mypy/pyright, no
+# package.json needed). The verification floor runs these so the bar the PROJECT
+# already set is enforced, without inventing or installing anything (detect-and-run,
+# like tidy_test_command). Prints "label<TAB>command" per gate.
 # CLAUDE_TIDY_QUALITY_CMD overrides with a single synthetic gate (manual/testing).
-# Empty when disabled, no package.json, or no recognised scripts.
+# Empty when disabled, or with no recognised gate.
 tidy_quality_commands() {
   local root="$1" pm pkg s label
   [ "${CLAUDE_TIDY_QUALITY_FLOOR:-1}" = "0" ] && return 0
   if [ -n "${CLAUDE_TIDY_QUALITY_CMD:-}" ]; then
     printf 'quality\t%s\n' "$CLAUDE_TIDY_QUALITY_CMD"; return 0
   fi
+  tidy_py_typecheck_gate "$root"                 # Python arm (works without package.json)
   pkg="$root/package.json"; [ -f "$pkg" ] || return 0
   pm=npm
   [ -f "$root/pnpm-lock.yaml" ] && pm=pnpm

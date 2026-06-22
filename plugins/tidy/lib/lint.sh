@@ -7,9 +7,10 @@
 #
 # Scope boundary: edit-time linting is only for tools that are genuinely FAST and
 # FILE-SCOPED (ruff, shellcheck). Crate-/whole-project tools (clippy, project-wide
-# mypy) stay with the verification floor (the Stop hook runs the project's own
-# checks) — the fastest loop that can catch a class of problem owns it, and a
-# slow whole-project linter doesn't belong on the edit path.
+# mypy/pyright) stay with the verification floor — the Stop hook's quality floor
+# runs a configured mypy/pyright (lib/checks.sh tidy_py_typecheck_gate). The
+# fastest loop that can catch a class of problem owns it, and a slow whole-project
+# linter doesn't belong on the edit path.
 
 set -uo pipefail
 

@@ -51,7 +51,7 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 | `lib/lint.sh` | Multi-stack edit-time linters (Python `ruff` + format via `ruff format`/`black`, shell `shellcheck`) — Python also auto-formats; project's own tool. |
 | `lib/secscan.sh` | The secret-floor regex: prefix-anchored credential shapes (AWS/GitHub/Slack/Stripe/Google/PEM) + a placeholder-filtered generic pattern, and the exempt-path test. Pure regex, no external tool (works without gitleaks). |
 | `lib/coverage.sh` | Coverage ratchet: per-language test detection, characterize-before-change nudge, untested-changed lister for the opt-in gate; `tidy_hotspots` (scar-tissue mirror of charter, drift-guarded) + `tidy_untested_hotspots` (the regression gate's target — untested ∩ hotspot). |
-| `lib/checks.sh` | Test-command discovery + bounded run + working-tree fingerprint (verify throttle); `tidy_quality_commands` (discover the project's own typecheck/a11y/dep-rule scripts for the quality floor). |
+| `lib/checks.sh` | Test-command discovery + bounded run + working-tree fingerprint (verify throttle); `tidy_quality_commands` (discover the project's own typecheck/a11y/dep-rule scripts + a configured Python `mypy`/`pyright` via `tidy_py_typecheck_gate`, for the quality floor). |
 | `lib/blast.sh` | Blast-radius (Go: exact `go list` importers, cached, → git grep fallback; basename heuristic elsewhere). |
 | `lib/arch.sh` | Clean-architecture checks: import-cycle detection (detect-and-run `madge`) + `tidy_coupling_density` (import-edges-per-file proxy for the coupling trend). |
 
