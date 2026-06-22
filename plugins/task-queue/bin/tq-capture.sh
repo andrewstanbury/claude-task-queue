@@ -71,11 +71,8 @@ fi
 consequential=0; design=0; substantive=1; paused=0
 tq_looks_consequential "$prompt" && consequential=1
 tq_looks_design "$prompt" && design=1
-# Godot: the wireframe design-preview is a web-UI convention that misleads on a
-# game's scene/sprite visuals, so stand it down — the prompt falls back to the
-# normal substantive loop (or runs straight through if that's all it was), and the
-# owner sees the change by running the game.
-[ "$design" -eq 1 ] && tq_is_godot_project "$root" && design=0
+# (Godot design-preview suppression removed at owner's request — UI/visual prompts
+# now get the wireframe demonstrate-before-build flow in Godot projects too.)
 if [ "$consequential" -eq 0 ] && [ "$design" -eq 0 ] && ! tq_looks_multistep "$prompt"; then substantive=0; fi
 tq_is_paused "$root" && paused=1
 
