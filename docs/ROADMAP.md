@@ -222,9 +222,9 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   permissions scan bash *commands*/code *style* but nothing scans file *content* an
   agent writes for committed credentials, and a leaked key is irreversible. Kept
   high-precision (prefix-anchored) so false blocks stay near-zero. This is the single
-  concept imported from `SPEC.md` (claude-governance's T3 obligations); its audit
-  log, tier vocabulary, approver chains, and CI floor stay out (org-compliance
-  machinery, not this system's single-owner bet).
+  concept imported from a separate governance system (claude-governance's T3
+  obligations); its audit log, tier vocabulary, approver chains, and CI floor stay
+  out (org-compliance machinery, not this system's single-owner bet).
 - **Native plan mode for the present-before-work step** (2026-06-16) — rejected in
   favour of the task-queue's interpret→present→approve loop: plan mode is read-only
   and all-or-nothing per session, whereas the owner wants to run in auto and review

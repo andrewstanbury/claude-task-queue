@@ -5,7 +5,7 @@
   "author": {
     "name": "Andrew Stanbury"
   },
-  "homepage": "https://github.com/andrewstanbury/claude-task-queue",
+  "homepage": "https://github.com/andrewstanbury/claude-task-queue/tree/main/plugins/task-queue",
   "repository": "https://github.com/andrewstanbury/claude-task-queue",
   "license": "MIT",
   "keywords": [

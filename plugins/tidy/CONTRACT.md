@@ -64,7 +64,7 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   Google `AIza…`, PEM `BEGIN … PRIVATE KEY` blocks — plus a generic
   long-quoted-literal-after-a-secret-keyword pattern that skips obvious placeholders
   (`your_…`, `example`, `${…}`, `os.environ`, `<…>`, etc.). Secrets only; TLS-off /
-  eval / SQL patterns from SPEC.md are intentionally out (fuzzier → would block real
+  eval / SQL patterns from the source governance spec are intentionally out (fuzzier → would block real
   edits). The reason is **redacted** — it reports the line + kind, never the literal.
 - **Exempt paths** (`tidy_secscan_excluded`): `*.md`, and `tests/`/`fixtures/`/
   `testdata/`/`*_test.*`/`*.spec.*`/`*.bats` — docs and fixtures legitimately carry

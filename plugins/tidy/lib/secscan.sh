@@ -4,20 +4,20 @@
 # exits non-zero on a hit). Pure regex, no external tool — so it protects a
 # non-technical owner's project, which won't have gitleaks installed.
 #
-# Why this exists (the one concept imported from SPEC.md / claude-governance): native
+# Why this exists (the one concept imported from claude-governance, a separate system): native
 # `auto`-mode + the linters scan bash COMMANDS and code STYLE, but nothing scans the
 # file CONTENT an agent writes for committed secrets. A leaked key is exactly the
 # irreversible harm the owner can't catch themselves. Kept deliberately narrow and
 # prefix-anchored: a false positive here BLOCKS real work, so precision beats recall.
 #
 # Scope boundary: secrets only (highest value, lowest false-positive). TLS-off / eval
-# / SQL-injection patterns from SPEC are intentionally NOT here yet — they're fuzzier
+# / SQL-injection patterns from that spec are intentionally NOT here yet — they're fuzzier
 # and would block legitimate edits. Sourced by bin/tidy-presecret.sh.
 
 set -uo pipefail
 
-# Files we must NOT scan: markdown (docs describe secret SHAPES — e.g. SPEC.md's
-# AKIA example — and would self-trip) and test/fixture trees (they synthesize
+# Files we must NOT scan: markdown (docs describe secret SHAPES — e.g. an AKIA
+# example — and would self-trip) and test/fixture trees (they synthesize
 # secret-shaped strings on purpose). Returns 0 (=exclude) when the path is exempt.
 tidy_secscan_excluded() {
   case "$1" in

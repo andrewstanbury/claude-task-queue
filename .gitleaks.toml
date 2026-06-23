@@ -1,0 +1,15 @@
+# gitleaks config — auto-loaded by `gitleaks detect` from the scan root.
+# Extends the default ruleset; only adds an allowlist for synthetic test data.
+[extend]
+useDefault = true
+
+[allowlist]
+description = """
+The secret-floor's own tests synthesize secret-shaped strings on purpose (a fake
+PEM marker, a high-entropy password literal) to prove tidy BLOCKS them. They are
+not real credentials, so the test file is allowlisted from the repo-wide scan.
+The detector under test (plugins/tidy/lib/secscan.sh) is regex-only and unaffected.
+"""
+paths = [
+  '''plugins/tidy/tests/secscan\.bats''',
+]
