@@ -64,6 +64,11 @@ marked_repo() {
   within "capture design"      1800 "$(cap 'make the login page cleaner')"
   mkdir -p "$CLAUDE_TQ_TASKS_DIR/s"
   jq -n '{id:"1",subject:"❓ Block or warn?",status:"pending"}' > "$CLAUDE_TQ_TASKS_DIR/s/1.json"
+  # Isolate the open-Q reminder by PAUSING the repo: since 2026-06-26 the review
+  # loop fires on EVERY prompt (incl. 'thanks'), so pause suppresses the loop while
+  # the reminder still rides — measuring the reminder alone, as this budget intends.
+  export CLAUDE_TQ_PAUSE_DIR="$WORK/paused"; mkdir -p "$CLAUDE_TQ_PAUSE_DIR"
+  : > "$CLAUDE_TQ_PAUSE_DIR/$(printf '%s' "$repo" | sed 's:/:-:g')"
   within "open-Q reminder"     280  "$(cap 'thanks')"
 }
 

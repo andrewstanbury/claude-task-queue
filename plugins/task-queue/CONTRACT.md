@@ -88,20 +88,24 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
 ### 4. `UserPromptSubmit` hook payload (stdin)
 
 - **Fields read:** `prompt` (the user's text) and `session_id`.
-- **Behavior (`tq-capture.sh`):** runs on every prompt (local bash/jq checks — no
-  model cost) but stays silent on trivial prompts. On a **multi-step OR
-  consequential** prompt (`tq_looks_multistep` / `tq_looks_consequential` in
-  `lib/capture.sh`) it injects the **interpret→present→approve review loop**
-  instruction: (1) interpret the request in one line, (2) decompose into tasks,
-  (3) judge each for risk/alignment and PARALLEL-vs-INLINE fan-out, (4) PRESENT
-  understanding + per-task disposition + candid skip recommendations via
-  AskUserQuestion, (5) `TaskCreate` **only approved** tasks. Consequential prompts
-  get the same loop with extra "recommend against if warranted" scrutiny. It fires
-  **regardless of existing queue state** (the old empty-queue gate and
-  `tq_open_count` were removed). **Pause gates the review loop:** when the repo is
-  paused (§ pause flag), the checkpoint is suppressed and substantive prompts run
-  straight through in auto without presenting for approval. Disabled with
-  `CLAUDE_TQ_CAPTURE_DISABLED`.
+- **Behavior (`tq-capture.sh`):** injects the **interpret→present→approve review
+  loop** on **every prompt** (local bash/jq checks — no model cost to classify;
+  owner decision 2026-06-26). The loop SCALES: an obvious trivial ask gets a
+  one-line plan + confirmation rather than a full round-trip, and a conversational
+  prompt that decomposes to no work queues nothing. The instruction is:
+  (1) interpret the request in one line, (2) decompose into tasks, (3) judge each
+  for risk/alignment and PARALLEL-vs-INLINE fan-out, (4) PRESENT understanding +
+  per-task disposition + candid skip recommendations via AskUserQuestion,
+  (5) `TaskCreate` **only approved** tasks. Consequential prompts get the same loop
+  with extra "recommend against if warranted" scrutiny (`tq_looks_consequential` in
+  `lib/capture.sh`). It fires **regardless of existing queue state**. Only
+  **slash/bang commands and empty prompts** are skipped (not user work). **Pause
+  gates the review loop:** when the repo is paused (§ pause flag), the loop is
+  suppressed and prompts run straight through in auto without presenting for
+  approval. Disabled with `CLAUDE_TQ_CAPTURE_DISABLED`. *(History: before
+  2026-06-26 the loop fired only on multi-step / consequential / visual prompts and
+  stayed silent on trivial ones; `tq_looks_multistep` was removed when that
+  "substantive" gate was dropped.)*
 - **Design preview (visual prompts):** when the prompt looks like a **visual/UI/
   layout** change (`tq_looks_design` in `lib/capture.sh` — a visual intent + a UI
   noun, or an inherently-visual term; precision-tuned so architecture/API "design"
@@ -119,9 +123,9 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
   when unanswered questions get buried. The model records them (TaskCreate `❓ …`) and
   clears them (TaskUpdate → completed); recording is model-assisted (the hook only
   re-surfaces). Disable with `CLAUDE_TQ_OPEN_Q=0`. hud mirrors the count (`❓N`).
-- **Intent of record (side effect):** on a substantive, non-paused prompt it also
-  stashes the prompt text to `tq_intent_file($session_id)` (in the state dir) for the
-  Stop gate below. Best-effort; gated off by `CLAUDE_TQ_INTENT_GATE=0`.
+- **Intent of record (side effect):** on any non-paused prompt it also stashes the
+  prompt text to `tq_intent_file($session_id)` (in the state dir) for the Stop gate
+  below. Best-effort; gated off by `CLAUDE_TQ_INTENT_GATE=0`.
 - **Output contract:** same shape, with `"hookEventName": "UserPromptSubmit"`.
 - **If it changes:** the loop instruction silently stops; capture still relies on
   the SessionStart policy.

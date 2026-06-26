@@ -1,8 +1,9 @@
 #!/usr/bin/env bats
 #
-# Tests for the interpret→present→approve hook (bin/tq-capture.sh). On a
-# SUBSTANTIVE prompt (multi-step, or consequential/irreversible) it injects the
-# review-loop instruction; trivial prompts stay silent. Faked via CLAUDE_TQ_*.
+# Tests for the interpret→present→approve hook (bin/tq-capture.sh). It injects the
+# review-loop instruction on EVERY prompt (owner decision 2026-06-26 — all prompts
+# route through the queue); consequential/design prompts get a heavier variant.
+# Only slash/bang/empty prompts and paused repos stay silent. Faked via CLAUDE_TQ_*.
 
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -56,9 +57,10 @@ run_capture() {
   [[ "$output" == *"SELECTIVE"* ]]                 # anti-theater: only on real signal
 }
 
-@test "critique posture is SELECTIVE — absent on a trivial prompt (not on everything)" {
+@test "critique posture rides even a trivial prompt now (all-prompts policy)" {
   run run_capture "fix the typo"
-  [ -z "$output" ]                                 # trivial stays silent → no critique
+  [[ "$output" == *"steelman"* ]]                  # loop fires on everything…
+  [[ "$output" == *"SELECTIVE"* ]]                 # …but stays selective in WHAT it objects to
 }
 
 @test "consequential prompt also carries the critique posture" {
@@ -135,9 +137,10 @@ run_capture() {
   [[ "$output" != *"CONSEQUENTIAL"* ]]
 }
 
-@test "silent on a short trivial prompt (runs untouched under auto mode)" {
+@test "a short trivial prompt now fires the loop (all prompts route through the queue)" {
   run run_capture "fix the typo"
-  [ -z "$output" ]
+  [[ "$output" == *"interpret→present→approve"* ]]
+  [[ "$output" == *"New substantive work"* ]]
 }
 
 @test "silent on a slash command even if long and multi-versed" {
@@ -183,18 +186,6 @@ run_capture() {
   done
 }
 
-@test "multi-step heuristic fires on connectives, lists, and 2+ verbs; not on a single short action" {
-  src='. "$1/lib/tasks.sh"; . "$1/lib/capture.sh";'
-  run bash -c "$src"' tq_looks_multistep "please add the thing and then remove the other thing" && echo Y' bash "$ROOT"
-  [ "$output" = "Y" ]
-  run bash -c "$src"' tq_looks_multistep "1. parse the input 2. validate it across the module" && echo Y' bash "$ROOT"
-  [ "$output" = "Y" ]
-  run bash -c "$src"' tq_looks_multistep "implement the parser and add tests for it" && echo Y' bash "$ROOT"
-  [ "$output" = "Y" ]
-  run bash -c "$src"' tq_looks_multistep "rename the file" || echo N' bash "$ROOT"
-  [ "$output" = "N" ]
-}
-
 # ---- intent of record (capture side) ----------------------------------------
 
 @test "intent: a substantive prompt records the owner's words for the outcome gate" {
@@ -203,9 +194,10 @@ run_capture() {
   [ "$(cat "$(intent_file)")" = "$MULTI" ]
 }
 
-@test "intent: a trivial prompt records nothing" {
+@test "intent: even a trivial prompt now records the owner's words (all-prompts policy)" {
   run run_capture "fix the typo"
-  [ ! -f "$(intent_file)" ]
+  [ -f "$(intent_file)" ]
+  [ "$(cat "$(intent_file)")" = "fix the typo" ]
 }
 
 @test "intent: a paused repo records nothing (opted out of the loop)" {
@@ -344,9 +336,9 @@ make_question() {   # $1=session $2=id $3=subject
     > "$CLAUDE_TQ_TASKS_DIR/$1/$2.json"
 }
 
-@test "open questions: a lingering ❓ is re-surfaced even on a TRIVIAL new prompt" {
+@test "open questions: a lingering ❓ is re-surfaced (rides alongside the loop)" {
   make_question sess q1 "❓ Should the gate block or warn?"
-  run run_capture "fix the typo"                 # trivial → normally silent
+  run run_capture "fix the typo"
   [[ "$output" == *"unanswered question"* ]]
   [[ "$output" == *"block or warn"* ]]
 }
@@ -358,9 +350,9 @@ make_question() {   # $1=session $2=id $3=subject
   [[ "$output" == *"New substantive work"* ]]    # loop instruction still present
 }
 
-@test "open questions: silent when there are none" {
+@test "open questions: no reminder when there are none (loop still fires)" {
   run run_capture "fix the typo"
-  [ -z "$output" ]
+  [[ "$output" != *"unanswered question"* ]]      # loop fires, but no open-Q reminder
 }
 
 @test "open questions: a completed ❓ does not count" {
@@ -368,11 +360,11 @@ make_question() {   # $1=session $2=id $3=subject
   jq -n '{id:"q",subject:"❓ already answered",status:"completed",blocks:[],blockedBy:[]}' \
     > "$CLAUDE_TQ_TASKS_DIR/sess/q.json"
   run run_capture "fix the typo"
-  [ -z "$output" ]
+  [[ "$output" != *"unanswered question"* ]]
 }
 
 @test "open questions: disabled via CLAUDE_TQ_OPEN_Q=0" {
   make_question sess q1 "❓ x"
   CLAUDE_TQ_OPEN_Q=0 run run_capture "fix the typo"
-  [ -z "$output" ]
+  [[ "$output" != *"unanswered question"* ]]      # reminder suppressed (loop may still fire)
 }

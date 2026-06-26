@@ -72,13 +72,19 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   re-surfaces a repo's unfinished tasks — the system's confirmed native gap) +
   per-repo pause + opt-in agent-mode + roadmap hydration + schema-drift canary.
   (Moving down the queue is left to Claude Code's native task nudges.) Its
-  centerpiece is the **interpret→present→approve review loop**: on any substantive
-  prompt (multi-step OR consequential) the capture hook has the model interpret the
-  request, decompose it, judge each task for risk/alignment and parallel-vs-inline
-  fan-out, **present its understanding + candid per-task recommendations (incl. skip)
-  via AskUserQuestion**, and TaskCreate only what the user approves — weighed against
-  recorded direction. Trivial prompts stay silent. **Pause** suppresses the review
-  loop so substantive prompts run straight through in auto. On a **visual/design**
+  centerpiece is the **interpret→present→approve review loop**: on **every prompt**
+  the capture hook has the model interpret the request, decompose it, judge each
+  task for risk/alignment and parallel-vs-inline fan-out, **present its understanding
+  + candid per-task recommendations (incl. skip) via AskUserQuestion**, and
+  TaskCreate only what the user approves — weighed against recorded direction. The
+  loop SCALES: a trivial ask gets a one-line plan + confirmation, a conversational
+  prompt that decomposes to no work queues nothing. *(2026-06-26: owner override —
+  the loop now fires on every prompt. It previously fired only on multi-step /
+  consequential / visual prompts and stayed silent on trivial ones; the owner chose
+  one consistent path — all prompts routed through the queue — over the precision
+  filter, accepting the per-prompt token cost. This reverses the "trivial stays
+  silent" decision below; `tq_looks_multistep` was removed.)* **Pause** suppresses
+  the review loop so prompts run straight through in auto. On a **visual/design**
   prompt the loop specializes into a **design preview**: the model presents a
   recommended design + 2-3 alternatives as faithful **ASCII mockups** in the
   AskUserQuestion `preview` (native keyboard-nav + Enter, recommended first), and
@@ -194,10 +200,16 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   (2026-06-19) — the review loop EVALUATES before executing (steelman → challenge →
   recommend-against when warranted), challenging **both** the project's recorded
   constraints *and* the owner's own accumulated requirements/bias when they contradict
-  or force a poor/over-engineered design. **Not on every prompt** — only the
+  or force a poor/over-engineered design. ~~**Not on every prompt** — only the
   substantive/consequential gate: mandated on-everything critique becomes theater and
   *false pushback trains rubber-stamping*, and per-prompt critique on trivial work
-  breaks the zero-cost invariant. Claims only what's feasible (contradiction +
+  breaks the zero-cost invariant.~~ *(2026-06-26: superseded — the owner chose to
+  route every prompt through the loop, so the critique posture now rides every
+  prompt too. The original theater/rubber-stamping risk is mitigated by the loop's
+  "Be SELECTIVE — only on real signal" instruction and its scaling, not by gating
+  which prompts fire. The "no per-prompt cost" framing is unchanged: classification
+  is still local bash/jq; what changed is the loop now injects on every prompt.)*
+  Claims only what's feasible (contradiction +
   named-anti-pattern detection; **not** general "bias" — no reference frame). Shipped
   in task-queue's existing UserPromptSubmit injection (no new hook/plugin).
   **Deferred** until the gap proves real (a YAGNI call): bidirectional charter

@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 # UserPromptSubmit hook — the interpret→present→approve loop.
 #
-# On a SUBSTANTIVE prompt (multi-step work, OR a consequential/irreversible
-# request) it asks the model to FIRST show its reading of the prompt and a
-# proposed task breakdown — with per-task risk/alignment + parallel-vs-inline
-# judgement and candid skip recommendations — and get the user's sign-off via
-# AskUserQuestion BEFORE anything is queued or started. Trivial prompts are left
-# alone (they just run under auto mode). Fires regardless of existing queue state:
-# new substantive work always gets reviewed before it shapes the queue. When the
-# project records its direction (decisions/roadmap), the work is weighed against
-# it (clean ≠ correct). **Token-free unless it fires** (local bash/jq, no model
-# cost). Disable with CLAUDE_TQ_CAPTURE_DISABLED=1. The hook only injects the
+# On EVERY prompt (owner decision 2026-06-26 — the precision-tuned "only multi-step
+# / consequential fires" filter was removed so all prompts are routed through the
+# queue) it asks the model to FIRST show its reading of the prompt and a proposed
+# task breakdown — with per-task risk/alignment + parallel-vs-inline judgement and
+# candid skip recommendations — and get the user's sign-off via AskUserQuestion
+# BEFORE anything is queued or started. The loop SCALES: an obvious trivial ask
+# gets a one-line plan + confirmation, not a full round-trip, and a conversational
+# prompt that decomposes to no work simply queues nothing. consequential/design
+# prompts get a heavier variant of the same loop. Slash/bang commands and empty
+# prompts are skipped (not user work). When the project records its direction
+# (decisions/roadmap), the work is weighed against it (clean ≠ correct).
+# **Token-free to classify, but now fires on every prompt** (local bash/jq, no
+# model cost). Disable with CLAUDE_TQ_CAPTURE_DISABLED=1. The hook only injects the
 # instruction — the review pause is the model calling AskUserQuestion in-loop,
 # not a hook-level block.
 
@@ -64,20 +67,20 @@ if [ "${CLAUDE_TQ_OPEN_Q:-1}" != "0" ]; then
   fi
 fi
 
-# Classify: a consequential/irreversible request, multi-step work, or a VISUAL
-# change is SUBSTANTIVE and gets the review loop. A trivial single-step prompt runs
-# untouched (auto handles it). Pause suppresses the loop. Either way the open-
-# questions reminder above still goes out.
-consequential=0; design=0; substantive=1; paused=0
+# Classify for ROUTING, not gating: EVERY prompt now gets the review loop (owner
+# decision 2026-06-26 — all prompts are interpreted, decomposed, and queued; the
+# old multi-step "trivial stays silent" filter was removed). consequential/design
+# only select WHICH variant of the loop fires. Pause suppresses the loop. Either
+# way the open-questions reminder above still goes out.
+consequential=0; design=0; paused=0
 tq_looks_consequential "$prompt" && consequential=1
 tq_looks_design "$prompt" && design=1
 # (Godot design-preview suppression removed at owner's request — UI/visual prompts
 # now get the wireframe demonstrate-before-build flow in Godot projects too.)
-if [ "$consequential" -eq 0 ] && [ "$design" -eq 0 ] && ! tq_looks_multistep "$prompt"; then substantive=0; fi
 tq_is_paused "$root" && paused=1
 
 loopctx=""
-if [ "$substantive" -eq 1 ] && [ "$paused" -eq 0 ]; then
+if [ "$paused" -eq 0 ]; then
   # Record the INTENT OF RECORD for the outcome gate (tq-verify, Stop): the owner's
   # own words, replayed at "done" to check the change against the request. Best-
   # effort side effect; disabled with CLAUDE_TQ_INTENT_GATE=0.
