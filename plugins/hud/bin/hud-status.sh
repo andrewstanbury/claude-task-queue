@@ -6,7 +6,7 @@
 #
 # Slots (left → right), each collapses when its data is absent:
 #   health beacon · ⏸ paused · 🤖 agent · ✓/✗ tests · ❓ open-Qs · 🔗↑ coupling ·
-#   ctx % · $ session-cost · git branch (+ dirty * · ↑ahead ↓behind) · model
+#   ctx % · tok ⇡in ⇣out · $ session-cost · git branch (+ dirty * · ↑ahead ↓behind) · model
 #
 # Scoped to signals a status line is the BEST surface for — persistent
 # state/health you want at a glance. Deliberately NOT re-rendered here: the task
@@ -52,10 +52,13 @@ mapfile -t F < <(printf '%s' "$INPUT" | jq -r '[
     (.workspace.current_dir // .cwd // ""),
     (.context_window.used_percentage // ""),
     (.terminal_width // 0),
-    (.cost.total_cost_usd // "")
+    (.cost.total_cost_usd // ""),
+    (.context_window.total_input_tokens // ""),
+    (.context_window.total_output_tokens // "")
   ] | .[]' 2>/dev/null)
 MODEL="${F[0]:-?}"; SID="${F[1]:-}"; CWD="${F[2]:-$PWD}"
 CTX_PCT="${F[3]:-}"; TERM_W="${F[4]:-0}"; COST="${F[5]:-}"
+IN_TOK="${F[6]:-}"; OUT_TOK="${F[7]:-}"
 [ -z "$CWD" ] && CWD="$PWD"
 [ "${TERM_W:-0}" -le 0 ] && TERM_W="${COLUMNS:-0}"
 [ "$TERM_W" -le 0 ] && TERM_W=200
@@ -114,6 +117,20 @@ if [ -n "$CTX_PCT" ]; then
   PCT="${CTX_PCT%.*}"; PCT="${PCT//[^0-9]/}"; [ -n "$PCT" ] || PCT=0
   PCOL="$G"; [ "$PCT" -ge 60 ] && PCOL="$Y"; [ "$PCT" -ge 85 ] && PCOL="$R"
   printf "%sctx%s %s%s%%%s%s" "$D" "$X" "$PCOL$B" "$PCT" "$X" "$SEP"
+fi
+
+# 5a) Token throughput — ⇡ input ("uploaded": tokens in the current context, incl.
+# cache) and ⇣ output ("downloaded": the last response). From the same context_window
+# object as ctx% — since Claude Code v2.1.132 these are CURRENT-context figures, not
+# cumulative-session totals. Dim + shed on narrow; gated on input > 0 so it's silent
+# before the first API call and right after /compact (when the counts reset).
+if [ "$NARROW" -eq 0 ]; then
+  ITOK="${IN_TOK%.*}"; OTOK="${OUT_TOK%.*}"
+  HIN="$(hud_human_tokens "$ITOK")"
+  if [ -n "$HIN" ] && [ "${ITOK:-0}" -gt 0 ] 2>/dev/null; then
+    HOUT="$(hud_human_tokens "$OTOK")"
+    printf '%stok ⇡%s ⇣%s%s%s' "$D" "$HIN" "${HOUT:-0}" "$X" "$SEP"
+  fi
 fi
 
 # 5b) Session cost — running $ spend this session (color-neutral, low-key). From

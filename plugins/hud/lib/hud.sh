@@ -43,6 +43,18 @@ hud_open_questions() {
   printf '%s' "${c:-0}"
 }
 
+# Humanize a token count for the status line: <1000 verbatim, thousands as N.Nk,
+# millions as N.NM (integer-only — no bc, so it's safe in a per-render path). Empty
+# or non-numeric input prints nothing, so the matching slot collapses.
+hud_human_tokens() {
+  local n="$1"
+  case "$n" in ''|*[!0-9]*) return 0 ;; esac
+  if [ "$n" -lt 1000 ]; then printf '%s' "$n"
+  elif [ "$n" -lt 1000000 ]; then printf '%s.%sk' "$((n/1000))" "$(((n%1000)/100))"
+  else printf '%s.%sM' "$((n/1000000))" "$(((n%1000000)/100000))"
+  fi
+}
+
 # Is the review loop paused for this repo? prints 1 / 0.
 hud_paused() {
   local root="$1" flag

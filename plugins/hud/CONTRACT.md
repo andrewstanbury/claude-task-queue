@@ -11,7 +11,15 @@ on-disk state files and prints one line. It never writes anything.
 
 - **Fields read:** `.model.display_name` / `.model.id`, `.session_id`,
   `.workspace.current_dir` / `.cwd`, `.context_window.used_percentage`,
+  `.context_window.total_input_tokens`, `.context_window.total_output_tokens`,
   `.terminal_width`, `.cost.total_cost_usd`.
+- **Token note:** the `total_input_tokens` (⇡) / `total_output_tokens` (⇣) figures
+  are rendered as a dim `tok ⇡N ⇣N` slot (humanized k/M), shed on narrow terminals
+  and gated on input > 0 so it's silent before the first API call and right after
+  `/compact`. Like `used_percentage`, since Claude Code v2.1.132 these are
+  *current-context* figures (input incl. cache; output = last response), **not**
+  cumulative-session totals — the payload no longer exposes session-cumulative token
+  counts.
 - **Cost note:** `.cost.total_cost_usd` is the payload's running session spend.
   hud renders it as `$N.NN` (a low-key, color-neutral slot), shed on narrow
   terminals and silent when the field is absent or still `0.00`.

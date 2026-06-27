@@ -41,6 +41,14 @@ teardown() {
   rm -rf "$CLAUDE_HUD_VERIFY_DIR"
 }
 
+@test "hud_human_tokens: verbatim <1k, N.Nk thousands, N.NM millions, empty on junk" {
+  run bash -c "$SRC"' hud_human_tokens 850' bash "$ROOT";     [ "$output" = "850" ]
+  run bash -c "$SRC"' hud_human_tokens 12530' bash "$ROOT";   [ "$output" = "12.5k" ]
+  run bash -c "$SRC"' hud_human_tokens 1250000' bash "$ROOT"; [ "$output" = "1.2M" ]
+  run bash -c "$SRC"' hud_human_tokens ""' bash "$ROOT";      [ -z "$output" ]
+  run bash -c "$SRC"' hud_human_tokens abc' bash "$ROOT";     [ -z "$output" ]
+}
+
 @test "hud_dirty counts uncommitted files, empty on a clean tree" {
   run bash -c "$SRC"' hud_dirty "$2"' bash "$ROOT" "$REPO"; [ -z "$output" ]   # clean
   printf 'x\n' > "$REPO/new.txt"
@@ -168,6 +176,18 @@ teardown() {
     '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200,cost:{total_cost_usd:0}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
   [[ "$output" != *'$0.00'* ]]
+}
+
+@test "status line shows the token slot (⇡input ⇣output), silent before the first API call" {
+  json="$(jq -nc --arg c "$REPO" \
+    '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200,
+      context_window:{total_input_tokens:12530,total_output_tokens:1180}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *"tok ⇡12.5k ⇣1.1k"* ]]
+  # no context_window (before the first response, or post-compact) → slot collapses
+  json="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" != *"tok"* ]]
 }
 
 @test "hud_coupling reads tidy's cached direction marker" {
