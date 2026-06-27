@@ -11,11 +11,13 @@ A small **marketplace of self-contained Claude Code companion plugins**:
 
 - **`plugins/task-queue/`** — makes Claude Code's native task list a live work
   queue: a SessionStart policy + cross-session resume bridge + a per-repo pause +
-  a UserPromptSubmit *interpret→present→approve* review loop (on any substantive
-  prompt: interpret → decompose → judge risk/fan-out → present via AskUserQuestion
-  → create only approved tasks; trivial prompts stay silent). Pause suppresses the
-  review loop so prompts run straight through in auto. **Read-only** over
-  `~/.claude/tasks`.
+  a UserPromptSubmit review loop that **splits the loop from the interrupt** (fires
+  on every prompt: interpret → decompose → `TaskCreate` → work in auto by default,
+  with sign-off via AskUserQuestion delegated to the model and surfaced only on real
+  signal; the heavy present-and-approve + critique fires only on the deterministic
+  consequential/design signal). The full procedure rides the SessionStart policy.
+  Pause suppresses the review loop so prompts run straight through in auto.
+  **Read-only** over `~/.claude/tasks`.
 - **`plugins/tidy/`** — *tidy-as-you-touch*: formats and lint-checks the file you
   just edited (fixing only what's safe) so a project converges toward clean code
   over time, scoped to the touched file.

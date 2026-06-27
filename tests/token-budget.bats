@@ -58,10 +58,13 @@ marked_repo() {
   local repo="$WORK/p"; mkdir -p "$repo"; git -C "$repo" init -q
   cap() { jq -nc --arg p "$1" --arg s s --arg c "$repo" '{prompt:$p, session_id:$s, cwd:$c}' \
             | "$R/plugins/task-queue/bin/tq-capture.sh" | ctx; }
-  # Ratchet 2026-06-19: +critique posture (steelman→challenge, contradiction/bias
-  # check, recommend-against) prepended to the review-loop instruction — measured ~1215.
-  within "capture substantive" 1400 "$(cap 'add the login form and wire it and test it')"
-  within "capture design"      1800 "$(cap 'make the login page cleaner')"
+  # Ratchet DOWN 2026-06-27 (split-from-interrupt): the DEFAULT path is now a LEAN
+  # re-anchor (~420), not the full procedure+critique — that rides the SessionStart
+  # policy now. The heavy present-and-approve+critique fires only on the deterministic
+  # high-stakes signal, so it gets its OWN budget (capture consequential) below.
+  within "capture substantive"   600 "$(cap 'add the login form and wire it and test it')"
+  within "capture consequential" 1800 "$(cap 'delete the user accounts table')"
+  within "capture design"        1800 "$(cap 'make the login page cleaner')"
   mkdir -p "$CLAUDE_TQ_TASKS_DIR/s"
   jq -n '{id:"1",subject:"❓ Block or warn?",status:"pending"}' > "$CLAUDE_TQ_TASKS_DIR/s/1.json"
   # Isolate the open-Q reminder by PAUSING the repo: since 2026-06-26 the review

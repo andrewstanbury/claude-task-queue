@@ -88,18 +88,22 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
 ### 4. `UserPromptSubmit` hook payload (stdin)
 
 - **Fields read:** `prompt` (the user's text) and `session_id`.
-- **Behavior (`tq-capture.sh`):** injects the **interpret→present→approve review
-  loop** on **every prompt** (local bash/jq checks — no model cost to classify;
-  owner decision 2026-06-26). The loop SCALES: an obvious trivial ask gets a
-  one-line plan + confirmation rather than a full round-trip, and a conversational
-  prompt that decomposes to no work queues nothing. The instruction is:
-  (1) interpret the request in one line, (2) decompose into tasks, (3) judge each
-  for risk/alignment and PARALLEL-vs-INLINE fan-out, (4) PRESENT understanding +
-  per-task disposition + candid skip recommendations via AskUserQuestion,
-  (5) `TaskCreate` **only approved** tasks. Consequential prompts get the same loop
-  with extra "recommend against if warranted" scrutiny (`tq_looks_consequential` in
-  `lib/capture.sh`). It fires **regardless of existing queue state**. Only
-  **slash/bang commands and empty prompts** are skipped (not user work). **Pause
+- **Behavior (`tq-capture.sh`):** injects a loop instruction on **every prompt**
+  (local bash/jq checks — no model cost to classify; owner decision 2026-06-26), but
+  **splits the loop from the interrupt** (2026-06-27). The **DEFAULT path** is a LEAN
+  re-anchor — interpret the request in one line, decompose into tasks, `TaskCreate`,
+  and **work it in auto** — that points at the full procedure on the SessionStart
+  policy and **delegates the sign-off decision to the model** (which has read the
+  prompt and can judge blast radius a regex can't): it surfaces an AskUserQuestion
+  present-and-approve **only on real signal** (ambiguous / high blast-radius / would
+  recommend against). The **HEAVY present-and-approve + critique** variant fires only
+  on the deterministic high-stakes signal — `tq_looks_consequential` (irreversible/
+  binding) and `tq_looks_design` (visual, show-first) in `lib/capture.sh` — where the
+  cost of getting it wrong justifies the tokens and the interruption. The full
+  procedure + critique posture the lean path re-anchors to ride the **SessionStart
+  policy** (`tq-resume.sh`), stated once per session, not re-injected per prompt. It
+  fires **regardless of existing queue state**. Only **slash/bang commands and empty
+  prompts** are skipped (not user work). **Pause
   gates the review loop:** when the repo is paused (§ pause flag), the loop is
   suppressed and prompts run straight through in auto without presenting for
   approval. Disabled with `CLAUDE_TQ_CAPTURE_DISABLED`. *(History: before

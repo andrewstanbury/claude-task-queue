@@ -64,7 +64,7 @@ SUBSTANTIVE="add the login form and then wire the auth endpoint and update the t
 
 @test "review loop fires on a substantive prompt when not paused (control)" {
   run run_capture "$SUBSTANTIVE"
-  [[ "$output" == *"interpret→present→approve"* ]]
+  [[ "$output" == *"interpret it"* ]]      # lean default re-anchor (split-from-interrupt)
 }
 
 @test "review loop stays silent when the repo is paused" {
@@ -77,7 +77,7 @@ SUBSTANTIVE="add the login form and then wire the auth endpoint and update the t
   bash -c 'cd "$1" && bash "$2" on'  _ "$REPO" "$PAUSE"
   bash -c 'cd "$1" && bash "$2" off' _ "$REPO" "$PAUSE"
   run run_capture "$SUBSTANTIVE"
-  [[ "$output" == *"interpret→present→approve"* ]]
+  [[ "$output" == *"interpret it"* ]]      # lean default re-anchor (split-from-interrupt)
 }
 
 # ---- SessionStart surfacing -------------------------------------------------

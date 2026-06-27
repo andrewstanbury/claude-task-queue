@@ -72,18 +72,25 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   re-surfaces a repo's unfinished tasks — the system's confirmed native gap) +
   per-repo pause + opt-in agent-mode + roadmap hydration + schema-drift canary.
   (Moving down the queue is left to Claude Code's native task nudges.) Its
-  centerpiece is the **interpret→present→approve review loop**: on **every prompt**
-  the capture hook has the model interpret the request, decompose it, judge each
-  task for risk/alignment and parallel-vs-inline fan-out, **present its understanding
-  + candid per-task recommendations (incl. skip) via AskUserQuestion**, and
-  TaskCreate only what the user approves — weighed against recorded direction. The
-  loop SCALES: a trivial ask gets a one-line plan + confirmation, a conversational
-  prompt that decomposes to no work queues nothing. *(2026-06-26: owner override —
-  the loop now fires on every prompt. It previously fired only on multi-step /
-  consequential / visual prompts and stayed silent on trivial ones; the owner chose
-  one consistent path — all prompts routed through the queue — over the precision
-  filter, accepting the per-prompt token cost. This reverses the "trivial stays
-  silent" decision below; `tq_looks_multistep` was removed.)* **Pause** suppresses
+  centerpiece is the **interpret→decompose→queue review loop**: on **every prompt**
+  the capture hook has the model interpret the request, decompose it, and TaskCreate
+  the work — but the loop is **split from the interrupt** (2026-06-27): by default it
+  runs **in auto** (interpret + queue + proceed), and the AskUserQuestion
+  present-and-approve fires only on **real signal**. The full present-and-approve +
+  critique is reserved for the deterministic high-stakes signal (consequential /
+  design); on the default path the **interrupt decision is delegated to the model**,
+  which surfaces a sign-off only when the work is ambiguous, high blast-radius, or it
+  would recommend against the ask — judgements a per-prompt regex can't make. The
+  full procedure + critique posture the lean path re-anchors to ride the
+  **SessionStart policy** (stated once per session), keeping the per-prompt budget
+  lean while preserving 100% capture. *(2026-06-26: owner override — fire on every
+  prompt; the "only multi-step fires" filter and `tq_looks_multistep` were removed,
+  reversing the "trivial stays silent" decision below. 2026-06-27: split-from-
+  interrupt — keep routing every prompt, but make the per-prompt injection lean (fat
+  procedure + critique moved to the SessionStart policy, re-firing inline only on the
+  consequential/design signal or the model's judgement), restoring the per-prompt
+  efficiency the 2026-06-26 change had spent without a leaky "is this substantive"
+  classifier — the model, not a regex, decides whether to interrupt.)* **Pause** suppresses
   the review loop so prompts run straight through in auto. On a **visual/design**
   prompt the loop specializes into a **design preview**: the model presents a
   recommended design + 2-3 alternatives as faithful **ASCII mockups** in the
@@ -164,7 +171,8 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   only a fresh start probes (not compact/resume); self-disables when no servers are
   declared; never blocks; `CLAUDE_CHARTER_MCP_PROBE=0` disables it.
 - **hud** — a static health beacon + paused + agent + the verification floor's ✓/✗
-  tests + context-window fill % + branch & dirty + model. Read-only, zero token cost.
+  tests + context-window fill % + token throughput (⇡input ⇣output, current-context)
+  + branch & dirty + model. Read-only, zero token cost.
   With no logs or docs to read, this beacon is the owner's primary trust signal.
 
 ## Durable design decisions
@@ -209,6 +217,15 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   "Be SELECTIVE — only on real signal" instruction and its scaling, not by gating
   which prompts fire. The "no per-prompt cost" framing is unchanged: classification
   is still local bash/jq; what changed is the loop now injects on every prompt.)*
+  *(2026-06-27: refined by split-from-interrupt — the standing critique posture now
+  lives in the SessionStart policy (stated once per session), and the heavy inline
+  critique re-fires per-prompt only on the deterministic consequential/design signal;
+  the default path carries only a lean selective cue and delegates the
+  challenge/recommend-against to the model's judgement. This partially restores the
+  2026-06-19 "not on every prompt" intent for the INLINE injection — the per-prompt
+  token weight of the full critique no longer rides trivial prompts — without
+  reversing the 2026-06-26 "route everything" decision: every prompt is still
+  interpreted and queued; what re-gates on signal is the interrupt, not the loop.)*
   Claims only what's feasible (contradiction +
   named-anti-pattern detection; **not** general "bias" — no reference frame). Shipped
   in task-queue's existing UserPromptSubmit injection (no new hook/plugin).

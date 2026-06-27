@@ -1,9 +1,13 @@
 #!/usr/bin/env bats
 #
-# Tests for the interpret→present→approve hook (bin/tq-capture.sh). It injects the
-# review-loop instruction on EVERY prompt (owner decision 2026-06-26 — all prompts
-# route through the queue); consequential/design prompts get a heavier variant.
-# Only slash/bang/empty prompts and paused repos stay silent. Faked via CLAUDE_TQ_*.
+# Tests for the interpret→decompose→queue hook (bin/tq-capture.sh). It injects a loop
+# instruction on EVERY prompt (owner decision 2026-06-26 — all prompts route through
+# the queue), but SPLIT from the interrupt (2026-06-27): the DEFAULT path is a LEAN
+# re-anchor (interpret + queue + run-in-auto, sign-off delegated to the model) while
+# the deterministic high-stakes signal — consequential/design — gets the HEAVY
+# present-and-approve + critique variant. The full procedure it re-anchors to rides
+# the SessionStart policy. Only slash/bang/empty and paused repos stay silent.
+# Faked via CLAUDE_TQ_*.
 
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
@@ -40,27 +44,29 @@ run_capture() {
   printf '%s' "$json" | "$CAPTURE" | jq -r '.hookSpecificOutput.additionalContext // empty' 2>/dev/null || true
 }
 
-@test "multi-step prompt triggers the interpret→present→approve loop" {
+@test "multi-step prompt gets the LEAN re-anchor (default path, no heavy procedure)" {
   run run_capture "$MULTI"
-  [[ "$output" == *"interpret→present→approve"* ]]
-  [[ "$output" == *"AskUserQuestion"* ]]
-  [[ "$output" == *"New substantive work"* ]]
-  [[ "$output" != *"CONSEQUENTIAL"* ]]      # benign multi-step is not consequential
+  [[ "$output" == *"interpret it"* ]]              # interpret + decompose + queue…
+  [[ "$output" == *"IN AUTO"* ]]                   # …and run in auto (no forced round-trip)
+  [[ "$output" == *"AskUserQuestion sign-off ONLY on real signal"* ]]
+  [[ "$output" != *"interpret→present→approve"* ]] # heavy procedure stays on the SessionStart policy
+  [[ "$output" != *"steelman"* ]]                  # critique preamble does NOT ride the default path
+  [[ "$output" != *"CONSEQUENTIAL"* ]]             # benign multi-step is not consequential
 }
 
-@test "substantive prompt carries the critique posture (challenge before executing)" {
+@test "default path delegates the interrupt decision but keeps the selective cue" {
   run run_capture "$MULTI"
-  [[ "$output" == *"steelman"* ]]                  # steelman then challenge the ask
-  [[ "$output" == *"challenge it"* ]]
-  [[ "$output" == *"contradiction"* ]]             # incl. the owner's own earlier requests
-  [[ "$output" == *"recommend against it"* ]]      # may push back on the whole ask
-  [[ "$output" == *"SELECTIVE"* ]]                 # anti-theater: only on real signal
+  [[ "$output" == *"high blast-radius"* ]]         # model-judged escalation criteria…
+  [[ "$output" == *"recommend against it"* ]]      # …incl. pushing back on the ask
+  [[ "$output" == *"Be selective"* ]]              # anti-theater survives in lean form
+  [[ "$output" == *"don't manufacture pushback"* ]]
 }
 
-@test "critique posture rides even a trivial prompt now (all-prompts policy)" {
+@test "trivial prompt stays lean too — no critique preamble (split-from-interrupt)" {
   run run_capture "fix the typo"
-  [[ "$output" == *"steelman"* ]]                  # loop fires on everything…
-  [[ "$output" == *"SELECTIVE"* ]]                 # …but stays selective in WHAT it objects to
+  [[ "$output" == *"IN AUTO"* ]]                   # lean re-anchor fires…
+  [[ "$output" != *"steelman"* ]]                  # …but the heavy critique does NOT (2026-06-27)
+  [[ "$output" != *"interpret→present→approve"* ]]
 }
 
 @test "consequential prompt also carries the critique posture" {
@@ -69,15 +75,15 @@ run_capture() {
   [[ "$output" == *"CONSEQUENTIAL"* ]]
 }
 
-@test "fires regardless of an existing queue — new substantive work is always reviewed" {
+@test "fires regardless of an existing queue — new work is always interpreted" {
   make_task sess 1 pending
   run run_capture "$MULTI"
-  [[ "$output" == *"interpret→present→approve"* ]]
+  [[ "$output" == *"interpret it"* ]]
 }
 
 @test "no alignment clause when the project records no direction" {
   run run_capture "$MULTI"
-  [[ "$output" == *"interpret→present→approve"* ]]
+  [[ "$output" == *"interpret it"* ]]
   [[ "$output" != *"weigh it against"* ]]   # bare repo → nothing to align to
 }
 
@@ -137,10 +143,11 @@ run_capture() {
   [[ "$output" != *"CONSEQUENTIAL"* ]]
 }
 
-@test "a short trivial prompt now fires the loop (all prompts route through the queue)" {
+@test "a short trivial prompt still fires the lean re-anchor (all prompts route through the queue)" {
   run run_capture "fix the typo"
-  [[ "$output" == *"interpret→present→approve"* ]]
-  [[ "$output" == *"New substantive work"* ]]
+  [[ "$output" == *"interpret it"* ]]
+  [[ "$output" == *"IN AUTO"* ]]
+  [[ "$output" != *"interpret→present→approve"* ]]   # but lean, not the heavy procedure
 }
 
 @test "silent on a slash command even if long and multi-versed" {
@@ -302,9 +309,9 @@ run_capture() {
   [[ "$output" == *"WIREFRAME mockups"* ]]        # design note appended to the consequential path
 }
 
-@test "a plain non-visual substantive prompt still uses the generic loop (no wireframe)" {
+@test "a plain non-visual substantive prompt still uses the generic lean loop (no wireframe)" {
   run run_capture "$MULTI"
-  [[ "$output" == *"New substantive work"* ]]
+  [[ "$output" == *"interpret it"* ]]
   [[ "$output" != *"WIREFRAME"* ]]
 }
 
@@ -347,7 +354,7 @@ make_question() {   # $1=session $2=id $3=subject
   make_question sess q1 "❓ Which design did you want?"
   run run_capture "$MULTI"
   [[ "$output" == *"unanswered question"* ]]
-  [[ "$output" == *"New substantive work"* ]]    # loop instruction still present
+  [[ "$output" == *"interpret it"* ]]            # lean loop instruction still present
 }
 
 @test "open questions: no reminder when there are none (loop still fires)" {

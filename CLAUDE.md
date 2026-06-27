@@ -40,8 +40,10 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
 - **3 · Subtract as you add** — net surface flat or smaller; reuse before create;
   ratchet, never sweep. **4 · Deliberate prune** fires automatically when debt
   crosses a threshold (over-budget files), routed through the task-queue loop.
-- **Native task list = the live queue** — substantive prompts run the
-  interpret→present→approve loop (sign-off via AskUserQuestion) before queuing;
+- **Native task list = the live queue** — every prompt is interpreted, decomposed,
+  and queued, then worked in auto; the AskUserQuestion sign-off (and the critique
+  posture) re-gates on real signal — the consequential/design path or the model's own
+  blast-radius/ambiguity judgement — not on every prompt (split-from-interrupt);
   **document proportionally** (token efficiency is the payoff, not a separate chase).
 
 Project docs: **[AGENTS.md](./AGENTS.md)**, **[docs/ROADMAP.md](./docs/ROADMAP.md)**,
