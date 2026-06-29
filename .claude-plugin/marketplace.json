@@ -29,7 +29,7 @@
       "name": "hud",
       "source": "./plugins/hud",
       "description": "A consolidated status line for the companion plugins, scoped to the signals a status line is the best surface for: a static health beacon (green/yellow/red), paused state, agent-mode, the verification floor’s ✓/✗ tests result, the count of unanswered open questions (❓N) you still owe an answer on, a coupling-rising indicator (🔗↑, shown only when tidy's last verify saw import density climbing — a cached read, never computed on render), context-window fill % (how close to a compaction, color-ramped), running session cost ($, from the payload, hidden at zero), git branch + uncommitted-file count + unpushed/unpulled commit counts (↑ahead ↓behind vs the branch's upstream — the committed-but-not-pushed companion to the dirty count), and model — rendered read-only from existing plugin state and the statusLine payload. Deliberately doesn't re-render signals already shown elsewhere (the task list Claude Code renders natively; docs-health charter nudges at session start; last tidy action) — that was duplication, and the docs mirror was the heaviest cross-plugin maintenance burden. Sets no refreshInterval: the beacon is static, so event-driven updates keep it fresh without waking jq+git on an idle timer (battery-friendly). Run /hud:setup once to wire it into settings.json with a version-resilient command (survives updates). No hooks, no scanning, zero model-token cost.",
-      "version": "0.7.1"
+      "version": "0.7.2"
     }
   ]
 }

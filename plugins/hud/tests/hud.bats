@@ -190,6 +190,39 @@ teardown() {
   [[ "$output" != *"tok"* ]]
 }
 
+@test "hud_floors_disabled: empty when all on, names each floor set to 0" {
+  run bash -c "$SRC"' hud_floors_disabled' bash "$ROOT"; [ -z "$output" ]
+  run bash -c "$SRC"' CLAUDE_TIDY_CHECKS=0 hud_floors_disabled' bash "$ROOT"
+  [ "$output" = "tests" ]
+  run bash -c "$SRC"' CLAUDE_TIDY_SECSCAN=0 CLAUDE_TQ_INTENT_GATE=0 hud_floors_disabled' bash "$ROOT"
+  [ "$output" = "secret-scan intent-check" ]   # owner-ordered, space-separated, no leading space
+}
+
+@test "status line shows 🛡✗N when a safety floor is disabled, hidden when all on" {
+  json="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" != *"🛡"* ]]                                    # all on → no marker
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_TIDY_CHECKS=0 CLAUDE_CHARTER_ALIGN_GATE=0 "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *"🛡✗2"* ]]                                  # two off → count of 2
+}
+
+@test "status line keeps the 🛡✗ warning even on a narrow terminal (safety never sheds)" {
+  json="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:60}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_TIDY_SECSCAN=0 "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *"🛡✗1"* ]]
+}
+
+@test "--legend prints the symbol key and the currently-disabled floors" {
+  run bash -c 'NO_COLOR=1 "$1" --legend' _ "$STATUS"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"hud status-line key"* ]]
+  [[ "$output" == *"🛡✗"* ]]
+  [[ "$output" == *"open questions"* ]]
+  run bash -c 'NO_COLOR=1 CLAUDE_TIDY_QUALITY_FLOOR=0 "$1" --legend' _ "$STATUS"
+  [[ "$output" == *"Currently disabled"* ]]
+  [[ "$output" == *"quality"* ]]
+}
+
 @test "hud_coupling reads tidy's cached direction marker" {
   export CLAUDE_HUD_COUPLING_DIR="$(mktemp -d)"
   printf 'up' > "$CLAUDE_HUD_COUPLING_DIR/-some-repo"

@@ -5,8 +5,9 @@
 # writes — it only reads and prints, so it can't interfere with anything.
 #
 # Slots (left → right), each collapses when its data is absent:
-#   health beacon · ⏸ paused · 🤖 agent · ✓/✗ tests · ❓ open-Qs · 🔗↑ coupling ·
-#   ctx % · tok ⇡in ⇣out · $ session-cost · git branch (+ dirty * · ↑ahead ↓behind) · model
+#   health beacon · ⏸ paused · 🤖 agent · ✓/✗ tests · 🛡✗ floors-off · ❓ open-Qs ·
+#   🔗↑ coupling · ctx % · tok ⇡in ⇣out · $ session-cost · git branch (+ dirty * ·
+#   ↑ahead ↓behind) · model.  Decode any symbol on demand with /hud:legend.
 #
 # Scoped to signals a status line is the BEST surface for — persistent
 # state/health you want at a glance. Deliberately NOT re-rendered here: the task
@@ -44,6 +45,9 @@ else
   B=$'\033[1m'; D=$'\033[2m'; X=$'\033[0m'
 fi
 SEP="  "
+
+# On-demand: print the symbol key and exit (the /hud:legend command). No stdin.
+if [ "${1:-}" = "--legend" ]; then hud_legend; exit 0; fi
 
 INPUT=""; [ -t 0 ] || INPUT="$(cat 2>/dev/null || true)"; [ -n "$INPUT" ] || INPUT="{}"
 mapfile -t F < <(printf '%s' "$INPUT" | jq -r '[
@@ -98,6 +102,15 @@ case "$VERIFY" in
   fail)    printf "%s✗ tests%s%s" "$R$B" "$X" "$SEP" ;;
   timeout) printf "%s⚠ tests%s%s" "$Y$B" "$X" "$SEP" ;;
 esac
+
+# 4a) Disabled safety floors — 🛡✗N when any anti-rework gate is switched off via a
+# CLAUDE_*=0 env var. Always shown (never shed on narrow): the whole point is that a
+# disabled guard makes the green dot misleading, so the warning must not collapse.
+DISABLED="$(hud_floors_disabled 2>/dev/null || true)"
+if [ -n "$DISABLED" ]; then
+  NOFF="$(printf '%s' "$DISABLED" | wc -w | tr -d ' ')"
+  printf "%s🛡✗%s%s%s" "$R$B" "$NOFF" "$X" "$SEP"
+fi
 
 # 4b) Open questions — unanswered ❓ items you still owe an answer on this session.
 # Ambient nudge so lingering questions get NOTICED without anyone re-raising them.

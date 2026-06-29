@@ -171,9 +171,14 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   only a fresh start probes (not compact/resume); self-disables when no servers are
   declared; never blocks; `CLAUDE_CHARTER_MCP_PROBE=0` disables it.
 - **hud** — a static health beacon + paused + agent + the verification floor's ✓/✗
-  tests + context-window fill % + token throughput (⇡input ⇣output, current-context)
-  + branch & dirty + model. Read-only, zero token cost.
-  With no logs or docs to read, this beacon is the owner's primary trust signal.
+  tests + **🛡✗N disabled-floor marker** + context-window fill % + token throughput
+  (⇡input ⇣output, current-context) + branch & dirty + model. Read-only, zero token
+  cost. The owner's primary trust signal, so it stays **honest + legible**: `🛡✗N`
+  surfaces when any anti-rework floor is off via a `CLAUDE_*=0` env var (always shown,
+  never shed on narrow — a disabled guard otherwise leaves the green dot quietly lying),
+  and `/hud:legend` decodes every symbol in plain language on demand (still zero ongoing
+  cost) for the non-technical owner the symbol-only line was illegible to. The flag names
+  are drift-guarded against the siblings that own them.
 
 ## Durable design decisions
 
@@ -295,6 +300,19 @@ Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT
 
 ## What's next
 
-Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario
-(the one place an MCP integration, e.g. emailing the owner a plain-language recap,
-would earn its keep), or a pain point that surfaces. No new layers planned.
+Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario,
+or a pain point that surfaces. No new layers planned.
+
+**Scoped (not built) — async owner recap.** The one place an MCP integration earns
+its keep: when the owner is *away from the terminal*, the Stop-time recap (today only
+in-session) never reaches them. Shape if/when that scenario is real: **trigger** — the
+intent→outcome gate already composes the plain-language "did we build what you asked"
+recap at Stop; reuse it, gated on an explicit owner-away signal (env opt-in or a
+quiet-hours window), never on every Stop. **Payload** — that same recap text + the ✓/✗
+verify outcome + any 🛡✗ disabled floors (so the away owner sees a degraded beacon they
+can't), as one short message. **Delivery** — a single MCP send (e.g. Gmail
+`create_draft`/email); no new plugin, no audit log, no two-way control loop. **Boundaries**
+— additive weight only in the away case (silent otherwise), best-effort (a failed send
+never blocks Stop), and it *reports*, it doesn't *act*. Don't build until "owner away"
+actually happens — building it for a scenario that isn't occurring is the over-engineering
+this system pushes back on.

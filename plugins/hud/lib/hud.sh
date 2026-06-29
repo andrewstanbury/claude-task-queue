@@ -26,6 +26,51 @@ hud_coupling() {
   [ -f "$f" ] && cat "$f" 2>/dev/null
 }
 
+# Which safety floors are currently DISABLED — prints the friendly names of the
+# anti-rework gates the owner (or Claude) has switched off via a CLAUDE_*=0 env var
+# (space-separated, empty when all are on). The beacon can read "green" while a
+# guard is off; this is what makes the status line an HONEST trust signal rather
+# than one that quietly lies. Read-only env read — no files, no subprocess.
+#
+# The flag NAMES are owned by the sibling hooks (install boundary forbids sharing);
+# tests/drift-guard.bats asserts each one here is still honored by its owner, so a
+# rename can't silently make this marker miss a disabled floor.
+hud_floors_disabled() {
+  local out=""
+  [ "${CLAUDE_TIDY_SECSCAN:-1}" = "0" ]         && out="$out secret-scan"
+  [ "${CLAUDE_TIDY_CHECKS:-1}" = "0" ]          && out="$out tests"
+  [ "${CLAUDE_TIDY_QUALITY_FLOOR:-1}" = "0" ]   && out="$out quality"
+  [ "${CLAUDE_TIDY_REGRESSION_GATE:-1}" = "0" ] && out="$out regression"
+  [ "${CLAUDE_CHARTER_ALIGN_GATE:-1}" = "0" ]   && out="$out alignment"
+  [ "${CLAUDE_TQ_INTENT_GATE:-1}" = "0" ]       && out="$out intent-check"
+  printf '%s' "${out# }"
+}
+
+# The on-demand symbol key (`/hud:legend`). The status line is a non-technical
+# owner's primary trust signal but renders as bare symbols; this decodes every one
+# in plain language. Static text (no stdin), so it costs nothing until invoked.
+# When floors are off it names them inline, turning the abstract 🛡✗N into specifics.
+hud_legend() {
+  cat <<'EOF'
+hud status-line key (left → right; each slot hides when it has nothing to say):
+
+  ●            health dot — green: ok · yellow: paused · red: tests failing
+  ⏸ paused     review loop paused for this repo (prompts run straight through)
+  🤖 agent     agent-mode on (parallel subagents)
+  ✓/✗/⚠ tests  last test run — passed / failed / timed out
+  ❓N          N open questions you still owe an answer on this session
+  🔗↑          code coupling rose past its threshold at the last check
+  🛡✗N         N SAFETY CHECKS DISABLED — the dot can look green while a guard is off
+  ctx NN%      how full the context window is (compaction nears at 100%)
+  tok ⇡in ⇣out tokens in the current context / in the last response
+  $N.NN        session cost so far
+  ⎇ branch     git branch · *N uncommitted · ↑N unpushed · ↓N unpulled
+  Model:       the model in use
+EOF
+  local off; off="$(hud_floors_disabled)"
+  [ -n "$off" ] && printf '\nCurrently disabled (🛡✗): %s\n' "$off"
+}
+
 # Count of OPEN QUESTIONS the user still owes an answer on this session — native
 # tasks whose subject starts with "❓", pending/in_progress, deduped by subject.
 # Read-only mirror of task-queue's tq_open_questions (install boundary forbids

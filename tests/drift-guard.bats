@@ -89,6 +89,24 @@ assert_decisions_agree() {   # charter vs task-queue
   rm -rf "$CLAUDE_TQ_TASKS_DIR"
 }
 
+@test "disabled-floor marker: every flag hud checks is still honored by a sibling" {
+  # hud's 🛡✗ marker reads the floors' CLAUDE_*=0 disable flags by name (install
+  # boundary forbids importing them). If a sibling renamed its flag, the marker would
+  # silently miss that disabled floor — so assert each name hud lists is still gated
+  # on by some sibling hook/lib (its owner). The flag names are the source of truth in
+  # the siblings; this guards hud's hand-copied list against drift.
+  local flags f
+  # The floor flags are written ${NAME:-1} (default-on); the CLAUDE_HUD_* dir vars use
+  # a path default, so this pattern selects exactly the disable flags, not those.
+  flags="$(grep -oE 'CLAUDE_[A-Z_]+:-1\}' "$R/plugins/hud/lib/hud.sh" | sed 's/:-1}//' | sort -u)"
+  [ -n "$flags" ]                                  # guard the guard: hud does reference flags
+  for f in $flags; do
+    grep -rqE "\\\$\{$f:-1\}" "$R/plugins/tidy/bin" "$R/plugins/tidy/lib" \
+      "$R/plugins/charter/bin" "$R/plugins/task-queue/bin" \
+      || { echo "hud checks $f but no sibling honors it as \${$f:-1}"; false; }
+  done
+}
+
 @test "README plugin versions match the marketplace (can't silently drift)" {
   local readme="$R/README.md" market="$R/.claude-plugin/marketplace.json" p mv rv
   for p in task-queue tidy charter hud; do
