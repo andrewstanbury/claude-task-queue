@@ -198,6 +198,27 @@ resume_with_source() {
   [[ "$output" != *"Init repo"* ]]
 }
 
+@test "resume points to the on-disk folder for full task detail (crash-resume fidelity)" {
+  make_session "s1" "/home/x/alpha"
+  make_task s1 1 pending     "Build login"
+  make_task s1 2 in_progress "Wire engine"
+  run run_resume "s2" "/home/x/alpha"
+  [ "$status" -eq 0 ]
+  # imperative restore instruction, not a soft "recreate the relevant ones"
+  [[ "$output" == *"REINSTATE"* ]]
+  # pointer to the prior session's task files (full description + blockedBy live there)
+  [[ "$output" == *"Full description + blockedBy"* ]]
+  [[ "$output" == *"$CLAUDE_TQ_TASKS_DIR/s1/"* ]]
+}
+
+@test "resume emits no on-disk pointer when there is no carry-over" {
+  make_session "s1" "/home/x/alpha"
+  make_task s1 1 completed "Done thing"
+  run run_resume "s2" "/home/x/alpha"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Full description + blockedBy"* ]]
+}
+
 @test "resume excludes the starting session's own folder (policy only)" {
   make_session "s2" "/home/x/alpha"
   make_task s2 1 pending "Owned by current session"

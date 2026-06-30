@@ -69,7 +69,9 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
 
 - **task-queue** — SessionStart policy (native task list = live queue) +
   cross-session **resume bridge** (the native list starts empty each session; this
-  re-surfaces a repo's unfinished tasks — the system's confirmed native gap) +
+  re-surfaces a repo's unfinished tasks — the system's confirmed native gap — with
+  an imperative restore instruction + an on-disk pointer to the prior session's task
+  files so a crash-resume is high-fidelity without inlining descriptions per startup) +
   per-repo pause + opt-in agent-mode + roadmap hydration + schema-drift canary.
   (Moving down the queue is left to Claude Code's native task nudges.) Its
   centerpiece is the **interpret→decompose→queue review loop**: on **every prompt**
