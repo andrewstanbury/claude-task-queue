@@ -93,7 +93,7 @@ run_capture() {
   run run_capture "$MULTI"
   [[ "$output" == *"weigh it against recorded decisions (DECISIONS.md)"* ]]
   [[ "$output" == *"backlog (docs/ROADMAP.md)"* ]]
-  [[ "$output" == *"don't reverse a recorded decision"* ]]
+  [[ "$output" == *"neither the old nor the new wins silently"* ]]
 }
 
 @test "alignment clause covers ADR dirs and a backlog-only project" {
@@ -112,6 +112,8 @@ run_capture() {
   [[ "$output" == *"CONSEQUENTIAL"* ]]
   [[ "$output" == *"interpret→present→approve"* ]]
   [[ "$output" == *"AskUserQuestion"* ]]
+  # a conflicting option must name the recorded requirement it would retire
+  [[ "$output" == *"recorded requirement it would retire"* ]]
 }
 
 @test "consequential fires even on a short single-step prompt" {
@@ -133,7 +135,7 @@ run_capture() {
   mkdir -p "$REPO/docs"; printf '# ROADMAP\n' > "$REPO/docs/ROADMAP.md"
   run run_capture "run the data migration for the legacy auth records"
   [[ "$output" == *"weigh it against recorded decisions (DECISIONS.md)"* ]]
-  [[ "$output" == *"don't reverse a recorded decision"* ]]
+  [[ "$output" == *"neither the old nor the new wins silently"* ]]
 }
 
 @test "routine deletions are not consequential (precision over recall)" {

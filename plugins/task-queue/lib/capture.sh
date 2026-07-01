@@ -85,5 +85,5 @@ tq_alignment_clause() {
   [ -n "$dpath" ] && anchor="recorded decisions ($dpath)"
   [ -n "$rpath" ] && { [ -n "$anchor" ] && anchor="$anchor and the backlog ($rpath)" || anchor="the backlog ($rpath)"; }
   [ -n "$anchor" ] || return 0
-  printf " First weigh it against %s — flag any drift or contradiction (don't reverse a recorded decision) before you capture." "$anchor"
+  printf " First weigh it against %s — flag any drift or contradiction (neither the old nor the new wins silently) before you capture." "$anchor"
 }

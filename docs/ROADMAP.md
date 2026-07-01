@@ -292,6 +292,13 @@ Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT
 - **Alignment is verified at both ends** — intent-time (the review loop weighs new
   work against recorded direction) and outcome-time (charter's align gate on the diff;
   task-queue's intent gate on the captured ask vs. the diffstat).
+- **A requirement conflict is a surfaced trade-off, never a silent resolution**
+  (2026-07-01) — the intent-time clause used to read "don't reverse a recorded
+  decision" (old-always-wins, which quietly anchors new designs to legacy). It now
+  reads "neither the old nor the new wins silently": a contradiction is flagged, and
+  where the review loop presents options the conflicting one **names the recorded
+  requirement it would retire**, so the owner can't pick a contradiction blind —
+  retiring a requirement stays an explicit, recorded choice in either direction.
 - **Cheap pre-filters keep the gates quiet** — escalate only on decision-bearing
   surfaces (deps/config/migrations), fenced-token overlap, or the hotspot subset.
   Precision over recall: a false block is noise.
