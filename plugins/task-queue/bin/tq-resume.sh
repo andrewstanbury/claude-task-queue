@@ -35,12 +35,16 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/tasks.sh"
 # shellcheck source=../lib/project.sh
 . "$PLUGIN_DIR/lib/project.sh"
+# shellcheck source=../lib/away.sh
+. "$PLUGIN_DIR/lib/away.sh"
+# shellcheck source=../lib/checkpoint.sh
+. "$PLUGIN_DIR/lib/checkpoint.sh"
 
 # Trimmed standing policy (re-injected on each fresh SessionStart, so kept lean).
 # This is the FULL procedure + critique posture, stated ONCE per session — the
 # per-prompt capture hook re-anchors to it on the default path instead of
 # re-injecting it every turn (the split-loop-from-interrupt model, 2026-06-27).
-POLICY='[task-queue] Your native task list IS the live work queue, and substantive prompts run the interpret→decompose→queue loop: read the request in one plain line, break it into concrete tasks in dependency order (smallest blast-radius first, mark parallel-vs-inline, flag any high-fan-in step), TaskCreate them, and work them in order (honor blockedBy) — advancing as you finish, without draining the backlog unprompted. RUN IN AUTO by default: queue the work and proceed. Only PAUSE for sign-off via AskUserQuestion when there is real signal — the change is CONSEQUENTIAL (irreversible/externally binding), VISUAL/design (show it first), genuinely AMBIGUOUS, HIGH BLAST-RADIUS, or you would RECOMMEND AGAINST it; otherwise just do the work. EVALUATE before executing — steelman the ask, then challenge it: flag any contradiction with recorded constraints or the owner'"'"'s own earlier requests, and any over-engineering; recommend against part or all when that is your honest read. Be SELECTIVE — object only on real signal; manufactured pushback trains rubber-stamping. Trivial prompts: just do them. Open questions: when you end a turn with a question the user should answer but might move on without (an offer, a clarification, a decision left to them), TaskCreate it as "❓ <the question>" so it is not lost; mark it completed once they answer or explicitly drop it. Prefer a blocking AskUserQuestion for anything that genuinely needs an answer.'
+POLICY='[task-queue] Your native task list IS the live work queue, and substantive prompts run the interpret→decompose→queue loop: read the request in one plain line, break it into concrete tasks in dependency order (smallest blast-radius first, mark parallel-vs-inline, flag any high-fan-in step), TaskCreate them, and work them in order (honor blockedBy) — advancing as you finish, without draining the backlog unprompted. While a task is in_progress, keep a one-line progress breadcrumb in its description (TaskUpdate: what is done, what is next) so a crash resumes it mid-task, not from the top. RUN IN AUTO by default: queue the work and proceed. Only PAUSE for sign-off via AskUserQuestion when there is real signal — the change is CONSEQUENTIAL (irreversible/externally binding), VISUAL/design (show it first), ARCHITECTURALLY SIGNIFICANT (a structural/design choice, a new dependency or seam, a data-model or interface change) or resting on an ASSUMPTION you would otherwise make silently, genuinely AMBIGUOUS, HIGH BLAST-RADIUS, or you would RECOMMEND AGAINST it; otherwise just do the work. For the architectural/assumption case, do as the design-preview does: PRESENT a recommended approach plus 2-3 meaningfully different alternatives via AskUserQuestion and let the owner pick — YOU decide when this fires from having read the prompt (a keyword cannot judge blast radius). EVALUATE before executing — steelman the ask, then challenge it RUTHLESSLY: flag any contradiction with recorded constraints or the owner'"'"'s own earlier requests, and any over-engineering; recommend against part or all — including the prompt in front of you — when that is your honest read. When a better option means retiring a prior requirement or recorded decision, PROPOSE it as a visible trade-off — name what it would retire so the owner picks knowingly — never silently override. Be SELECTIVE — object only on real signal; manufactured pushback trains rubber-stamping. Trivial prompts: just do them. Open questions: when you end a turn with a question the user should answer but might move on without (an offer, a clarification, a decision left to them), TaskCreate it as "❓ <the question>" so it is not lost; mark it completed once they answer or explicitly drop it. Prefer a blocking AskUserQuestion for anything that genuinely needs an answer.'
 
 # SessionStart hands us JSON on stdin: { session_id, cwd, source, ... }.
 input=""
@@ -55,6 +59,7 @@ fi
 root="$(tq_root_for_cwd "$cwd")"
 pause_cmd="bash \"$PLUGIN_DIR/bin/tq-pause.sh\""
 agent_cmd="bash \"$PLUGIN_DIR/bin/tq-agent.sh\""
+away_cmd="bash \"$PLUGIN_DIR/bin/tq-away.sh\""
 
 # Source-aware: inject the full block on a fresh context (startup / clear / and
 # any unknown source — the safe default), but only a lean one-line re-anchor on
@@ -77,7 +82,7 @@ elif tq_policy_documented "$root"; then
   roadmap="$(tq_roadmap_path "$root" 2>/dev/null || true)"
   [ -n "$roadmap" ] && ctx="$ctx"$'\n\n'"[task-queue] Backlog at $roadmap — adopt its open items into your task list with TaskCreate; reflect finished work back."
 else
-  pause_hint="Pause/resume the review loop on request: $pause_cmd on|off (per repo, persists). Agent-mode (fan independent tasks to subagents, opt-in): $agent_cmd on|off."
+  pause_hint="Pause/resume the review loop on request: $pause_cmd on|off (per repo, persists). Agent-mode (fan independent tasks to subagents, opt-in): $agent_cmd on|off. Away-mode (owner steps away — run fully autonomous, PARK anything needing them instead of asking): $away_cmd on|off."
   # Bootstrap nudge: once the policy is recorded in CLAUDE.md, this goes lean.
   tip="Tip: record this standing policy in your CLAUDE.md and mark it with \"claude-companion\" — then this nudge re-anchors in one line each session instead of repeating in full."
   # Orientation/project-knowledge nudges live in the charter plugin (know-the-project),
@@ -96,11 +101,31 @@ fi
 if tq_is_paused "$root"; then
   ctx="$ctx"$'\n\n'"⏸ The review loop is PAUSED for this repo — substantive prompts run straight in auto without the interpret→present→approve checkpoint ($pause_cmd off to resume)."
 fi
+if tq_ckpt_enabled "$root"; then
+  ckpt_line="🧷 Crash-checkpoint is ARMED — your working-tree edits are auto-snapshotted to a hidden ref ($(tq_ckpt_ref)) as you work, off your branch (history stays clean, nothing pushed)."
+  if tq_ckpt_exists "$root"; then
+    ckpt_line="$ckpt_line If a crash lost uncommitted edits this session, restore them with: $(tq_ckpt_restore_cmd)"
+  fi
+  ckpt_line="$ckpt_line (bash \"$PLUGIN_DIR/bin/tq-checkpoint.sh\" off to disarm.)"
+  ctx="$ctx"$'\n\n'"$ckpt_line"
+fi
 if [ "$(tq_schema_status 2>/dev/null || true)" = "drift" ]; then
   ctx="$ctx"$'\n\n'"⚠️ [task-queue] The native task store no longer matches the expected schema — Claude Code may have changed it; carry-over/advance may be degraded (see CONTRACT.md)."
 fi
 if tq_is_agent_mode "$root"; then
   ctx="$ctx"$'\n\n'"🤖 Agent-mode is ON — DEFAULT to fanning work out to subagents (Task tool) when it pays off in speed: parallel reads/exploration/audits across many files, independent per-item transforms, and parallel verification. Safe to parallelize = unblocked, no shared blockedBy, disjoint files, low blast radius. Keep INLINE: coupled/chained work, edits to shared or high-fan-in files, or when unsure — conflicting parallel edits are the risk the blast-radius principle guards against. Decide per-task from your task list; don't ask each time. ($agent_cmd off to disable for this repo.)"
+fi
+if tq_is_away "$root"; then
+  ctx="$ctx"$'\n\n'"🚶 AWAY mode is ON — the owner is away from the keyboard, so do NOT block on them: never call AskUserQuestion and never ask them to run a test or take a manual step. Keep going in auto and finish as much as you safely can, VERIFYING your own work (run the tests/build yourself — you have a shell). PARK — don't guess, don't execute — anything that genuinely needs them: a design/visual choice, a genuinely ambiguous fork, a test only they can run (physical device/GUI), and ESPECIALLY any irreversible or externally-binding action (delete data, push, send, spend money). Park it as a \"❓ [parked] <what needs deciding — with your recommendation>\" task; that is the open-questions bucket that re-surfaces on their next prompt and shows in hud, so they review the pile when back. Do all reversible work now. ($away_cmd off when the owner returns.)"
+  # Staleness guard: away-mode persists across sessions, so nudge if it's been on a
+  # long time — the owner may have forgotten to turn it off (footgun, not auto-off).
+  since="$(tq_away_since "$root")"
+  now="$(date +%s 2>/dev/null || echo 0)"
+  stale_h="${CLAUDE_TQ_AWAY_STALE_HOURS:-12}"
+  if [ "$since" -gt 0 ] && [ "$now" -gt 0 ]; then
+    hours=$(( (now - since) / 3600 ))
+    [ "$hours" -ge "$stale_h" ] && ctx="$ctx"$'\n\n'"⏳ AWAY mode has been on for ~${hours}h — if the owner is back, turn it off ($away_cmd off) so the review loop resumes."
+  fi
 fi
 
 # Emit as SessionStart additionalContext.

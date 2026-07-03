@@ -3,7 +3,8 @@
 Four self-contained [Claude Code](https://claude.com/claude-code) plugins that let you
 **vibe-code a whole project** while Claude keeps it clean, low-debt, and token-efficient
 — **automatically, through hooks** — with the native task list as the one place you
-steer. Built for an owner who reads no code and runs no commands.
+steer. Built for an owner who reads no code and *need never run a command* — though a
+few optional `/task-queue:` commands give deterministic control when you want it.
 
 ## The flow
 
@@ -40,10 +41,10 @@ steer. Built for an owner who reads no code and runs no commands.
 
 | Plugin | Ver | Role | Highlights |
 |---|---|---|---|
-| **task-queue** | 0.30.0 | Orchestrate | review loop on every prompt (steelman→challenge critique) · wireframe design preview · intent→outcome gate · open-questions tracker · cross-session resume |
+| **task-queue** | 0.31.0 | Orchestrate | review loop on every prompt (steelman→challenge critique) · wireframe design preview · intent→outcome gate · open-questions tracker · cross-session resume + mid-task breadcrumb · away-mode (autonomous + park decisions) · crash-checkpoint (working-tree snapshots) · optional commands (`/task-queue:status·away·checkpoint·restore·pause·agent`) |
 | **tidy** | 0.39.0 | Change safely | secret floor (block credentials pre-write) · format/lint on touch · blast-radius · verification floor · regression gate · quality floor · import-cycle check · auto-prune |
 | **charter** | 0.20.1 | Know the project | doc & decisions gate · alignment floor · outcome-memory "scar tissue" · conventions · owner loop · MCP reachability probe |
-| **hud** | 0.7.2 | Show | one read-only status line — health · tests · floors-off · open-Qs · context % · session-cost · branch (+unpushed) · model (`/hud:legend` decodes every symbol) |
+| **hud** | 0.8.0 | Show | one read-only status line — health · tests · floors-off · open-Qs · away · ckpt · context % · session-cost · branch (+unpushed) · model (`/hud:legend` decodes every symbol) |
 
 Each plugin is independently installable · Bash + `jq` · zero build.
 

@@ -11,6 +11,8 @@ set -uo pipefail
 # Default paths mirror where the sibling plugins write; overridable for tests.
 hud_pause_dir()  { printf '%s' "${CLAUDE_HUD_PAUSE_DIR:-$HOME/.claude/state/task-queue/paused}"; }
 hud_agent_dir()  { printf '%s' "${CLAUDE_HUD_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}"; }
+hud_away_dir()   { printf '%s' "${CLAUDE_HUD_AWAY_DIR:-$HOME/.claude/state/task-queue/away}"; }
+hud_ckpt_dir()   { printf '%s' "${CLAUDE_HUD_CKPT_DIR:-$HOME/.claude/state/task-queue/checkpoint}"; }
 hud_verify_dir() { printf '%s' "${CLAUDE_HUD_VERIFY_DIR:-$HOME/.claude/state/tidy/verify}"; }
 hud_tasks_dir()  { printf '%s' "${CLAUDE_HUD_TASKS_DIR:-${CLAUDE_TQ_TASKS_DIR:-$HOME/.claude/tasks}}"; }
 hud_coupling_dir() { printf '%s' "${CLAUDE_HUD_COUPLING_DIR:-$HOME/.claude/state/tidy/coupling-hud}"; }
@@ -57,6 +59,8 @@ hud status-line key (left → right; each slot hides when it has nothing to say)
   ●            health dot — green: ok · yellow: paused · red: tests failing
   ⏸ paused     review loop paused for this repo (prompts run straight through)
   🤖 agent     agent-mode on (parallel subagents)
+  🚶 away      away-mode on (Claude runs autonomous; decisions parked for you)
+  🧷 ckpt      crash-checkpoint armed (edits auto-snapshotted; absent = off)
   ✓/✗/⚠ tests  last test run — passed / failed / timed out
   ❓N          N open questions you still owe an answer on this session
   🔗↑          code coupling rose past its threshold at the last check
@@ -114,6 +118,25 @@ hud_agent() {
   local root="$1" flag
   [ -n "$root" ] || { printf '0'; return 0; }
   flag="$(hud_agent_dir)/$(printf '%s' "$root" | sed 's:/:-:g')"
+  [ -f "$flag" ] && printf '1' || printf '0'
+}
+
+# Is away-mode ON for this repo? prints 1 / 0. Away is the most consequential mode
+# (Claude runs autonomous + parks decisions), so it MUST be visible in the status
+# line. (Same per-repo flag scheme as pause/agent; read-only mirror.)
+hud_away() {
+  local root="$1" flag
+  [ -n "$root" ] || { printf '0'; return 0; }
+  flag="$(hud_away_dir)/$(printf '%s' "$root" | sed 's:/:-:g')"
+  [ -f "$flag" ] && printf '1' || printf '0'
+}
+
+# Is the crash checkpoint ARMED for this repo? prints 1 / 0. (Same per-repo flag
+# scheme as pause/agent; read-only mirror across the install boundary.)
+hud_checkpoint() {
+  local root="$1" flag
+  [ -n "$root" ] || { printf '0'; return 0; }
+  flag="$(hud_ckpt_dir)/$(printf '%s' "$root" | sed 's:/:-:g')"
   [ -f "$flag" ] && printf '1' || printf '0'
 }
 

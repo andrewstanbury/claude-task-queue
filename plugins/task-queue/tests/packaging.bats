@@ -35,3 +35,16 @@ setup() {
     [ -x "$ROOT/$rel" ]
   done <<< "$cmds"
 }
+
+@test "every bin script a slash command invokes exists and is executable" {
+  local f rel found=0
+  for f in "$ROOT"/commands/*.md; do
+    [ -f "$f" ] || continue
+    found=1
+    rel="$(grep -oE 'bin/[A-Za-z0-9_-]+\.sh' "$f" | head -n1 || true)"
+    [ -n "$rel" ] || { echo "command $f references no bin script"; false; }
+    [ -f "$ROOT/$rel" ] || { echo "$f -> $rel missing"; false; }
+    [ -x "$ROOT/$rel" ] || { echo "$f -> $rel not executable"; false; }
+  done
+  [ "$found" -eq 1 ]        # guard the guard: commands/ actually has files
+}

@@ -102,6 +102,14 @@ run_resume() {
   [[ "$output" == *"claude-companion"* ]]        # tip names the marker
 }
 
+@test "full policy carries the architecture/assumption present-options + ruthless-challenge posture" {
+  run run_resume "s2" "/home/x/alpha"
+  [[ "$output" == *"ARCHITECTURALLY SIGNIFICANT"* ]]        # architecture fork is a real signal
+  [[ "$output" == *"recommended approach plus"* ]]         # present options like design-preview
+  [[ "$output" == *"challenge it RUTHLESSLY"* ]]           # strengthened challenge
+  [[ "$output" == *"visible trade-off"* ]]                 # override a requirement openly, not silently
+}
+
 @test "tq-agent toggles opt-in agent-mode on/off/status (per repo)" {
   local repo; repo="$(mktemp -d)"
   run bash -c 'cd "$1" && bash "$2" status' _ "$repo" "$AGENT"
@@ -206,6 +214,8 @@ resume_with_source() {
   [ "$status" -eq 0 ]
   # imperative restore instruction, not a soft "recreate the relevant ones"
   [[ "$output" == *"REINSTATE"* ]]
+  # in_progress tasks resume mid-task from their progress breadcrumb, not from the top
+  [[ "$output" == *"resume from the progress breadcrumb"* ]]
   # pointer to the prior session's task files (full description + blockedBy live there)
   [[ "$output" == *"Full description + blockedBy"* ]]
   [[ "$output" == *"$CLAUDE_TQ_TASKS_DIR/s1/"* ]]

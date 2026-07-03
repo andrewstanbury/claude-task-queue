@@ -36,7 +36,12 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   before you change (no tests → pin current behaviour first); suite green before
   done; weigh against recorded decisions. Verify observably; keep choices boring &
   reversible; honor the owner's *outcome* not their implementation; autonomy on the
-  reversible, plain-language consent on the consequential.
+  reversible, plain-language consent on the consequential. **Challenge ruthlessly** —
+  including the prompt in front of you; when the work is architecturally significant
+  or rests on an assumption, PRESENT a recommended approach + 2-3 alternatives (like
+  the design-preview) and let the owner pick; a better option that retires a prior
+  requirement is proposed as a *visible* trade-off (name what it retires), never a
+  silent override.
 - **3 · Subtract as you add** — net surface flat or smaller; reuse before create;
   ratchet, never sweep. **4 · Deliberate prune** fires automatically when debt
   crosses a threshold (over-budget files), routed through the task-queue loop.
@@ -45,6 +50,20 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   posture) re-gates on real signal — the consequential/design path or the model's own
   blast-radius/ambiguity judgement — not on every prompt (split-from-interrupt);
   **document proportionally** (token efficiency is the payoff, not a separate chase).
+  An `in_progress` task carries a one-line progress breadcrumb in its description
+  (what's done / what's next) so a crash resumes it mid-task, not from the top.
+- **Away-mode** — when the owner steps away (`bin/tq-away.sh on`; `off` on return),
+  run fully autonomous: never block (no AskUserQuestion, no "run this test" — self-
+  verify), and PARK anything needing the owner (design/ambiguous fork, owner-only
+  test, or any irreversible/binding action) as a `❓` task instead of guessing or
+  executing it — it re-surfaces for review when they're back. `off` prints a digest
+  of what completed + what's parked; a staleness nudge fires if it's left on.
+- **Crash-checkpoint** (`bin/tq-checkpoint.sh on`) — opt-in, per-repo. Auto-snapshots
+  the working tree (tracked + untracked) to a hidden ref (`refs/tq/checkpoint`) on
+  PostToolUse, off your branch so history stays clean and nothing is pushed; restore
+  after a crash with `git restore --source=refs/tq/checkpoint --worktree -- .`. This
+  is the **one deliberate exception** to "hooks are read-only" — the only hook that
+  writes to git — so it stays opt-in and best-effort (never breaks the triggering edit).
 
 Project docs: **[AGENTS.md](./AGENTS.md)**, **[docs/ROADMAP.md](./docs/ROADMAP.md)**,
 **[docs/MAP.md](./docs/MAP.md)**.

@@ -73,6 +73,8 @@ SHORT_MODEL="$(printf '%s' "$MODEL" | sed -E 's/^claude-//; s/-[0-9]{8}([^0-9]|$
 
 PAUSED="$(hud_paused "$ROOT")"
 AGENT="$(hud_agent "$ROOT")"
+AWAY="$(hud_away "$ROOT")"
+CKPT="$(hud_checkpoint "$ROOT")"
 VERIFY="$(hud_verify "$SID")"
 BRANCH="$(hud_branch "$CWD")"
 # Dirty-count + ahead/behind are only shown next to the branch (wide terminals, in
@@ -95,6 +97,13 @@ printf "%s%s%s%s" "$BCOL$B" "●" "$X" "$SEP"
 
 # 3) Agent-mode ON (task-queue fan-out)
 [ "$AGENT" = "1" ] && printf "%s🤖 agent%s%s" "$C$B" "$X" "$SEP"
+
+# 3a) Away-mode ON — Claude runs autonomous + parks decisions. Most consequential
+# mode, so it's surfaced prominently (yellow, like paused: attention state).
+[ "$AWAY" = "1" ] && printf "%s🚶 away%s%s" "$Y$B" "$X" "$SEP"
+
+# 3b) Crash-checkpoint ARMED (task-queue auto-snapshots edits). Absent = off.
+[ "$CKPT" = "1" ] && printf "%s🧷 ckpt%s%s" "$C$B" "$X" "$SEP"
 
 # 4) Tests — the verification floor's last outcome (the owner's trust signal)
 case "$VERIFY" in

@@ -31,6 +31,22 @@ teardown() {
   rm -rf "$CLAUDE_HUD_AGENT_DIR"
 }
 
+@test "hud_checkpoint reflects task-queue's per-repo checkpoint flag" {
+  export CLAUDE_HUD_CKPT_DIR="$(mktemp -d)"
+  run bash -c "$SRC"' hud_checkpoint "/some/repo"' bash "$ROOT"; [ "$output" = "0" ]
+  touch "$CLAUDE_HUD_CKPT_DIR/-some-repo"
+  run bash -c "$SRC"' hud_checkpoint "/some/repo"' bash "$ROOT"; [ "$output" = "1" ]
+  rm -rf "$CLAUDE_HUD_CKPT_DIR"
+}
+
+@test "hud_away reflects task-queue's per-repo away-mode flag" {
+  export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
+  run bash -c "$SRC"' hud_away "/some/repo"' bash "$ROOT"; [ "$output" = "0" ]
+  touch "$CLAUDE_HUD_AWAY_DIR/-some-repo"
+  run bash -c "$SRC"' hud_away "/some/repo"' bash "$ROOT"; [ "$output" = "1" ]
+  rm -rf "$CLAUDE_HUD_AWAY_DIR"
+}
+
 @test "hud_verify reads the verification floor's last outcome" {
   export CLAUDE_HUD_VERIFY_DIR="$(mktemp -d)"
   run bash -c "$SRC"' hud_verify "sessabc"' bash "$ROOT"; [ -z "$output" ]
@@ -64,6 +80,32 @@ teardown() {
   [[ "$output" == *"ctx 68%"* ]]
   [[ "$output" == *"Opus 4.8"* ]]
   [ "$(printf '%s\n' "$output" | wc -l)" -eq 1 ]   # single line
+}
+
+@test "render: 🚶 away when away-mode is on, hidden when off" {
+  payload="$(jq -nc --arg c "$REPO" \
+    '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c,
+      context_window:{used_percentage:5}, terminal_width:200}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
+  [[ "$output" != *"🚶 away"* ]]
+  export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
+  touch "$CLAUDE_HUD_AWAY_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
+  [[ "$output" == *"🚶 away"* ]]
+  rm -rf "$CLAUDE_HUD_AWAY_DIR"
+}
+
+@test "render: 🧷 ckpt when the crash checkpoint is armed, hidden when off" {
+  payload="$(jq -nc --arg c "$REPO" \
+    '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c,
+      context_window:{used_percentage:5}, terminal_width:200}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
+  [[ "$output" != *"🧷 ckpt"* ]]                 # off by default
+  export CLAUDE_HUD_CKPT_DIR="$(mktemp -d)"
+  touch "$CLAUDE_HUD_CKPT_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
+  [[ "$output" == *"🧷 ckpt"* ]]                 # shown when armed
+  rm -rf "$CLAUDE_HUD_CKPT_DIR"
 }
 
 @test "render: ✓ tests when the verification floor last passed" {

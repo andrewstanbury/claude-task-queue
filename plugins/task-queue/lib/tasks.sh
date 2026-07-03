@@ -74,6 +74,61 @@ tq_is_agent_mode() {
   return 1
 }
 
+# (Away-mode state + the return-digest live in lib/away.sh, sourced alongside this,
+# so tasks.sh stays focused on the native task store.)
+
+# Epoch when away-mode was turned on for this repo (the flag file holds it), or 0.
+# Used for the staleness nudge (how long away) and the return-digest (what changed
+# since). Robust to an empty/legacy flag file (prints 0).
+tq_away_since() {
+  local f v
+  [ -n "${1:-}" ] || { printf '0'; return 0; }
+  f="$(tq_away_file "$1")"
+  [ -f "$f" ] || { printf '0'; return 0; }
+  v="$(head -n1 "$f" 2>/dev/null | tr -dc '0-9' || true)"
+  printf '%s' "${v:-0}"
+}
+
+# Return-digest: what happened for cur_root while the owner was away (since epoch
+# `since`) — tasks COMPLETED since then and OPEN ❓ items still awaiting them, across
+# sessions rooted at this repo. Printed by tq-away.sh on "off" (the explicit "I'm
+# back"). Counts + up to 3 completed subjects; one line when nothing changed.
+tq_away_digest() {
+  local cur_root="$1" since="${2:-0}"
+  [ -n "$cur_root" ] || return 0
+  local tdir sdir sid root f m done_n park_n subj shown
+  tdir="$(tq_tasks_dir)"
+  [ -d "$tdir" ] || return 0
+  done_n=0; park_n=0; shown=""
+  for sdir in "$tdir"/*/; do
+    [ -d "$sdir" ] || continue
+    sid="$(basename "$sdir")"
+    root="$(tq_session_root "$sid" 2>/dev/null || true)"
+    [ "$root" = "$cur_root" ] || continue
+    for f in "$sdir"*.json; do
+      [ -f "$f" ] || continue
+      if jq -e '.status=="completed"' "$f" >/dev/null 2>&1; then
+        m="$(tq_mtime "$f")"
+        if [ "$m" -ge "$since" ]; then
+          done_n=$((done_n + 1))
+          subj="$(jq -r '.subject // ""' "$f" 2>/dev/null || true)"
+          [ -n "$subj" ] && [ "$(printf '%s\n' "$shown" | grep -c .)" -lt 3 ] \
+            && shown="$shown"$'\n'"  ✓ $subj"
+        fi
+      elif jq -e '(.status=="pending" or .status=="in_progress") and ((.subject//"")|startswith("❓"))' "$f" >/dev/null 2>&1; then
+        park_n=$((park_n + 1))
+      fi
+    done
+  done
+  if [ "$done_n" -eq 0 ] && [ "$park_n" -eq 0 ]; then
+    printf 'While you were away: nothing recorded as completed, and no parked items to review.\n'
+    return 0
+  fi
+  printf 'While you were away: %d task(s) completed, %d ❓ parked for your review.\n' "$done_n" "$park_n"
+  [ -n "$shown" ] && printf '%s\n' "${shown#$'\n'}"
+  [ "$park_n" -gt 0 ] && printf 'The parked items re-surface on your next prompt (and show in hud as ❓%d).\n' "$park_n"
+}
+
 # ---- drift canary -----------------------------------------------------------
 
 # Sample real task files and report whether they still match the schema we read
@@ -231,7 +286,7 @@ tq_resume_context() {
         if (tmt[j] > tmt[i]) { x=tmt[i];tmt[i]=tmt[j];tmt[j]=x; y=tsub[i];tsub[i]=tsub[j];tsub[j]=y }
       shown = (tn > max ? max : tn)
       more  = tn - shown
-      printf "%d open task%s carry over from an earlier session in this project — your native list starts empty each session, so this is the crash/restart safety net. If the user is continuing this work, REINSTATE them now with TaskCreate as your first action (restore any in-progress ones to in_progress) before anything else; if they have clearly moved on, ignore this note.\n", n, (n==1?"":"s")
+      printf "%d open task%s carry over from an earlier session in this project — your native list starts empty each session, so this is the crash/restart safety net. If the user is continuing this work, REINSTATE them now with TaskCreate as your first action (restore any in-progress ones to in_progress and resume from the progress breadcrumb in each one'"'"'s description) before anything else; if they have clearly moved on, ignore this note.\n", n, (n==1?"":"s")
       for (i=0;i<dn;i++)    printf "  ⏳ %s\n", dsub[i]
       for (i=0;i<shown;i++) printf "  ◻ %s\n", tsub[i]
       if (more > 0) printf "  …and %d more todo%s.\n", more, (more==1?"":"s")

@@ -72,7 +72,7 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   re-surfaces a repo's unfinished tasks — the system's confirmed native gap — with
   an imperative restore instruction + an on-disk pointer to the prior session's task
   files so a crash-resume is high-fidelity without inlining descriptions per startup) +
-  per-repo pause + opt-in agent-mode + roadmap hydration + schema-drift canary.
+  per-repo pause + opt-in agent-mode + opt-in away-mode + opt-in crash-checkpoint + roadmap hydration + schema-drift canary.
   (Moving down the queue is left to Claude Code's native task nudges.) Its
   centerpiece is the **interpret→decompose→queue review loop**: on **every prompt**
   the capture hook has the model interpret the request, decompose it, and TaskCreate
@@ -93,7 +93,12 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   consequential/design signal or the model's judgement), restoring the per-prompt
   efficiency the 2026-06-26 change had spent without a leaky "is this substantive"
   classifier — the model, not a regex, decides whether to interrupt.)* **Pause** suppresses
-  the review loop so prompts run straight through in auto. On a **visual/design**
+  the review loop so prompts run straight through in auto. **Away-mode** (opt-in, per
+  repo, `tq-away.sh`) is the owner-away autonomy toggle: run fully in auto, never block
+  (no AskUserQuestion, no "please run this test" — self-verify instead), and PARK
+  anything that genuinely needs the owner — a design/ambiguous fork, an owner-only test,
+  and especially any irreversible/binding action — as a `❓` task rather than guessing or
+  executing it, so it re-surfaces (open-questions bucket + hud count) for review on return. On a **visual/design**
   prompt the loop specializes into a **design preview**: the model presents a
   recommended design + 2-3 alternatives as faithful **ASCII mockups** in the
   AskUserQuestion `preview` (native keyboard-nav + Enter, recommended first), and
@@ -312,9 +317,42 @@ Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT
 Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario,
 or a pain point that surfaces. No new layers planned.
 
+**Built (2026-07-03) — away-mode.** The "real owner-not-at-the-terminal scenario" the
+"what's next" note was waiting for arrived (owner asked for it), so the in-CLI half is
+built: `tq-away.sh` + the SessionStart AWAY block (autonomy + park-don't-ask, above). The
+review surface is the existing `❓` open-questions bucket, deliberately reused (no new
+marker, no hud-mirror change). Away `off` prints a return-digest (completed + parked
+since the on-stamp); a staleness nudge guards against leaving it on. The *off-terminal
+notification* half below stays scoped.
+
+**Built (2026-07-03) — crash-checkpoint.** Closes the last crash gap (queue + mid-task
+breadcrumb were already covered): uncommitted working-tree edits. Opt-in `tq-checkpoint.sh`
+snapshots tracked+untracked work to a hidden `refs/tq/checkpoint` via a throwaway index
+(HEAD/index/worktree/history all untouched, never pushed), wired on PostToolUse; hud shows
+a `🧷 ckpt` armed marker. Chose snapshot-refs over WIP-commits to keep history clean, and
+NO auto-push (push is the irreversible action away-mode parks — auto-doing it would
+contradict that decision, and a local snapshot already covers a reboot-crash). This is the
+**one hook that writes to git** — a deliberate, opt-in exception to the read-only invariant.
+
+**Built (2026-07-03) — architecture/assumption present-options.** The design-preview flow
+generalized (by model judgment, not a regex — per 2026-06-27 split-from-interrupt) to
+architecturally-significant / assumption-dependent work, plus a strengthened ruthless-
+challenge posture where retiring a prior requirement is a *visible* trade-off, never silent
+(preserves fb152ac).
+
+**Built (2026-07-03) — task-queue slash commands.** task-queue had NO commands (its verbs
+were plain-language → bash). Added an *optional* `/task-queue:` control plane — `:status`
+(modes + open-work readout, not a task re-listing), `:away`/`:checkpoint`/`:pause`/`:agent`
+(on|off toggles), `:restore` (recover from the last checkpoint). Commands cover the
+deterministic CONTROL plane only; queuing WORK stays natural-language + the native list
+(no task-CRUD commands — that would duplicate native + betray "native list = the queue").
+Natural language still triggers every mode too ("both"), so the README's "need never run a
+command" promise holds — commands are additive, never required. The flag-plumbing dedup was
+evaluated and rejected (deletion test; see memory).
+
 **Scoped (not built) — async owner recap.** The one place an MCP integration earns
 its keep: when the owner is *away from the terminal*, the Stop-time recap (today only
-in-session) never reaches them. Shape if/when that scenario is real: **trigger** — the
+in-session) never reaches them. Now that away-mode exists, this would gate on that flag. Shape if/when that scenario is real: **trigger** — the
 intent→outcome gate already composes the plain-language "did we build what you asked"
 recap at Stop; reuse it, gated on an explicit owner-away signal (env opt-in or a
 quiet-hours window), never on every Stop. **Payload** — that same recap text + the ✓/✗

@@ -102,7 +102,7 @@ if [ "$paused" -eq 0 ]; then
   # unlike a per-prompt regex — has actually read the prompt and can judge blast
   # radius. So: interpret + queue + run in auto; surface AskUserQuestion only on
   # real signal. This keeps the per-prompt budget lean while preserving 100% capture.
-  reanchor="New work — interpret it (one plain line), decompose into tasks in dependency order (smallest blast-radius first), TaskCreate them, and work it IN AUTO, per the queue loop from this session's SessionStart policy. Pause for AskUserQuestion sign-off ONLY on real signal — genuinely ambiguous, high blast-radius, or you'd recommend against it; otherwise just proceed. Be selective; don't manufacture pushback."
+  reanchor="New work — interpret it (one plain line), decompose into tasks in dependency order (smallest blast-radius first), TaskCreate them, and work it IN AUTO, per the queue loop from this session's SessionStart policy. Pause for AskUserQuestion sign-off ONLY on real signal — ambiguous, high blast-radius, an architectural/assumption fork (present recommended options), or you'd recommend against it; otherwise just proceed. Challenge the ask itself when your honest read says so. Be selective — don't manufacture pushback."
 
   # `loop` — the HEAVY variant, for the deterministic high-stakes signal only
   # (consequential below). Here the full present-and-approve + critique earns its
