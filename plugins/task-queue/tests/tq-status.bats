@@ -1,11 +1,12 @@
 #!/usr/bin/env bats
 #
 # Characterization tests for bin/tq-status.sh — the per-repo CONTROL-plane readout
-# behind the bare `/tq` menu. It had no direct coverage; this pins what it renders
-# (mode states + open-work counts + the change-it footer) so a refactor can't
-# silently change the owner's control surface. Faked via CLAUDE_TQ_* + a temp repo.
+# behind /task-queue:status. It pins what it renders (feature states in full words +
+# open-work counts + the toggle hint) so a refactor can't silently change the owner's
+# control surface. Faked via CLAUDE_TQ_* + a temp repo.
 
 setup() {
+  unset CLAUDE_TQ_CHECKPOINT_MODE CLAUDE_TQ_AGENT_MODE   # isolate from any global default
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   STATUS="$ROOT/bin/tq-status.sh"
   export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
@@ -37,37 +38,38 @@ make_task() {
     > "$CLAUDE_TQ_TASKS_DIR/$1/$2.json"
 }
 
-@test "all modes off: renders the header + every mode as off" {
+@test "all features off: renders the header + every feature as off (full words)" {
   run status
   [ "$status" -eq 0 ]
   [[ "$output" == *"task-queue · $REPO"* ]]
-  [[ "$output" == *"solo          off"* ]]
-  [[ "$output" == *"checkpoint    off"* ]]
-  [[ "$output" == *"agent-mode    off"* ]]
+  [[ "$output" =~ autopilot[[:space:]]+off ]]
+  [[ "$output" =~ checkpoint[[:space:]]+off ]]
+  [[ "$output" =~ agents[[:space:]]+off ]]
 }
 
-@test "footer points at the /tq control command (not the retired per-mode slugs)" {
+@test "hint points at the /task-queue: commands (not the retired /tq or per-mode slugs)" {
   run status
-  [[ "$output" == *"/tq solo"* ]]
+  [[ "$output" == *"/task-queue:"* ]]
+  [[ "$output" != *"/tq "* ]]
   [[ "$output" != *"/task-queue:pause"* ]]
 }
 
-@test "solo ON is reflected (reads the away flag)" {
+@test "autopilot ON is reflected (reads the away flag)" {
   date +%s > "$(flag "$CLAUDE_TQ_AWAY_DIR")"
   run status
-  [[ "$output" == *"solo          ON"* ]]
+  [[ "$output" =~ autopilot[[:space:]]+on ]]
 }
 
-@test "agent-mode ON is reflected" {
+@test "agents ON is reflected" {
   : > "$(flag "$CLAUDE_TQ_AGENT_DIR")"
   run status
-  [[ "$output" == *"agent-mode    ON"* ]]
+  [[ "$output" =~ agents[[:space:]]+on ]]
 }
 
-@test "checkpoint ARMED is reflected" {
+@test "checkpoint ON is reflected" {
   : > "$(flag "$CLAUDE_TQ_CKPT_DIR")"
   run status
-  [[ "$output" == *"checkpoint    ARMED"* ]]
+  [[ "$output" =~ checkpoint[[:space:]]+on ]]
 }
 
 @test "open-work line counts open tasks and the ❓ awaiting subset for this repo" {

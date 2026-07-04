@@ -28,23 +28,17 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 
 root="$(tq_root_for_cwd "$PWD")"
 
-# ---- mode states ------------------------------------------------------------
-# solo = the merged autonomous mode (was away + pause): run without the owner, skip
-# the approval checkpoint, PARK anything needing them.
+# ---- feature states ---------------------------------------------------------
+# autopilot = the merged autonomous mode (was solo/away + pause): run without the
+# owner, skip the approval checkpoint, PARK anything needing them.
 if tq_is_away "$root"; then
   since="$(tq_away_since "$root")"; now="$(date +%s 2>/dev/null || echo 0)"
-  if [ "$since" -gt 0 ] && [ "$now" -gt 0 ]; then solo="ON (~$(( (now - since) / 3600 ))h)"; else solo="ON"; fi
+  if [ "$since" -gt 0 ] && [ "$now" -gt 0 ]; then autopilot="on (~$(( (now - since) / 3600 ))h)"; else autopilot="on"; fi
 else
-  solo="off"
+  autopilot="off"
 fi
-
-if tq_ckpt_enabled "$root"; then
-  if tq_ckpt_exists "$root"; then ckpt="ARMED (snapshot ready — restore: $(tq_ckpt_restore_cmd))"; else ckpt="ARMED (no snapshot yet)"; fi
-else
-  ckpt="off"
-fi
-
-if tq_is_agent_mode "$root"; then agent="ON (parallel subagents)"; else agent="off"; fi
+if tq_ckpt_enabled "$root"; then checkpoint="on"; else checkpoint="off"; fi
+if tq_is_agent_mode "$root"; then agents="on"; else agents="off"; fi
 
 # ---- repo-wide open work (count only; not a re-listing) ----------------------
 open=0; qsubs=""
@@ -66,10 +60,12 @@ q="$(printf '%s' "$qsubs" | awk 'NF && !seen[$0]++' | grep -c . || true)"
 
 # ---- render -----------------------------------------------------------------
 printf 'task-queue · %s\n\n' "$root"
-printf 'modes\n'
-printf '  solo          %s\n' "$solo"
-printf '  checkpoint    %s\n' "$ckpt"
-printf '  agent-mode    %s\n\n' "$agent"
+printf 'features (toggle each with its /task-queue: command, or just ask in plain words)\n'
+printf '  %-12s%-10s%s\n' "autopilot"  "$autopilot"  "keep working on my own while you are away"
+printf '  %-12s%-10s%s\n' "checkpoint" "$checkpoint" "auto-save every edit so a crash cannot lose work"
+printf '  %-12s%-10s%s\n\n' "agents"   "$agents"     "split big jobs across parallel helpers to go faster"
 printf 'open work in this repo\n'
-printf '  %s task(s) still open across sessions · %s ❓ awaiting you\n\n' "$open" "$q"
-printf 'change it: /tq solo · checkpoint · agent (on|off) · /tq undo · bare /tq = this menu\n'
+printf '  %s task(s) still open across sessions · %s ❓ awaiting you\n' "$open" "$q"
+if tq_ckpt_enabled "$root" && tq_ckpt_exists "$root"; then
+  printf '\na checkpoint snapshot is saved — recover crashed edits with /task-queue:restore\n'
+fi

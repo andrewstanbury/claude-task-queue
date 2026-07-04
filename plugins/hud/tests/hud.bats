@@ -4,6 +4,7 @@
 # test. Faked via CLAUDE_HUD_* overrides + a temp git repo.
 
 setup() {
+  unset CLAUDE_TQ_CHECKPOINT_MODE CLAUDE_TQ_AGENT_MODE   # isolate from any global default
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   STATUS="$ROOT/bin/hud-status.sh"
   REPO="$(mktemp -d)/proj"; mkdir -p "$REPO"; git -C "$REPO" init -q
@@ -62,40 +63,38 @@ teardown() {
   run bash -c "$SRC"' hud_dirty "$2"' bash "$ROOT" "$REPO"; [ "$output" = "1" ]
 }
 
-@test "renders a single line with the key slots (ctx %, model)" {
+@test "renders a single line with the key slots (feature status, model)" {
   payload="$(jq -nc --arg c "$REPO" \
-    '{model:{display_name:"Opus 4.8"}, session_id:"sess", cwd:$c,
-      context_window:{used_percentage:68, context_window_size:1000000}, terminal_width:200}')"
+    '{model:{display_name:"Opus 4.8"}, session_id:"sess", cwd:$c, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"ctx 68%"* ]]
+  [[ "$output" == *"autopilot off"* ]]             # feature status always shown, full words
   [[ "$output" == *"Opus 4.8"* ]]
+  [[ "$output" != *"ctx"* ]]                        # ctx slot removed
   [ "$(printf '%s\n' "$output" | wc -l)" -eq 1 ]   # single line
 }
 
-@test "render: 🚶 solo when solo mode is on, hidden when off" {
+@test "render: autopilot on when the away flag is set, off otherwise" {
   payload="$(jq -nc --arg c "$REPO" \
-    '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c,
-      context_window:{used_percentage:5}, terminal_width:200}')"
+    '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" != *"🚶 solo"* ]]
+  [[ "$output" == *"autopilot off"* ]]
   export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
   touch "$CLAUDE_HUD_AWAY_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"🚶 solo"* ]]
+  [[ "$output" == *"autopilot on"* ]]
   rm -rf "$CLAUDE_HUD_AWAY_DIR"
 }
 
-@test "render: 🧷 ckpt when the crash checkpoint is armed, hidden when off" {
+@test "render: checkpoint on when armed, off otherwise" {
   payload="$(jq -nc --arg c "$REPO" \
-    '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c,
-      context_window:{used_percentage:5}, terminal_width:200}')"
+    '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" != *"🧷 ckpt"* ]]                 # off by default
+  [[ "$output" == *"checkpoint off"* ]]          # off by default
   export CLAUDE_HUD_CKPT_DIR="$(mktemp -d)"
   touch "$CLAUDE_HUD_CKPT_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"🧷 ckpt"* ]]                 # shown when armed
+  [[ "$output" == *"checkpoint on"* ]]           # shown when armed
   rm -rf "$CLAUDE_HUD_CKPT_DIR"
 }
 
@@ -118,10 +117,28 @@ teardown() {
   rm -rf "$CLAUDE_HUD_VERIFY_DIR"
 }
 
-@test "render: omits ctx when the payload has no context_window" {
-  payload="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
+@test "render: no ctx slot (removed in favor of always-on feature status)" {
+  payload="$(jq -nc --arg c "$REPO" \
+    '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c,
+      context_window:{used_percentage:68}, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
   [[ "$output" != *"ctx"* ]]
+}
+
+@test "render: feature status honors the global-default env (checkpoint on, no flag)" {
+  payload="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_TQ_CHECKPOINT_MODE=on "$2"' _ "$payload" "$STATUS"
+  [[ "$output" == *"checkpoint on"* ]]
+}
+
+@test "render: narrow terminal collapses feature status to only the ON ones" {
+  export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
+  touch "$CLAUDE_HUD_AWAY_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
+  payload="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:60}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
+  [[ "$output" == *"autopilot on"* ]]        # ON stays even on narrow
+  [[ "$output" != *"checkpoint off"* ]]      # OFF collapses on narrow
+  rm -rf "$CLAUDE_HUD_AWAY_DIR"
 }
 
 # ---- hud-install (status-line wiring) ---------------------------------------
@@ -200,15 +217,11 @@ teardown() {
   rm -rf "$(dirname "$up")"
 }
 
-@test "status line shows session cost from the payload, hidden at zero" {
+@test "status line no longer renders the session cost ($) slot (removed to save width)" {
   json="$(jq -nc --arg c "$REPO" \
     '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200,cost:{total_cost_usd:0.4231}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
-  [[ "$output" == *'$0.42'* ]]
-  json="$(jq -nc --arg c "$REPO" \
-    '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200,cost:{total_cost_usd:0}}')"
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
-  [[ "$output" != *'$0.00'* ]]
+  [[ "$output" != *'$0.42'* ]]
 }
 
 @test "status line shows the token slot (⇡input ⇣output), silent before the first API call" {

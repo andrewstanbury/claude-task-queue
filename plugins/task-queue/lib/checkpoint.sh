@@ -15,7 +15,19 @@ set -uo pipefail
 # Per-repo enable flag (same scheme as agent/away).
 tq_ckpt_dir()      { printf '%s' "${CLAUDE_TQ_CKPT_DIR:-$HOME/.claude/state/task-queue/checkpoint}"; }
 tq_ckpt_file()     { printf '%s/%s' "$(tq_ckpt_dir)" "$(printf '%s' "$1" | sed 's:/:-:g')"; }
-tq_ckpt_enabled()  { [ -n "${1:-}" ] && [ -f "$(tq_ckpt_file "$1")" ]; }
+# Armed when this repo has an explicit opt-in flag, OR the global default is on
+# (CLAUDE_TQ_CHECKPOINT_MODE=on|1 — set once in settings.json env to arm every repo
+# without a per-repo decision, mirroring CLAUDE_TQ_AGENT_MODE). Off by default
+# otherwise, so the read-only invariant holds for anyone who never opts in. A flag
+# whose content is the literal "off" is a TOMBSTONE: it lets /task-queue:checkpoint
+# turn a single repo off even when the global default would otherwise arm it.
+tq_ckpt_enabled()  {
+  [ -n "${1:-}" ] || return 1
+  local f; f="$(tq_ckpt_file "$1")"
+  if [ -f "$f" ]; then [ "$(cat "$f" 2>/dev/null || true)" != "off" ]; return; fi
+  case "${CLAUDE_TQ_CHECKPOINT_MODE:-}" in on|1) return 0 ;; esac
+  return 1
+}
 
 # The hidden ref the snapshot lands on. Under refs/tq/ (not refs/heads|tags), so it's
 # invisible to log/branch and excluded from a normal push.

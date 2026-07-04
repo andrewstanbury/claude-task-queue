@@ -59,11 +59,12 @@ if [ -n "$input" ]; then
 fi
 [ -n "$cwd" ] || cwd="$PWD"
 root="$(tq_root_for_cwd "$cwd")"
-# All modes are driven through the single /tq control command now (bin/tq.sh);
-# `solo` is the merged autonomous mode (was away + pause). These are the invocations
-# the model runs when the owner asks in plain language ("keep going while I'm gone").
-solo_cmd="bash \"$PLUGIN_DIR/bin/tq.sh\" solo"
-agent_cmd="bash \"$PLUGIN_DIR/bin/tq.sh\" agent"
+# Modes are per-repo slash commands (/task-queue:autopilot|checkpoint|agents|restore|
+# status); `autopilot` is the merged autonomous mode (was away + pause). These bare
+# invocations are what the model runs when the owner asks in plain language ("keep
+# going while I'm gone"); they take on|off (the commands themselves pass `toggle`).
+solo_cmd="bash \"$PLUGIN_DIR/bin/tq-away.sh\""
+agent_cmd="bash \"$PLUGIN_DIR/bin/tq-agent.sh\""
 
 # Source-aware: inject the full block on a fresh context (startup / clear / and
 # any unknown source — the safe default), but only a lean one-line re-anchor on
@@ -86,7 +87,7 @@ elif tq_policy_documented "$root"; then
   roadmap="$(tq_roadmap_path "$root" 2>/dev/null || true)"
   [ -n "$roadmap" ] && ctx="$ctx"$'\n\n'"[task-queue] Backlog at $roadmap — adopt its open items into your task list with TaskCreate; reflect finished work back."
 else
-  pause_hint="Modes are set through one command — bash \"$PLUGIN_DIR/bin/tq.sh\" (bare = menu of modes + state). Solo mode (owner steps away — run fully autonomous, auto-continue the queue, block asking, PARK anything needing them): $solo_cmd on|off (per repo, persists). Agent-mode (fan independent tasks to subagents, opt-in): $agent_cmd on|off."
+  pause_hint="Modes are per-repo slash commands: /task-queue:autopilot (owner steps away — run fully autonomous, auto-continue the queue, block asking, PARK anything needing them), /task-queue:checkpoint (auto-save edits so a crash can't lose them), /task-queue:agents (fan independent tasks to parallel subagents, opt-in), /task-queue:restore (recover after a crash), /task-queue:status (what's on + open work). Run a mode directly if needed: $solo_cmd on|off, $agent_cmd on|off. Natural language works too."
   # Bootstrap nudge: once the policy is recorded in CLAUDE.md, this goes lean.
   tip="Tip: record this standing policy in your CLAUDE.md and mark it with \"claude-companion\" — then this nudge re-anchors in one line each session instead of repeating in full."
   # Orientation/project-knowledge nudges live in the charter plugin (know-the-project),

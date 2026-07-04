@@ -53,21 +53,19 @@ hud_floors_disabled() {
 # When floors are off it names them inline, turning the abstract 🛡✗N into specifics.
 hud_legend() {
   cat <<'EOF'
-hud status-line key (left → right; each slot hides when it has nothing to say):
+hud status-line key (left → right; the feature-status slot is always shown, the rest hide when empty):
 
-  ●            health dot — green: ok · yellow: solo mode · red: tests failing
-  🤖 agent     agent-mode on (parallel subagents)
-  🚶 solo      solo mode on (Claude runs autonomous; decisions parked for you)
-  🧷 ckpt      crash-checkpoint armed (edits auto-snapshotted; absent = off)
+  ●            health dot — green: ok · yellow: autopilot on · red: tests failing
+  autopilot    on = I keep working on my own while you're away; off = normal review loop
+  checkpoint   on = every edit auto-saved so a crash can't lose work; off = not saving
+  agents       on = big jobs split across parallel helpers; off = I work inline
   ✓/✗/⚠ tests  last test run — passed / failed / timed out
   ❓N          N open questions you still owe an answer on this session
   🔗↑          code coupling rose past its threshold at the last check
   🛡✗N         N SAFETY CHECKS DISABLED — the dot can look green while a guard is off
-  ctx NN%      how full the context window is (compaction nears at 100%)
   tok ⇡in ⇣out tokens in the current context / in the last response
-  $N.NN        session cost so far
   ⎇ branch     git branch · *N uncommitted · ↑N unpushed · ↓N unpulled
-  Model:       the model in use
+  <model>      the model in use (shown without a label to save space)
 EOF
   local off; off="$(hud_floors_disabled)"
   [ -n "$off" ] && printf '\nCurrently disabled (🛡✗): %s\n' "$off"
@@ -102,13 +100,19 @@ hud_human_tokens() {
   fi
 }
 
-# Is task-queue agent-mode ON for this repo? prints 1 / 0. (Same per-repo flag
-# scheme as away; read-only mirror across the install boundary.)
+# Is task-queue agent-mode ON for this repo? prints 1 / 0. Honors the per-repo flag
+# (content "off" = a tombstone) and the CLAUDE_TQ_AGENT_MODE global default, so the
+# status line stays honest when the owner enables it everywhere via settings env.
+# (Read-only mirror across the install boundary — mirrors tq_is_agent_mode.)
 hud_agent() {
   local root="$1" flag
   [ -n "$root" ] || { printf '0'; return 0; }
   flag="$(hud_agent_dir)/$(printf '%s' "$root" | sed 's:/:-:g')"
-  [ -f "$flag" ] && printf '1' || printf '0'
+  if [ -f "$flag" ]; then
+    [ "$(cat "$flag" 2>/dev/null || true)" != "off" ] && printf '1' || printf '0'
+    return 0
+  fi
+  case "${CLAUDE_TQ_AGENT_MODE:-}" in on|1) printf '1' ;; *) printf '0' ;; esac
 }
 
 # Is solo mode ON for this repo? prints 1 / 0. Solo (formerly away; it also folded in
@@ -123,13 +127,19 @@ hud_away() {
   [ -f "$flag" ] && printf '1' || printf '0'
 }
 
-# Is the crash checkpoint ARMED for this repo? prints 1 / 0. (Same per-repo flag
-# scheme as away/agent; read-only mirror across the install boundary.)
+# Is the crash checkpoint ARMED for this repo? prints 1 / 0. Honors the per-repo flag
+# (content "off" = a tombstone) and the CLAUDE_TQ_CHECKPOINT_MODE global default, so
+# the status line stays honest when the owner arms it everywhere via settings env.
+# (Read-only mirror across the install boundary — mirrors tq_ckpt_enabled.)
 hud_checkpoint() {
   local root="$1" flag
   [ -n "$root" ] || { printf '0'; return 0; }
   flag="$(hud_ckpt_dir)/$(printf '%s' "$root" | sed 's:/:-:g')"
-  [ -f "$flag" ] && printf '1' || printf '0'
+  if [ -f "$flag" ]; then
+    [ "$(cat "$flag" 2>/dev/null || true)" != "off" ] && printf '1' || printf '0'
+    return 0
+  fi
+  case "${CLAUDE_TQ_CHECKPOINT_MODE:-}" in on|1) printf '1' ;; *) printf '0' ;; esac
 }
 
 # The verification floor's last outcome for this session: "pass" | "fail" |

@@ -52,7 +52,7 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   **document proportionally** (token efficiency is the payoff, not a separate chase).
   An `in_progress` task carries a one-line progress breadcrumb in its description
   (what's done / what's next) so a crash resumes it mid-task, not from the top.
-- **Solo mode** (`/tq solo on`; `off` on return — merges the old *away* + *pause*) —
+- **Autopilot mode** (`/task-queue:autopilot` toggles it — merges the old *solo/away* + *pause*) —
   when the owner steps away, run fully autonomous. This is **enforced, not advised**:
   the Stop hook AUTO-CONTINUES the queue while any non-`❓` task is still open (so the
   session can't idle waiting for an absent owner), `AskUserQuestion` is **hard-blocked**
@@ -62,11 +62,17 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   the only way to defer to them. The auto-continue is bounded by a per-prompt counter
   (`CLAUDE_TQ_AWAY_MAX_CONTINUE`, default 40) so a stuck model can't spin. `off` prints a
   digest of what completed + what's parked; a staleness nudge fires if it's left on.
-- **One control command `/tq`** — all modes are set through a single explorable command
-  (`/tq` bare = menu + state; `/tq solo|checkpoint|agent on|off`, `/tq undo`, `/tq
-  status`). It replaced the per-mode slash commands. You never *need* it — plain language
-  drives every mode ("keep going while I'm gone" → solo on) — it's the power-user surface.
-- **Crash-checkpoint** (`bin/tq-checkpoint.sh on`) — opt-in, per-repo. Auto-snapshots
+- **Per-feature commands** — each mode is a typeable slash command (discoverable via
+  Claude Code's `/` menu): `/task-queue:autopilot`, `/task-queue:checkpoint`,
+  `/task-queue:agents` (each toggles + announces the new state), `/task-queue:restore`
+  (recover after a crash) and `/task-queue:status` (what's on + open work). They replaced
+  the single `/tq` hub. You never *need* them — plain language drives every mode ("keep
+  going while I'm gone" → autopilot on) — they're the power-user surface. Checkpoint and
+  agents also honor a global default env (`CLAUDE_TQ_CHECKPOINT_MODE` /
+  `CLAUDE_TQ_AGENT_MODE=on`) so the owner can enable them across every repo from
+  settings.json without a per-repo toggle; an explicit per-repo `off` still wins (a
+  tombstone). The shipped default stays **off**, so the opt-in invariant below holds.
+- **Crash-checkpoint** (`/task-queue:checkpoint`) — opt-in, per-repo. Auto-snapshots
   the working tree (tracked + untracked) to a hidden ref (`refs/tq/checkpoint`) on
   PostToolUse, off your branch so history stays clean and nothing is pushed; restore
   after a crash with `git restore --source=refs/tq/checkpoint --worktree -- .`. This
