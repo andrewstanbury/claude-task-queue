@@ -16,8 +16,8 @@
 # Assemble the state-signal block for a repo, or empty when no mode is active.
 # Blocks are joined by a blank line so the caller appends the whole thing once.
 #   $1 root       absolute repo root
-#   $2 solo_cmd   the "bash …/tq.sh solo" invocation (for the off hints)
-#   $3 agent_cmd  the "bash …/tq.sh agent" invocation (for the off hint)
+#   $2 solo_cmd   the "bash …/tq-away.sh" invocation (for the off hints)
+#   $3 agent_cmd  the "bash …/tq-agent.sh" invocation (for the off hint)
 #   $4 plugin_dir the plugin root (for the checkpoint-disarm command)
 tq_state_signals() {
   local root="$1" solo_cmd="$2" agent_cmd="$3" plugin_dir="$4"

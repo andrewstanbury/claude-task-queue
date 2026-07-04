@@ -351,6 +351,22 @@ Natural language still triggers every mode too ("both"), so the README's "need n
 command" promise holds — commands are additive, never required. The flag-plumbing dedup was
 evaluated and rejected (deletion test; see memory).
 
+**Built (2026-07-04, later) — per-feature commands + global-default checkpoint/agents.**
+Superseding the `/tq` consolidation below, on the owner's call: the single `/tq` hub was
+retired for **one typeable slash command per feature** — `/task-queue:autopilot`, `:checkpoint`,
+`:agents` (each toggles + announces its new state), `:restore`, `:status`. Rationale: Claude
+Code's `/` autocomplete makes discrete, described commands MORE discoverable for a non-technical
+owner than subcommands hidden inside one command — the reverse of the "six slugs is clutter"
+premise that drove the consolidation (lived usability beat maintainer tidiness). Names are the
+owner's (autopilot/checkpoint/agents — not safety-net/helpers). Checkpoint and agents gained a
+**global-default env** (`CLAUDE_TQ_CHECKPOINT_MODE` / `CLAUDE_TQ_AGENT_MODE=on`) so the owner can
+arm them across every repo from `settings.json` without per-repo toggling; the **shipped default
+stays off**, so the "checkpoint is opt-in" hard invariant holds, and an explicit per-repo `off`
+writes a tombstone that wins over the global default. **hud** redesigned to match: the `$`
+session-cost and `ctx %` slots dropped, the three when-on feature icons replaced by one
+always-visible feature-status readout in full words (autopilot/checkpoint/agents on|off), and the
+`Model:` label dropped (name kept). Versions: task-queue 0.32→0.33, hud 0.8.1→0.9.0.
+
 **Built (2026-07-04) — solo mode (enforced autonomy) + the `/tq` command.** Away-mode was
 advisory: it *told* the model not to block, but nothing stopped a normal end-of-turn `Stop`
 from handing control back to an absent owner, and `AskUserQuestion` could still fire — so it

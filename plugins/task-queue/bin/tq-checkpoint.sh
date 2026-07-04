@@ -40,7 +40,13 @@ action="${1:-status}"
 # everyone who never enabled it) skip before spending a git subprocess to resolve the
 # root. A single cheap dir listing gates the whole per-edit cost.
 if [ "$action" = "now" ]; then
-  [ -n "$(ls -A "$(tq_ckpt_dir)" 2>/dev/null)" ] || exit 0   # nothing armed anywhere → done
+  # Fast exit before spending a git subprocess: nothing armed anywhere AND no global
+  # default. CLAUDE_TQ_CHECKPOINT_MODE must override the empty-dir short-circuit, else
+  # a global-default-armed repo with no per-repo flag would silently never snapshot.
+  case "${CLAUDE_TQ_CHECKPOINT_MODE:-}" in
+    on|1) : ;;
+    *) [ -n "$(ls -A "$(tq_ckpt_dir)" 2>/dev/null)" ] || exit 0 ;;   # nothing armed → done
+  esac
   input=""; [ -t 0 ] || input="$(cat 2>/dev/null || true)"
   cwd=""
   [ -n "$input" ] && cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)"
@@ -52,16 +58,20 @@ fi
 root="$(tq_root_for_cwd "$PWD")"
 flag="$(tq_ckpt_file "$root")"
 
+# `toggle` (the /task-queue:checkpoint command) flips based on the current state.
+[ "$action" = "toggle" ] && { tq_ckpt_enabled "$root" && action="off" || action="on"; }
+
 case "$action" in
   on|enable)
     mkdir -p "$(tq_ckpt_dir)" 2>/dev/null || true
     : > "$flag"
-    printf 'checkpoint ARMED for %s — your work is auto-snapshotted to %s (restore: %s)\n' \
-      "$root" "$(tq_ckpt_ref)" "$(tq_ckpt_restore_cmd)"
+    printf 'Checkpoint ON — your edits are auto-saved for %s so a crash cannot lose them (recover with /task-queue:restore, or: %s).\n' \
+      "$root" "$(tq_ckpt_restore_cmd)"
     ;;
   off|disable)
-    rm -f "$flag" 2>/dev/null || true
-    printf 'checkpoint OFF for %s (existing snapshot ref, if any, is left in place)\n' "$root"
+    mkdir -p "$(tq_ckpt_dir)" 2>/dev/null || true
+    printf 'off' > "$flag" 2>/dev/null || true      # tombstone: sticks even under a global default
+    printf 'Checkpoint OFF for %s (the last saved snapshot, if any, is left in place).\n' "$root"
     ;;
   status)
     if tq_ckpt_enabled "$root"; then printf 'on (%s)\n' "$root"
@@ -82,7 +92,7 @@ case "$action" in
     fi
     ;;
   *)
-    printf 'usage: tq-checkpoint.sh on|off|status|now|restore\n' >&2
+    printf 'usage: tq-checkpoint.sh on|off|toggle|status|now|restore\n' >&2
     exit 2
     ;;
 esac

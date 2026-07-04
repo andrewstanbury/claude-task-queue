@@ -85,10 +85,13 @@ tq_agent_dir()       { printf '%s' "${CLAUDE_TQ_AGENT_DIR:-$HOME/.claude/state/t
 tq_agent_file()      { printf '%s/%s' "$(tq_agent_dir)" "$(printf '%s' "$1" | sed 's:/:-:g')"; }
 # Agent-mode is on when this repo has an explicit opt-in flag, OR the global
 # default is on (CLAUDE_TQ_AGENT_MODE=on|1 — set once in settings.json env to
-# enable everywhere without a per-repo decision). Off by default otherwise.
+# enable everywhere without a per-repo decision). Off by default otherwise. A flag
+# whose content is the literal "off" is a TOMBSTONE: it lets /task-queue:agents turn
+# a single repo off even when the global default would otherwise enable it.
 tq_is_agent_mode() {
   [ -n "${1:-}" ] || return 1
-  [ -f "$(tq_agent_file "$1")" ] && return 0
+  local f; f="$(tq_agent_file "$1")"
+  if [ -f "$f" ]; then [ "$(cat "$f" 2>/dev/null || true)" != "off" ]; return; fi
   case "${CLAUDE_TQ_AGENT_MODE:-}" in on|1) return 0 ;; esac
   return 1
 }

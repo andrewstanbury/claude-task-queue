@@ -115,11 +115,11 @@ run_resume() {
   run bash -c 'cd "$1" && bash "$2" status' _ "$repo" "$AGENT"
   [[ "$output" == on\ * || "$output" == off\ * ]]; [[ "$output" == off* ]]
   run bash -c 'cd "$1" && bash "$2" on' _ "$repo" "$AGENT"
-  [[ "$output" == *"agent-mode ON"* ]]
+  [[ "$output" == *"Agents ON"* ]]
   run bash -c 'cd "$1" && bash "$2" status' _ "$repo" "$AGENT"
   [[ "$output" == on* ]]
   run bash -c 'cd "$1" && bash "$2" off' _ "$repo" "$AGENT"
-  [[ "$output" == *"agent-mode OFF"* ]]
+  [[ "$output" == *"Agents OFF"* ]]
   rm -rf "$repo"
 }
 
@@ -145,10 +145,10 @@ run_resume() {
   rm -rf "$repo"
 }
 
-@test "session start advertises the /tq control command (discoverable)" {
+@test "session start advertises the per-feature commands (discoverable)" {
   run run_resume "s2" "/home/x/alpha"
-  [[ "$output" == *"tq.sh"* ]]
-  [[ "$output" == *"solo"* ]]
+  [[ "$output" == *"/task-queue:autopilot"* ]]
+  [[ "$output" == *"/task-queue:status"* ]]
 }
 
 @test "hook output is valid SessionStart hook JSON" {

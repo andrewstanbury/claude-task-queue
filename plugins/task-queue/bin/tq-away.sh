@@ -36,16 +36,19 @@ action="${1:-status}"
 root="$(tq_root_for_cwd "$PWD")"
 flag="$(tq_away_file "$root")"
 
+# `toggle` (the /task-queue:autopilot command) flips based on the current state.
+[ "$action" = "toggle" ] && { tq_is_away "$root" && action="off" || action="on"; }
+
 case "$action" in
   on|enable)
     mkdir -p "$(tq_away_dir)" 2>/dev/null || true
     date +%s > "$flag" 2>/dev/null || : > "$flag"   # stamp the on-time (for staleness + digest)
-    printf 'solo mode ON — running autonomous for %s; the queue auto-continues, asking is blocked, and anything needing you is PARKED for review\n' "$root"
+    printf 'Autopilot ON — running autonomously for %s: the queue auto-continues, asking is blocked, and anything that needs you is PARKED for review.\n' "$root"
     ;;
   off|disable)
     since="$(tq_away_since "$root")"                 # read before removing the flag
     rm -f "$flag" 2>/dev/null || true
-    printf 'solo mode OFF — the review loop is back on for %s\n' "$root"
+    printf 'Autopilot OFF — the normal review loop is back on for %s.\n' "$root"
     tq_away_digest "$root" "$since" 2>/dev/null || true
     ;;
   status)
@@ -53,7 +56,7 @@ case "$action" in
     else printf 'off (%s)\n' "$root"; fi
     ;;
   *)
-    printf 'usage: tq-away.sh on|off|status\n' >&2
+    printf 'usage: tq-away.sh on|off|toggle|status\n' >&2
     exit 2
     ;;
 esac

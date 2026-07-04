@@ -4,10 +4,11 @@
 # read-only state the sibling plugins maintain. No model calls, no hooks, no
 # writes — it only reads and prints, so it can't interfere with anything.
 #
-# Slots (left → right), each collapses when its data is absent:
-#   health beacon · 🤖 agent · 🚶 solo · ✓/✗ tests · 🛡✗ floors-off · ❓ open-Qs ·
-#   🔗↑ coupling · ctx % · tok ⇡in ⇣out · $ session-cost · git branch (+ dirty * ·
-#   ↑ahead ↓behind) · model.  Decode any symbol on demand with /hud:legend.
+# Slots (left → right); the feature-status slot is always shown, the rest collapse
+# when their data is absent:
+#   health beacon · autopilot/checkpoint/agents on|off · ✓/✗ tests · 🛡✗ floors-off ·
+#   ❓ open-Qs · 🔗↑ coupling · tok ⇡in ⇣out · git branch (+ dirty * · ↑ahead ↓behind)
+#   · model.  Decode any symbol on demand with /hud:legend.
 #
 # Scoped to signals a status line is the BEST surface for — persistent
 # state/health you want at a glance. Deliberately NOT re-rendered here: the task
@@ -54,15 +55,12 @@ mapfile -t F < <(printf '%s' "$INPUT" | jq -r '[
     (.model.display_name // .model.id // "?"),
     (.session_id // ""),
     (.workspace.current_dir // .cwd // ""),
-    (.context_window.used_percentage // ""),
     (.terminal_width // 0),
-    (.cost.total_cost_usd // ""),
     (.context_window.total_input_tokens // ""),
     (.context_window.total_output_tokens // "")
   ] | .[]' 2>/dev/null)
 MODEL="${F[0]:-?}"; SID="${F[1]:-}"; CWD="${F[2]:-$PWD}"
-CTX_PCT="${F[3]:-}"; TERM_W="${F[4]:-0}"; COST="${F[5]:-}"
-IN_TOK="${F[6]:-}"; OUT_TOK="${F[7]:-}"
+TERM_W="${F[3]:-0}"; IN_TOK="${F[4]:-}"; OUT_TOK="${F[5]:-}"
 [ -z "$CWD" ] && CWD="$PWD"
 [ "${TERM_W:-0}" -le 0 ] && TERM_W="${COLUMNS:-0}"
 [ "$TERM_W" -le 0 ] && TERM_W=200
@@ -85,22 +83,30 @@ if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
 fi
 
 # 1) Health beacon — STATIC dot, colored by overall health: red = tests failing,
-# yellow = solo mode (autonomous, an attention state), green otherwise. No animation
+# yellow = autopilot (autonomous, an attention state), green otherwise. No animation
 # → no timer needed.
 BCOL="$G"
 [ "$AWAY" = "1" ] && BCOL="$Y"
 [ "$VERIFY" = "fail" ] && BCOL="$R"
 printf "%s%s%s%s" "$BCOL$B" "●" "$X" "$SEP"
 
-# 2) Agent-mode ON (task-queue fan-out)
-[ "$AGENT" = "1" ] && printf "%s🤖 agent%s%s" "$C$B" "$X" "$SEP"
-
-# 3) Solo mode ON — Claude runs autonomous + parks decisions (formerly away; it also
-# folded in the old pause). Most consequential mode, surfaced prominently in yellow.
-[ "$AWAY" = "1" ] && printf "%s🚶 solo%s%s" "$Y$B" "$X" "$SEP"
-
-# 3b) Crash-checkpoint ARMED (task-queue auto-snapshots edits). Absent = off.
-[ "$CKPT" = "1" ] && printf "%s🧷 ckpt%s%s" "$C$B" "$X" "$SEP"
+# 2) Feature status — ALWAYS shown (full words, no abbreviations) so the owner can
+# see each mode's state at a glance: green = on, dim = off. On a NARROW terminal it
+# collapses to only the ON features to protect width.
+sep_dot="$D · $X"
+FEAT=""
+add_feat() {  # $1 label  $2 on(1)/off(0)
+  local seg
+  if [ "$2" = "1" ]; then seg="$G$B$1 on$X"
+  elif [ "$NARROW" -eq 0 ]; then seg="$D$1 off$X"
+  else return 0; fi
+  [ -n "$FEAT" ] && FEAT="$FEAT$sep_dot"
+  FEAT="$FEAT$seg"
+}
+add_feat autopilot  "$AWAY"
+add_feat checkpoint "$CKPT"
+add_feat agents     "$AGENT"
+[ -n "$FEAT" ] && printf '%s%s' "$FEAT" "$SEP"
 
 # 4) Tests — the verification floor's last outcome (the owner's trust signal)
 case "$VERIFY" in
@@ -129,15 +135,6 @@ case "$(hud_coupling "$ROOT" 2>/dev/null)" in
   up*) printf "%s🔗↑%s%s" "$Y$B" "$X" "$SEP" ;;
 esac
 
-# 5) Context-window fill % — "how close to a compaction" (color ramp). Uses the
-# payload's pre-computed used_percentage; silent when absent (e.g. before the
-# first API call or right after /compact).
-if [ -n "$CTX_PCT" ]; then
-  PCT="${CTX_PCT%.*}"; PCT="${PCT//[^0-9]/}"; [ -n "$PCT" ] || PCT=0
-  PCOL="$G"; [ "$PCT" -ge 60 ] && PCOL="$Y"; [ "$PCT" -ge 85 ] && PCOL="$R"
-  printf "%sctx%s %s%s%%%s%s" "$D" "$X" "$PCOL$B" "$PCT" "$X" "$SEP"
-fi
-
 # 5a) Token throughput — ⇡ input ("uploaded": tokens in the current context, incl.
 # cache) and ⇣ output ("downloaded": the last response). From the same context_window
 # object as ctx% — since Claude Code v2.1.132 these are CURRENT-context figures, not
@@ -152,13 +149,6 @@ if [ "$NARROW" -eq 0 ]; then
   fi
 fi
 
-# 5b) Session cost — running $ spend this session (color-neutral, low-key). From
-# the payload's pre-computed total; silent when absent or still zero. Shed on narrow.
-if [ "$NARROW" -eq 0 ] && [ -n "$COST" ]; then
-  CDOL="$(printf '%.2f' "$COST" 2>/dev/null || true)"
-  [ -n "$CDOL" ] && [ "$CDOL" != "0.00" ] && printf '%s$%s%s%s' "$D" "$CDOL" "$X" "$SEP"
-fi
-
 # 6) Branch (+ dirty-file count + unpushed/unpulled), shed on narrow
 if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
   printf "%s⎇ %s%s" "$C$B" "$BRANCH" "$X"
@@ -171,6 +161,6 @@ if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
   printf "%s" "$SEP"
 fi
 
-# 7) Model
-printf "%sModel:%s %s%s%s" "$D" "$X" "$C" "$SHORT_MODEL" "$X"
+# 7) Model — name only (the "Model:" label is dropped to save width)
+printf "%s%s%s" "$C" "$SHORT_MODEL" "$X"
 printf '\n'

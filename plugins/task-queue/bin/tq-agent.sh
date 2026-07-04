@@ -31,22 +31,26 @@ action="${1:-status}"
 root="$(tq_root_for_cwd "$PWD")"
 flag="$(tq_agent_file "$root")"
 
+# `toggle` (the /task-queue:agents command) flips based on the current state.
+[ "$action" = "toggle" ] && { tq_is_agent_mode "$root" && action="off" || action="on"; }
+
 case "$action" in
   on|enable)
     mkdir -p "$(tq_agent_dir)" 2>/dev/null || true
     : > "$flag"
-    printf 'agent-mode ON — independent tasks may fan out to subagents for %s\n' "$root"
+    printf 'Agents ON — I may split independent work across parallel helpers (subagents) for %s.\n' "$root"
     ;;
   off|disable)
-    rm -f "$flag" 2>/dev/null || true
-    printf 'agent-mode OFF — inline only (default) for %s\n' "$root"
+    mkdir -p "$(tq_agent_dir)" 2>/dev/null || true
+    printf 'off' > "$flag" 2>/dev/null || true      # tombstone: sticks even under a global default
+    printf 'Agents OFF — working inline only for %s.\n' "$root"
     ;;
   status)
     if tq_is_agent_mode "$root"; then printf 'on (%s)\n' "$root"
     else printf 'off (%s)\n' "$root"; fi
     ;;
   *)
-    printf 'usage: tq-agent.sh on|off|status\n' >&2
+    printf 'usage: tq-agent.sh on|off|toggle|status\n' >&2
     exit 2
     ;;
 esac

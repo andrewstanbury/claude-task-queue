@@ -6,6 +6,7 @@
 # Faked via CLAUDE_TQ_* overrides and a temp git repo — no model calls.
 
 setup() {
+  unset CLAUDE_TQ_CHECKPOINT_MODE CLAUDE_TQ_AGENT_MODE   # isolate from any global default
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   CKPT="$ROOT/bin/tq-checkpoint.sh"
   RESUME="$ROOT/bin/tq-resume.sh"
@@ -42,6 +43,26 @@ ckpt_ref() { git -C "$REPO" rev-parse -q --verify refs/tq/checkpoint; }
   [[ "$output" == on* ]]
   bash -c 'cd "$1" && bash "$2" off' _ "$REPO" "$CKPT"
   run bash -c 'cd "$1" && bash "$2" status' _ "$REPO" "$CKPT"
+  [[ "$output" == off* ]]
+}
+
+# ---- global default + tombstone --------------------------------------------
+
+@test "global default (CLAUDE_TQ_CHECKPOINT_MODE) arms checkpoint with no per-repo flag" {
+  run bash -c 'cd "$1" && CLAUDE_TQ_CHECKPOINT_MODE=on bash "$2" status' _ "$REPO" "$CKPT"
+  [[ "$output" == on* ]]
+}
+
+@test "global default still snapshots with no per-repo flag (fast-exit honors the env)" {
+  printf 'v2\n' >> "$REPO/tracked.txt"
+  CLAUDE_TQ_CHECKPOINT_MODE=on bash -c 'printf "{\"cwd\":\"%s\"}" "$1" | "$2" now' _ "$REPO" "$CKPT"
+  run ckpt_ref
+  [ "$status" -eq 0 ]
+}
+
+@test "an off tombstone overrides the global default for this repo" {
+  bash -c 'cd "$1" && bash "$2" off' _ "$REPO" "$CKPT"   # writes an off tombstone
+  run bash -c 'cd "$1" && CLAUDE_TQ_CHECKPOINT_MODE=on bash "$2" status' _ "$REPO" "$CKPT"
   [[ "$output" == off* ]]
 }
 
