@@ -6,7 +6,7 @@
 #
 # Slots (left → right); the feature-status slot is always shown, the rest collapse
 # when their data is absent:
-#   health beacon · autopilot/checkpoint/agents on|off · ✓/✗ tests · 🛡✗ floors-off ·
+#   health beacon · ✈️ autopilot/🧷 checkpoint/🤖 agents (green on, dim off) · ✓/✗ tests · 🛡✗ floors-off ·
 #   ❓ open-Qs · 🔗↑ coupling · tok ⇡in ⇣out · git branch (+ dirty * · ↑ahead ↓behind)
 #   · model.  Decode any symbol on demand with /hud:legend.
 #
@@ -90,22 +90,28 @@ BCOL="$G"
 [ "$VERIFY" = "fail" ] && BCOL="$R"
 printf "%s%s%s%s" "$BCOL$B" "●" "$X" "$SEP"
 
-# 2) Feature status — ALWAYS shown (full words, no abbreviations) so the owner can
-# see each mode's state at a glance: green = on, dim = off. On a NARROW terminal it
-# collapses to only the ON features to protect width.
-sep_dot="$D · $X"
+# 2) Feature status — ALWAYS shown, each mode led by its icon (matching the
+# SessionStart banners: ✈️ autopilot · 🧷 checkpoint · 🤖 agents) so the owner can
+# see each mode's state at a glance: green = on, dim = off. The leading icons make a
+# separator redundant. On a NARROW terminal it collapses to only the ON features to
+# protect width. Emoji ignore ANSI color, so when color is OFF (NO_COLOR/dumb) the
+# green/dim can't convey state — we spell out on/off in that case only.
 FEAT=""
-add_feat() {  # $1 label  $2 on(1)/off(0)
-  local seg
-  if [ "$2" = "1" ]; then seg="$G$B$1 on$X"
-  elif [ "$NARROW" -eq 0 ]; then seg="$D$1 off$X"
+add_feat() {  # $1 icon  $2 label  $3 on(1)/off(0)
+  local seg word=""
+  if [ "$3" = "1" ]; then
+    [ -z "$G" ] && word=" on"
+    seg="$1 $G$B$2$word$X"
+  elif [ "$NARROW" -eq 0 ]; then
+    [ -z "$D" ] && word=" off"
+    seg="$1 $D$2$word$X"
   else return 0; fi
-  [ -n "$FEAT" ] && FEAT="$FEAT$sep_dot"
+  [ -n "$FEAT" ] && FEAT="$FEAT$SEP"
   FEAT="$FEAT$seg"
 }
-add_feat autopilot  "$AWAY"
-add_feat checkpoint "$CKPT"
-add_feat agents     "$AGENT"
+add_feat "✈️" autopilot  "$AWAY"
+add_feat "🧷" checkpoint "$CKPT"
+add_feat "🤖" agents     "$AGENT"
 [ -n "$FEAT" ] && printf '%s%s' "$FEAT" "$SEP"
 
 # 4) Tests — the verification floor's last outcome (the owner's trust signal)

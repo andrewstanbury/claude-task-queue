@@ -68,7 +68,10 @@ teardown() {
     '{model:{display_name:"Opus 4.8"}, session_id:"sess", cwd:$c, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"autopilot off"* ]]             # feature status always shown, full words
+  [[ "$output" == *"✈️ autopilot"* ]]              # feature status always shown, icon-led
+  [[ "$output" == *"🧷 checkpoint"* ]]
+  [[ "$output" == *"🤖 agents"* ]]
+  [[ "$output" == *"autopilot off"* ]]             # no-color terminal spells out on/off
   [[ "$output" == *"Opus 4.8"* ]]
   [[ "$output" != *"ctx"* ]]                        # ctx slot removed
   [ "$(printf '%s\n' "$output" | wc -l)" -eq 1 ]   # single line
