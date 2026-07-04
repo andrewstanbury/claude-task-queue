@@ -5,7 +5,7 @@
 # writes — it only reads and prints, so it can't interfere with anything.
 #
 # Slots (left → right), each collapses when its data is absent:
-#   health beacon · ⏸ paused · 🤖 agent · ✓/✗ tests · 🛡✗ floors-off · ❓ open-Qs ·
+#   health beacon · 🤖 agent · 🚶 solo · ✓/✗ tests · 🛡✗ floors-off · ❓ open-Qs ·
 #   🔗↑ coupling · ctx % · tok ⇡in ⇣out · $ session-cost · git branch (+ dirty * ·
 #   ↑ahead ↓behind) · model.  Decode any symbol on demand with /hud:legend.
 #
@@ -15,7 +15,7 @@
 # start), and last-tidy (ephemeral) — surfacing those again was duplication, and
 # the docs mirror was the heaviest cross-plugin maintenance burden.
 #
-# The beacon is a STATIC health dot (green = clean/green, yellow = paused,
+# The beacon is a STATIC health dot (green = clean/green, yellow = solo mode,
 # red = tests failing) — not an animation — so the status line needs no timer.
 # Claude Code re-runs a statusLine command on each new message / after compact,
 # which keeps every slot fresh; we deliberately set NO refreshInterval to avoid
@@ -71,7 +71,6 @@ NARROW=0; [ "$TERM_W" -lt 100 ] && NARROW=1
 ROOT="$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$CWD")"
 SHORT_MODEL="$(printf '%s' "$MODEL" | sed -E 's/^claude-//; s/-[0-9]{8}([^0-9]|$)/\1/')"
 
-PAUSED="$(hud_paused "$ROOT")"
 AGENT="$(hud_agent "$ROOT")"
 AWAY="$(hud_away "$ROOT")"
 CKPT="$(hud_checkpoint "$ROOT")"
@@ -86,21 +85,19 @@ if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
 fi
 
 # 1) Health beacon — STATIC dot, colored by overall health: red = tests failing,
-# yellow = paused, green otherwise. No animation → no timer needed.
+# yellow = solo mode (autonomous, an attention state), green otherwise. No animation
+# → no timer needed.
 BCOL="$G"
-[ "$PAUSED" = "1" ] && BCOL="$Y"
+[ "$AWAY" = "1" ] && BCOL="$Y"
 [ "$VERIFY" = "fail" ] && BCOL="$R"
 printf "%s%s%s%s" "$BCOL$B" "●" "$X" "$SEP"
 
-# 2) Paused
-[ "$PAUSED" = "1" ] && printf "%s⏸ paused%s%s" "$Y$B" "$X" "$SEP"
-
-# 3) Agent-mode ON (task-queue fan-out)
+# 2) Agent-mode ON (task-queue fan-out)
 [ "$AGENT" = "1" ] && printf "%s🤖 agent%s%s" "$C$B" "$X" "$SEP"
 
-# 3a) Away-mode ON — Claude runs autonomous + parks decisions. Most consequential
-# mode, so it's surfaced prominently (yellow, like paused: attention state).
-[ "$AWAY" = "1" ] && printf "%s🚶 away%s%s" "$Y$B" "$X" "$SEP"
+# 3) Solo mode ON — Claude runs autonomous + parks decisions (formerly away; it also
+# folded in the old pause). Most consequential mode, surfaced prominently in yellow.
+[ "$AWAY" = "1" ] && printf "%s🚶 solo%s%s" "$Y$B" "$X" "$SEP"
 
 # 3b) Crash-checkpoint ARMED (task-queue auto-snapshots edits). Absent = off.
 [ "$CKPT" = "1" ] && printf "%s🧷 ckpt%s%s" "$C$B" "$X" "$SEP"

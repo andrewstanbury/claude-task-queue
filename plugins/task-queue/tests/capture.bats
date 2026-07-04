@@ -6,7 +6,7 @@
 # re-anchor (interpret + queue + run-in-auto, sign-off delegated to the model) while
 # the deterministic high-stakes signal — consequential/design — gets the HEAVY
 # present-and-approve + critique variant. The full procedure it re-anchors to rides
-# the SessionStart policy. Only slash/bang/empty and paused repos stay silent.
+# the SessionStart policy. Only slash/bang/empty and solo-mode repos stay silent.
 # Faked via CLAUDE_TQ_*.
 
 setup() {
@@ -209,9 +209,9 @@ run_capture() {
   [ "$(cat "$(intent_file)")" = "fix the typo" ]
 }
 
-@test "intent: a paused repo records nothing (opted out of the loop)" {
-  export CLAUDE_TQ_PAUSE_DIR="$CLAUDE_TQ_STATE_DIR/paused"; mkdir -p "$CLAUDE_TQ_PAUSE_DIR"
-  : > "$CLAUDE_TQ_PAUSE_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
+@test "intent: a repo in solo mode records nothing (opted out of the loop)" {
+  export CLAUDE_TQ_AWAY_DIR="$CLAUDE_TQ_STATE_DIR/away"; mkdir -p "$CLAUDE_TQ_AWAY_DIR"
+  : > "$CLAUDE_TQ_AWAY_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
   run run_capture "$MULTI"
   [ ! -f "$(intent_file)" ]
 }

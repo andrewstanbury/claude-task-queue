@@ -38,6 +38,8 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/capture.sh"
 # shellcheck source=../lib/project.sh
 . "$PLUGIN_DIR/lib/project.sh"
+# shellcheck source=../lib/away.sh
+. "$PLUGIN_DIR/lib/away.sh"
 
 [ -n "${CLAUDE_TQ_CAPTURE_DISABLED:-}" ] && exit 0
 
@@ -53,10 +55,15 @@ cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)"
 sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
 root="$(tq_root_for_cwd "$cwd")"
 
+# A NEW prompt resets the away/solo auto-continue budget: each ask gets a fresh
+# allowance of Stop-hook continuations (the counter in tq-verify bounds one prompt's
+# autonomous drain, so it can't carry over and starve the next prompt). Best-effort.
+rm -f "$(tq_away_continue_file "$sid")" 2>/dev/null || true
+
 # OPEN-QUESTIONS reminder: if the user has answer-owed questions still open from
 # earlier in this conversation (❓ tasks), surface them NOW — a new prompt is exactly
 # when they get buried. Fires regardless of whether THIS prompt is substantive,
-# trivial, or paused. The model re-raises them and clears each (TaskUpdate) once
+# trivial, or in solo mode. The model re-raises them and clears each (TaskUpdate) once
 # answered or dropped. Disable with CLAUDE_TQ_OPEN_Q=0.
 qreminder=""
 if [ "${CLAUDE_TQ_OPEN_Q:-1}" != "0" ]; then
@@ -76,13 +83,18 @@ fi
 # select WHICH variant fires: the deterministic high-stakes signal gets the HEAVY
 # present-and-approve + critique; everything else gets the LEAN re-anchor that
 # delegates the interrupt decision to the model (split-from-interrupt, 2026-06-27).
-# Pause suppresses the loop. Either way the open-questions reminder above goes out.
+# Solo mode suppresses the loop. Either way the open-questions reminder above goes out.
 consequential=0; design=0; paused=0
 tq_looks_consequential "$prompt" && consequential=1
 tq_looks_design "$prompt" && design=1
 # (Godot design-preview suppression removed at owner's request — UI/visual prompts
 # now get the wireframe demonstrate-before-build flow in Godot projects too.)
-tq_is_paused "$root" && paused=1
+# Solo mode (owner away) suppresses the loop: the present-and-approve checkpoint can't
+# fire anyway (the ask-guard hard-blocks AskUserQuestion), so injecting it would only
+# spend tokens on an approval the model can't act on. The standing SessionStart policy
+# still carries decompose→queue→work-in-auto. (This is what the old pause mode did,
+# now folded into solo — there is no separate pause flag.)
+tq_is_away "$root" && paused=1
 
 loopctx=""
 if [ "$paused" -eq 0 ]; then

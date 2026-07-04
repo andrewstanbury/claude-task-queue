@@ -9,6 +9,8 @@ setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   AWAY="$ROOT/bin/tq-away.sh"
   RESUME="$ROOT/bin/tq-resume.sh"
+  VERIFY="$ROOT/bin/tq-verify.sh"
+  GUARD="$ROOT/bin/tq-ask-guard.sh"
 
   export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
   export CLAUDE_TQ_PROJECTS_DIR="$(mktemp -d)"
@@ -108,11 +110,11 @@ make_task() {
   [ "$output" -gt 0 ]
 }
 
-@test "SessionStart nudges when away-mode has been on a long time" {
+@test "SessionStart nudges when solo mode has been on a long time" {
   bash -c 'cd "$1" && bash "$2" on' _ "$REPO" "$AWAY"
   printf '%s' "$(( $(date +%s) - 20*3600 ))" > "$(away_flag)"   # backdate 20h
   run session_ctx
-  [[ "$output" == *"AWAY mode has been on for"* ]]
+  [[ "$output" == *"SOLO mode has been on for"* ]]
 }
 
 @test "SessionStart does not nudge for a fresh away-mode toggle" {
@@ -141,4 +143,116 @@ make_task() {
   bash -c 'cd "$1" && bash "$2" on' _ "$REPO" "$AWAY"
   run bash -c 'cd "$1" && bash "$2" off' _ "$REPO" "$AWAY"
   [[ "$output" == *"nothing recorded as completed"* ]]
+}
+
+# ---- away auto-continue: the Stop hook drains the queue (Rec A) --------------
+
+# Run tq-verify (the Stop hook) for a session rooted at $REPO.
+run_verify() {
+  local sid="$1" j
+  j="$(jq -nc --arg c "$REPO" --arg s "$sid" '{cwd:$c, session_id:$s}')"
+  printf '%s' "$j" | "$VERIFY"
+}
+continue_file() { printf '%s/away-continue-%s' "$CLAUDE_TQ_STATE_DIR" "$1"; }
+
+@test "away OFF: a Stop is allowed even with open queue work (no auto-continue)" {
+  make_task sV 1 pending "wire the login form"
+  run run_verify sV
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Away-mode"* ]]           # no block reason emitted
+}
+
+@test "away ON + open non-❓ work: the Stop is BLOCKED to keep draining the queue" {
+  date +%s > "$(away_flag)"
+  make_task sV 1 pending "wire the login form"
+  run run_verify sV
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"decision":"block"'* ]]
+  [[ "$output" == *"Away-mode"* ]]
+  [[ "$output" == *"still open in the queue"* ]]
+  [[ "$output" == *"wire the login form"* ]]  # names the next task
+}
+
+@test "away ON auto-continue increments a per-prompt safety counter" {
+  date +%s > "$(away_flag)"
+  make_task sV 1 pending "do the thing"
+  run_verify sV >/dev/null
+  [ "$(cat "$(continue_file sV)")" = "1" ]
+  run_verify sV >/dev/null
+  [ "$(cat "$(continue_file sV)")" = "2" ]
+}
+
+@test "away ON but counter at the cap: YIELDS (allows the stop, no runaway loop)" {
+  date +%s > "$(away_flag)"
+  make_task sV 1 pending "do the thing"
+  printf '40' > "$(continue_file sV)"          # default CLAUDE_TQ_AWAY_MAX_CONTINUE
+  run run_verify sV
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Away-mode"* ]]             # yielded, not blocked
+}
+
+@test "away ON but only ❓ parked items left: the queue is drained → Stop allowed" {
+  date +%s > "$(away_flag)"
+  make_task sV 1 in_progress "❓ [parked] pick a color"
+  run run_verify sV
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Away-mode"* ]]
+}
+
+@test "CLAUDE_TQ_AWAY_CONTINUE=0 disables auto-continue even when away" {
+  date +%s > "$(away_flag)"
+  make_task sV 1 pending "do the thing"
+  run env CLAUDE_TQ_AWAY_CONTINUE=0 bash -c \
+    'printf "%s" "$(jq -nc --arg c "$1" --arg s sV "{cwd:\$c,session_id:\$s}")" | "$2"' _ "$REPO" "$VERIFY"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Away-mode"* ]]
+}
+
+# ---- ask-guard: AskUserQuestion is hard-blocked while away (Rec B) -----------
+
+run_guard() {
+  local j; j="$(jq -nc --arg c "$REPO" '{cwd:$c, tool_name:"AskUserQuestion"}')"
+  printf '%s' "$j" | "$GUARD"
+}
+
+@test "away ON: AskUserQuestion is DENIED (owner can't answer)" {
+  date +%s > "$(away_flag)"
+  run run_guard
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"permissionDecision":"deny"'* ]]
+  [[ "$output" == *"Away-mode"* ]]
+  [[ "$output" == *"❓ [parked]"* ]]           # tells the model to park instead
+}
+
+@test "away OFF: AskUserQuestion is allowed (guard is silent)" {
+  run run_guard
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "CLAUDE_TQ_AWAY_ASK_GUARD=0 lets the question through even when away" {
+  date +%s > "$(away_flag)"
+  run env CLAUDE_TQ_AWAY_ASK_GUARD=0 bash -c \
+    'printf "%s" "$(jq -nc --arg c "$1" "{cwd:\$c,tool_name:\"AskUserQuestion\"}")" | "$2"' _ "$REPO" "$GUARD"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+# ---- solo folds pause: away suppresses the capture approval-loop (Rec 3) -----
+
+run_capture() {
+  local j; j="$(jq -nc --arg p "$1" --arg c "$REPO" --arg s sC '{prompt:$p, cwd:$c, session_id:$s}')"
+  printf '%s' "$j" | "$ROOT/bin/tq-capture.sh"
+}
+
+@test "away OFF: a substantive prompt gets the interpret→queue re-anchor (control)" {
+  run run_capture "add a login form and wire it and test it"
+  [[ "$output" == *"New work"* ]]
+}
+
+@test "away ON: the approval-loop injection is suppressed (folded pause)" {
+  date +%s > "$(away_flag)"
+  run run_capture "add a login form and wire it and test it"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"New work — interpret it"* ]]
 }

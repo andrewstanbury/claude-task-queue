@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # tq-status — on-demand readout of task-queue's per-repo CONTROL plane.
 #
-# Backs /task-queue:status. Reports the mode switches (pause/away/checkpoint/agent)
-# and a repo-wide count of still-open work — deliberately NOT a re-listing of the
-# native task list (Claude Code renders that itself; duplicating it is the anti-
-# pattern hud already avoids). This answers "what modes am I in, and how much is
-# still open here", which nothing else shows in one place.
+# Backs the bare `/tq` menu. Reports the mode switches (solo/checkpoint/agent) and a
+# repo-wide count of still-open work — deliberately NOT a re-listing of the native
+# task list (Claude Code renders that itself; duplicating it is the anti-pattern hud
+# already avoids). This answers "what modes am I in, and how much is still open
+# here", which nothing else shows in one place.
 
 set -uo pipefail
 
@@ -29,13 +29,13 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 root="$(tq_root_for_cwd "$PWD")"
 
 # ---- mode states ------------------------------------------------------------
-if tq_is_paused "$root"; then review="PAUSED (prompts run straight in auto)"; else review="active"; fi
-
+# solo = the merged autonomous mode (was away + pause): run without the owner, skip
+# the approval checkpoint, PARK anything needing them.
 if tq_is_away "$root"; then
   since="$(tq_away_since "$root")"; now="$(date +%s 2>/dev/null || echo 0)"
-  if [ "$since" -gt 0 ] && [ "$now" -gt 0 ]; then away="ON (~$(( (now - since) / 3600 ))h)"; else away="ON"; fi
+  if [ "$since" -gt 0 ] && [ "$now" -gt 0 ]; then solo="ON (~$(( (now - since) / 3600 ))h)"; else solo="ON"; fi
 else
-  away="off"
+  solo="off"
 fi
 
 if tq_ckpt_enabled "$root"; then
@@ -67,10 +67,9 @@ q="$(printf '%s' "$qsubs" | awk 'NF && !seen[$0]++' | grep -c . || true)"
 # ---- render -----------------------------------------------------------------
 printf 'task-queue · %s\n\n' "$root"
 printf 'modes\n'
-printf '  review loop   %s\n' "$review"
-printf '  away-mode     %s\n' "$away"
+printf '  solo          %s\n' "$solo"
 printf '  checkpoint    %s\n' "$ckpt"
 printf '  agent-mode    %s\n\n' "$agent"
 printf 'open work in this repo\n'
 printf '  %s task(s) still open across sessions · %s ❓ awaiting you\n\n' "$open" "$q"
-printf 'change it: /task-queue:pause · :away · :checkpoint · :restore · :agent (on|off)\n'
+printf 'change it: /tq solo · checkpoint · agent (on|off) · /tq undo · bare /tq = this menu\n'

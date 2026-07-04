@@ -12,7 +12,7 @@
 
 set -uo pipefail
 
-# Per-repo enable flag (same scheme as pause/agent/away).
+# Per-repo enable flag (same scheme as agent/away).
 tq_ckpt_dir()      { printf '%s' "${CLAUDE_TQ_CKPT_DIR:-$HOME/.claude/state/task-queue/checkpoint}"; }
 tq_ckpt_file()     { printf '%s/%s' "$(tq_ckpt_dir)" "$(printf '%s' "$1" | sed 's:/:-:g')"; }
 tq_ckpt_enabled()  { [ -n "${1:-}" ] && [ -f "$(tq_ckpt_file "$1")" ]; }

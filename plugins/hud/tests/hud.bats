@@ -6,21 +6,12 @@
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   STATUS="$ROOT/bin/hud-status.sh"
-  export CLAUDE_HUD_PAUSE_DIR="$(mktemp -d)"
   REPO="$(mktemp -d)/proj"; mkdir -p "$REPO"; git -C "$REPO" init -q
   SRC='. "$1/lib/hud.sh";'
 }
 
 teardown() {
-  rm -rf "$CLAUDE_HUD_PAUSE_DIR" "$(dirname "$REPO")"
-}
-
-@test "hud_paused reflects the repo's pause flag" {
-  run bash -c "$SRC"' hud_paused "/some/repo"' bash "$ROOT"
-  [ "$output" = "0" ]
-  touch "$CLAUDE_HUD_PAUSE_DIR/-some-repo"
-  run bash -c "$SRC"' hud_paused "/some/repo"' bash "$ROOT"
-  [ "$output" = "1" ]
+  rm -rf "$(dirname "$REPO")"
 }
 
 @test "hud_agent reflects task-queue's per-repo agent-mode flag" {
@@ -82,16 +73,16 @@ teardown() {
   [ "$(printf '%s\n' "$output" | wc -l)" -eq 1 ]   # single line
 }
 
-@test "render: 🚶 away when away-mode is on, hidden when off" {
+@test "render: 🚶 solo when solo mode is on, hidden when off" {
   payload="$(jq -nc --arg c "$REPO" \
     '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c,
       context_window:{used_percentage:5}, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" != *"🚶 away"* ]]
+  [[ "$output" != *"🚶 solo"* ]]
   export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
   touch "$CLAUDE_HUD_AWAY_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"🚶 away"* ]]
+  [[ "$output" == *"🚶 solo"* ]]
   rm -rf "$CLAUDE_HUD_AWAY_DIR"
 }
 

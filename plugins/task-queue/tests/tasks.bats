@@ -145,9 +145,10 @@ run_resume() {
   rm -rf "$repo"
 }
 
-@test "session start advertises the agent-mode command (discoverable)" {
+@test "session start advertises the /tq control command (discoverable)" {
   run run_resume "s2" "/home/x/alpha"
-  [[ "$output" == *"tq-agent.sh"* ]]
+  [[ "$output" == *"tq.sh"* ]]
+  [[ "$output" == *"solo"* ]]
 }
 
 @test "hook output is valid SessionStart hook JSON" {
@@ -188,7 +189,7 @@ resume_with_source() {
   run resume_with_source "compact"
   [[ "$output" == *"(reminder)"* ]]                      # lean re-anchor
   [[ "$output" != *"without draining the backlog"* ]]
-  [[ "$output" == *"tq-pause.sh"* ]]                     # pause command still rides along
+  [[ "$output" == *"solo"* ]]                            # the /tq solo command still rides along
 }
 
 # ---- resume (carried-over tasks) -------------------------------------------

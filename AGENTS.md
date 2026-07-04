@@ -10,14 +10,16 @@ this file first** — it's the single source of truth for how the repo is built.
 A small **marketplace of self-contained Claude Code companion plugins**:
 
 - **`plugins/task-queue/`** — makes Claude Code's native task list a live work
-  queue: a SessionStart policy + cross-session resume bridge + a per-repo pause +
-  a UserPromptSubmit review loop that **splits the loop from the interrupt** (fires
-  on every prompt: interpret → decompose → `TaskCreate` → work in auto by default,
-  with sign-off via AskUserQuestion delegated to the model and surfaced only on real
-  signal; the heavy present-and-approve + critique fires only on the deterministic
-  consequential/design signal). The full procedure rides the SessionStart policy.
-  Pause suppresses the review loop so prompts run straight through in auto.
-  **Read-only** over `~/.claude/tasks`.
+  queue: a SessionStart policy + cross-session resume bridge + a per-repo **solo
+  mode** + a UserPromptSubmit review loop that **splits the loop from the interrupt**
+  (fires on every prompt: interpret → decompose → `TaskCreate` → work in auto by
+  default, with sign-off via AskUserQuestion delegated to the model and surfaced only
+  on real signal; the heavy present-and-approve + critique fires only on the
+  deterministic consequential/design signal). The full procedure rides the SessionStart
+  policy. **Solo mode** (owner stepped away — merges the old away + pause) runs fully
+  autonomous: the Stop hook auto-continues the queue, a PreToolUse guard blocks
+  AskUserQuestion, the review loop is suppressed, and anything needing the owner is
+  parked as `❓`. **Read-only** over `~/.claude/tasks` (except its own state flags).
 - **`plugins/tidy/`** — *tidy-as-you-touch*: formats and lint-checks the file you
   just edited (fixing only what's safe) so a project converges toward clean code
   over time, scoped to the touched file.
@@ -34,6 +36,43 @@ depends on** — read it before changing any hook input/output); its `plugin.jso
 [docs/ROADMAP.md](./docs/ROADMAP.md); **git history is the changelog** (no
 per-plugin READMEs or CHANGELOGs, no human-facing docs). These Claude-facing docs
 (this file, each CONTRACT, the ROADMAP, the MAP) are the manual.
+
+## Enforcement map — what's guaranteed vs nudged
+
+The system makes behavioral promises two ways, and the difference is load-bearing
+(the "solo paused anyway" bug was an *advisory* promise that read like a guarantee).
+Be honest about which is which:
+
+- **ENFORCED** — a hook mechanically makes it happen, or refuses to let the turn
+  end. The model can't skip it. Each has an env kill-switch, and hud's `🛡✗N` marker
+  surfaces any enforced *floor* currently switched off (the beacon can read green
+  while a guard is disabled — this is what keeps the status line honest).
+- **NUDGED** — injected instruction the model follows by judgment. Best-effort by
+  nature: a long context, a contrary prompt, or a lapse can bypass it. Treat these
+  as intent, not contract.
+
+| Behavior | Kind | Mechanism · kill-switch |
+|---|---|---|
+| Intent→outcome gate (change matches the ask) | ENFORCED | tq-verify Stop-block · `CLAUDE_TQ_INTENT_GATE=0` |
+| Solo auto-continues the queue | ENFORCED | tq-verify Stop-block · `CLAUDE_TQ_AWAY_CONTINUE=0` |
+| Solo blocks AskUserQuestion | ENFORCED | tq-ask-guard PreToolUse-deny · `CLAUDE_TQ_AWAY_ASK_GUARD=0` |
+| Solo suppresses the approval loop | ENFORCED | tq-capture (deterministic) |
+| Verification floor (tests green before done) | ENFORCED | tidy-verify Stop-block · `CLAUDE_TIDY_CHECKS=0` |
+| Secret pre-write scan | ENFORCED | tidy-presecret PreToolUse-block · `CLAUDE_TIDY_SECSCAN=0` |
+| Alignment gate (vs recorded decisions) | ENFORCED | charter-align-gate Stop-block · `CLAUDE_CHARTER_ALIGN_GATE=0` |
+| Crash-checkpoint snapshots | ENFORCED | tq-checkpoint PostToolUse (opt-in) |
+| Token budgets | ENFORCED | CI (`tests/token-budget.bats`) |
+| Interpret→decompose→queue, work in order | NUDGED | SessionStart/capture injection |
+| Steelman-then-challenge critique posture | NUDGED | injection |
+| Run-in-auto, advance without draining | NUDGED | injection |
+| Design-preview (wireframe before build) | NUDGED | capture injection |
+| Park-as-`❓` under solo | NUDGED (but cornered) | injection — the enforced ask-block + auto-continue leave parking as the only exit |
+
+**On markers:** hud's `🛡✗` already covers the one honest runtime signal — an ENFORCED
+floor that's been disabled. NUDGED behaviors have no on/off to surface, so a "was this
+followed?" badge would itself be dishonest. The fix for a nudge that matters is to
+*promote it to ENFORCED* (as `solo` was — advisory → Stop-block + PreToolUse-deny),
+not to badge it. So this audit added no hud marker on purpose.
 
 ## The one rule that drives the architecture: the install boundary
 

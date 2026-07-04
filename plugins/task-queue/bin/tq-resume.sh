@@ -39,6 +39,8 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/away.sh"
 # shellcheck source=../lib/checkpoint.sh
 . "$PLUGIN_DIR/lib/checkpoint.sh"
+# shellcheck source=../lib/signals.sh
+. "$PLUGIN_DIR/lib/signals.sh"
 
 # Trimmed standing policy (re-injected on each fresh SessionStart, so kept lean).
 # This is the FULL procedure + critique posture, stated ONCE per session — the
@@ -57,32 +59,34 @@ if [ -n "$input" ]; then
 fi
 [ -n "$cwd" ] || cwd="$PWD"
 root="$(tq_root_for_cwd "$cwd")"
-pause_cmd="bash \"$PLUGIN_DIR/bin/tq-pause.sh\""
-agent_cmd="bash \"$PLUGIN_DIR/bin/tq-agent.sh\""
-away_cmd="bash \"$PLUGIN_DIR/bin/tq-away.sh\""
+# All modes are driven through the single /tq control command now (bin/tq.sh);
+# `solo` is the merged autonomous mode (was away + pause). These are the invocations
+# the model runs when the owner asks in plain language ("keep going while I'm gone").
+solo_cmd="bash \"$PLUGIN_DIR/bin/tq.sh\" solo"
+agent_cmd="bash \"$PLUGIN_DIR/bin/tq.sh\" agent"
 
 # Source-aware: inject the full block on a fresh context (startup / clear / and
 # any unknown source — the safe default), but only a lean one-line re-anchor on
 # compact / resume, where the model already saw the policy this session. The
-# pause command rides along in both so natural-language pause survives a compact.
+# solo command rides along in both so natural-language "go solo" survives a compact.
 case "$src" in
   compact|resume) lean=1 ;;
   *)              lean=0 ;;
 esac
 
 if [ "$lean" -eq 1 ]; then
-  ctx="[task-queue] (reminder) native task list = live queue: substantive work → interpret→present→approve (sign-off via AskUserQuestion) before TaskCreate, then work in dependency order and advance as you finish. Pause/resume the review loop: $pause_cmd on|off."
+  ctx="[task-queue] (reminder) native task list = live queue: substantive work → interpret→present→approve (sign-off via AskUserQuestion) before TaskCreate, then work in dependency order and advance as you finish. When the owner steps away, go solo (run autonomous, no approval checkpoint, park decisions): $solo_cmd on|off."
 elif tq_policy_documented "$root"; then
   # Quiet mode: the standing policy lives in this project's CLAUDE.md (always
   # loaded), so re-anchor in one line — but still surface state below (carryover,
-  # hydration, pause/drift), which is not policy and must not be suppressed.
-  ctx="[task-queue] (policy in CLAUDE.md) native task list = live queue; pause/resume the review loop: $pause_cmd on|off."
+  # hydration, solo/drift), which is not policy and must not be suppressed.
+  ctx="[task-queue] (policy in CLAUDE.md) native task list = live queue; go solo (autonomous, park decisions) when the owner steps away: $solo_cmd on|off."
   resume="$(tq_resume_context "$root" "$sid" 2>/dev/null || true)"
   [ -n "$resume" ] && ctx="$ctx"$'\n\n'"$resume"
   roadmap="$(tq_roadmap_path "$root" 2>/dev/null || true)"
   [ -n "$roadmap" ] && ctx="$ctx"$'\n\n'"[task-queue] Backlog at $roadmap — adopt its open items into your task list with TaskCreate; reflect finished work back."
 else
-  pause_hint="Pause/resume the review loop on request: $pause_cmd on|off (per repo, persists). Agent-mode (fan independent tasks to subagents, opt-in): $agent_cmd on|off. Away-mode (owner steps away — run fully autonomous, PARK anything needing them instead of asking): $away_cmd on|off."
+  pause_hint="Modes are set through one command — bash \"$PLUGIN_DIR/bin/tq.sh\" (bare = menu of modes + state). Solo mode (owner steps away — run fully autonomous, auto-continue the queue, block asking, PARK anything needing them): $solo_cmd on|off (per repo, persists). Agent-mode (fan independent tasks to subagents, opt-in): $agent_cmd on|off."
   # Bootstrap nudge: once the policy is recorded in CLAUDE.md, this goes lean.
   tip="Tip: record this standing policy in your CLAUDE.md and mark it with \"claude-companion\" — then this nudge re-anchors in one line each session instead of repeating in full."
   # Orientation/project-knowledge nudges live in the charter plugin (know-the-project),
@@ -97,36 +101,11 @@ else
   [ -n "$roadmap" ] && ctx="$ctx"$'\n\n'"[task-queue] This repo has a committed backlog at $roadmap — adopt its open (Now/Next) items into your task list with TaskCreate so the live queue reflects the shared backlog, and reflect finished work back to it as you go."
 fi
 
-# State signals — always shown, regardless of source.
-if tq_is_paused "$root"; then
-  ctx="$ctx"$'\n\n'"⏸ The review loop is PAUSED for this repo — substantive prompts run straight in auto without the interpret→present→approve checkpoint ($pause_cmd off to resume)."
-fi
-if tq_ckpt_enabled "$root"; then
-  ckpt_line="🧷 Crash-checkpoint is ARMED — your working-tree edits are auto-snapshotted to a hidden ref ($(tq_ckpt_ref)) as you work, off your branch (history stays clean, nothing pushed)."
-  if tq_ckpt_exists "$root"; then
-    ckpt_line="$ckpt_line If a crash lost uncommitted edits this session, restore them with: $(tq_ckpt_restore_cmd)"
-  fi
-  ckpt_line="$ckpt_line (bash \"$PLUGIN_DIR/bin/tq-checkpoint.sh\" off to disarm.)"
-  ctx="$ctx"$'\n\n'"$ckpt_line"
-fi
-if [ "$(tq_schema_status 2>/dev/null || true)" = "drift" ]; then
-  ctx="$ctx"$'\n\n'"⚠️ [task-queue] The native task store no longer matches the expected schema — Claude Code may have changed it; carry-over/advance may be degraded (see CONTRACT.md)."
-fi
-if tq_is_agent_mode "$root"; then
-  ctx="$ctx"$'\n\n'"🤖 Agent-mode is ON — DEFAULT to fanning work out to subagents (Task tool) when it pays off in speed: parallel reads/exploration/audits across many files, independent per-item transforms, and parallel verification. Safe to parallelize = unblocked, no shared blockedBy, disjoint files, low blast radius. Keep INLINE: coupled/chained work, edits to shared or high-fan-in files, or when unsure — conflicting parallel edits are the risk the blast-radius principle guards against. Decide per-task from your task list; don't ask each time. ($agent_cmd off to disable for this repo.)"
-fi
-if tq_is_away "$root"; then
-  ctx="$ctx"$'\n\n'"🚶 AWAY mode is ON — the owner is away from the keyboard, so do NOT block on them: never call AskUserQuestion and never ask them to run a test or take a manual step. Keep going in auto and finish as much as you safely can, VERIFYING your own work (run the tests/build yourself — you have a shell). PARK — don't guess, don't execute — anything that genuinely needs them: a design/visual choice, a genuinely ambiguous fork, a test only they can run (physical device/GUI), and ESPECIALLY any irreversible or externally-binding action (delete data, push, send, spend money). Park it as a \"❓ [parked] <what needs deciding — with your recommendation>\" task; that is the open-questions bucket that re-surfaces on their next prompt and shows in hud, so they review the pile when back. Do all reversible work now. ($away_cmd off when the owner returns.)"
-  # Staleness guard: away-mode persists across sessions, so nudge if it's been on a
-  # long time — the owner may have forgotten to turn it off (footgun, not auto-off).
-  since="$(tq_away_since "$root")"
-  now="$(date +%s 2>/dev/null || echo 0)"
-  stale_h="${CLAUDE_TQ_AWAY_STALE_HOURS:-12}"
-  if [ "$since" -gt 0 ] && [ "$now" -gt 0 ]; then
-    hours=$(( (now - since) / 3600 ))
-    [ "$hours" -ge "$stale_h" ] && ctx="$ctx"$'\n\n'"⏳ AWAY mode has been on for ~${hours}h — if the owner is back, turn it off ($away_cmd off) so the review loop resumes."
-  fi
-fi
+# State signals — the per-repo mode banners (checkpoint/drift/agent/solo), assembled
+# in lib/signals.sh and appended after the policy/resume text. Always shown regardless
+# of source (they're state, not policy, so a compact/resume must not suppress them).
+signals="$(tq_state_signals "$root" "$solo_cmd" "$agent_cmd" "$PLUGIN_DIR")"
+[ -n "$signals" ] && ctx="$ctx"$'\n\n'"$signals"
 
 # Emit as SessionStart additionalContext.
 jq -cn --arg c "$ctx" \

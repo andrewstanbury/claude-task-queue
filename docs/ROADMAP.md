@@ -57,7 +57,7 @@ can't silently regress.
 
 | Plugin | Responsibility |
 |---|---|
-| **task-queue** | **Orchestrate** — the interpret→present→approve review loop, capture, order, cross-session resume, pause (gates the loop), the Stop-time intent→outcome gate (loop close) |
+| **task-queue** | **Orchestrate** — the interpret→present→approve review loop, capture, order, cross-session resume, solo mode (gates the loop + enforced autonomy), the Stop-time intent→outcome gate (loop close) |
 | **tidy** | **Change safely & cleanly** — format/lint on touch, blast-radius, verification floor, automatic prune |
 | **charter** | **Know the project + own the owner loop** — doc gate, map, decisions anchor (+ Stop-time alignment floor), conventions, outcome memory, intent→demo→consent posture |
 | **hud** | **Show** — a consolidated read-only status line (the owner's at-a-glance trust signal) |
@@ -72,7 +72,7 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   re-surfaces a repo's unfinished tasks — the system's confirmed native gap — with
   an imperative restore instruction + an on-disk pointer to the prior session's task
   files so a crash-resume is high-fidelity without inlining descriptions per startup) +
-  per-repo pause + opt-in agent-mode + opt-in away-mode + opt-in crash-checkpoint + roadmap hydration + schema-drift canary.
+  per-repo solo mode (merged away+pause, enforced autonomy) + opt-in agent-mode + opt-in crash-checkpoint + roadmap hydration + schema-drift canary.
   (Moving down the queue is left to Claude Code's native task nudges.) Its
   centerpiece is the **interpret→decompose→queue review loop**: on **every prompt**
   the capture hook has the model interpret the request, decompose it, and TaskCreate
@@ -92,13 +92,14 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   procedure + critique moved to the SessionStart policy, re-firing inline only on the
   consequential/design signal or the model's judgement), restoring the per-prompt
   efficiency the 2026-06-26 change had spent without a leaky "is this substantive"
-  classifier — the model, not a regex, decides whether to interrupt.)* **Pause** suppresses
-  the review loop so prompts run straight through in auto. **Away-mode** (opt-in, per
-  repo, `tq-away.sh`) is the owner-away autonomy toggle: run fully in auto, never block
-  (no AskUserQuestion, no "please run this test" — self-verify instead), and PARK
-  anything that genuinely needs the owner — a design/ambiguous fork, an owner-only test,
-  and especially any irreversible/binding action — as a `❓` task rather than guessing or
-  executing it, so it re-surfaces (open-questions bucket + hud count) for review on return. On a **visual/design**
+  classifier — the model, not a regex, decides whether to interrupt.)* **Solo mode**
+  (opt-in, per repo, `/tq solo` → `tq-away.sh`; merges the old away + pause) is the
+  owner-away autonomy toggle, and it is ENFORCED: the Stop hook auto-continues the queue
+  while non-`❓` work remains, a PreToolUse guard hard-blocks AskUserQuestion, the review
+  loop is suppressed, and anything that genuinely needs the owner — a design/ambiguous
+  fork, an owner-only test, and especially any irreversible/binding action — is PARKED as
+  a `❓` task rather than guessed or executed, so it re-surfaces (open-questions bucket +
+  hud count) for review on return. On a **visual/design**
   prompt the loop specializes into a **design preview**: the model presents a
   recommended design + 2-3 alternatives as faithful **ASCII mockups** in the
   AskUserQuestion `preview` (native keyboard-nav + Enter, recommended first), and
@@ -111,10 +112,10 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   against the actual diff — blocking **once** (consumed per ask, so it can't loop)
   so the model verifies the OUTCOME matches the request and recaps in plain language,
   surfacing "built the wrong thing / only part / something extra" to the non-technical
-  owner before declaring done. `CLAUDE_TQ_INTENT_GATE=0` disables it; pause suppresses
+  owner before declaring done. `CLAUDE_TQ_INTENT_GATE=0` disables it; solo mode suppresses
   capture too. **Open-questions tracker:** answer-owed questions the model leaves
   hanging are recorded as native `❓` tasks; the capture hook re-surfaces any
-  unanswered one on the **next** prompt (even a trivial/paused one — a new prompt is
+  unanswered one on the **next** prompt (even a trivial/solo-mode one — a new prompt is
   exactly when they get buried), and **hud** shows an ambient `❓N` count so they get
   *noticed* without anyone re-raising them. Model-assisted recording (it judges which
   questions are answer-worthy; the hooks make them persistent + visible);
@@ -177,7 +178,7 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   non-technical owner in plain language. An HTTP auth challenge counts as reachable;
   only a fresh start probes (not compact/resume); self-disables when no servers are
   declared; never blocks; `CLAUDE_CHARTER_MCP_PROBE=0` disables it.
-- **hud** — a static health beacon + paused + agent + the verification floor's ✓/✗
+- **hud** — a static health beacon + solo + agent + the verification floor's ✓/✗
   tests + **🛡✗N disabled-floor marker** + context-window fill % + token throughput
   (⇡input ⇣output, current-context) + branch & dirty + model. Read-only, zero token
   cost. The owner's primary trust signal, so it stays **honest + legible**: `🛡✗N`
@@ -349,6 +350,24 @@ deterministic CONTROL plane only; queuing WORK stays natural-language + the nati
 Natural language still triggers every mode too ("both"), so the README's "need never run a
 command" promise holds — commands are additive, never required. The flag-plumbing dedup was
 evaluated and rejected (deletion test; see memory).
+
+**Built (2026-07-04) — solo mode (enforced autonomy) + the `/tq` command.** Away-mode was
+advisory: it *told* the model not to block, but nothing stopped a normal end-of-turn `Stop`
+from handing control back to an absent owner, and `AskUserQuestion` could still fire — so it
+"paused even with away on" (the owner's report). Fixed at the one surface that controls
+pausing, the Stop hook: **(A)** while away + non-`❓` work is queued, `tq-verify` returns
+`decision:block` and auto-continues the queue, self-terminating when only `❓` parked items
+remain, bounded by a per-prompt counter (`CLAUDE_TQ_AWAY_MAX_CONTINUE`, default 40) so it
+can't spin; **(B)** a new PreToolUse guard (`tq-ask-guard`) hard-blocks `AskUserQuestion`
+while away, redirecting to park-as-`❓`. Command UX then collapsed: the six `/task-queue:*`
+slugs became one explorable `/tq` (bare = menu; `solo|checkpoint|agent on|off`, `undo`,
+`status`), and *away* + *pause* merged into **solo** (`/tq solo`) — the ask-guard makes the
+approval checkpoint moot, so one autonomous toggle covers both. **Visible trade-off:** the
+standalone `pause` command is retired (folded into solo) — the "run in auto but stay present
+& askable" middle ground is gone; the pause *flag* plumbing stays (env/legacy), and `solo
+off` clears it. Supersedes the 2026-07-03 slash-command entry above (that `/task-queue:` set
+is replaced by `/tq`). Natural language still drives every mode, so the "need never run a
+command" promise holds.
 
 **Scoped (not built) — async owner recap.** The one place an MCP integration earns
 its keep: when the owner is *away from the terminal*, the Stop-time recap (today only

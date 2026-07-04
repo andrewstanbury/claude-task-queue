@@ -52,12 +52,20 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   **document proportionally** (token efficiency is the payoff, not a separate chase).
   An `in_progress` task carries a one-line progress breadcrumb in its description
   (what's done / what's next) so a crash resumes it mid-task, not from the top.
-- **Away-mode** — when the owner steps away (`bin/tq-away.sh on`; `off` on return),
-  run fully autonomous: never block (no AskUserQuestion, no "run this test" — self-
-  verify), and PARK anything needing the owner (design/ambiguous fork, owner-only
-  test, or any irreversible/binding action) as a `❓` task instead of guessing or
-  executing it — it re-surfaces for review when they're back. `off` prints a digest
-  of what completed + what's parked; a staleness nudge fires if it's left on.
+- **Solo mode** (`/tq solo on`; `off` on return — merges the old *away* + *pause*) —
+  when the owner steps away, run fully autonomous. This is **enforced, not advised**:
+  the Stop hook AUTO-CONTINUES the queue while any non-`❓` task is still open (so the
+  session can't idle waiting for an absent owner), `AskUserQuestion` is **hard-blocked**
+  by a PreToolUse guard, and the approval checkpoint is skipped. Self-verify (you have a
+  shell), do all reversible work, and PARK anything needing the owner (design/ambiguous
+  fork, owner-only test, or any irreversible/binding action) as a `❓ [parked]` task —
+  the only way to defer to them. The auto-continue is bounded by a per-prompt counter
+  (`CLAUDE_TQ_AWAY_MAX_CONTINUE`, default 40) so a stuck model can't spin. `off` prints a
+  digest of what completed + what's parked; a staleness nudge fires if it's left on.
+- **One control command `/tq`** — all modes are set through a single explorable command
+  (`/tq` bare = menu + state; `/tq solo|checkpoint|agent on|off`, `/tq undo`, `/tq
+  status`). It replaced the per-mode slash commands. You never *need* it — plain language
+  drives every mode ("keep going while I'm gone" → solo on) — it's the power-user surface.
 - **Crash-checkpoint** (`bin/tq-checkpoint.sh on`) — opt-in, per-repo. Auto-snapshots
   the working tree (tracked + untracked) to a hidden ref (`refs/tq/checkpoint`) on
   PostToolUse, off your branch so history stays clean and nothing is pushed; restore

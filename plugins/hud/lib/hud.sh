@@ -9,7 +9,6 @@
 set -uo pipefail
 
 # Default paths mirror where the sibling plugins write; overridable for tests.
-hud_pause_dir()  { printf '%s' "${CLAUDE_HUD_PAUSE_DIR:-$HOME/.claude/state/task-queue/paused}"; }
 hud_agent_dir()  { printf '%s' "${CLAUDE_HUD_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}"; }
 hud_away_dir()   { printf '%s' "${CLAUDE_HUD_AWAY_DIR:-$HOME/.claude/state/task-queue/away}"; }
 hud_ckpt_dir()   { printf '%s' "${CLAUDE_HUD_CKPT_DIR:-$HOME/.claude/state/task-queue/checkpoint}"; }
@@ -56,10 +55,9 @@ hud_legend() {
   cat <<'EOF'
 hud status-line key (left → right; each slot hides when it has nothing to say):
 
-  ●            health dot — green: ok · yellow: paused · red: tests failing
-  ⏸ paused     review loop paused for this repo (prompts run straight through)
+  ●            health dot — green: ok · yellow: solo mode · red: tests failing
   🤖 agent     agent-mode on (parallel subagents)
-  🚶 away      away-mode on (Claude runs autonomous; decisions parked for you)
+  🚶 solo      solo mode on (Claude runs autonomous; decisions parked for you)
   🧷 ckpt      crash-checkpoint armed (edits auto-snapshotted; absent = off)
   ✓/✗/⚠ tests  last test run — passed / failed / timed out
   ❓N          N open questions you still owe an answer on this session
@@ -104,16 +102,8 @@ hud_human_tokens() {
   fi
 }
 
-# Is the review loop paused for this repo? prints 1 / 0.
-hud_paused() {
-  local root="$1" flag
-  [ -n "$root" ] || { printf '0'; return 0; }
-  flag="$(hud_pause_dir)/$(printf '%s' "$root" | sed 's:/:-:g')"
-  [ -f "$flag" ] && printf '1' || printf '0'
-}
-
 # Is task-queue agent-mode ON for this repo? prints 1 / 0. (Same per-repo flag
-# scheme as pause; read-only mirror across the install boundary.)
+# scheme as away; read-only mirror across the install boundary.)
 hud_agent() {
   local root="$1" flag
   [ -n "$root" ] || { printf '0'; return 0; }
@@ -121,9 +111,11 @@ hud_agent() {
   [ -f "$flag" ] && printf '1' || printf '0'
 }
 
-# Is away-mode ON for this repo? prints 1 / 0. Away is the most consequential mode
-# (Claude runs autonomous + parks decisions), so it MUST be visible in the status
-# line. (Same per-repo flag scheme as pause/agent; read-only mirror.)
+# Is solo mode ON for this repo? prints 1 / 0. Solo (formerly away; it also folded in
+# the old pause) is the most consequential mode — Claude runs autonomous + parks
+# decisions — so it MUST be visible in the status line, and it colors the health
+# beacon yellow. Reads task-queue's away flag. (Same per-repo flag scheme as agent;
+# read-only mirror across the install boundary.)
 hud_away() {
   local root="$1" flag
   [ -n "$root" ] || { printf '0'; return 0; }
@@ -132,7 +124,7 @@ hud_away() {
 }
 
 # Is the crash checkpoint ARMED for this repo? prints 1 / 0. (Same per-repo flag
-# scheme as pause/agent; read-only mirror across the install boundary.)
+# scheme as away/agent; read-only mirror across the install boundary.)
 hud_checkpoint() {
   local root="$1" flag
   [ -n "$root" ] || { printf '0'; return 0; }

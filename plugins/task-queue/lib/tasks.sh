@@ -32,6 +32,12 @@ tq_root_cache_file() { printf '%s/root-cache.tsv' "$(tq_state_dir)"; }
 # lives in the state dir (both hooks share CLAUDE_TQ_STATE_DIR=CLAUDE_PLUGIN_DATA).
 tq_intent_file()     { printf '%s/intent-%s' "$(tq_state_dir)" "$(printf '%s' "${1:-nosession}" | sed 's:/:-:g')"; }
 
+# Per-prompt safety counter for away/solo auto-continue: bounds how many times the
+# Stop hook may re-continue the queue on its own before yielding, so a stuck model
+# can't spin forever burning tokens. Lives beside the intent file (same state dir,
+# both hooks share it); reset by tq-capture on each new prompt (fresh budget per ask).
+tq_away_continue_file() { printf '%s/away-continue-%s' "$(tq_state_dir)" "$(printf '%s' "${1:-nosession}" | sed 's:/:-:g')"; }
+
 # Open QUESTIONS the user still owes an answer on (so a new prompt doesn't bury
 # them). Modelled as native tasks whose subject is marked with a leading "❓": the
 # model creates one with TaskCreate when it leaves an answer-worthy question
@@ -51,15 +57,28 @@ tq_open_questions() {
   done | awk 'NF && !seen[$0]++'
 }
 
-# Pause flags use a FIXED home (independent of any per-hook state-dir override) so
-# the capture hook that reads the flag (CLAUDE_TQ_STATE_DIR=CLAUDE_PLUGIN_DATA) and
-# bin/tq-pause.sh (run by the model in plain bash, no plugin env) resolve the SAME
-# path. One flag file per repo, named by the encoded repo root, so pause persists.
-tq_pause_dir()       { printf '%s' "${CLAUDE_TQ_PAUSE_DIR:-$HOME/.claude/state/task-queue/paused}"; }
-tq_pause_file()      { printf '%s/%s' "$(tq_pause_dir)" "$(printf '%s' "$1" | sed 's:/:-:g')"; }
-tq_is_paused()       { [ -n "${1:-}" ] && [ -f "$(tq_pause_file "$1")" ]; }
+# Open, non-parked WORK in this session's live queue: pending/in_progress tasks whose
+# subject is NOT a ❓ parked item. This is the "is there real queue left to drain"
+# signal that drives away/solo auto-continue — the Stop hook keeps the model working
+# until this is empty (only ❓ parked items remain). Subjects, one per line, deduped.
+tq_open_worklist() {
+  local sid="$1" tdir f
+  [ -n "$sid" ] || return 0
+  tdir="$(tq_tasks_dir)/$sid"
+  [ -d "$tdir" ] || return 0
+  for f in "$tdir"/*.json; do
+    [ -f "$f" ] || continue
+    jq -r 'select((.status=="pending" or .status=="in_progress")
+                  and ((.subject // "") | startswith("❓") | not))
+           | (.subject // "")' "$f" 2>/dev/null || true
+  done | awk 'NF && !seen[$0]++'
+}
 
-# Agent-mode: an opt-in, per-repo flag (same scheme as pause). When ON, the
+# (The standalone pause mode was folded into solo — see lib/away.sh. `solo`, run when
+# the owner steps away, suppresses the approval loop the way pause used to, so there is
+# no separate pause flag any more.)
+
+# Agent-mode: an opt-in, per-repo flag (same scheme as away). When ON, the
 # SessionStart policy permits fanning independent tasks out to subagents; OFF by
 # default for token efficiency. Set with bin/tq-agent.sh.
 tq_agent_dir()       { printf '%s' "${CLAUDE_TQ_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}"; }
@@ -74,60 +93,9 @@ tq_is_agent_mode() {
   return 1
 }
 
-# (Away-mode state + the return-digest live in lib/away.sh, sourced alongside this,
-# so tasks.sh stays focused on the native task store.)
-
-# Epoch when away-mode was turned on for this repo (the flag file holds it), or 0.
-# Used for the staleness nudge (how long away) and the return-digest (what changed
-# since). Robust to an empty/legacy flag file (prints 0).
-tq_away_since() {
-  local f v
-  [ -n "${1:-}" ] || { printf '0'; return 0; }
-  f="$(tq_away_file "$1")"
-  [ -f "$f" ] || { printf '0'; return 0; }
-  v="$(head -n1 "$f" 2>/dev/null | tr -dc '0-9' || true)"
-  printf '%s' "${v:-0}"
-}
-
-# Return-digest: what happened for cur_root while the owner was away (since epoch
-# `since`) — tasks COMPLETED since then and OPEN ❓ items still awaiting them, across
-# sessions rooted at this repo. Printed by tq-away.sh on "off" (the explicit "I'm
-# back"). Counts + up to 3 completed subjects; one line when nothing changed.
-tq_away_digest() {
-  local cur_root="$1" since="${2:-0}"
-  [ -n "$cur_root" ] || return 0
-  local tdir sdir sid root f m done_n park_n subj shown
-  tdir="$(tq_tasks_dir)"
-  [ -d "$tdir" ] || return 0
-  done_n=0; park_n=0; shown=""
-  for sdir in "$tdir"/*/; do
-    [ -d "$sdir" ] || continue
-    sid="$(basename "$sdir")"
-    root="$(tq_session_root "$sid" 2>/dev/null || true)"
-    [ "$root" = "$cur_root" ] || continue
-    for f in "$sdir"*.json; do
-      [ -f "$f" ] || continue
-      if jq -e '.status=="completed"' "$f" >/dev/null 2>&1; then
-        m="$(tq_mtime "$f")"
-        if [ "$m" -ge "$since" ]; then
-          done_n=$((done_n + 1))
-          subj="$(jq -r '.subject // ""' "$f" 2>/dev/null || true)"
-          [ -n "$subj" ] && [ "$(printf '%s\n' "$shown" | grep -c .)" -lt 3 ] \
-            && shown="$shown"$'\n'"  ✓ $subj"
-        fi
-      elif jq -e '(.status=="pending" or .status=="in_progress") and ((.subject//"")|startswith("❓"))' "$f" >/dev/null 2>&1; then
-        park_n=$((park_n + 1))
-      fi
-    done
-  done
-  if [ "$done_n" -eq 0 ] && [ "$park_n" -eq 0 ]; then
-    printf 'While you were away: nothing recorded as completed, and no parked items to review.\n'
-    return 0
-  fi
-  printf 'While you were away: %d task(s) completed, %d ❓ parked for your review.\n' "$done_n" "$park_n"
-  [ -n "$shown" ] && printf '%s\n' "${shown#$'\n'}"
-  [ "$park_n" -gt 0 ] && printf 'The parked items re-surface on your next prompt (and show in hud as ❓%d).\n' "$park_n"
-}
+# (Away-mode state + the return-digest — tq_away_since / tq_away_digest — live in
+# lib/away.sh, sourced alongside this by every away consumer, so tasks.sh stays
+# focused on the native task store.)
 
 # ---- drift canary -----------------------------------------------------------
 

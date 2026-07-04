@@ -76,7 +76,7 @@ line "  ${W}COMPANION WORKFLOW${X}  ${D}— where each feature fires · live @ $
 line "  ${D}────────────────────────────────────────────────────────────${X}"
 line ""
 line "  ${M}▐▌ ALWAYS-ON${X}  ${M}native permissions${X} ${D}(${perm})${X}"
-[ -n "$sl" ] && line "  ${D}             ${X}${B}${sl} statusLine${X} ${D}●health ✓tests ⏸paused 🤖agent ctx%${X}"
+[ -n "$sl" ] && line "  ${D}             ${X}${B}${sl} statusLine${X} ${D}●health ✓tests 🚶solo 🤖agent ctx%${X}"
 line ""
 
 line "  ${G}●${X} ${W}SessionStart${X} ${D}· once ·${X}"
@@ -89,7 +89,7 @@ line "  ${D}▼${X}"
 up="$(first_path UserPromptSubmit)"
 line "  ${C}◆${X} ${W}you type a prompt${X}  ${D}→ UserPromptSubmit →${X} ${C}$(basename "${up:-tq-capture.sh}" .sh)${X}"
 line "  ${D}┊${X}"
-line "  ${D}┊  trivial or paused → runs straight in auto (silent)${X}"
+line "  ${D}┊  trivial or solo mode → runs straight in auto (silent)${X}"
 line "  ${D}▼${X}  ${D}substantive (multi-step / consequential)${X}"
 if [ -n "$LOOPRAW" ]; then
   title=''

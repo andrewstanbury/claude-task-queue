@@ -7,7 +7,7 @@
 #
 # Agent-mode is OFF by default (subagents cost more tokens). When ON, the
 # SessionStart policy tells the model it MAY fan independent, non-conflicting
-# tasks out to subagents via the Task tool. Like pause, it's a single flag file
+# tasks out to subagents via the Task tool. Like away, it's a single flag file
 # scoped to the repo root, persisting across sessions.
 #
 # This writes the plugin's OWN flag file — never Claude Code's task store.

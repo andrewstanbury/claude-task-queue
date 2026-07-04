@@ -10,7 +10,7 @@
 
 set -uo pipefail
 
-# Per-repo flag (same scheme as pause/agent). No global env default: a machine-wide
+# Per-repo flag (same scheme as agent). No global env default: a machine-wide
 # "never ask me" is a footgun, so away is always a deliberate, visible, per-repo toggle.
 tq_away_dir()  { printf '%s' "${CLAUDE_TQ_AWAY_DIR:-$HOME/.claude/state/task-queue/away}"; }
 tq_away_file() { printf '%s/%s' "$(tq_away_dir)" "$(printf '%s' "$1" | sed 's:/:-:g')"; }

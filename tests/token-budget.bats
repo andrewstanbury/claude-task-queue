@@ -67,11 +67,11 @@ marked_repo() {
   within "capture design"        1800 "$(cap 'make the login page cleaner')"
   mkdir -p "$CLAUDE_TQ_TASKS_DIR/s"
   jq -n '{id:"1",subject:"❓ Block or warn?",status:"pending"}' > "$CLAUDE_TQ_TASKS_DIR/s/1.json"
-  # Isolate the open-Q reminder by PAUSING the repo: since 2026-06-26 the review
-  # loop fires on EVERY prompt (incl. 'thanks'), so pause suppresses the loop while
-  # the reminder still rides — measuring the reminder alone, as this budget intends.
-  export CLAUDE_TQ_PAUSE_DIR="$WORK/paused"; mkdir -p "$CLAUDE_TQ_PAUSE_DIR"
-  : > "$CLAUDE_TQ_PAUSE_DIR/$(printf '%s' "$repo" | sed 's:/:-:g')"
+  # Isolate the open-Q reminder by putting the repo in SOLO mode: since 2026-06-26 the
+  # review loop fires on EVERY prompt (incl. 'thanks'), so solo suppresses the loop
+  # while the reminder still rides — measuring the reminder alone, as this budget intends.
+  export CLAUDE_TQ_AWAY_DIR="$WORK/away"; mkdir -p "$CLAUDE_TQ_AWAY_DIR"
+  : > "$CLAUDE_TQ_AWAY_DIR/$(printf '%s' "$repo" | sed 's:/:-:g')"
   within "open-Q reminder"     280  "$(cap 'thanks')"
 }
 
@@ -97,6 +97,15 @@ marked_repo() {
   within "align block"   660 "$(printf '%s' "$S" | "$R/plugins/charter/bin/charter-align-gate.sh" | rsn)"
   printf 'add rate limiting\n' > "$CLAUDE_TQ_STATE_DIR/intent-zz"
   within "intent block"  850 "$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-verify.sh" | rsn)"
+  # away/solo auto-continue block (pay-per-event Stop): away flag on + open queue work.
+  export CLAUDE_TQ_AWAY_DIR="$WORK/away"; mkdir -p "$CLAUDE_TQ_AWAY_DIR"
+  : > "$CLAUDE_TQ_AWAY_DIR/$(printf '%s' "$g" | sed 's:/:-:g')"
+  mkdir -p "$CLAUDE_TQ_TASKS_DIR/zz"
+  jq -n '{id:"1",subject:"wire the checkout flow",status:"pending"}' > "$CLAUDE_TQ_TASKS_DIR/zz/1.json"
+  within "away continue"  760 "$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-verify.sh" | rsn)"
+  # ask-guard deny (pay-per-event PreToolUse): reason lives in permissionDecisionReason.
+  local AG; AG="$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-ask-guard.sh" | jq -r '.hookSpecificOutput.permissionDecisionReason // ""')"
+  within "ask-guard deny" 620 "$AG"
   within "quality block" 360 "$(printf '%s' "$S" | CLAUDE_TIDY_QUALITY_CMD='echo ERR; exit 1' "$R/plugins/tidy/bin/tidy-verify.sh" | rsn)"
   within "diagnose block" 950 "$(printf '%s' "$S" | CLAUDE_TIDY_LOG_DIR="$WORK/dl" CLAUDE_TIDY_TEST_CMD='echo BOOM; exit 1' "$R/plugins/tidy/bin/tidy-verify.sh" | rsn)"
   # secret block writes its reason to STDERR (PreToolUse exit-2 convention), not JSON.

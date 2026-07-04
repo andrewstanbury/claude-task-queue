@@ -47,8 +47,9 @@ shown elsewhere — the task list (Claude Code renders it natively), docs-health
 (charter nudges it at session start), or last-tidy — which also removed the
 heaviest cross-plugin doc-detection mirrors. Remaining reads:
 
-- **Paused:** task-queue's flag at `~/.claude/state/task-queue/paused/<encoded-root>`.
-  Override: `CLAUDE_HUD_PAUSE_DIR`.
+- **Solo mode:** task-queue's away flag at `~/.claude/state/task-queue/away/<encoded-root>`
+  (solo folded in the old pause; there is no separate pause flag). Rendered as `🚶 solo`
+  and colors the health beacon yellow. Override: `CLAUDE_HUD_AWAY_DIR`.
 - **Agent-mode:** task-queue's flag at `~/.claude/state/task-queue/agent/<encoded-root>`.
   Override: `CLAUDE_HUD_AGENT_DIR`.
 - **Tests (verification floor):** tidy-verify's last-outcome marker at

@@ -29,12 +29,13 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 
 | File | Responsibility |
 |---|---|
-| `bin/tq-resume.sh` | SessionStart: standing policy + cross-session resume + roadmap hydration + quiet-mode + pause/agent/drift signals. |
-| `bin/tq-capture.sh` | UserPromptSubmit: on any substantive prompt, inject the review loop — first **EVALUATE before executing** (steelman then challenge the ask; flag contradictions with recorded constraints or the owner's own earlier requests, or a forced poor/over-engineered design; recommend against when warranted — selective, real-signal only, so it doesn't train rubber-stamping), then the interpret→present→approve loop (interpret → decompose → judge risk/fan-out → AskUserQuestion → create only approved) AND stash the prompt as the intent of record; on a **visual/design** prompt, inject the design-preview loop instead (recommended + alternatives as faithful wireframe mockups in the AskUserQuestion preview, arrow-keys + Enter to pick, build only the chosen one — demonstrate before build); **always** re-surfaces any open-question (`❓`) the user hasn't answered (even on a trivial/paused prompt) so it isn't buried; silent on trivial prompts otherwise; loop suppressed when the repo is paused. |
+| `bin/tq-resume.sh` | SessionStart: standing policy + cross-session resume + roadmap hydration + quiet-mode + solo/agent/checkpoint/drift signals. |
+| `bin/tq-capture.sh` | UserPromptSubmit: on any substantive prompt, inject the review loop — first **EVALUATE before executing** (steelman then challenge the ask; flag contradictions with recorded constraints or the owner's own earlier requests, or a forced poor/over-engineered design; recommend against when warranted — selective, real-signal only, so it doesn't train rubber-stamping), then the interpret→present→approve loop (interpret → decompose → judge risk/fan-out → AskUserQuestion → create only approved) AND stash the prompt as the intent of record; on a **visual/design** prompt, inject the design-preview loop instead (recommended + alternatives as faithful wireframe mockups in the AskUserQuestion preview, arrow-keys + Enter to pick, build only the chosen one — demonstrate before build); **always** re-surfaces any open-question (`❓`) the user hasn't answered (even on a trivial/solo-mode prompt) so it isn't buried; silent on trivial prompts otherwise; loop suppressed when the repo is in solo mode. |
 | `bin/tq-verify.sh` | Stop: the **intent→outcome gate** (loop close) — replay the stashed intent against the actual diff, block once (consumed per ask) so the model verifies the outcome matches the ask and recaps in plain language before "done". `CLAUDE_TQ_INTENT_GATE=0` to disable. |
-| `bin/tq-pause.sh` | Control: pause/resume the review loop (per repo) — paused runs prompts straight through in auto. |
+| `bin/tq-ask-guard.sh` | PreToolUse[AskUserQuestion]: while solo mode is on, hard-block the question (deny) and tell the model to decide-if-reversible or PARK as `❓` — makes solo's "never ask" mechanical, not advisory. |
+| `bin/tq.sh` | Control: the single `/tq` command — bare prints the modes menu; `solo`/`checkpoint`/`agent on|off`, `undo`, `status` dispatch to the mode scripts. `solo` = the merged away+pause autonomous mode. |
 | `bin/tq-agent.sh` | Control: opt-in agent-mode (parallel subagent fan-out). |
-| `lib/tasks.sh` | Native task-store reads, resume logic, pause/agent flags, the intent-of-record file, `tq_open_questions` (unanswered `❓` tasks this session), drift canary. |
+| `lib/tasks.sh` | Native task-store reads, resume logic, agent flag + the away/solo auto-continue counter, the intent-of-record file, `tq_open_questions` + `tq_open_worklist`, drift canary. |
 | `lib/project.sh` | Detect the committed roadmap/backlog file + the `claude-companion` marker. |
 | `lib/capture.sh` | Multi-step / consequential / **visual-design** heuristics (the design-preview stands down on Godot projects — `tq_is_godot_project`); shared alignment clause. |
 
@@ -73,7 +74,7 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 
 | File | Responsibility |
 |---|---|
-| `bin/hud-status.sh` | The status-line renderer: health beacon · paused · agent · ✓/✗ tests · **❓ open-questions count** · **🔗↑ coupling-rising** · ctx % · **💲 session-cost** (hidden at zero) · branch+dirty · **↑ahead ↓behind** (unpushed/unpulled vs upstream) · model. |
+| `bin/hud-status.sh` | The status-line renderer: health beacon · agent · 🚶 solo · ✓/✗ tests · **❓ open-questions count** · **🔗↑ coupling-rising** · ctx % · **💲 session-cost** (hidden at zero) · branch+dirty · **↑ahead ↓behind** (unpushed/unpulled vs upstream) · model. |
 | `bin/hud-install.sh` | Wire the status line into `settings.json`, version-resilient, no refreshInterval (`/hud:setup`). |
 | `commands/setup.md` | `/hud:setup`. |
-| `lib/hud.sh` | Read-only accessors over the other plugins' state (paused, agent, verify result, branch, dirty, `hud_open_questions` ❓-count, `hud_coupling` 🔗↑ direction, `hud_ahead_behind` unpushed/unpulled vs upstream — read-only mirrors/markers). |
+| `lib/hud.sh` | Read-only accessors over the other plugins' state (solo/away, agent, verify result, branch, dirty, `hud_open_questions` ❓-count, `hud_coupling` 🔗↑ direction, `hud_ahead_behind` unpushed/unpulled vs upstream — read-only mirrors/markers). |

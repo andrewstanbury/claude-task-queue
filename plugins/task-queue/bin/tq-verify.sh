@@ -25,12 +25,12 @@ done
 PLUGIN_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 # shellcheck source=../lib/tasks.sh
 . "$PLUGIN_DIR/lib/tasks.sh"
+# shellcheck source=../lib/away.sh
+. "$PLUGIN_DIR/lib/away.sh"
 set +e   # tasks.sh enables `set -e`; this hook is best-effort — a failing git
          # call (e.g. `diff HEAD` in a repo with no commits) must NOT break the stop.
 
 allow() { exit 0; }                                   # let the stop proceed
-
-[ "${CLAUDE_TQ_INTENT_GATE:-1}" = "0" ] && allow
 
 input=""
 [ -t 0 ] || input="$(cat 2>/dev/null || true)"
@@ -40,13 +40,42 @@ if [ -n "$input" ]; then
   sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
 fi
 [ -n "$cwd" ] || cwd="$PWD"
+root="$(tq_root_for_cwd "$cwd")"
+
+# ---- AWAY/SOLO AUTO-CONTINUE ------------------------------------------------
+# When the owner is away, an end-of-turn Stop must NOT hand control back to an
+# absent owner — keep DRAINING the live queue autonomously. Fires regardless of
+# the intent gate or tree state: as long as real (non-❓) work is still queued for
+# this session, re-continue instead of stopping. Self-terminates when only ❓
+# parked items remain, and a per-prompt counter caps the drive so a stuck model
+# can't spin forever (reset by tq-capture each prompt). Disable with
+# CLAUDE_TQ_AWAY_CONTINUE=0; cap via CLAUDE_TQ_AWAY_MAX_CONTINUE (default 40).
+if [ "${CLAUDE_TQ_AWAY_CONTINUE:-1}" != "0" ] && tq_is_away "$root"; then
+  work="$(tq_open_worklist "$sid" 2>/dev/null || true)"
+  if [ -n "$work" ]; then
+    cfile="$(tq_away_continue_file "$sid")"
+    cnt="$(head -n1 "$cfile" 2>/dev/null | tr -dc '0-9' || true)"; cnt="${cnt:-0}"
+    [ "$cnt" -ge "${CLAUDE_TQ_AWAY_MAX_CONTINUE:-40}" ] && allow   # safety valve: yield, don't loop
+    { mkdir -p "$(tq_state_dir)" 2>/dev/null && printf '%s' "$((cnt + 1))" > "$cfile"; } 2>/dev/null || true
+    rm -f "$(tq_intent_file "$sid")" 2>/dev/null || true          # away: no owner-confirm gate
+    n="$(printf '%s\n' "$work" | grep -c .)"
+    next="$(printf '%s\n' "$work" | head -n1)"
+    jq -cn --arg r "🚶 Away-mode: $n task(s) still open in the queue — next: '$next'. The owner is away, so DO NOT stop and DO NOT ask. Take the next unblocked task, do it, verify your own work (run the tests/build yourself — you have a shell), update the task, and continue. PARK anything that truly needs the owner (a design/ambiguous fork, or any irreversible/externally-binding action) as a '❓ [parked] <what needs deciding — with your recommendation>' task and move on. Keep going until nothing is left but ❓ parked items." \
+      '{decision: "block", reason: $r}'
+    exit 0
+  fi
+  # Queue drained (only ❓ parked items remain) → genuinely done for now. Clear the
+  # counter and let the stop proceed; skip the owner-confirm gate (no owner present).
+  rm -f "$(tq_away_continue_file "$sid")" "$(tq_intent_file "$sid")" 2>/dev/null || true
+  allow
+fi
+
+[ "${CLAUDE_TQ_INTENT_GATE:-1}" = "0" ] && allow
 
 # No captured intent for this session → trivial/conversational turn, nothing to
 # verify against.
 ifile="$(tq_intent_file "$sid")"
 [ -f "$ifile" ] || allow
-
-root="$(tq_root_for_cwd "$cwd")"
 
 # Only verify once a change has actually LANDED. On a clean tree the work isn't
 # done yet (or the turn was pure analysis) — keep the intent for a later Stop. No
