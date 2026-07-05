@@ -318,6 +318,15 @@ Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT
 Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario,
 or a pain point that surfaces. No new layers planned.
 
+**Built (2026-07-05, latest) — cap the ❓ reminder + marketplace taglines (0.35.1).** Two efficiency
+follow-ups. (1) The per-prompt open-questions reminder (`tq-capture.sh`) listed EVERY open ❓ on every
+prompt — and 0.35.0's "park more decisions as ❓" made that pile grow, so it scaled badly per turn. Now
+capped: first 4 + "…and N more" (same shape as the resume cap; fixed 4, no env knob). (2) `marketplace.json`
+descriptions, which duplicated each `plugin.json` essay and drifted, were cut to one-line browse taglines —
+a deliberately different register from the full `plugin.json` manifest, so there's nothing left to keep in
+sync. Recorded the standing rule (memory): efficiency work = hook injections (runtime tokens); env-knob /
+plugin.json / marketplace tidiness is maintenance-surface (zero runtime cost) — don't conflate. task-queue v0.35.1.
+
 **Built (2026-07-05, later) — autopilot parks important decisions (corrects 0.34.0) + `/task-queue:ship`.**
 Two more owner asks, same session. (1) The 0.34.0 "decides-not-parks" step below was **walked back
 on the owner's review** — but sharpened, not naively reverted. The flaw: "reversibility" was the wrong

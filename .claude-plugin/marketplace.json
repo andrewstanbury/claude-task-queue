@@ -10,25 +10,25 @@
     {
       "name": "task-queue",
       "source": "./plugins/task-queue",
-      "description": "Makes Claude Code's native task list a live work queue via event-driven hooks. A SessionStart hook primes the model to treat the native list as the queue, re-surfaces earlier sessions' unfinished tasks, and hydrates from a committed roadmap. A per-prompt hook runs an interpret→decompose→queue review loop — leaning to a one-line pointer once the policy is recorded in CLAUDE.md, and escalating to a present-and-approve (with a wireframe design preview) on consequential or visual work. A Stop hook checks the delivered outcome against the request. Autopilot mode runs fully autonomous when the owner steps away: it auto-continues the queue, hard-blocks questions, and parks the decisions the owner will want — important direction/design choices and irreversible/externally-binding actions — as a reviewable ❓ pile while deciding the routine, low-stakes rest itself. Per-feature slash commands (/task-queue:autopilot, checkpoint, agents, resume, ship, status) give deterministic control: resume picks up an earlier session (restore crashed edits + reinstate its tasks) and ship takes verified work from working tree to squash-merged-on-main. Plus an opt-in crash-checkpoint (working-tree snapshots to a hidden git ref) and agent fan-out. Read-only over ~/.claude/tasks (it writes only its own cache state + the optional checkpoint ref).",
-      "version": "0.35.0"
+      "description": "Turns Claude Code's native task list into a live work queue: a review loop on every prompt, cross-session resume, one-command ship (verify → PR → squash-merge), and an enforced autopilot that parks the important decisions as a reviewable pile while deciding the routine rest. Full details on the plugin page.",
+      "version": "0.35.1"
     },
     {
       "name": "tidy",
       "source": "./plugins/tidy",
-      "description": "Tidy-as-you-touch: after each edit it formats and lint-checks just the file you touched (fixing only what's safe), surfaces its blast radius (the dependents to cover with tests), and flags it for decomposition past a size budget — keeping an actively-worked project trending down in complexity. Findings-only edit-time linters run the project's own tools for Go (goimports/gofumpt + golangci-lint), web (eslint incl. jsx-a11y, stylelint), Python (ruff) and shell (shellcheck). A Stop hook is the verification floor: when the working tree changed and the project has a discoverable test command, it runs the tests and blocks until they pass (bounded) — the safety net a non-technical owner can't produce. After a clean verify the same hook enforces the project's own quality gates (typecheck / a11y / architecture scripts), a coverage ratchet + a narrow regression gate on scar-tissue files, an import-cycle check, and a debt-prune nudge past a threshold — all detect-and-run (installs/invents nothing), with any cuts routed through the task-queue review loop. Goes quiet (one-line re-anchor) once recorded in the project's CLAUDE.md.",
+      "description": "Clean-as-you-touch: formats and lint-checks the file you just edited, surfaces its blast radius, and holds a Stop-hook verification floor (tests, the project's own quality gates, a regression gate on debt-magnet files, and prune nudges) — the safety net a non-technical owner can't produce. Full details on the plugin page.",
       "version": "0.40.0"
     },
     {
       "name": "charter",
       "source": "./plugins/charter",
-      "description": "At SessionStart, a compact project brief that flags missing Claude-facing docs (project map, roadmap/backlog, recorded decisions), injects git-derived \"scar tissue\" hotspots (files repeatedly fixed), and reminds the model of the non-technical owner loop. Adds a Stop-time alignment gate that checks a finished change against recorded decisions, plus the /charter:align command to reconcile open work on demand. Read-only over the project.",
+      "description": "Know the project: a SessionStart brief flagging missing Claude-facing docs and git-derived \"scar tissue\" (repeatedly-fixed files), a Stop-time gate that checks finished work against recorded decisions, and /charter:align on demand. Full details on the plugin page.",
       "version": "0.21.0"
     },
     {
       "name": "hud",
       "source": "./plugins/hud",
-      "description": "A consolidated, read-only status line for the companion plugins, grouped into three zones split by a dim divider: [health beacon · ✓/✗ tests · disabled-safety-floors 🛡✗ · ❓ parked-decisions/open-questions] │ [feature modes — ✈️ autopilot · 🤖 agents · 🧷 logs, each icon-led, green on / grey off] │ [model · token throughput ⇡in ⇣out · git branch with dirty */ahead ↑/behind ↓]. Rendered from existing plugin state plus the statusLine payload — no hooks, no scanning, zero model-token cost; empty slots and whole zones collapse when absent, and it sheds low-priority slots on a narrow terminal. It deliberately doesn't re-render signals shown elsewhere (the task list Claude Code renders natively; docs-health charter nudges at session start). Sets no refreshInterval (the beacon is static, so it stays battery-friendly). Run /hud:setup once to wire it into settings.json with a version-resilient command.",
+      "description": "One read-only status line for the companion plugins — health, feature state, tests, parked-questions, token throughput, and git branch — in three glanceable zones. Zero model-token cost. Full details on the plugin page.",
       "version": "0.10.0"
     }
   ]
