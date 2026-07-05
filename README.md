@@ -44,7 +44,7 @@ few optional `/task-queue:` commands give deterministic control when you want it
 | **task-queue** | 0.35.2 | Orchestrate | review loop on every prompt (leans to a one-line pointer once documented) · wireframe design preview · intent→outcome gate · open-questions tracker · cross-session resume + mid-task breadcrumb · one-command ship (verify → PR → squash-merge to main) · **autopilot** (enforced autonomy — auto-continues the queue, blocks asking, parks the decisions you'll want as a reviewable ❓ pile, decides the routine rest) · crash-checkpoint (working-tree snapshots) · per-feature slash commands (`/task-queue:autopilot` · `checkpoint` · `agents` · `resume` · `ship` · `status`) |
 | **tidy** | 0.40.0 | Change safely | secret floor (block credentials pre-write) · format/lint on touch · blast-radius · verification floor · regression gate · quality floor · import-cycle check · auto-prune |
 | **charter** | 0.21.0 | Know the project | doc & decisions gate · alignment floor · outcome-memory "scar tissue" · conventions · owner loop · MCP reachability probe |
-| **hud** | 0.13.0 | Show | one read-only status line — health · always-on feature status (✈️ autopilot/🤖 agents/🧷 logs, green on/grey off) · model · tests · floors-off · open-Qs · tok · branch (+unpushed) (`/hud:legend` decodes every symbol) |
+| **hud** | 0.14.0 | Show | one read-only status line — health · always-on feature status (✈️ autopilot/🤖 agents/🧷 logs, green on/grey off) · model · tests · floors-off · open-Qs · tok · branch (+unpushed) (`/hud:legend` decodes every symbol) |
 
 Each plugin is independently installable · Bash + `jq` · zero build.
 
