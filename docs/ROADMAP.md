@@ -318,6 +318,21 @@ Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT
 Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario,
 or a pain point that surfaces. No new layers planned.
 
+**Built (2026-07-05) — `/task-queue:resume` + autopilot decides-not-parks.** Two owner
+asks. (1) `restore` → **`resume`**: the crash-recovery command became the on-demand twin
+of the SessionStart hook — `bin/tq-restore.sh` restores the working tree from the last
+checkpoint AND re-surfaces earlier sessions' open tasks to reinstate, and is honest that a
+slash command cannot reload the conversation itself (that is `claude --resume` at launch).
+Reuses `tq_resume_context` + `tq-checkpoint.sh restore`, no new logic. (2) **Autopilot now
+DECIDES the reversible calls** — design/taste/ambiguous forks included — taking the option
+it would recommend and recording it for review, rather than parking them; parking is
+narrowed to the genuinely IRREVERSIBLE/externally-binding or a check it physically cannot
+run. Reversibility, not uncertainty, is the parking test (git + the armed checkpoint make
+decisions undoable). Rationale: autopilot exists to make calls on the absent owner's behalf;
+parking design/ambiguous forks defeated that. Touched the three parking strings (ask-guard,
+signals banner, verify auto-continue) + the autopilot/CLAUDE.md/plugin.json prose; the
+`PARK`/`❓ [parked]` tokens stayed so away.bats held. v0.34.0.
+
 **Built (2026-07-03) — away-mode.** The "real owner-not-at-the-terminal scenario" the
 "what's next" note was waiting for arrived (owner asked for it), so the in-CLI half is
 built: `tq-away.sh` + the SessionStart AWAY block (autonomy + park-don't-ask, above). The

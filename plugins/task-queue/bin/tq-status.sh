@@ -67,5 +67,5 @@ printf '  %-12s%-10s%s\n\n' "agents"   "$agents"     "split big jobs across para
 printf 'open work in this repo\n'
 printf '  %s task(s) still open across sessions · %s ❓ awaiting you\n' "$open" "$q"
 if tq_ckpt_enabled "$root" && tq_ckpt_exists "$root"; then
-  printf '\na checkpoint snapshot is saved — recover crashed edits with /task-queue:restore\n'
+  printf '\na checkpoint snapshot is saved — recover crashed edits with /task-queue:resume\n'
 fi

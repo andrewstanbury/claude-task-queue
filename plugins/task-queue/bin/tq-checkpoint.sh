@@ -65,7 +65,7 @@ case "$action" in
   on|enable)
     mkdir -p "$(tq_ckpt_dir)" 2>/dev/null || true
     : > "$flag"
-    printf 'Checkpoint ON — your edits are auto-saved for %s so a crash cannot lose them (recover with /task-queue:restore, or: %s).\n' \
+    printf 'Checkpoint ON — your edits are auto-saved for %s so a crash cannot lose them (recover with /task-queue:resume, or: %s).\n' \
       "$root" "$(tq_ckpt_restore_cmd)"
     ;;
   off|disable)
