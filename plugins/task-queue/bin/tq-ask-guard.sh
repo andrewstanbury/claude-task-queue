@@ -12,7 +12,10 @@
 # the action it hooks. Wired by hooks/hooks.json as a PreToolUse matcher.
 
 set -uo pipefail
-allow() { exit 0; }                                   # let the AskUserQuestion proceed
+# Drain stdin before allowing, so a writer piping the hook payload in can't hit a
+# broken pipe (SIGPIPE/EPIPE) when we exit without reading it — a hook must always
+# consume its input. Skipped on a TTY (no piped input) so a manual run can't block.
+allow() { [ -t 0 ] || cat >/dev/null 2>&1; exit 0; }  # let the AskUserQuestion proceed
 [ "${CLAUDE_TQ_AWAY_ASK_GUARD:-1}" = "0" ] && allow
 
 # Resolve symlinks so a relocated/PATH-installed entrypoint still finds lib/.
