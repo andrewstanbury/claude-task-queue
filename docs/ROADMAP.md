@@ -318,7 +318,19 @@ Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT
 Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario,
 or a pain point that surfaces. No new layers planned.
 
-**Built (2026-07-05, latest) — green-CI fix for `tq-ship.sh` (0.35.2).** 0.35.0/0.35.1 shipped `main`
+**Built (2026-07-05, latest) — parked-pile review menus + terminal-native hud palette (task-queue 0.36.0 / hud 0.15.0).**
+Two owner-facing polish asks, one commit (#87). (1) **task-queue** — the parked-decision review got the
+design-preview treatment. Turning autopilot *off* now prints the full parked `❓` pile as the return
+checkpoint and soft-blocks new queue work until it's cleared, and every parked review — on autopilot exit
+*or* any resurface — is presented as a blocking `AskUserQuestion` with 2-3 concrete options, recommended
+first, instead of an open prose question. Same "verify by choosing, not by reading" posture the design
+preview established, now applied to the decisions autopilot deferred. (2) **hud** — dropped the hardcoded
+24-bit status-bar palette that churned through 0.11-0.14 (the scar-tissue the charter flagged) and emits
+plain ANSI colors so the line inherits the user's terminal theme — the same palette the Claude Code CLI
+renders with. Ending the palette-churn by *deleting* the palette, not tuning it again. Tests pin both paths;
+`./check.sh` green.
+
+**Built (2026-07-05) — green-CI fix for `tq-ship.sh` (0.35.2).** 0.35.0/0.35.1 shipped `main`
 red: the new `bin/tq-ship.sh` had a best-effort sync line `git checkout … && git pull … || true` that CI's
 shellcheck flags as SC2015 (`A && B || C` is not if-then-else), and `check.sh` runs `shellcheck -e SC1091`
 with no severity floor so even an info-level finding exits 1. It passed *locally* because shellcheck 0.11.0
