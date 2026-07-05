@@ -118,7 +118,7 @@ ckpt_ref() { git -C "$REPO" rev-parse -q --verify refs/tq/checkpoint; }
   [ -f "$REPO/untracked.txt" ]
 }
 
-@test "the restore subcommand recovers lost edits (backs /task-queue:restore)" {
+@test "the restore subcommand recovers lost edits (backs /task-queue:resume)" {
   arm
   printf 'recover-me\n' >> "$REPO/tracked.txt"
   snapshot

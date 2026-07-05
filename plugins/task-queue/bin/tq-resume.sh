@@ -87,7 +87,7 @@ elif tq_policy_documented "$root"; then
   roadmap="$(tq_roadmap_path "$root" 2>/dev/null || true)"
   [ -n "$roadmap" ] && ctx="$ctx"$'\n\n'"[task-queue] Backlog at $roadmap — adopt its open items into your task list with TaskCreate; reflect finished work back."
 else
-  pause_hint="Modes are per-repo slash commands: /task-queue:autopilot (owner steps away — run fully autonomous, auto-continue the queue, block asking, PARK anything needing them), /task-queue:checkpoint (auto-save edits so a crash can't lose them), /task-queue:agents (fan independent tasks to parallel subagents, opt-in), /task-queue:restore (recover after a crash), /task-queue:status (what's on + open work). Run a mode directly if needed: $solo_cmd on|off, $agent_cmd on|off. Natural language works too."
+  pause_hint="Modes are per-repo slash commands: /task-queue:autopilot (owner steps away — run fully autonomous, auto-continue the queue, block asking, PARK anything needing them), /task-queue:checkpoint (auto-save edits so a crash can't lose them), /task-queue:agents (fan independent tasks to parallel subagents, opt-in), /task-queue:resume (pick up where an earlier session left off — restore crashed edits + reinstate its open tasks), /task-queue:status (what's on + open work). Run a mode directly if needed: $solo_cmd on|off, $agent_cmd on|off. Natural language works too."
   # Bootstrap nudge: once the policy is recorded in CLAUDE.md, this goes lean.
   tip="Tip: record this standing policy in your CLAUDE.md and mark it with \"claude-companion\" — then this nudge re-anchors in one line each session instead of repeating in full."
   # Orientation/project-knowledge nudges live in the charter plugin (know-the-project),

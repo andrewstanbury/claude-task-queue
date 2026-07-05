@@ -10,5 +10,5 @@ it in one plain sentence.
 
 Checkpoint **ON** = every edit is snapshotted to a hidden git ref off your branch
 (history stays clean, nothing is pushed), so a crash can't lose uncommitted work —
-recover with `/task-queue:restore`. **OFF** = no auto-saving. You can also just say
+recover with `/task-queue:resume`. **OFF** = no auto-saving. You can also just say
 "make a safety net" / "stop checkpointing".
