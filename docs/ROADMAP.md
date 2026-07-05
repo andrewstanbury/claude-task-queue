@@ -318,7 +318,16 @@ Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT
 Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario,
 or a pain point that surfaces. No new layers planned.
 
-**Built (2026-07-05, latest) — cap the ❓ reminder + marketplace taglines (0.35.1).** Two efficiency
+**Built (2026-07-05, latest) — green-CI fix for `tq-ship.sh` (0.35.2).** 0.35.0/0.35.1 shipped `main`
+red: the new `bin/tq-ship.sh` had a best-effort sync line `git checkout … && git pull … || true` that CI's
+shellcheck flags as SC2015 (`A && B || C` is not if-then-else), and `check.sh` runs `shellcheck -e SC1091`
+with no severity floor so even an info-level finding exits 1. It passed *locally* because shellcheck 0.11.0
+no longer flags the `|| true` idiom, but CI's older build does — a version-skew false-green. Rewrote the line
+as an explicit `if git checkout …; then git pull … || true; fi` (behavior-identical, SC2015-safe on every
+version). Lesson recorded: the local/CI shellcheck version gap can hide a red build behind a green `check.sh`.
+task-queue v0.35.2.
+
+**Built (2026-07-05, earlier) — cap the ❓ reminder + marketplace taglines (0.35.1).** Two efficiency
 follow-ups. (1) The per-prompt open-questions reminder (`tq-capture.sh`) listed EVERY open ❓ on every
 prompt — and 0.35.0's "park more decisions as ❓" made that pile grow, so it scaled badly per turn. Now
 capped: first 4 + "…and N more" (same shape as the resume cap; fixed 4, no env knob). (2) `marketplace.json`
