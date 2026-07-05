@@ -42,13 +42,15 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 if [ -n "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ]; then
   Y=""; G=""; C=""; R=""; B=""; D=""; GREY=""; X=""
 elif [ "${COLORTERM:-}" = "truecolor" ] || [ "${COLORTERM:-}" = "24bit" ]; then
-  # Solarized-pop — a vibrant 24-bit palette (green/blue/amber/red from the
-  # Solarized accents) for terminals that advertise truecolor. GREY is base01 so
-  # OFF features recede. Falls through to the bright-16 branch below on terminals
-  # without truecolor, so the line renders honestly everywhere.
-  G=$'\033[38;2;133;153;0m'; Y=$'\033[38;2;181;137;0m'
-  C=$'\033[38;2;38;139;210m'; R=$'\033[38;2;220;50;47m'
-  B=$'\033[1m'; D=$'\033[2m'; GREY=$'\033[38;2;88;110;117m'; X=$'\033[0m'
+  # Vivid — a clean, saturated 24-bit palette for terminals that advertise
+  # truecolor: emerald green, warm amber, sky blue, coral red. Chosen over the
+  # muddy Solarized accents (olive green / mustard amber read dull as raw
+  # foreground text). GREY is a muted slate so OFF features recede. Falls through
+  # to the bright-16 branch below without truecolor, so the line renders honestly
+  # everywhere.
+  G=$'\033[38;2;38;222;129m'; Y=$'\033[38;2;255;190;60m'
+  C=$'\033[38;2;56;169;255m'; R=$'\033[38;2;255;90;95m'
+  B=$'\033[1m'; D=$'\033[2m'; GREY=$'\033[38;2;120;134;145m'; X=$'\033[0m'
 else
   # Bright (9x) foregrounds — portable 16-color fallback for terminals that don't
   # advertise truecolor. GREY stays dim (90) so OFF features recede.
