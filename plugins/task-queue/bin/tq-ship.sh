@@ -92,7 +92,10 @@ fi
 rm -f "$merge_err"
 
 # 6. Sync the local default branch so the working copy reflects the merge.
-git checkout -q "$default_branch" 2>/dev/null && git pull -q --ff-only origin "$default_branch" 2>/dev/null || true
+# Best-effort: never let a checkout/pull failure break the ship (SC2015-safe).
+if git checkout -q "$default_branch" 2>/dev/null; then
+  git pull -q --ff-only origin "$default_branch" 2>/dev/null || true
+fi
 
 printf 'tq-ship: PR #%s squash-merged into %s and the branch was deleted. Local %s synced.\n' \
   "$pr" "$default_branch" "$default_branch"
