@@ -10,10 +10,10 @@ it in one plain sentence.
 
 Autopilot **ON** = I keep working the queue on my own without stopping to ask (for
 when you step away); the queue auto-continues, AskUserQuestion is blocked, and I
-**make the reversible calls myself** — including design/taste choices — picking what
-I'd recommend and noting it so you can review and reverse on return. I park only the
-genuinely irreversible ones (delete / push / send / spend) as `❓` items for when
-you're back.
+**park the decisions you'll want to make** — important direction and design/structural
+choices, plus anything irreversible (delete / push / send / spend) — as `❓` items so
+you come back to a reviewable pile. I decide the routine, low-stakes calls myself and
+keep working; you make the parked calls on return and I carry on.
 Autopilot **OFF** = the normal review loop, where I check in on the consequential
 calls. You never *need* this command — just say "keep going while I'm gone" / "I'm
 back" and I'll set it.

@@ -318,6 +318,22 @@ Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT
 Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario,
 or a pain point that surfaces. No new layers planned.
 
+**Built (2026-07-05, later) — autopilot parks important decisions (corrects 0.34.0) + `/task-queue:ship`.**
+Two more owner asks, same session. (1) The 0.34.0 "decides-not-parks" step below was **walked back
+on the owner's review** — but sharpened, not naively reverted. The flaw: "reversibility" was the wrong
+axis (git-reversible ≠ cheap-to-undo — a design direction is reversible yet expensive to unwind once
+work is built on it). New threshold = what a wrong call would **COST to undo**, expressed as the same
+"real signal" the normal review loop stops on: autopilot now PARKS important direction/design/structural
+choices, new deps/seams, data-model/interface changes, ambiguous high-blast-radius forks, plus
+irreversible/externally-binding actions — and DECIDES the routine, low-stakes rest. Goal the owner named:
+come back to a **reviewable pile** of parked decisions, make the calls, autopilot resumes. One definition
+of "worth the owner's attention," two modes — normal asks live, autopilot parks. (2) **`/task-queue:ship`**
+(`bin/tq-ship.sh`) — one gated command from working tree to merged-on-main: verify green (the caller's
+gate — a bash script can't know an arbitrary repo's tests), then branch-if-on-default → commit → push →
+PR → squash-merge → delete branch → sync. Allowed unattended in autopilot **once green** (shipping a
+verified, completed unit isn't a decision; any important decision inside it would have parked and blocked
+completion first). v0.35.0.
+
 **Built (2026-07-05) — `/task-queue:resume` + autopilot decides-not-parks.** Two owner
 asks. (1) `restore` → **`resume`**: the crash-recovery command became the on-demand twin
 of the SessionStart hook — `bin/tq-restore.sh` restores the working tree from the last

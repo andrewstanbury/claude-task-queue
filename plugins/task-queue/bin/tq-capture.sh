@@ -116,6 +116,13 @@ if [ "$paused" -eq 0 ]; then
   # real signal. This keeps the per-prompt budget lean while preserving 100% capture.
   reanchor="New work — interpret it (one plain line), decompose into tasks in dependency order (smallest blast-radius first), TaskCreate them, and work it IN AUTO, per the queue loop from this session's SessionStart policy. Pause for AskUserQuestion sign-off ONLY on real signal — ambiguous, high blast-radius, an architectural/assumption fork (present recommended options), or you'd recommend against it; otherwise just proceed. Challenge the ask itself when your honest read says so. Be selective — don't manufacture pushback."
 
+  # `reanchor_lean` — the DEFAULT path when the standing policy is recorded in the
+  # repo's CLAUDE.md (always loaded), so a full re-anchor every prompt would just
+  # re-spend tokens on what the model already has. A terse POINTER instead: the single
+  # biggest per-prompt saving. The heavy consequential/design variants below still
+  # fire in full (their just-in-time detail isn't in CLAUDE.md).
+  reanchor_lean="New work → interpret, decompose (smallest blast-radius first), TaskCreate, work in auto; AskUserQuestion only on real signal (ambiguous / high blast-radius / design or architectural fork / you'd advise against). Per CLAUDE.md policy."
+
   # `loop` — the HEAVY variant, for the deterministic high-stakes signal only
   # (consequential below). Here the full present-and-approve + critique earns its
   # tokens because the cost of getting it wrong is high and irreversible.
@@ -129,12 +136,18 @@ if [ "$paused" -eq 0 ]; then
   if [ "$consequential" -eq 1 ]; then
     loopctx="⚠️ [task-queue] This request looks CONSEQUENTIAL — irreversible or externally binding (deletions, data migrations, paid deps, production/destructive ops). Give it extra scrutiny and use the FULL AskUserQuestion present-and-approve regardless of size; if your honest read is to NOT do it, make that the recommended option. $loop"
     [ "$design" -eq 1 ] && loopctx="$loopctx It also changes the UI: present the proposed design as faithful WIREFRAME mockups in the AskUserQuestion preview — heavy border (╔═╗) for a container, ▒ for an input field, █ for the primary element — recommended option first, arrow-keys + Enter to pick, so the owner can see it before you build."
+    loopctx="$loopctx$(tq_alignment_clause "$cwd")"
   elif [ "$design" -eq 1 ]; then
-    loopctx="[task-queue] Design change. $design_loop"
+    loopctx="[task-queue] Design change. $design_loop$(tq_alignment_clause "$cwd")"
+  elif tq_policy_documented "$root"; then
+    # DEFAULT path, policy already in the always-loaded CLAUDE.md: a terse POINTER, not
+    # the full re-anchor — the biggest per-prompt token saving. No alignment clause
+    # either (SessionStart already hydrates the backlog + weighs recorded decisions).
+    loopctx="[task-queue] $reanchor_lean"
   else
-    loopctx="[task-queue] $reanchor"
+    # DEFAULT path, policy NOT documented: carry the full re-anchor + alignment clause.
+    loopctx="[task-queue] $reanchor$(tq_alignment_clause "$cwd")"
   fi
-  loopctx="$loopctx$(tq_alignment_clause "$cwd")"
 fi
 
 # Combine the open-questions reminder (always, if any) with the loop instruction.

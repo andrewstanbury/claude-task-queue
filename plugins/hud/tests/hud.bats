@@ -271,25 +271,3 @@ teardown() {
   [[ "$output" == *"Currently disabled"* ]]
   [[ "$output" == *"quality"* ]]
 }
-
-@test "hud_coupling reads tidy's cached direction marker" {
-  export CLAUDE_HUD_COUPLING_DIR="$(mktemp -d)"
-  printf 'up' > "$CLAUDE_HUD_COUPLING_DIR/-some-repo"
-  run bash -c "$SRC"' hud_coupling "/some/repo"' bash "$ROOT"; [ "$output" = "up" ]
-  printf 'steady' > "$CLAUDE_HUD_COUPLING_DIR/-some-repo"
-  run bash -c "$SRC"' hud_coupling "/some/repo"' bash "$ROOT"; [ "$output" = "steady" ]
-  rm -rf "$CLAUDE_HUD_COUPLING_DIR"
-}
-
-@test "status line shows 🔗↑ only when coupling climbed (hidden when steady)" {
-  export CLAUDE_HUD_COUPLING_DIR="$(mktemp -d)"
-  enc="$(printf '%s' "$(git -C "$REPO" rev-parse --show-toplevel)" | sed 's:/:-:g')"
-  json="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"},session_id:"s",cwd:$c}')"
-  printf 'up' > "$CLAUDE_HUD_COUPLING_DIR/$enc"
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
-  [[ "$output" == *"🔗↑"* ]]
-  printf 'steady' > "$CLAUDE_HUD_COUPLING_DIR/$enc"
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
-  [[ "$output" != *"🔗"* ]]
-  rm -rf "$CLAUDE_HUD_COUPLING_DIR"
-}

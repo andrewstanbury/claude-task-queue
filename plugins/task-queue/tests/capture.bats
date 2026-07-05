@@ -62,6 +62,22 @@ run_capture() {
   [[ "$output" == *"don't manufacture pushback"* ]]
 }
 
+@test "documented repo: default path collapses to the terse CLAUDE.md pointer" {
+  printf 'guide <!-- claude-companion -->\n' > "$REPO/CLAUDE.md"   # policy lives in the manual
+  run run_capture "$MULTI"
+  [[ "$output" == *"Per CLAUDE.md policy"* ]]              # terse pointer…
+  [[ "$output" == *"work in auto"* ]]                      # …still cues the queue loop
+  [[ "$output" != *"interpret it (one plain line)"* ]]     # full re-anchor suppressed
+  [[ "$output" != *"First weigh it against"* ]]            # no alignment clause on the lean path
+}
+
+@test "documented repo: a CONSEQUENTIAL prompt still gets the heavy procedure (not leaned)" {
+  printf 'guide <!-- claude-companion -->\n' > "$REPO/CLAUDE.md"
+  run run_capture "drop the users table"
+  [[ "$output" == *"CONSEQUENTIAL"* ]]                     # documentation does NOT lean the high-stakes path
+  [[ "$output" == *"interpret→present→approve"* ]]
+}
+
 @test "trivial prompt stays lean too — no critique preamble (split-from-interrupt)" {
   run run_capture "fix the typo"
   [[ "$output" == *"IN AUTO"* ]]                   # lean re-anchor fires…

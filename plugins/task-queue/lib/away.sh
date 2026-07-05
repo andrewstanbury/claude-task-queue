@@ -16,6 +16,17 @@ tq_away_dir()  { printf '%s' "${CLAUDE_TQ_AWAY_DIR:-$HOME/.claude/state/task-que
 tq_away_file() { printf '%s/%s' "$(tq_away_dir)" "$(printf '%s' "$1" | sed 's:/:-:g')"; }
 tq_is_away()   { [ -n "${1:-}" ] && [ -f "$(tq_away_file "$1")" ]; }
 
+# The canonical autopilot PARK-vs-DECIDE rule — the single source of truth for what an
+# away/autopilot session parks for the owner vs. decides itself. Emitted once here and
+# composed into all three park-guidance surfaces (the ask-guard deny, the SessionStart
+# away banner in signals.sh, and the Stop auto-continue in tq-verify.sh), so a threshold
+# change is a ONE-line edit here, not five hand-copied strings. The test is what a wrong
+# call would COST to undo, not mere uncertainty. Kept lean — every caller carries a
+# per-event token budget (tests/token-budget.bats).
+tq_park_rule() {
+  printf '%s' "PARK the decisions the owner will want — an important direction or design/structural choice, a new dependency or interface/data-model change, an ambiguous high-blast-radius fork, anything irreversible or externally-binding (delete, push, send, spend), or a check you cannot run — as a '❓ [parked] <what needs deciding — with your recommendation>' task; decide the routine, low-stakes rest yourself (recommended option, noted)."
+}
+
 # Epoch when away-mode was turned on for this repo (the flag file holds it), or 0.
 # Used for the staleness nudge (how long away) and the return-digest (what changed
 # since). Robust to an empty/legacy flag file (prints 0).

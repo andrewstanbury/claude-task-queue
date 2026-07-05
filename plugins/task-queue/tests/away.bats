@@ -86,10 +86,10 @@ make_task() {
   bash -c 'cd "$1" && bash "$2" on' _ "$REPO" "$AWAY"
   run session_ctx
   [[ "$output" == *"AWAY mode is ON"* ]]
-  # the two load-bearing behaviours: never block, and park-don't-execute
+  # the load-bearing behaviours: never block; park the important, decide the routine
   [[ "$output" == *"never call AskUserQuestion"* ]]
   [[ "$output" == *"PARK"* ]]
-  [[ "$output" == *"don't execute"* ]]
+  [[ "$output" == *"decide the routine"* ]]
   # parked items land in the existing ❓ open-questions bucket (reused, not new)
   [[ "$output" == *"❓ [parked]"* ]]
 }

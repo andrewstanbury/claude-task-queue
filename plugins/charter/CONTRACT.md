@@ -94,16 +94,15 @@ observed behaviour, not documented APIs.
 - **Quality-attributes doc:** one of `QUALITY.md`, `docs/QUALITY.md`,
   `docs/quality-attributes.md`, `QUALITY.adoc`, or a *quality attribute* /
   *non-functional* / *NFR* mention in `CLAUDE.md` / `AGENTS.md` / `docs/CLAUDE.md`
-  / `README.md`. Override via `CLAUDE_CHARTER_QA_FILE`. (ADRs are **not** counted
+  / `README.md`. (ADRs are **not** counted
   here — they're decisions, a separate dimension below.)
 - **Decisions record:** `DECISIONS.md`, `docs/DECISIONS.md`, or any file under
-  `docs/adr/`, `docs/adrs/`, `docs/decisions/`. Override via
-  `CLAUDE_CHARTER_DECISIONS_FILE`. Present → consult-before-reversing reminder;
-  missing → a nudge to capture key decisions (so past choices aren't re-litigated).
+  `docs/adr/`, `docs/adrs/`, `docs/decisions/`. Present → consult-before-reversing
+  reminder; missing → a nudge to capture key decisions (so past choices aren't
+  re-litigated).
 - **Stack notes:** `STACK.md`, `docs/STACK.md`, or a `## Stack` / `## Tech stack`
-  heading in `CLAUDE.md` / `AGENTS.md` / `README.md`. Override via
-  `CLAUDE_CHARTER_STACK_FILE`. Present → consult; missing → capture
-  languages/frameworks/versions (durable context for the model's own judgment).
+  heading in `CLAUDE.md` / `AGENTS.md` / `README.md`. Present → consult; missing →
+  capture languages/frameworks/versions (durable context for the model's own judgment).
 - **Established conventions** (`lib/conventions.sh`): inferred read-only from
   `package.json` deps + a few config files/dirs — UI/component library
   (`components.json` → shadcn, `@mui/material`, `@chakra-ui/react`, `antd`, …),
@@ -124,7 +123,7 @@ observed behaviour, not documented APIs.
   enhancement, components-by-default) so best practices are designed-in rather
   than audited after.
 - **Roadmap/backlog file:** one of `docs/ROADMAP.md`, `ROADMAP.md`,
-  `docs/BACKLOG.md`, `BACKLOG.md`. Override via `CLAUDE_CHARTER_ROADMAP_FILE`.
+  `docs/BACKLOG.md`, `BACKLOG.md`.
   This is the committed, Claude-facing record of what's-next — the coordination
   point across sessions and across engineers on separate machines (git history
   of the file is the shared audit trail). **Detect, not author:** when it's
@@ -132,7 +131,7 @@ observed behaviour, not documented APIs.
   codebase; the hook itself still writes nothing to your project.
 - **Project map:** one of `docs/MAP.md`, `MAP.md`, `docs/ARCHITECTURE.md`,
   `ARCHITECTURE.md` (recognises the common `ARCHITECTURE.md` convention so an
-  existing map isn't re-nagged). Override via `CLAUDE_CHARTER_MAP_FILE`. A
+  existing map isn't re-nagged). A
   compact `file → responsibility` index + entry points so a session orients from
   the map instead of re-scanning the tree. Same **detect-not-author** boundary:
   missing → the hook instructs the model to generate it from the codebase. The
@@ -141,9 +140,6 @@ observed behaviour, not documented APIs.
 - **Repo root:** resolved with `git rev-parse --show-toplevel`, falling back to
   walking for `.git`, then the cwd. (Self-contained — charter does not depend on
   any other plugin; see AGENTS.md on the install boundary.)
-- **Recent history (read-only):** when a roadmap is present, `git log --no-merges
-  --format=%s -n 5` supplies recently-merged subjects next to the reconcile
-  reminder. A repo with no commits (git log exits 128) degrades to silence.
 - **Outcome memory / scar tissue** (`charter_hotspots`): `git log -n 300 --no-merges
   --pretty=format:':C:%s' --name-only` over the repo root. A commit counts as
   *rework* when its subject word-matches `fix|bugfix|hotfix|bug|revert|undo|rollback|

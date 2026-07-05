@@ -4,11 +4,11 @@
 # read-only state the sibling plugins maintain. No model calls, no hooks, no
 # writes — it only reads and prints, so it can't interfere with anything.
 #
-# Slots (left → right); the feature-status slot is always shown, the rest collapse
-# when their data is absent:
-#   health beacon · ✈️ autopilot/🤖 agents/🧷 logs (green on, grey off) · model · ✓/✗ tests ·
-#   🛡✗ floors-off · ❓ open-Qs · 🔗↑ coupling · tok ⇡in ⇣out · git branch (+ dirty * ·
-#   ↑ahead ↓behind).  Decode any symbol on demand with /hud:legend.
+# Three zones joined by a dim │ divider; empty slots (and empty zones) collapse:
+#   [ ● health · ✓/✗ tests · 🛡✗ floors-off · ❓ parked/open-Qs ]
+#   [ ✈️ autopilot · 🤖 agents · 🧷 logs  (green on, grey off) ]
+#   [ model · tok ⇡in ⇣out · ⎇ branch (+ dirty * · ↑ahead ↓behind) ]
+# Decode any symbol on demand with /hud:legend.
 #
 # Scoped to signals a status line is the BEST surface for — persistent
 # state/health you want at a glance. Deliberately NOT re-rendered here: the task
@@ -45,8 +45,6 @@ else
   Y=$'\033[33m'; G=$'\033[32m'; C=$'\033[36m'; R=$'\033[31m'
   B=$'\033[1m'; D=$'\033[2m'; GREY=$'\033[90m'; X=$'\033[0m'
 fi
-SEP="  "
-
 # On-demand: print the symbol key and exit (the /hud:legend command). No stdin.
 if [ "${1:-}" = "--legend" ]; then hud_legend; exit 0; fi
 
@@ -89,18 +87,34 @@ BCOL="$G"
 [ "$AWAY" = "1" ] && BCOL="$Y"
 [ "$VERIFY" = "fail" ] && BCOL="$R"
 
-# Slots are collected left→right into SEGS and joined with SEP once at the end, so
-# the model can sit wherever the owner wants (right after the feature slot) without
-# any slot needing to know whether it's last — there's no trailing separator to trim.
-SEGS=("$BCOL$B●$X")
+# The line is three ZONES joined by a dim divider (│): [health & alerts] │ [feature
+# modes] │ [context]. Within a zone slots are single-space separated so the group
+# reads as one unit; an empty zone (and its divider) collapses. Grouped layout chosen
+# by the owner over the old flat SEP-joined list.
+DIVSEP=" $GREY│$X "
+join_slots() { local out="" s; for s in "$@"; do [ -n "$s" ] && out="${out:+$out }$s"; done; printf '%s' "$out"; }
 
-# 2) Feature status — ALWAYS shown, each mode led by its icon (✈️ autopilot · 🤖
-# agents · 🧷 logs — the 🧷 slot is the crash-checkpoint feature, labelled "logs" in
-# this line only; the command/banners keep the name checkpoint) so the owner can
-# see each mode's state at a glance: green = on, grey = off. The leading icons make a
-# separator redundant. On a NARROW terminal it collapses to only the ON features to
-# protect width. Emoji ignore ANSI color, so when color is OFF (NO_COLOR/dumb) the
-# green/dim can't convey state — we spell out on/off in that case only.
+# Zone 1 — health & alerts: the beacon, the tests outcome, any disabled safety floors,
+# and the ❓ count (parked decisions / open questions — the pile the owner reviews).
+Z1=("$BCOL$B●$X")
+case "$VERIFY" in
+  pass)    Z1+=("$G$B✓ tests$X") ;;
+  fail)    Z1+=("$R$B✗ tests$X") ;;
+  timeout) Z1+=("$Y$B⚠ tests$X") ;;
+esac
+DISABLED="$(hud_floors_disabled 2>/dev/null || true)"
+if [ -n "$DISABLED" ]; then
+  NOFF="$(printf '%s' "$DISABLED" | wc -w | tr -d ' ')"
+  Z1+=("$R$B🛡✗$NOFF$X")     # a disabled guard makes the green dot misleading — always shown
+fi
+OPENQ="$(hud_open_questions "$SID" 2>/dev/null || printf 0)"
+[ "${OPENQ:-0}" -gt 0 ] 2>/dev/null && Z1+=("$Y$B❓$OPENQ$X")
+
+# Zone 2 — feature modes: ALWAYS shown, each mode led by its icon (✈️ autopilot · 🤖
+# agents · 🧷 logs — 🧷 is the crash-checkpoint feature, labelled "logs" in this line
+# only). green = on, grey = off. On a NARROW terminal it collapses to only the ON
+# features to protect width. Emoji ignore ANSI color, so when color is OFF we spell
+# out on/off.
 FEAT=""
 add_feat() {  # $1 icon  $2 label  $3 on(1)/off(0)
   local seg word=""
@@ -111,60 +125,26 @@ add_feat() {  # $1 icon  $2 label  $3 on(1)/off(0)
     [ -z "$GREY" ] && word=" off"
     seg="$1 $GREY$2$word$X"
   else return 0; fi
-  [ -n "$FEAT" ] && FEAT="$FEAT$SEP"
+  [ -n "$FEAT" ] && FEAT="$FEAT "        # single space within the zone
   FEAT="$FEAT$seg"
 }
 add_feat "✈️" autopilot "$AWAY"
 add_feat "🤖" agents    "$AGENT"
 add_feat "🧷" logs      "$CKPT"
-[ -n "$FEAT" ] && SEGS+=("$FEAT")
 
-# 3) Model — name only (the "Model:" label is dropped to save width). Sits right
-# after the feature slot at the owner's request.
-SEGS+=("$C$SHORT_MODEL$X")
-
-# 4) Tests — the verification floor's last outcome (the owner's trust signal)
-case "$VERIFY" in
-  pass)    SEGS+=("$G$B✓ tests$X") ;;
-  fail)    SEGS+=("$R$B✗ tests$X") ;;
-  timeout) SEGS+=("$Y$B⚠ tests$X") ;;
-esac
-
-# 4a) Disabled safety floors — 🛡✗N when any anti-rework gate is switched off via a
-# CLAUDE_*=0 env var. Always shown (never shed on narrow): the whole point is that a
-# disabled guard makes the green dot misleading, so the warning must not collapse.
-DISABLED="$(hud_floors_disabled 2>/dev/null || true)"
-if [ -n "$DISABLED" ]; then
-  NOFF="$(printf '%s' "$DISABLED" | wc -w | tr -d ' ')"
-  SEGS+=("$R$B🛡✗$NOFF$X")
-fi
-
-# 4b) Open questions — unanswered ❓ items you still owe an answer on this session.
-# Ambient nudge so lingering questions get NOTICED without anyone re-raising them.
-OPENQ="$(hud_open_questions "$SID" 2>/dev/null || printf 0)"
-[ "${OPENQ:-0}" -gt 0 ] 2>/dev/null && SEGS+=("$Y$B❓$OPENQ$X")
-
-# 4c) Coupling trend — 🔗↑ only when import density climbed past the threshold at
-# tidy's last verify (cached read; hud never computes it). Hidden when steady.
-case "$(hud_coupling "$ROOT" 2>/dev/null)" in
-  up*) SEGS+=("$Y$B🔗↑$X") ;;
-esac
-
-# 5a) Token throughput — ⇡ input ("uploaded": tokens in the current context, incl.
-# cache) and ⇣ output ("downloaded": the last response). From the same context_window
-# object as ctx% — since Claude Code v2.1.132 these are CURRENT-context figures, not
-# cumulative-session totals. Dim + shed on narrow; gated on input > 0 so it's silent
-# before the first API call and right after /compact (when the counts reset).
+# Zone 3 — context: model · token throughput (⇡ input in the current context incl.
+# cache · ⇣ the last response; gated on input>0 so it's silent before the first API
+# call / right after compact) · git branch (+ dirty * · ↑ahead ↓behind). Tokens and
+# branch shed on a narrow terminal.
+Z3=("$C$SHORT_MODEL$X")
 if [ "$NARROW" -eq 0 ]; then
   ITOK="${IN_TOK%.*}"; OTOK="${OUT_TOK%.*}"
   HIN="$(hud_human_tokens "$ITOK")"
   if [ -n "$HIN" ] && [ "${ITOK:-0}" -gt 0 ] 2>/dev/null; then
     HOUT="$(hud_human_tokens "$OTOK")"
-    SEGS+=("${D}tok ⇡$HIN ⇣${HOUT:-0}$X")
+    Z3+=("${D}tok ⇡$HIN ⇣${HOUT:-0}$X")
   fi
 fi
-
-# 6) Branch (+ dirty-file count + unpushed/unpulled), shed on narrow
 if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
   bseg="$C$B⎇ $BRANCH$X"
   [ -n "$DIRTY" ] && bseg="$bseg $Y$B*$DIRTY$X"
@@ -173,10 +153,13 @@ if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
     [ "${AHEAD:-0}" -gt 0 ] 2>/dev/null && bseg="$bseg $C$B↑$AHEAD$X"
     [ "${BEHIND:-0}" -gt 0 ] 2>/dev/null && bseg="$bseg $Y$B↓$BEHIND$X"
   fi
-  SEGS+=("$bseg")
+  Z3+=("$bseg")
 fi
 
-# Join every slot with SEP and emit as one line — model already sits after features.
+# Join each non-empty zone (single-space within), then the zones with the dim │.
 line=""
-for seg in "${SEGS[@]}"; do line="${line:+$line$SEP}$seg"; done
+for zone in "$(join_slots "${Z1[@]}")" "$FEAT" "$(join_slots "${Z3[@]}")"; do
+  [ -n "$zone" ] || continue
+  line="${line:+$line$DIVSEP}$zone"
+done
 printf '%s\n' "$line"

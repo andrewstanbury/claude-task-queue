@@ -115,10 +115,6 @@ if [ "$documented" -eq 0 ] && [ "${#present[@]}" -gt 0 ]; then
   # reversing" instruction (genericized away in 0.10.0); this is what
   # alignment-aware capture weighs work against.
   [ "$dstatus" != "missing" ] && brief="$brief"$' '"Recorded decisions are the alignment anchor — don't reverse or contradict one without consulting it first."
-  if [ "$rstatus" != "missing" ]; then
-    recent="$(charter_recent_commits "$root" 5 2>/dev/null | awk 'NF{printf "%s%s", sep, $0; sep="; "}')"
-    [ -n "$recent" ] && brief="$brief"$' '"Reconcile the backlog against recent commits (mark done what landed): $recent."
-  fi
   parts+=("$brief")
   parts+=("[charter] Summarise these in CLAUDE.md and mark it \"claude-companion\" to make this brief go silent.")
 fi
