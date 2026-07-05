@@ -77,18 +77,17 @@ teardown() {
   [ "$(printf '%s\n' "$output" | wc -l)" -eq 1 ]   # single line
 }
 
-@test "render: palette follows COLORTERM — truecolor when advertised, bright-16 fallback, none under NO_COLOR" {
+@test "render: palette uses default ANSI theme colors (no pinned RGB), none under NO_COLOR" {
   payload="$(jq -nc --arg c "$REPO" \
     '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
-  # truecolor terminal → 24-bit Solarized-pop codes (38;2;...). Pin the whole color
-  # environment (unset NO_COLOR, non-dumb TERM) so CI's TERM=dumb can't preempt it.
+  # color terminal → plain ANSI SGR codes that inherit the terminal theme, and NO
+  # pinned 24-bit RGB (38;2;...). Even when COLORTERM=truecolor is advertised we
+  # let the terminal own the hue. Pin the whole color environment (unset NO_COLOR,
+  # non-dumb TERM) so CI's TERM=dumb can't preempt it.
   run bash -c 'printf "%s" "$1" | env -u NO_COLOR TERM=xterm COLORTERM=truecolor "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *$'\033[38;2;'* ]]
-  # plain color terminal (no COLORTERM) → portable bright-16 codes, no truecolor
-  run bash -c 'printf "%s" "$1" | env -u NO_COLOR -u COLORTERM TERM=xterm "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *$'\033[9'* ]]
+  [[ "$output" == *$'\033[32m'* ]]
   [[ "$output" != *$'\033[38;2;'* ]]
-  # NO_COLOR wins over COLORTERM → no escape codes at all
+  # NO_COLOR wins → no escape codes at all
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 COLORTERM=truecolor TERM=xterm "$2"' _ "$payload" "$STATUS"
   [[ "$output" != *$'\033['* ]]
 }

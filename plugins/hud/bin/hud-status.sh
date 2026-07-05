@@ -41,20 +41,13 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 
 if [ -n "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ]; then
   Y=""; G=""; C=""; R=""; B=""; D=""; GREY=""; X=""
-elif [ "${COLORTERM:-}" = "truecolor" ] || [ "${COLORTERM:-}" = "24bit" ]; then
-  # Claude-muted — a warm, desaturated 24-bit palette that echoes the Claude CLI's
-  # own terminal aesthetic: sage green, Claude terracotta (#CC785C, the brand
-  # accent, used for the attention slot), dusty blue, muted brick red, warm-taupe
-  # grey for OFF. Deliberately low-saturation, not neon. Falls through to the
-  # bright-16 branch below without truecolor, so the line renders honestly
-  # everywhere.
-  G=$'\033[38;2;122;169;130m'; Y=$'\033[38;2;204;120;92m'
-  C=$'\033[38;2;138;166;196m'; R=$'\033[38;2;184;104;90m'
-  B=$'\033[1m'; D=$'\033[2m'; GREY=$'\033[38;2;146;139;128m'; X=$'\033[0m'
 else
-  # Bright (9x) foregrounds — portable 16-color fallback for terminals that don't
-  # advertise truecolor. GREY stays dim (90) so OFF features recede.
-  Y=$'\033[93m'; G=$'\033[92m'; C=$'\033[96m'; R=$'\033[91m'
+  # Default terminal palette — plain ANSI SGR colors, not pinned 24-bit RGB, so the
+  # line inherits the user's terminal theme (the same colors the Claude Code CLI
+  # itself renders with) and adapts to light/dark and any scheme. Green = on,
+  # yellow = attention, cyan = info, red = alert; GREY (dim bright-black) recedes
+  # OFF features. No truecolor branch to keep re-tuning — the terminal owns the hue.
+  G=$'\033[32m'; Y=$'\033[33m'; C=$'\033[36m'; R=$'\033[31m'
   B=$'\033[1m'; D=$'\033[2m'; GREY=$'\033[90m'; X=$'\033[0m'
 fi
 # On-demand: print the symbol key and exit (the /hud:legend command). No stdin.

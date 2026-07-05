@@ -42,14 +42,16 @@ tq_away_since() {
 # Return-digest: what happened for cur_root while the owner was away (since epoch
 # `since`) — tasks COMPLETED since then and OPEN ❓ items still awaiting them, across
 # sessions rooted at this repo. Printed by tq-away.sh on "off" (the explicit "I'm
-# back"). Counts + up to 3 completed subjects; one line when nothing changed.
+# back"). Counts + up to 3 completed subjects; ALL parked ❓ subjects listed in full
+# (each carries its recommendation) so "off" is itself the review checkpoint — the
+# owner unblocks the pile here before the queue resumes. One line when nothing changed.
 tq_away_digest() {
   local cur_root="$1" since="${2:-0}"
   [ -n "$cur_root" ] || return 0
-  local tdir sdir sid root f m done_n park_n subj shown
+  local tdir sdir sid root f m done_n park_n subj shown parked
   tdir="$(tq_tasks_dir)"
   [ -d "$tdir" ] || return 0
-  done_n=0; park_n=0; shown=""
+  done_n=0; park_n=0; shown=""; parked=""
   for sdir in "$tdir"/*/; do
     [ -d "$sdir" ] || continue
     sid="$(basename "$sdir")"
@@ -67,6 +69,8 @@ tq_away_digest() {
         fi
       elif jq -e '(.status=="pending" or .status=="in_progress") and ((.subject//"")|startswith("❓"))' "$f" >/dev/null 2>&1; then
         park_n=$((park_n + 1))
+        subj="$(jq -r '.subject // ""' "$f" 2>/dev/null || true)"
+        [ -n "$subj" ] && parked="$parked"$'\n'"  $subj"
       fi
     done
   done
@@ -76,5 +80,9 @@ tq_away_digest() {
   fi
   printf 'While you were away: %d task(s) completed, %d ❓ parked for your review.\n' "$done_n" "$park_n"
   [ -n "$shown" ] && printf '%s\n' "${shown#$'\n'}"
-  [ "$park_n" -gt 0 ] && printf 'The parked items re-surface on your next prompt (and show in hud as ❓%d).\n' "$park_n"
+  if [ "$park_n" -gt 0 ]; then
+    printf 'Parked decisions to review first (each carries a recommendation):\n'
+    printf '%s\n' "${parked#$'\n'}"
+    printf 'Present each to the owner NOW the design-preview way — a blocking AskUserQuestion offering 2-3 concrete options with your recommended one first (labelled "(Recommended)"), so they pick rather than face an open prose question — and apply their choice BEFORE pulling any new queue work; resolve/clear each ❓ (TaskUpdate) as you go. Re-enabling autopilot resumes the rest of the queue. (Also in hud as ❓%d.)\n' "$park_n"
+  fi
 }

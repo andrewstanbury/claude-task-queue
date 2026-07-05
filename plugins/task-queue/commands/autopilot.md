@@ -13,7 +13,9 @@ when you step away); the queue auto-continues, AskUserQuestion is blocked, and I
 **park the decisions you'll want to make** — important direction and design/structural
 choices, plus anything irreversible (delete / push / send / spend) — as `❓` items so
 you come back to a reviewable pile. I decide the routine, low-stakes calls myself and
-keep working; you make the parked calls on return and I carry on.
-Autopilot **OFF** = the normal review loop, where I check in on the consequential
-calls. You never *need* this command — just say "keep going while I'm gone" / "I'm
-back" and I'll set it.
+keep working.
+Autopilot **OFF** = I stop auto-driving the queue and print the parked pile in full,
+each with my recommendation — we clear those decisions **first**, before I pull any
+new queue work, so you unblock the backlog in one pass. Flip autopilot back on (or say
+"keep going") and I resume draining the queue. You never *need* this command — just say
+"keep going while I'm gone" / "I'm back" and I'll set it.
