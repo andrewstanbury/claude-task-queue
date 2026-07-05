@@ -393,3 +393,11 @@ make_question() {   # $1=session $2=id $3=subject
   CLAUDE_TQ_OPEN_Q=0 run run_capture "fix the typo"
   [[ "$output" != *"unanswered question"* ]]      # reminder suppressed (loop may still fire)
 }
+
+@test "open questions: a large pile is CAPPED (first few + overflow count), not listed in full" {
+  local i; for i in 1 2 3 4 5 6; do make_question sess "q$i" "❓ question number $i"; done
+  run run_capture "fix the typo"
+  [[ "$output" == *"6 unanswered question"* ]]          # header still counts them all
+  [[ "$output" == *"…and 2 more"* ]]                    # only the first 4 are listed
+  [ "$(printf '%s\n' "$output" | grep -c '  • ')" -eq 4 ]
+}

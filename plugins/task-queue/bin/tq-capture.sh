@@ -70,7 +70,12 @@ if [ "${CLAUDE_TQ_OPEN_Q:-1}" != "0" ]; then
   openq="$(tq_open_questions "$sid" 2>/dev/null || true)"
   if [ -n "$openq" ]; then
     qn="$(printf '%s\n' "$openq" | grep -c .)"
-    qlist="$(printf '%s\n' "$openq" | sed 's/^/  • /')"
+    # CAP the list — autopilot parks decisions as ❓, so the pile grows, and this fires
+    # EVERY prompt; show the first few and count the rest so a big pile can't bloat each
+    # turn. Same shape as the SessionStart resume cap; a fixed 4 needs no env knob.
+    qlist="$(printf '%s\n' "$openq" | head -n 4 | sed 's/^/  • /')"
+    more=$(( qn - 4 ))
+    [ "$more" -gt 0 ] && qlist="$qlist"$'\n'"  …and $more more (see the ❓ tasks)"
     # Terse on purpose: the how-to (re-raise, mark done via TaskUpdate) lives in the
     # SessionStart policy, so this recurring per-prompt nudge carries only the LIST.
     qreminder="↩ [task-queue] $qn unanswered question(s) still open — re-raise before continuing:"$'\n'"$qlist"
