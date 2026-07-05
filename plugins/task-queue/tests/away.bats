@@ -139,6 +139,25 @@ make_task() {
   [[ "$output" == *"✓ Wire the payment engine"* ]]
 }
 
+@test "away off lists every parked decision in full and gates the queue behind them" {
+  make_session "sess1"
+  make_task "sess1" 1 in_progress "❓ [parked] Confirm Postgres over MySQL?"
+  make_task "sess1" 2 pending     "❓ [parked] Pick the auth library"
+  make_task "sess1" 3 pending     "❓ [parked] Approve the new webhooks dependency"
+  bash -c 'cd "$1" && bash "$2" on' _ "$REPO" "$AWAY"
+  run bash -c 'cd "$1" && bash "$2" off' _ "$REPO" "$AWAY"
+  [[ "$output" == *"3 ❓ parked"* ]]
+  # the FULL list is printed (not a first-N cap) so "off" is the review point
+  [[ "$output" == *"Confirm Postgres over MySQL?"* ]]
+  [[ "$output" == *"Pick the auth library"* ]]
+  [[ "$output" == *"Approve the new webhooks dependency"* ]]
+  # soft-block: resolve parked items BEFORE pulling new queue work
+  [[ "$output" == *"BEFORE pulling any new queue work"* ]]
+  # design-preview posture: each parked decision is a pick-from-options review
+  [[ "$output" == *"AskUserQuestion"* ]]
+  [[ "$output" == *"2-3 concrete options"* ]]
+}
+
 @test "away off is quiet when nothing changed" {
   bash -c 'cd "$1" && bash "$2" on' _ "$REPO" "$AWAY"
   run bash -c 'cd "$1" && bash "$2" off' _ "$REPO" "$AWAY"

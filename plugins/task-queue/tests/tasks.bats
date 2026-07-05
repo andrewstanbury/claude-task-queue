@@ -108,6 +108,7 @@ run_resume() {
   [[ "$output" == *"recommended approach plus"* ]]         # present options like design-preview
   [[ "$output" == *"challenge it RUTHLESSLY"* ]]           # strengthened challenge
   [[ "$output" == *"visible trade-off"* ]]                 # override a requirement openly, not silently
+  [[ "$output" == *"re-raise a parked ❓"* ]]              # parked review = options + recommendation
 }
 
 @test "tq-agent toggles opt-in agent-mode on/off/status (per repo)" {
