@@ -29,7 +29,7 @@
       "name": "hud",
       "source": "./plugins/hud",
       "description": "One read-only status line for the companion plugins — health, feature state, tests, parked-questions, token throughput, and git branch — in three glanceable zones. Zero model-token cost. Full details on the plugin page.",
-      "version": "0.10.0"
+      "version": "0.11.0"
     }
   ]
 }
