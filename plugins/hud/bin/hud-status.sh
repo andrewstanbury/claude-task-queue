@@ -42,15 +42,15 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 if [ -n "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ]; then
   Y=""; G=""; C=""; R=""; B=""; D=""; GREY=""; X=""
 elif [ "${COLORTERM:-}" = "truecolor" ] || [ "${COLORTERM:-}" = "24bit" ]; then
-  # Vivid — a clean, saturated 24-bit palette for terminals that advertise
-  # truecolor: emerald green, warm amber, sky blue, coral red. Chosen over the
-  # muddy Solarized accents (olive green / mustard amber read dull as raw
-  # foreground text). GREY is a muted slate so OFF features recede. Falls through
-  # to the bright-16 branch below without truecolor, so the line renders honestly
+  # Claude-muted — a warm, desaturated 24-bit palette that echoes the Claude CLI's
+  # own terminal aesthetic: sage green, Claude terracotta (#CC785C, the brand
+  # accent, used for the attention slot), dusty blue, muted brick red, warm-taupe
+  # grey for OFF. Deliberately low-saturation, not neon. Falls through to the
+  # bright-16 branch below without truecolor, so the line renders honestly
   # everywhere.
-  G=$'\033[38;2;38;222;129m'; Y=$'\033[38;2;255;190;60m'
-  C=$'\033[38;2;56;169;255m'; R=$'\033[38;2;255;90;95m'
-  B=$'\033[1m'; D=$'\033[2m'; GREY=$'\033[38;2;120;134;145m'; X=$'\033[0m'
+  G=$'\033[38;2;122;169;130m'; Y=$'\033[38;2;204;120;92m'
+  C=$'\033[38;2;138;166;196m'; R=$'\033[38;2;184;104;90m'
+  B=$'\033[1m'; D=$'\033[2m'; GREY=$'\033[38;2;146;139;128m'; X=$'\033[0m'
 else
   # Bright (9x) foregrounds — portable 16-color fallback for terminals that don't
   # advertise truecolor. GREY stays dim (90) so OFF features recede.
