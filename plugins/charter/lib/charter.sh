@@ -46,13 +46,10 @@ charter_hotspots() {
 # Does the project document its quality attributes? Prints "documented" or
 # "missing". Accepts a dedicated file or a QA section in a manual doc. (ADRs are
 # NOT counted here — they're *decisions*, a separate dimension; see
-# charter_decisions_status.) Override the file via CLAUDE_CHARTER_QA_FILE.
+# charter_decisions_status.)
 charter_qa_status() {
   local root="$1" f
   [ -n "$root" ] || { printf 'missing'; return 0; }
-  if [ -n "${CLAUDE_CHARTER_QA_FILE:-}" ] && [ -f "$root/$CLAUDE_CHARTER_QA_FILE" ]; then
-    printf 'documented'; return 0
-  fi
   for f in QUALITY.md docs/QUALITY.md QUALITY.adoc docs/quality-attributes.md; do
     [ -f "$root/$f" ] && { printf 'documented'; return 0; }
   done
@@ -66,15 +63,10 @@ charter_qa_status() {
 # Does the project record its decisions (ADRs / DECISIONS.md)? Prints the
 # relative path/dir if so, else nothing. Decisions are distinct from quality
 # attributes: re-litigating or contradicting a past choice is an expensive
-# AI-maintainer failure mode, so they get their own dimension. Override via
-# CLAUDE_CHARTER_DECISIONS_FILE.
+# AI-maintainer failure mode, so they get their own dimension.
 charter_decisions_path() {
   local root="$1" f
   [ -n "$root" ] || return 0
-  if [ -n "${CLAUDE_CHARTER_DECISIONS_FILE:-}" ]; then
-    [ -f "$root/$CLAUDE_CHARTER_DECISIONS_FILE" ] && printf '%s' "$CLAUDE_CHARTER_DECISIONS_FILE"
-    return 0
-  fi
   for f in DECISIONS.md docs/DECISIONS.md; do
     [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
   done
@@ -118,15 +110,10 @@ charter_recent_commits() {
 # The project's committed, Claude-facing backlog: a roadmap/backlog file that
 # travels with the repo so work can be picked up, resumed, and coordinated
 # across engineers on separate machines (git history = the cross-dev audit
-# trail). Prints the relative path if one exists, else nothing. Override the
-# accepted path via CLAUDE_CHARTER_ROADMAP_FILE (relative to root).
+# trail). Prints the relative path if one exists, else nothing.
 charter_roadmap_path() {
   local root="$1" f
   [ -n "$root" ] || return 0
-  if [ -n "${CLAUDE_CHARTER_ROADMAP_FILE:-}" ]; then
-    [ -f "$root/$CLAUDE_CHARTER_ROADMAP_FILE" ] && printf '%s' "$CLAUDE_CHARTER_ROADMAP_FILE"
-    return 0
-  fi
   for f in docs/ROADMAP.md ROADMAP.md docs/BACKLOG.md BACKLOG.md; do
     [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
   done
@@ -142,14 +129,10 @@ charter_roadmap_status() {
 # re-scanning the tree (the biggest token lever for an AI maintainer: a map
 # grows sublinearly, the tree doesn't). Recognises common existing conventions
 # (ARCHITECTURE.md) so we don't nag a project that already keeps one. Prints the
-# relative path if found, else nothing. Override via CLAUDE_CHARTER_MAP_FILE.
+# relative path if found, else nothing.
 charter_map_path() {
   local root="$1" f
   [ -n "$root" ] || return 0
-  if [ -n "${CLAUDE_CHARTER_MAP_FILE:-}" ]; then
-    [ -f "$root/$CLAUDE_CHARTER_MAP_FILE" ] && printf '%s' "$CLAUDE_CHARTER_MAP_FILE"
-    return 0
-  fi
   for f in docs/MAP.md MAP.md docs/ARCHITECTURE.md ARCHITECTURE.md; do
     [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
   done
@@ -163,15 +146,10 @@ charter_map_status() {
 # Does the project document its tech stack — languages, frameworks, key deps and
 # versions? Distinct from the file-map (structure) and the QA gate (targets): the
 # stack is the durable context that modernization/currency judgments lean on.
-# Prints the relative path / matched doc, else nothing. Override via
-# CLAUDE_CHARTER_STACK_FILE.
+# Prints the relative path / matched doc, else nothing.
 charter_stack_path() {
   local root="$1" f
   [ -n "$root" ] || return 0
-  if [ -n "${CLAUDE_CHARTER_STACK_FILE:-}" ]; then
-    [ -f "$root/$CLAUDE_CHARTER_STACK_FILE" ] && printf '%s' "$CLAUDE_CHARTER_STACK_FILE"
-    return 0
-  fi
   for f in STACK.md docs/STACK.md docs/stack.md; do
     [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
   done

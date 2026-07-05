@@ -310,19 +310,18 @@ run_standard() {
   [[ "$output" == *"first subject"* ]]
 }
 
-@test "roadmap reconcile: surfaces recently-merged commits when a roadmap is present" {
+# Reconciling the backlog against recent commits is task-queue's job (queue
+# hydration owns it); charter no longer duplicates it. Charter keeps only its
+# doc-PRESENCE detection: a roadmap present → the consult "backlog → path" line,
+# and no reconcile-against-commits injection.
+@test "roadmap present: consult line shows the backlog path, no reconcile injection" {
   mkdir -p "$REPO/docs"; printf '# Roadmap\n' > "$REPO/docs/ROADMAP.md"
   git -C "$REPO" add -A
   git -C "$REPO" -c user.email=t@t -c user.name=t commit -q -m "feat: do the thing"
   run run_standard startup
-  [[ "$output" == *"recent commits"* ]]
-  [[ "$output" == *"do the thing"* ]]
-}
-
-@test "roadmap reconcile: no reconcile line in a repo with no commits" {
-  mkdir -p "$REPO/docs"; printf '# Roadmap\n' > "$REPO/docs/ROADMAP.md"
-  run run_standard startup                      # REPO inited but no commits
-  [[ "$output" != *"Reconcile the backlog"* ]]
+  [[ "$output" == *"backlog → docs/ROADMAP.md"* ]]   # presence detection kept
+  [[ "$output" != *"Reconcile the backlog"* ]]        # reconcile clause removed
+  [[ "$output" != *"recent commits"* ]]
 }
 
 @test "stack-status: missing, then present via STACK.md / a Stack heading" {

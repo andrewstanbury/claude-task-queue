@@ -51,7 +51,7 @@ tidy_go_importers() {
     mkdir -p "$(dirname "$cache")" 2>/dev/null || true
     local out rc tmpl='{{.ImportPath}}{{range .Imports}} {{.}}{{end}}{{range .TestImports}} {{.}}{{end}}'
     if tidy_have timeout; then
-      out="$(cd "$moddir" && timeout "${CLAUDE_TIDY_BLAST_GOLIST_TIMEOUT:-8}" go list -e -f "$tmpl" ./... 2>/dev/null)"; rc=$?
+      out="$(cd "$moddir" && timeout 8 go list -e -f "$tmpl" ./... 2>/dev/null)"; rc=$?
     else
       out="$(cd "$moddir" && go list -e -f "$tmpl" ./... 2>/dev/null)"; rc=$?
     fi
@@ -63,7 +63,7 @@ tidy_go_importers() {
       # paying the slow scan. Only after repeated timeouts give up for the session.
       local af="$cache.timeouts" a=0
       [ -f "$af" ] && a="$(cat "$af" 2>/dev/null || printf 0)"; a="${a//[^0-9]/}"; [ -n "$a" ] || a=0
-      if [ "$a" -ge "${CLAUDE_TIDY_BLAST_GOLIST_RETRIES:-2}" ]; then
+      if [ "$a" -ge 2 ]; then
         printf 'FAILED\n' > "$cache" 2>/dev/null || true
       else
         printf '%s' "$((a + 1))" > "$af" 2>/dev/null || true

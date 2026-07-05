@@ -43,5 +43,6 @@ root="$(tq_root_for_cwd "$cwd")"
 
 tq_is_away "$root" || allow                           # owner present → asking is fine
 
-jq -cn --arg r "🚶 Away-mode is ON — the owner can't answer, so this is blocked. Don't ask — DECIDE. If the choice is REVERSIBLE (this INCLUDES design/taste calls and ambiguous forks — git + checkpoint make it undoable), pick the option you'd RECOMMEND, say which + why in one line, note it in the task for review, and proceed. PARK it as a '❓ [parked] <the question — with your recommendation>' task ONLY when it is genuinely IRREVERSIBLE or externally-binding (delete data, push, send, spend) or a check you physically cannot run. Reversibility — not how unsure you are — is the test; parked items re-surface on return." \
+reason="🚶 Away-mode is ON — owner can't answer, so this is blocked. Don't ask. $(tq_park_rule) Parked items are the owner's review pile on return."
+jq -cn --arg r "$reason" \
   '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'

@@ -57,20 +57,22 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   the Stop hook AUTO-CONTINUES the queue while any non-`❓` task is still open (so the
   session can't idle waiting for an absent owner), `AskUserQuestion` is **hard-blocked**
   by a PreToolUse guard, and the approval checkpoint is skipped. Self-verify (you have a
-  shell), and **DECIDE every reversible call yourself rather than parking it** —
-  including design/visual/taste calls and ambiguous forks: take the option you'd
-  recommend and record the choice (so the owner can review and reverse it on return),
-  because git + the armed checkpoint make it undoable. PARK (as a `❓ [parked]` task,
-  the only way to defer) ONLY what you genuinely cannot decide because reversing it
-  would be impossible or costly — an irreversible/externally-binding action or a check
-  you physically cannot run; **reversibility, not uncertainty, is the parking test**. The auto-continue is bounded by a per-prompt counter
+  shell), do all reversible work, and **PARK the decisions the owner will want to make**
+  (as a `❓ [parked]` task — the only way to defer) — an important direction or
+  design/structural choice, a new dependency or seam, a data-model/interface change, a
+  genuinely ambiguous high-blast-radius fork, plus any irreversible/externally-binding
+  action or a check you physically cannot run — so the owner returns to a reviewable
+  pile. **Decide the routine, low-stakes, cheap-to-undo calls yourself** (recommended
+  option, recorded) and keep moving; the test is what a wrong call would COST to undo,
+  not mere uncertainty. The auto-continue is bounded by a per-prompt counter
   (`CLAUDE_TQ_AWAY_MAX_CONTINUE`, default 40) so a stuck model can't spin. `off` prints a
   digest of what completed + what's parked; a staleness nudge fires if it's left on.
 - **Per-feature commands** — each mode is a typeable slash command (discoverable via
   Claude Code's `/` menu): `/task-queue:autopilot`, `/task-queue:checkpoint`,
   `/task-queue:agents` (each toggles + announces the new state), `/task-queue:resume`
   (pick up where an earlier session left off — restore crashed edits + reinstate its
-  open tasks) and `/task-queue:status` (what's on + open work). They replaced
+  open tasks), `/task-queue:ship` (verify → PR → squash-merge completed work to main)
+  and `/task-queue:status` (what's on + open work). They replaced
   the single `/tq` hub. You never *need* them — plain language drives every mode ("keep
   going while I'm gone" → autopilot on) — they're the power-user surface. Checkpoint and
   agents also honor a global default env (`CLAUDE_TQ_CHECKPOINT_MODE` /

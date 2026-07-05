@@ -116,8 +116,8 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   the toolchain's own import graph — `go list -e -f '{{.ImportPath}} {{.Imports}}…'
   ./...` resolves the exact packages that import the touched file's package
   (caught regardless of comments/aliases) and reports `~N package(s) import X`.
-  The module scan is **bounded** (`timeout`, `CLAUDE_TIDY_BLAST_GOLIST_TIMEOUT`,
-  default 8s) and **cached per module per session** (run at most once; a failure
+  The module scan is **bounded** (`timeout`, default 8s) and **cached per module
+  per session** (run at most once; a failure
   is remembered so it isn't retried). When `go` is absent, disabled
   (`CLAUDE_TIDY_BLAST_GOLIST=0`), or the scan fails, it **falls back** to the grep
   heuristic. **Other languages** use `git grep` for import-context references to
@@ -213,7 +213,7 @@ before intent was known and re-injected a big report every session):
   generator: it enumerates files with `git ls-files --cached --others
   --exclude-standard` (fallback `find`) and reports file/line counts, the heaviest
   + over-budget files, cruft markers, and junk artefacts. Tunables:
-  `CLAUDE_TIDY_SIZE_BUDGET` (default 400), `CLAUDE_TIDY_DISTILL_TOP` (default 10).
+  `CLAUDE_TIDY_SIZE_BUDGET` (default 400); lists the 10 heaviest files.
   It never writes and never hard-fails. The *judgment* (what to actually delete)
   is the model's, gated on confirmation.
 

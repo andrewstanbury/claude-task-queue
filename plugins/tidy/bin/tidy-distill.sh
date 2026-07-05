@@ -12,13 +12,12 @@
 # the caller. Language-agnostic — it uses git to enumerate tracked +
 # new-but-not-ignored files, falling back to find.
 #
-# Tunables: CLAUDE_TIDY_SIZE_BUDGET (lines/file, default 400),
-#           CLAUDE_TIDY_DISTILL_TOP (heaviest-files to list, default 10).
+# Tunable: CLAUDE_TIDY_SIZE_BUDGET (lines/file, default 400). Lists the 10 heaviest.
 
 set -uo pipefail
 
 budget="${CLAUDE_TIDY_SIZE_BUDGET:-400}"
-topn="${CLAUDE_TIDY_DISTILL_TOP:-10}"
+topn=10
 
 # Resolve the project root from the first arg (or cwd), preferring the git top.
 root="${1:-}"

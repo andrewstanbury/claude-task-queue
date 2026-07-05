@@ -60,8 +60,8 @@ if [ "${CLAUDE_TQ_AWAY_CONTINUE:-1}" != "0" ] && tq_is_away "$root"; then
     rm -f "$(tq_intent_file "$sid")" 2>/dev/null || true          # away: no owner-confirm gate
     n="$(printf '%s\n' "$work" | grep -c .)"
     next="$(printf '%s\n' "$work" | head -n1)"
-    jq -cn --arg r "🚶 Away-mode: $n task(s) still open in the queue — next: '$next'. The owner is away, so DO NOT stop and DO NOT ask. Take the next unblocked task, do it, verify your own work (run the tests/build yourself — you have a shell), update the task, and continue. DECIDE anything reversible yourself — design/taste/ambiguous forks included — by taking the option you'd recommend and noting it, rather than parking. PARK only the genuinely IRREVERSIBLE or externally-binding (delete data, push, send, spend money), or a check you physically cannot run, as a '❓ [parked] <what needs deciding — with your recommendation>' task and move on. Keep going until nothing is left but ❓ parked items." \
-      '{decision: "block", reason: $r}'
+    reason="🚶 Away-mode: $n task(s) still open in the queue — next: '$next'. The owner is away, so DO NOT stop and DO NOT ask. Take the next unblocked task, do it, verify your own work (run the tests/build yourself — you have a shell), update the task, and continue. $(tq_park_rule) Keep going until nothing is left but ❓ parked items."
+    jq -cn --arg r "$reason" '{decision: "block", reason: $r}'
     exit 0
   fi
   # Queue drained (only ❓ parked items remain) → genuinely done for now. Clear the

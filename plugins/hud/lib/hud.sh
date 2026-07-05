@@ -14,18 +14,6 @@ hud_away_dir()   { printf '%s' "${CLAUDE_HUD_AWAY_DIR:-$HOME/.claude/state/task-
 hud_ckpt_dir()   { printf '%s' "${CLAUDE_HUD_CKPT_DIR:-$HOME/.claude/state/task-queue/checkpoint}"; }
 hud_verify_dir() { printf '%s' "${CLAUDE_HUD_VERIFY_DIR:-$HOME/.claude/state/tidy/verify}"; }
 hud_tasks_dir()  { printf '%s' "${CLAUDE_HUD_TASKS_DIR:-${CLAUDE_TQ_TASKS_DIR:-$HOME/.claude/tasks}}"; }
-hud_coupling_dir() { printf '%s' "${CLAUDE_HUD_COUPLING_DIR:-$HOME/.claude/state/tidy/coupling-hud}"; }
-
-# Coupling-density trend direction for this repo — "up" when tidy's last verify saw
-# import density climbing past the threshold, else "steady"/"" (empty when never
-# computed / too-small repo). A cheap read of the cached marker tidy-verify writes;
-# hud never computes density itself (too heavy for a per-render status line).
-hud_coupling() {
-  local root="$1" f
-  [ -n "$root" ] || return 0
-  f="$(hud_coupling_dir)/$(printf '%s' "$root" | sed 's:/:-:g')"
-  [ -f "$f" ] && cat "$f" 2>/dev/null
-}
 
 # Which safety floors are currently DISABLED — prints the friendly names of the
 # anti-rework gates the owner (or Claude) has switched off via a CLAUDE_*=0 env var
@@ -62,8 +50,7 @@ hud status-line key (left → right; the feature-status slot is always shown, th
                (green = on, grey = off; on a no-color terminal the word on/off is spelled out)
   <model>      the model in use (shown without a label to save space)
   ✓/✗/⚠ tests  last test run — passed / failed / timed out
-  ❓N          N open questions you still owe an answer on this session
-  🔗↑          code coupling rose past its threshold at the last check
+  ❓N          N parked decisions / open questions awaiting you this session
   🛡✗N         N SAFETY CHECKS DISABLED — the dot can look green while a guard is off
   tok ⇡in ⇣out tokens in the current context / in the last response
   ⎇ branch     git branch · *N uncommitted · ↑N unpushed · ↓N unpulled
