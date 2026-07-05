@@ -42,7 +42,9 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 if [ -n "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ]; then
   Y=""; G=""; C=""; R=""; B=""; D=""; GREY=""; X=""
 else
-  Y=$'\033[33m'; G=$'\033[32m'; C=$'\033[36m'; R=$'\033[31m'
+  # Bright (9x) foregrounds — vivid on a 256-color/truecolor terminal, still the
+  # portable 16-color range. GREY stays dim (90) so OFF features recede.
+  Y=$'\033[93m'; G=$'\033[92m'; C=$'\033[96m'; R=$'\033[91m'
   B=$'\033[1m'; D=$'\033[2m'; GREY=$'\033[90m'; X=$'\033[0m'
 fi
 # On-demand: print the symbol key and exit (the /hud:legend command). No stdin.
