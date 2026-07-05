@@ -57,16 +57,16 @@ hud status-line key (left → right; the feature-status slot is always shown, th
 
   ●            health dot — green: ok · yellow: autopilot on · red: tests failing
   ✈️ autopilot  on = I keep working on my own while you're away; off = normal review loop
-  🧷 checkpoint on = every edit auto-saved so a crash can't lose work; off = not saving
   🤖 agents     on = big jobs split across parallel helpers; off = I work inline
-               (green = on, dim = off; on a no-color terminal the word on/off is spelled out)
+  🧷 logs       on = every edit auto-saved so a crash can't lose work; off = not saving
+               (green = on, grey = off; on a no-color terminal the word on/off is spelled out)
+  <model>      the model in use (shown without a label to save space)
   ✓/✗/⚠ tests  last test run — passed / failed / timed out
   ❓N          N open questions you still owe an answer on this session
   🔗↑          code coupling rose past its threshold at the last check
   🛡✗N         N SAFETY CHECKS DISABLED — the dot can look green while a guard is off
   tok ⇡in ⇣out tokens in the current context / in the last response
   ⎇ branch     git branch · *N uncommitted · ↑N unpushed · ↓N unpulled
-  <model>      the model in use (shown without a label to save space)
 EOF
   local off; off="$(hud_floors_disabled)"
   [ -n "$off" ] && printf '\nCurrently disabled (🛡✗): %s\n' "$off"

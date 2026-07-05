@@ -6,9 +6,9 @@
 #
 # Slots (left → right); the feature-status slot is always shown, the rest collapse
 # when their data is absent:
-#   health beacon · ✈️ autopilot/🧷 checkpoint/🤖 agents (green on, dim off) · ✓/✗ tests · 🛡✗ floors-off ·
-#   ❓ open-Qs · 🔗↑ coupling · tok ⇡in ⇣out · git branch (+ dirty * · ↑ahead ↓behind)
-#   · model.  Decode any symbol on demand with /hud:legend.
+#   health beacon · ✈️ autopilot/🤖 agents/🧷 logs (green on, grey off) · model · ✓/✗ tests ·
+#   🛡✗ floors-off · ❓ open-Qs · 🔗↑ coupling · tok ⇡in ⇣out · git branch (+ dirty * ·
+#   ↑ahead ↓behind).  Decode any symbol on demand with /hud:legend.
 #
 # Scoped to signals a status line is the BEST surface for — persistent
 # state/health you want at a glance. Deliberately NOT re-rendered here: the task
@@ -40,10 +40,10 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/hud.sh"
 
 if [ -n "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ]; then
-  Y=""; G=""; C=""; R=""; B=""; D=""; X=""
+  Y=""; G=""; C=""; R=""; B=""; D=""; GREY=""; X=""
 else
   Y=$'\033[33m'; G=$'\033[32m'; C=$'\033[36m'; R=$'\033[31m'
-  B=$'\033[1m'; D=$'\033[2m'; X=$'\033[0m'
+  B=$'\033[1m'; D=$'\033[2m'; GREY=$'\033[90m'; X=$'\033[0m'
 fi
 SEP="  "
 
@@ -88,11 +88,16 @@ fi
 BCOL="$G"
 [ "$AWAY" = "1" ] && BCOL="$Y"
 [ "$VERIFY" = "fail" ] && BCOL="$R"
-printf "%s%s%s%s" "$BCOL$B" "●" "$X" "$SEP"
 
-# 2) Feature status — ALWAYS shown, each mode led by its icon (matching the
-# SessionStart banners: ✈️ autopilot · 🧷 checkpoint · 🤖 agents) so the owner can
-# see each mode's state at a glance: green = on, dim = off. The leading icons make a
+# Slots are collected left→right into SEGS and joined with SEP once at the end, so
+# the model can sit wherever the owner wants (right after the feature slot) without
+# any slot needing to know whether it's last — there's no trailing separator to trim.
+SEGS=("$BCOL$B●$X")
+
+# 2) Feature status — ALWAYS shown, each mode led by its icon (✈️ autopilot · 🤖
+# agents · 🧷 logs — the 🧷 slot is the crash-checkpoint feature, labelled "logs" in
+# this line only; the command/banners keep the name checkpoint) so the owner can
+# see each mode's state at a glance: green = on, grey = off. The leading icons make a
 # separator redundant. On a NARROW terminal it collapses to only the ON features to
 # protect width. Emoji ignore ANSI color, so when color is OFF (NO_COLOR/dumb) the
 # green/dim can't convey state — we spell out on/off in that case only.
@@ -103,22 +108,26 @@ add_feat() {  # $1 icon  $2 label  $3 on(1)/off(0)
     [ -z "$G" ] && word=" on"
     seg="$1 $G$B$2$word$X"
   elif [ "$NARROW" -eq 0 ]; then
-    [ -z "$D" ] && word=" off"
-    seg="$1 $D$2$word$X"
+    [ -z "$GREY" ] && word=" off"
+    seg="$1 $GREY$2$word$X"
   else return 0; fi
   [ -n "$FEAT" ] && FEAT="$FEAT$SEP"
   FEAT="$FEAT$seg"
 }
-add_feat "✈️" autopilot  "$AWAY"
-add_feat "🧷" checkpoint "$CKPT"
-add_feat "🤖" agents     "$AGENT"
-[ -n "$FEAT" ] && printf '%s%s' "$FEAT" "$SEP"
+add_feat "✈️" autopilot "$AWAY"
+add_feat "🤖" agents    "$AGENT"
+add_feat "🧷" logs      "$CKPT"
+[ -n "$FEAT" ] && SEGS+=("$FEAT")
+
+# 3) Model — name only (the "Model:" label is dropped to save width). Sits right
+# after the feature slot at the owner's request.
+SEGS+=("$C$SHORT_MODEL$X")
 
 # 4) Tests — the verification floor's last outcome (the owner's trust signal)
 case "$VERIFY" in
-  pass)    printf "%s✓ tests%s%s" "$G$B" "$X" "$SEP" ;;
-  fail)    printf "%s✗ tests%s%s" "$R$B" "$X" "$SEP" ;;
-  timeout) printf "%s⚠ tests%s%s" "$Y$B" "$X" "$SEP" ;;
+  pass)    SEGS+=("$G$B✓ tests$X") ;;
+  fail)    SEGS+=("$R$B✗ tests$X") ;;
+  timeout) SEGS+=("$Y$B⚠ tests$X") ;;
 esac
 
 # 4a) Disabled safety floors — 🛡✗N when any anti-rework gate is switched off via a
@@ -127,18 +136,18 @@ esac
 DISABLED="$(hud_floors_disabled 2>/dev/null || true)"
 if [ -n "$DISABLED" ]; then
   NOFF="$(printf '%s' "$DISABLED" | wc -w | tr -d ' ')"
-  printf "%s🛡✗%s%s%s" "$R$B" "$NOFF" "$X" "$SEP"
+  SEGS+=("$R$B🛡✗$NOFF$X")
 fi
 
 # 4b) Open questions — unanswered ❓ items you still owe an answer on this session.
 # Ambient nudge so lingering questions get NOTICED without anyone re-raising them.
 OPENQ="$(hud_open_questions "$SID" 2>/dev/null || printf 0)"
-[ "${OPENQ:-0}" -gt 0 ] 2>/dev/null && printf "%s❓%s%s%s" "$Y$B" "$OPENQ" "$X" "$SEP"
+[ "${OPENQ:-0}" -gt 0 ] 2>/dev/null && SEGS+=("$Y$B❓$OPENQ$X")
 
 # 4c) Coupling trend — 🔗↑ only when import density climbed past the threshold at
 # tidy's last verify (cached read; hud never computes it). Hidden when steady.
 case "$(hud_coupling "$ROOT" 2>/dev/null)" in
-  up*) printf "%s🔗↑%s%s" "$Y$B" "$X" "$SEP" ;;
+  up*) SEGS+=("$Y$B🔗↑$X") ;;
 esac
 
 # 5a) Token throughput — ⇡ input ("uploaded": tokens in the current context, incl.
@@ -151,22 +160,23 @@ if [ "$NARROW" -eq 0 ]; then
   HIN="$(hud_human_tokens "$ITOK")"
   if [ -n "$HIN" ] && [ "${ITOK:-0}" -gt 0 ] 2>/dev/null; then
     HOUT="$(hud_human_tokens "$OTOK")"
-    printf '%stok ⇡%s ⇣%s%s%s' "$D" "$HIN" "${HOUT:-0}" "$X" "$SEP"
+    SEGS+=("${D}tok ⇡$HIN ⇣${HOUT:-0}$X")
   fi
 fi
 
 # 6) Branch (+ dirty-file count + unpushed/unpulled), shed on narrow
 if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
-  printf "%s⎇ %s%s" "$C$B" "$BRANCH" "$X"
-  [ -n "$DIRTY" ] && printf " %s*%s%s" "$Y$B" "$DIRTY" "$X"
+  bseg="$C$B⎇ $BRANCH$X"
+  [ -n "$DIRTY" ] && bseg="$bseg $Y$B*$DIRTY$X"
   if [ -n "$AB" ]; then
     AHEAD="${AB%% *}"; BEHIND="${AB##* }"
-    [ "${AHEAD:-0}" -gt 0 ] 2>/dev/null && printf " %s↑%s%s" "$C$B" "$AHEAD" "$X"
-    [ "${BEHIND:-0}" -gt 0 ] 2>/dev/null && printf " %s↓%s%s" "$Y$B" "$BEHIND" "$X"
+    [ "${AHEAD:-0}" -gt 0 ] 2>/dev/null && bseg="$bseg $C$B↑$AHEAD$X"
+    [ "${BEHIND:-0}" -gt 0 ] 2>/dev/null && bseg="$bseg $Y$B↓$BEHIND$X"
   fi
-  printf "%s" "$SEP"
+  SEGS+=("$bseg")
 fi
 
-# 7) Model — name only (the "Model:" label is dropped to save width)
-printf "%s%s%s" "$C" "$SHORT_MODEL" "$X"
-printf '\n'
+# Join every slot with SEP and emit as one line — model already sits after features.
+line=""
+for seg in "${SEGS[@]}"; do line="${line:+$line$SEP}$seg"; done
+printf '%s\n' "$line"

@@ -69,7 +69,7 @@ teardown() {
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
   [ "$status" -eq 0 ]
   [[ "$output" == *"✈️ autopilot"* ]]              # feature status always shown, icon-led
-  [[ "$output" == *"🧷 checkpoint"* ]]
+  [[ "$output" == *"🧷 logs"* ]]                   # checkpoint feature, labelled "logs" in the status line
   [[ "$output" == *"🤖 agents"* ]]
   [[ "$output" == *"autopilot off"* ]]             # no-color terminal spells out on/off
   [[ "$output" == *"Opus 4.8"* ]]
@@ -89,15 +89,15 @@ teardown() {
   rm -rf "$CLAUDE_HUD_AWAY_DIR"
 }
 
-@test "render: checkpoint on when armed, off otherwise" {
+@test "render: checkpoint (labelled 'logs') on when armed, off otherwise" {
   payload="$(jq -nc --arg c "$REPO" \
     '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"checkpoint off"* ]]          # off by default
+  [[ "$output" == *"logs off"* ]]                # off by default
   export CLAUDE_HUD_CKPT_DIR="$(mktemp -d)"
   touch "$CLAUDE_HUD_CKPT_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"checkpoint on"* ]]           # shown when armed
+  [[ "$output" == *"logs on"* ]]                 # shown when armed
   rm -rf "$CLAUDE_HUD_CKPT_DIR"
 }
 
@@ -131,7 +131,7 @@ teardown() {
 @test "render: feature status honors the global-default env (checkpoint on, no flag)" {
   payload="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_TQ_CHECKPOINT_MODE=on "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"checkpoint on"* ]]
+  [[ "$output" == *"logs on"* ]]                 # checkpoint feature shows as "logs"
 }
 
 @test "render: narrow terminal collapses feature status to only the ON ones" {
@@ -140,7 +140,7 @@ teardown() {
   payload="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:60}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
   [[ "$output" == *"autopilot on"* ]]        # ON stays even on narrow
-  [[ "$output" != *"checkpoint off"* ]]      # OFF collapses on narrow
+  [[ "$output" != *"logs off"* ]]            # OFF collapses on narrow
   rm -rf "$CLAUDE_HUD_AWAY_DIR"
 }
 

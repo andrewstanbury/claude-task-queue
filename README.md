@@ -41,10 +41,10 @@ few optional `/task-queue:` commands give deterministic control when you want it
 
 | Plugin | Ver | Role | Highlights |
 |---|---|---|---|
-| **task-queue** | 0.33.0 | Orchestrate | review loop on every prompt (steelman→challenge critique) · wireframe design preview · intent→outcome gate · open-questions tracker · cross-session resume + mid-task breadcrumb · **autopilot** (enforced autonomy — auto-continues the queue, blocks asking, parks decisions) · crash-checkpoint (working-tree snapshots) · per-feature slash commands (`/task-queue:autopilot` · `checkpoint` · `agents` · `restore` · `status`) |
+| **task-queue** | 0.33.1 | Orchestrate | review loop on every prompt (steelman→challenge critique) · wireframe design preview · intent→outcome gate · open-questions tracker · cross-session resume + mid-task breadcrumb · **autopilot** (enforced autonomy — auto-continues the queue, blocks asking, parks decisions) · crash-checkpoint (working-tree snapshots) · per-feature slash commands (`/task-queue:autopilot` · `checkpoint` · `agents` · `restore` · `status`) |
 | **tidy** | 0.39.0 | Change safely | secret floor (block credentials pre-write) · format/lint on touch · blast-radius · verification floor · regression gate · quality floor · import-cycle check · auto-prune |
 | **charter** | 0.20.1 | Know the project | doc & decisions gate · alignment floor · outcome-memory "scar tissue" · conventions · owner loop · MCP reachability probe |
-| **hud** | 0.9.1 | Show | one read-only status line — health · always-on feature status (✈️ autopilot/🧷 checkpoint/🤖 agents) · tests · floors-off · open-Qs · tok · branch (+unpushed) · model (`/hud:legend` decodes every symbol) |
+| **hud** | 0.9.2 | Show | one read-only status line — health · always-on feature status (✈️ autopilot/🤖 agents/🧷 logs, green on/grey off) · model · tests · floors-off · open-Qs · tok · branch (+unpushed) (`/hud:legend` decodes every symbol) |
 
 Each plugin is independently installable · Bash + `jq` · zero build.
 
