@@ -36,12 +36,16 @@ set +e   # tasks.sh enables `set -e`; this hook is best-effort — never break t
 
 input=""
 [ -t 0 ] || input="$(cat 2>/dev/null || true)"
-cwd=""
-[ -n "$input" ] && cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)"
+cwd=""; sid=""
+if [ -n "$input" ]; then
+  cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null || true)"
+  sid="$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || true)"
+fi
 [ -n "$cwd" ] || cwd="$PWD"
 root="$(tq_root_for_cwd "$cwd")"
 
-tq_is_away "$root" || allow                           # owner present → asking is fine
+tq_is_away "$root"      || allow                       # autopilot off → asking is fine
+tq_owner_present "$sid" && allow                       # owner just prompted → present for THIS turn, let it through
 
 reason="🚶 Away-mode is ON — owner can't answer, so this is blocked. Don't ask. $(tq_park_rule) Parked items are the owner's review pile on return."
 jq -cn --arg r "$reason" \

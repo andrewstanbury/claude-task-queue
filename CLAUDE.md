@@ -56,7 +56,14 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   when the owner steps away, run fully autonomous. This is **enforced, not advised**:
   the Stop hook AUTO-CONTINUES the queue while any non-`❓` task is still open (so the
   session can't idle waiting for an absent owner), `AskUserQuestion` is **hard-blocked**
-  by a PreToolUse guard, and the approval checkpoint is skipped. Self-verify (you have a
+  by a PreToolUse guard, and the approval checkpoint is skipped. **A prompt is presence,
+  though** — autopilot ≠ absent: a fresh prompt stamps an owner-present marker (per
+  session, `CLAUDE_TQ_PRESENT_WINDOW`, cleared when the Stop hook enters autonomous
+  drain), and while it's fresh the guard lets asks through and the capture loop stays
+  interactive for that one owner-driven turn, so typing to an autopilot session is never
+  trapped in "can't ask you, keep parking". The autonomous drain that follows still
+  parks. Set the window to `0` for lights-out autopilot (even your own prompts stay
+  autonomous). Self-verify (you have a
   shell), do all reversible work, and **PARK the decisions the owner will want to make**
   (as a `❓ [parked]` task — the only way to defer) — an important direction or
   design/structural choice, a new dependency or seam, a data-model/interface change, a

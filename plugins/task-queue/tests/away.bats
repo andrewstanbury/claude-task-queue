@@ -203,6 +203,14 @@ continue_file() { printf '%s/away-continue-%s' "$CLAUDE_TQ_STATE_DIR" "$1"; }
   [ "$(cat "$(continue_file sV)")" = "2" ]
 }
 
+@test "away ON auto-continue CLEARS the owner-present marker (drain turns are autonomous)" {
+  date +%s > "$(away_flag)"
+  date +%s > "$CLAUDE_TQ_AWAY_DIR/present-sV"   # owner had prompted this turn
+  make_task sV 1 pending "do the thing"
+  run_verify sV >/dev/null
+  [ ! -f "$CLAUDE_TQ_AWAY_DIR/present-sV" ]      # cleared on entering the autonomous drain
+}
+
 @test "away ON but counter at the cap: YIELDS (allows the stop, no runaway loop)" {
   date +%s > "$(away_flag)"
   make_task sV 1 pending "do the thing"
@@ -259,21 +267,60 @@ run_guard() {
   [ -z "$output" ]
 }
 
-# ---- solo folds pause: away suppresses the capture approval-loop (Rec 3) -----
+# Guard with a session_id so it can consult the presence marker.
+run_guard_sess() {
+  local j; j="$(jq -nc --arg c "$REPO" --arg s "$1" '{cwd:$c, session_id:$s, tool_name:"AskUserQuestion"}')"
+  printf '%s' "$j" | "$GUARD"
+}
+
+@test "away ON but owner PRESENT (fresh prompt this turn): the question is ALLOWED" {
+  date +%s > "$(away_flag)"
+  date +%s > "$CLAUDE_TQ_AWAY_DIR/present-sP"          # a prompt just stamped presence
+  run run_guard_sess sP
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]                                     # allowed → guard is silent
+}
+
+@test "away ON + STALE presence (outside the window): the question is DENIED again" {
+  date +%s > "$(away_flag)"
+  printf '%s' "$(( $(date +%s) - 3600 ))" > "$CLAUDE_TQ_AWAY_DIR/present-sP"   # 1h-old marker
+  run env CLAUDE_TQ_PRESENT_WINDOW=60 bash -c \
+    'printf "%s" "$(jq -nc --arg c "$1" --arg s sP "{cwd:\$c,session_id:\$s,tool_name:\"AskUserQuestion\"}")" | "$2"' \
+    _ "$REPO" "$GUARD"
+  [[ "$output" == *'"permissionDecision":"deny"'* ]]
+}
+
+# ---- presence: autopilot ≠ absent — a prompt keeps THIS turn interactive -----
+# Away suppresses the capture loop only while the owner is genuinely ABSENT. A fresh
+# prompt is proof they're at the keyboard, so the owner-driven turn stays interactive
+# (asks allowed, loop fires with a present note); only the autonomous drain parks.
 
 run_capture() {
   local j; j="$(jq -nc --arg p "$1" --arg c "$REPO" --arg s sC '{prompt:$p, cwd:$c, session_id:$s}')"
   printf '%s' "$j" | "$ROOT/bin/tq-capture.sh"
 }
+present_marker() { printf '%s/present-%s' "$CLAUDE_TQ_AWAY_DIR" "$1"; }
 
 @test "away OFF: a substantive prompt gets the interpret→queue re-anchor (control)" {
   run run_capture "add a login form and wire it and test it"
   [[ "$output" == *"New work"* ]]
 }
 
-@test "away ON: the approval-loop injection is suppressed (folded pause)" {
+@test "away ON + owner just prompted: the turn stays interactive (present overrides suppression)" {
   date +%s > "$(away_flag)"
   run run_capture "add a login form and wire it and test it"
   [ "$status" -eq 0 ]
+  [[ "$output" == *"a prompt just arrived"* ]]         # the present note (overrides the banner)
+  [[ "$output" == *"AskUserQuestion"* ]]               # engage normally: asking is on the table
+  [ -f "$(present_marker sC)" ]                        # capture stamped the presence marker
+}
+
+@test "away ON but lights-out (CLAUDE_TQ_PRESENT_WINDOW=0): loop stays suppressed even on a prompt" {
+  date +%s > "$(away_flag)"
+  run env CLAUDE_TQ_PRESENT_WINDOW=0 bash -c \
+    'printf "%s" "$(jq -nc --arg p "$1" --arg c "$2" --arg s sC "{prompt:\$p,cwd:\$c,session_id:\$s}")" | "$3"' \
+    _ "add a login form and wire it and test it" "$REPO" "$ROOT/bin/tq-capture.sh"
+  [ "$status" -eq 0 ]
   [[ "$output" != *"New work — interpret it"* ]]
+  [[ "$output" != *"a prompt just arrived"* ]]
 }

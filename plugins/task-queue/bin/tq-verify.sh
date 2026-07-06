@@ -58,6 +58,7 @@ if [ "${CLAUDE_TQ_AWAY_CONTINUE:-1}" != "0" ] && tq_is_away "$root"; then
     [ "$cnt" -ge "${CLAUDE_TQ_AWAY_MAX_CONTINUE:-40}" ] && allow   # safety valve: yield, don't loop
     { mkdir -p "$(tq_state_dir)" 2>/dev/null && printf '%s' "$((cnt + 1))" > "$cfile"; } 2>/dev/null || true
     rm -f "$(tq_intent_file "$sid")" 2>/dev/null || true          # away: no owner-confirm gate
+    tq_clear_present "$sid"                                        # owner-driven turn is over → drain turns are autonomous, asks park again
     n="$(printf '%s\n' "$work" | grep -c .)"
     next="$(printf '%s\n' "$work" | head -n1)"
     reason="🚶 Away-mode: $n task(s) still open in the queue — next: '$next'. The owner is away, so DO NOT stop and DO NOT ask. Take the next unblocked task, do it, verify your own work (run the tests/build yourself — you have a shell), update the task, and continue. $(tq_park_rule) Keep going until nothing is left but ❓ parked items."
@@ -67,6 +68,7 @@ if [ "${CLAUDE_TQ_AWAY_CONTINUE:-1}" != "0" ] && tq_is_away "$root"; then
   # Queue drained (only ❓ parked items remain) → genuinely done for now. Clear the
   # counter and let the stop proceed; skip the owner-confirm gate (no owner present).
   rm -f "$(tq_away_continue_file "$sid")" "$(tq_intent_file "$sid")" 2>/dev/null || true
+  tq_clear_present "$sid"
   allow
 fi
 
