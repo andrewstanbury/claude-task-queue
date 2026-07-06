@@ -1,11 +1,13 @@
 ---
 description: Turn autopilot on/off — keep working on my own while you're away
+argument-hint: "[on|off]"
 allowed-tools: Bash
 ---
 
-! "${CLAUDE_PLUGIN_ROOT}/bin/tq-away.sh" toggle
+! action="$ARGUMENTS"; "${CLAUDE_PLUGIN_ROOT}/bin/tq-away.sh" "${action:-on}"
 
-The toggle above printed the new **autopilot** state. Then:
+The command above printed the new **autopilot** state (bare = turn it ON; add `off` to
+turn it off). Then, based on the state it printed:
 
 - If it turned **ON** — acknowledge in one short line and keep draining the queue on
   your own: decide routine, low-stakes, cheap-to-undo calls yourself (recommended
@@ -15,5 +17,6 @@ The toggle above printed the new **autopilot** state. Then:
 - If it turned **OFF** — present the parked `❓` pile in full, each with your
   recommendation, so those clear before any new queue work is pulled.
 
-(Zero-token alternative for the flip itself: run the `! …/tq-away.sh toggle` line
-yourself — no model turn. The OFF review still costs a turn because it's real work.)
+(Zero-token alternative for the flip itself: run the `! …/tq-away.sh on` line
+yourself — or `off` to turn it off — no model turn. The OFF review still costs
+a turn because it's real work.)

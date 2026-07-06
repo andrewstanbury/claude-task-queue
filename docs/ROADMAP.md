@@ -318,7 +318,15 @@ Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT
 Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario,
 or a pain point that surfaces. No new layers planned.
 
-**Built (2026-07-06, latest) — zero-token-toggle honesty, no-stall autopilot, animated hud beacon (task-queue 0.37.0 / hud 0.16.0).**
+**Built (2026-07-06, latest) — toggle commands honor on/off, bare = on (task-queue 0.37.1).**
+Follow-up to the grey-pill work below: the real footgun wasn't repaint, it was the commands. `/task-queue:autopilot`,
+`:agents`, and `:checkpoint` hardcoded `toggle` in their `!` line and *discarded* the `on`/`off` argument the `/` menu lets
+you type — so `… on` while already on ran a blind flip to **off** and the pill correctly greyed. Fixed by routing the arg
+through: `action="$ARGUMENTS"; …/tq-*.sh "${action:-on}"`. Per the owner's call, a bare command now means **on** (type `off`
+to turn off) rather than a surprise toggle; added `argument-hint: "[on|off]"` so the menu advertises it. Scripts already
+accepted `on|off|toggle`, so no script logic changed — only which action the command hands them. `./check.sh` green.
+
+**Built (2026-07-06) — zero-token-toggle honesty, no-stall autopilot, animated hud beacon (task-queue 0.37.0 / hud 0.16.0).**
 Owner asked for token-free feature toggles + a status bar that reflects state (autopilot "stayed grey"). Brutally-honest
 finding, surfaced and confirmed via AskUserQuestion: **no slash command can be zero-token** — the body is always handed to
 the model; only the `!bash` prefix (with `respondToBashCommands:false`) is free, and the owner declined a `!tq` shim, so
