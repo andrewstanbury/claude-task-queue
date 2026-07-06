@@ -225,10 +225,15 @@ run_capture() {
   [ "$(cat "$(intent_file)")" = "fix the typo" ]
 }
 
-@test "intent: a repo in solo mode records nothing (opted out of the loop)" {
+@test "intent: solo + owner present (fresh prompt) records; lights-out (window=0) does not" {
   export CLAUDE_TQ_AWAY_DIR="$CLAUDE_TQ_STATE_DIR/away"; mkdir -p "$CLAUDE_TQ_AWAY_DIR"
   : > "$CLAUDE_TQ_AWAY_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
+  # a prompt is proof the owner is at the keyboard → the interactive loop records intent
   run run_capture "$MULTI"
+  [ -f "$(intent_file)" ]
+  rm -f "$(intent_file)"
+  # lights-out autopilot: even the owner's own prompt stays autonomous → nothing recorded
+  CLAUDE_TQ_PRESENT_WINDOW=0 run run_capture "$MULTI"
   [ ! -f "$(intent_file)" ]
 }
 

@@ -318,7 +318,22 @@ Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT
 Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario,
 or a pain point that surfaces. No new layers planned.
 
-**Built (2026-07-06, latest) — toggle commands honor on/off, bare = on (task-queue 0.37.1).**
+**Built (2026-07-06, latest) — a prompt is presence: autopilot ≠ absent (task-queue 0.38.0).**
+Owner hit the real footgun: while autopilot was on, typing a prompt left them stuck — the guard still hard-blocked
+`AskUserQuestion`, the Stop hook kept auto-continuing, and the model looped on "the owner is away," parking instead of
+engaging the person literally at the keyboard. Root cause: the away flag was a single per-repo bit that conflated
+"declared they stepped away" with "absent right now." Fix: a **per-session owner-present marker** (`lib/away.sh` —
+`tq_mark_present`/`tq_owner_present`, window `CLAUDE_TQ_PRESENT_WINDOW` default 1800s). tq-capture stamps it on every
+prompt when away is on; the ask-guard and the capture loop consult it, so the **owner-driven turn stays interactive**
+(asks allowed, loop fires with a present-note that overrides the standing "never ask" banner) while the **autonomous
+drain that follows still parks** — tq-verify clears the marker when it enters auto-continue, and the window is a
+self-expiring backstop if that clear never runs. Slash commands already jumped the queue (they exit tq-capture before
+decomposition), so `/task-queue:autopilot` was always the instant manual out; this makes plain-language prompts safe too.
+Window `0` = lights-out autopilot (even your own prompts stay autonomous), which also isolates the open-Q budget test.
+Coverage: away.bats (present-allow, stale-deny, lights-out suppression, verify-clears-present), capture.bats (present
+records intent, lights-out doesn't), token-budget (new away-present path, 789 chars). `./check.sh` green (353 checks).
+
+**Built (2026-07-06) — toggle commands honor on/off, bare = on (task-queue 0.37.1).**
 Follow-up to the grey-pill work below: the real footgun wasn't repaint, it was the commands. `/task-queue:autopilot`,
 `:agents`, and `:checkpoint` hardcoded `toggle` in their `!` line and *discarded* the `on`/`off` argument the `/` menu lets
 you type — so `… on` while already on ran a blind flip to **off** and the pill correctly greyed. Fixed by routing the arg

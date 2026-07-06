@@ -16,6 +16,41 @@ tq_away_dir()  { printf '%s' "${CLAUDE_TQ_AWAY_DIR:-$HOME/.claude/state/task-que
 tq_away_file() { printf '%s/%s' "$(tq_away_dir)" "$(printf '%s' "$1" | sed 's:/:-:g')"; }
 tq_is_away()   { [ -n "${1:-}" ] && [ -f "$(tq_away_file "$1")" ]; }
 
+# --- owner-present marker: autopilot ≠ absent --------------------------------
+# Away/autopilot means the owner DECLARED they stepped away, so the queue drains
+# autonomously and asks are parked. But a PROMPT is proof they're back at the
+# keyboard for THAT turn — otherwise a note dropped mid-autopilot traps the session
+# in "can't ask you, keep parking" (the loop this fixes). So tq-capture stamps a
+# per-session presence marker on each prompt; the ask-guard and capture loop consult
+# it to keep the OWNER-DRIVEN turn interactive, while the autonomous drain that
+# follows (tq-verify clears the marker on entering auto-continue) still parks.
+# Filenames are `present-<sid>`, never colliding with the repo-root away flags
+# (which encode an absolute path, always starting with '-'). Self-expiring after
+# CLAUDE_TQ_PRESENT_WINDOW seconds as a backstop if the Stop-clear never runs
+# (auto-continue disabled, or a crash), so a stale marker can't defeat away. Set the
+# window to 0 for lights-out autopilot: even the owner's own prompts stay autonomous.
+tq_present_window()    { printf '%s' "${CLAUDE_TQ_PRESENT_WINDOW:-1800}"; }
+tq_away_present_file() { printf '%s/present-%s' "$(tq_away_dir)" "${1:-nosession}"; }
+
+tq_mark_present() {
+  [ -n "${1:-}" ] || return 0
+  mkdir -p "$(tq_away_dir)" 2>/dev/null || true
+  date +%s > "$(tq_away_present_file "$1")" 2>/dev/null || true
+}
+tq_clear_present() { [ -n "${1:-}" ] && rm -f "$(tq_away_present_file "$1")" 2>/dev/null || true; }
+
+# True when the owner submitted a prompt recently in this session (marker fresh).
+tq_owner_present() {
+  local f stamp now win
+  [ -n "${1:-}" ] || return 1
+  f="$(tq_away_present_file "$1")"
+  [ -f "$f" ] || return 1
+  stamp="$(head -n1 "$f" 2>/dev/null | tr -dc '0-9' || true)"
+  [ -n "$stamp" ] || return 1
+  now="$(date +%s)"; win="$(tq_present_window)"
+  [ "$((now - stamp))" -lt "$win" ]
+}
+
 # The canonical autopilot PARK-vs-DECIDE rule — the single source of truth for what an
 # away/autopilot session parks for the owner vs. decides itself. Emitted once here and
 # composed into all three park-guidance surfaces (the ask-guard deny, the SessionStart

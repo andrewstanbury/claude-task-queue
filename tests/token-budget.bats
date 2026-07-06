@@ -70,9 +70,16 @@ marked_repo() {
   # Isolate the open-Q reminder by putting the repo in SOLO mode: since 2026-06-26 the
   # review loop fires on EVERY prompt (incl. 'thanks'), so solo suppresses the loop
   # while the reminder still rides — measuring the reminder alone, as this budget intends.
+  # CLAUDE_TQ_PRESENT_WINDOW=0 = lights-out autopilot: even the owner's own prompt is
+  # treated as absent, so the loop stays suppressed here (a fresh prompt would otherwise
+  # be "present" and re-enable the interactive loop — measured on its own line below).
   export CLAUDE_TQ_AWAY_DIR="$WORK/away"; mkdir -p "$CLAUDE_TQ_AWAY_DIR"
   : > "$CLAUDE_TQ_AWAY_DIR/$(printf '%s' "$repo" | sed 's:/:-:g')"
-  within "open-Q reminder"     280  "$(cap 'thanks')"
+  within "open-Q reminder"     280  "$(CLAUDE_TQ_PRESENT_WINDOW=0 cap 'thanks')"
+  # away + owner PRESENT (fresh prompt this turn): the interactive loop fires with a
+  # present-note prefix that overrides the standing "never ask" banner. Fires only on
+  # this away+present path, so the normal-path budgets above are untouched.
+  within "capture away-present" 900 "$(cap 'add the login form and wire it and test it')"
 }
 
 @test "token budget: MCP probe is silent at rest, bounded when warning" {

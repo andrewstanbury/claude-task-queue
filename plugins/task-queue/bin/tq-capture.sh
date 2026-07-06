@@ -60,6 +60,13 @@ root="$(tq_root_for_cwd "$cwd")"
 # autonomous drain, so it can't carry over and starve the next prompt). Best-effort.
 rm -f "$(tq_away_continue_file "$sid")" 2>/dev/null || true
 
+# ...and, if autopilot is ON, mark the owner PRESENT for this turn: a prompt is proof
+# they're back at the keyboard, so THIS turn stays interactive (asks allowed, loop
+# fires) even though autopilot keeps draining autonomously afterwards. Without this a
+# note dropped mid-autopilot traps the session in "can't ask you, keep parking".
+away=0
+tq_is_away "$root" && { away=1; tq_mark_present "$sid"; }
+
 # OPEN-QUESTIONS reminder: if the user has answer-owed questions still open from
 # earlier in this conversation (❓ tasks), surface them NOW — a new prompt is exactly
 # when they get buried. Fires regardless of whether THIS prompt is substantive,
@@ -94,12 +101,16 @@ tq_looks_consequential "$prompt" && consequential=1
 tq_looks_design "$prompt" && design=1
 # (Godot design-preview suppression removed at owner's request — UI/visual prompts
 # now get the wireframe demonstrate-before-build flow in Godot projects too.)
-# Solo mode (owner away) suppresses the loop: the present-and-approve checkpoint can't
-# fire anyway (the ask-guard hard-blocks AskUserQuestion), so injecting it would only
-# spend tokens on an approval the model can't act on. The standing SessionStart policy
-# still carries decompose→queue→work-in-auto. (This is what the old pause mode did,
-# now folded into solo — there is no separate pause flag.)
-tq_is_away "$root" && paused=1
+# Autopilot suppresses the loop ONLY while the owner is genuinely absent: the
+# present-and-approve checkpoint can't fire mid-drain (the ask-guard hard-blocks
+# AskUserQuestion), so injecting it would only spend tokens on an approval the model
+# can't act on. But a fresh prompt means the owner is PRESENT for this turn (stamped
+# above): the guard now lets the ask through, so keep the loop and flag the turn as
+# owner-driven (present). Only the autonomous drain that follows stays suppressed.
+present=0
+if [ "$away" -eq 1 ]; then
+  if tq_owner_present "$sid"; then present=1; else paused=1; fi
+fi
 
 loopctx=""
 if [ "$paused" -eq 0 ]; then
@@ -152,6 +163,15 @@ if [ "$paused" -eq 0 ]; then
   else
     # DEFAULT path, policy NOT documented: carry the full re-anchor + alignment clause.
     loopctx="[task-queue] $reanchor$(tq_alignment_clause "$cwd")"
+  fi
+
+  # Owner-driven turn under autopilot: the standing SessionStart banner says "never
+  # ask", but a prompt just arrived — they're here for THIS turn. Prepend a note that
+  # overrides the banner (ask if you genuinely need their call; parking resumes for the
+  # autonomous drain after). Only fires in the away+present case, so the normal-path
+  # budgets are untouched.
+  if [ "$present" -eq 1 ]; then
+    loopctx="🙋 [task-queue] Autopilot is ON but a prompt just arrived — the owner is AT the keyboard for THIS turn, overriding the standing \"never ask\" banner: engage normally and ASK (AskUserQuestion) if you genuinely need their call; parking resumes for the drain after. $loopctx"
   fi
 fi
 
