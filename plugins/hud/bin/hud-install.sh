@@ -17,11 +17,12 @@ cmd="bash -c 'exec \"\$(ls -d ~/.claude/plugins/cache/andrewstanbury/hud/*/bin/h
 mkdir -p "$(dirname "$settings")" 2>/dev/null || true
 [ -s "$settings" ] || printf '{}\n' > "$settings"
 
-# No refreshInterval: hud's beacon is static, so event-driven updates (each new
-# message / after compact) keep it fresh without waking jq+git on an idle timer.
+# refreshInterval=1 (second): hud's beacon is an animated spinner, so it needs a timer
+# to advance one frame per second. This wakes jq+git once a second on idle — a battery
+# trade the owner opted into for a live status line. (jq numbers are unquoted → real 1.)
 tmp="$(mktemp)"
 if jq --arg c "$cmd" \
-     '.statusLine = {type: "command", command: $c}' \
+     '.statusLine = {type: "command", command: $c, refreshInterval: 1}' \
      "$settings" > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
   mv "$tmp" "$settings"
   printf 'hud: status line wired into %s (version-resilient — survives hud updates).\n' "$settings"

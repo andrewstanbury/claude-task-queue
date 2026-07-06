@@ -24,7 +24,7 @@ tq_is_away()   { [ -n "${1:-}" ] && [ -f "$(tq_away_file "$1")" ]; }
 # call would COST to undo, not mere uncertainty. Kept lean — every caller carries a
 # per-event token budget (tests/token-budget.bats).
 tq_park_rule() {
-  printf '%s' "PARK the decisions the owner will want — an important direction or design/structural choice, a new dependency or interface/data-model change, an ambiguous high-blast-radius fork, anything irreversible or externally-binding (delete, push, send, spend), or a check you cannot run — as a '❓ [parked] <what needs deciding — with your recommendation>' task; decide the routine, low-stakes rest yourself (recommended option, noted)."
+  printf '%s' "PARK the decisions the owner will want — an important direction or design/structural choice, a new dependency or interface/data-model change, an ambiguous high-blast-radius fork, anything irreversible or externally-binding (delete, push, send, spend), or a check you cannot run — as a '❓ [parked] <what needs deciding — with your recommendation>' task; decide the routine, low-stakes rest yourself (recommended option, noted). NEVER STALL on the absent owner: if an unparkable decision blocks all progress, take your recommended safest-reversible default, record it, and drop a '❓ [parked]' note to override."
 }
 
 # Epoch when away-mode was turned on for this repo (the flag file holds it), or 0.

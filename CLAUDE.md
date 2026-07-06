@@ -64,7 +64,10 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   action or a check you physically cannot run — so the owner returns to a reviewable
   pile. **Decide the routine, low-stakes, cheap-to-undo calls yourself** (recommended
   option, recorded) and keep moving; the test is what a wrong call would COST to undo,
-  not mere uncertainty. The auto-continue is bounded by a per-prompt counter
+  not mere uncertainty. And **never stall on the absent owner**: if a decision blocks all
+  progress and genuinely can't be parked, take your recommended (safest, most reversible)
+  default, record it, and leave a `❓` note to override — defaulting beats idling. The
+  auto-continue is bounded by a per-prompt counter
   (`CLAUDE_TQ_AWAY_MAX_CONTINUE`, default 40) so a stuck model can't spin. `off` prints a
   digest of what completed + what's parked; a staleness nudge fires if it's left on.
 - **Per-feature commands** — each mode is a typeable slash command (discoverable via

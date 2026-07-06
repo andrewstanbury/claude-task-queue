@@ -31,10 +31,11 @@ on-disk state files and prints one line. It never writes anything.
 - **Config:** wired by the user's `statusLine` setting. Claude Code can't
   auto-wire a plugin status line, so `/hud:setup` (→ `bin/hud-install.sh`) does it
   once, writing a **version-resilient** command (execs the newest installed hud,
-  so it survives updates). It sets **no `refreshInterval`** — the beacon is
-  static, so Claude Code's event-driven re-runs (each message / after compact)
-  keep every slot fresh without waking jq+git on an idle timer. Override the
-  target file with `CLAUDE_SETTINGS`.
+  so it survives updates). It sets **`refreshInterval: 1`** (second) — the beacon is
+  an animated spinner advancing one frame per second, so it needs a timer on top of
+  Claude Code's event-driven re-runs (each message / after compact). The cost is waking
+  jq+git once a second on idle — a battery trade the owner opted into for a live status
+  line. Override the target file with `CLAUDE_SETTINGS`.
 - **If it changes:** affected slots fall back (model `?`, ctx hidden, etc.).
 
 ### 2. Sibling plugins' on-disk state (read-only; soft path coupling)

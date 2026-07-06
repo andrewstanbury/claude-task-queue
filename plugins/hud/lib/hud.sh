@@ -43,7 +43,7 @@ hud_legend() {
   cat <<'EOF'
 hud status-line key (left → right; the feature-status slot is always shown, the rest hide when empty):
 
-  ●            health dot — green: ok · yellow: autopilot on · red: tests failing
+  ⠋ (spinning) health beacon — dots orbit the cell · green: ok · yellow: autopilot on · red: tests failing
   ✈️ autopilot  on = I keep working on my own while you're away; off = normal review loop
   🤖 agents     on = big jobs split across parallel helpers; off = I work inline
   🧷 logs       on = every edit auto-saved so a crash can't lose work; off = not saving
@@ -52,7 +52,7 @@ hud status-line key (left → right; the feature-status slot is always shown, th
   ✓/✗/⚠ tests  last test run — passed / failed / timed out
   ❓N          N parked decisions / open questions awaiting you this session
   🛡✗N         N SAFETY CHECKS DISABLED — the dot can look green while a guard is off
-  tok ⇡in ⇣out tokens in the current context / in the last response
+  ⇡in ⇣out     tokens in the current context / in the last response
   ⎇ branch     git branch · *N uncommitted · ↑N unpushed · ↓N unpulled
 EOF
   local off; off="$(hud_floors_disabled)"
