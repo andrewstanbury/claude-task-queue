@@ -168,6 +168,7 @@ teardown() {
   [ "$status" -eq 0 ]
   jq -e '.existingKey == true' "$s"                       # preserved
   jq -e '.statusLine.type == "command"' "$s"
+  jq -e '.statusLine.refreshInterval == 1' "$s"          # drives the animated beacon (1 fps)
   [[ "$(jq -r '.statusLine.command' "$s")" == *"sort -V | tail -1"* ]]   # self-resolving, not version-pinned
   [[ "$(jq -r '.statusLine.command' "$s")" != *"/0.1.0/"* ]]
   rm -rf "$(dirname "$s")"
@@ -247,11 +248,23 @@ teardown() {
     '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200,
       context_window:{total_input_tokens:12530,total_output_tokens:1180}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
-  [[ "$output" == *"tok ⇡12.5k ⇣1.1k"* ]]
+  [[ "$output" == *"⇡12.5k ⇣1.1k"* ]]
+  [[ "$output" != *"tok"* ]]   # the "tok" label was dropped — just the ⇡/⇣ arrows now
   # no context_window (before the first response, or post-compact) → slot collapses
   json="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
-  [[ "$output" != *"tok"* ]]
+  [[ "$output" != *"⇡"* ]]
+}
+
+@test "health beacon: animated braille-orbit frame with color, static ● without" {
+  json="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200}')"
+  # no-color / dumb terminal → static dot (can't meaningfully spin a colored glyph)
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *"●"* ]]
+  # color on → one of the braille-orbit frames, never the static dot
+  run bash -c 'printf "%s" "$1" | TERM=xterm NO_COLOR= "$2"' _ "$json" "$STATUS"
+  [[ "$output" != *"●"* ]]
+  printf '%s' "$output" | grep -qE '⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏'
 }
 
 @test "hud_floors_disabled: empty when all on, names each floor set to 0" {

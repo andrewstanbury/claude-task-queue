@@ -92,6 +92,8 @@ make_task() {
   [[ "$output" == *"decide the routine"* ]]
   # parked items land in the existing ❓ open-questions bucket (reused, not new)
   [[ "$output" == *"❓ [parked]"* ]]
+  # an unparkable, progress-blocking decision defaults to the recommendation — never a stall
+  [[ "$output" == *"NEVER STALL"* ]]
 }
 
 @test "turning away off drops the AWAY block again" {

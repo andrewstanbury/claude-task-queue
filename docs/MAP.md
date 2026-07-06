@@ -75,6 +75,6 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 | File | Responsibility |
 |---|---|
 | `bin/hud-status.sh` | The status-line renderer: health beacon · agent · 🚶 solo · ✓/✗ tests · **❓ open-questions count** · **🔗↑ coupling-rising** · ctx % · **💲 session-cost** (hidden at zero) · branch+dirty · **↑ahead ↓behind** (unpushed/unpulled vs upstream) · model. |
-| `bin/hud-install.sh` | Wire the status line into `settings.json`, version-resilient, no refreshInterval (`/hud:setup`). |
+| `bin/hud-install.sh` | Wire the status line into `settings.json`, version-resilient, `refreshInterval: 1` for the animated beacon (`/hud:setup`). |
 | `commands/setup.md` | `/hud:setup`. |
 | `lib/hud.sh` | Read-only accessors over the other plugins' state (solo/away, agent, verify result, branch, dirty, `hud_open_questions` ❓-count, `hud_coupling` 🔗↑ direction, `hud_ahead_behind` unpushed/unpulled vs upstream — read-only mirrors/markers). |

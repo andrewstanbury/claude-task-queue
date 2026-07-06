@@ -318,7 +318,20 @@ Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT
 Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario,
 or a pain point that surfaces. No new layers planned.
 
-**Built (2026-07-05, latest) — parked-pile review menus + terminal-native hud palette (task-queue 0.36.0 / hud 0.15.0).**
+**Built (2026-07-06, latest) — zero-token-toggle honesty, no-stall autopilot, animated hud beacon (task-queue 0.37.0 / hud 0.16.0).**
+Owner asked for token-free feature toggles + a status bar that reflects state (autopilot "stayed grey"). Brutally-honest
+finding, surfaced and confirmed via AskUserQuestion: **no slash command can be zero-token** — the body is always handed to
+the model; only the `!bash` prefix (with `respondToBashCommands:false`) is free, and the owner declined a `!tq` shim, so
+toggles stay slash commands trimmed of their redundant relay (the `!` line already prints state). The grey pill was never a
+state bug — hud read the flag correctly; nothing *repainted* the line until the next message. Fixed by `refreshInterval:1`
+(hud-install.sh), which also drives a new **animated braille-orbit health beacon** (replaces the static ●, colour still =
+health) and cost the deliberate no-refreshInterval/battery stance hud held — an owner-opted trade for a live line on their
+handheld. Dropped the "tok" label (just ⇡/⇣ now). Autopilot gained a **never-stall** clause in `tq_park_rule` (rides into the
+ask-guard deny + SessionStart + CLAUDE.md): an unparkable, progress-blocking decision defaults to the recommendation and drops
+a ❓ to override, instead of pausing for an absent owner. Two pay-per-event token budgets ratcheted (760→960, 620→780) in the
+same change. Tests pin the beacon paths, the never-stall clause, and the refreshInterval; `./check.sh` green.
+
+**Built (2026-07-05) — parked-pile review menus + terminal-native hud palette (task-queue 0.36.0 / hud 0.15.0).**
 Two owner-facing polish asks, one commit (#87). (1) **task-queue** — the parked-decision review got the
 design-preview treatment. Turning autopilot *off* now prints the full parked `❓` pile as the return
 checkpoint and soft-blocks new queue work until it's cleared, and every parked review — on autopilot exit

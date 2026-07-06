@@ -102,10 +102,12 @@ marked_repo() {
   : > "$CLAUDE_TQ_AWAY_DIR/$(printf '%s' "$g" | sed 's:/:-:g')"
   mkdir -p "$CLAUDE_TQ_TASKS_DIR/zz"
   jq -n '{id:"1",subject:"wire the checkout flow",status:"pending"}' > "$CLAUDE_TQ_TASKS_DIR/zz/1.json"
-  within "away continue"  760 "$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-verify.sh" | rsn)"
+  # ratchet 760→960: tq_park_rule gained a "never stall on the absent owner — default to
+  # your recommendation" clause (owner request), which rides into this per-Stop nudge.
+  within "away continue"  960 "$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-verify.sh" | rsn)"
   # ask-guard deny (pay-per-event PreToolUse): reason lives in permissionDecisionReason.
   local AG; AG="$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-ask-guard.sh" | jq -r '.hookSpecificOutput.permissionDecisionReason // ""')"
-  within "ask-guard deny" 620 "$AG"
+  within "ask-guard deny" 780 "$AG"   # ratchet 620→780: same never-stall clause in tq_park_rule
   within "quality block" 360 "$(printf '%s' "$S" | CLAUDE_TIDY_QUALITY_CMD='echo ERR; exit 1' "$R/plugins/tidy/bin/tidy-verify.sh" | rsn)"
   within "diagnose block" 950 "$(printf '%s' "$S" | CLAUDE_TIDY_LOG_DIR="$WORK/dl" CLAUDE_TIDY_TEST_CMD='echo BOOM; exit 1' "$R/plugins/tidy/bin/tidy-verify.sh" | rsn)"
   # secret block writes its reason to STDERR (PreToolUse exit-2 convention), not JSON.

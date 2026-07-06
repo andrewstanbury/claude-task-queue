@@ -16,11 +16,13 @@
 # start), and last-tidy (ephemeral) — surfacing those again was duplication, and
 # the docs mirror was the heaviest cross-plugin maintenance burden.
 #
-# The beacon is a STATIC health dot (green = clean/green, yellow = solo mode,
-# red = tests failing) — not an animation — so the status line needs no timer.
-# Claude Code re-runs a statusLine command on each new message / after compact,
-# which keeps every slot fresh; we deliberately set NO refreshInterval to avoid
-# waking jq+git once a second on idle (battery on laptops/handhelds).
+# The beacon is an ANIMATED braille-orbit spinner (green = clean/green, yellow = solo
+# mode, red = tests failing), advancing one frame per real second. That needs a timer,
+# so hud-install.sh sets refreshInterval=1 in the statusLine config; Claude Code re-runs
+# this command every second (plus its event-driven refreshes on each message / after
+# compact), which both animates the beacon AND keeps every other slot fresh. The cost is
+# waking jq+git once a second on idle — a deliberate battery trade the owner opted into
+# for a live status line (a no-color terminal falls back to a static ●, needing no timer).
 #
 # Wire it (settings.json):
 #   { "statusLine": { "type": "command", "command": "bash <THIS_PATH>" } }
@@ -85,12 +87,21 @@ if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
   AB="$(hud_ahead_behind "$CWD")"
 fi
 
-# 1) Health beacon — STATIC dot, colored by overall health: red = tests failing,
-# yellow = autopilot (autonomous, an attention state), green otherwise. No animation
-# → no timer needed.
+# 1) Health beacon — an ANIMATED braille-orbit spinner (dots sweeping around the cell),
+# colored by overall health: red = tests failing, yellow = autopilot (autonomous, an
+# attention state), green otherwise. One frame per real second, selected by the clock,
+# so the statusLine config sets refreshInterval=1 to repaint it (see hud-install.sh).
+# On a no-color / dumb terminal we can't spin a colored glyph meaningfully, so it falls
+# back to a static ● (and no timer is needed there).
 BCOL="$G"
 [ "$AWAY" = "1" ] && BCOL="$Y"
 [ "$VERIFY" = "fail" ] && BCOL="$R"
+BEACON_FRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)   # dots rotating clockwise around the border
+if [ -n "$G" ]; then
+  BEACON="${BEACON_FRAMES[$(( $(date +%s 2>/dev/null || echo 0) % ${#BEACON_FRAMES[@]} ))]}"
+else
+  BEACON="●"
+fi
 
 # The line is three ZONES joined by a dim divider (│): [health & alerts] │ [feature
 # modes] │ [context]. Within a zone slots are single-space separated so the group
@@ -101,7 +112,7 @@ join_slots() { local out="" s; for s in "$@"; do [ -n "$s" ] && out="${out:+$out
 
 # Zone 1 — health & alerts: the beacon, the tests outcome, any disabled safety floors,
 # and the ❓ count (parked decisions / open questions — the pile the owner reviews).
-Z1=("$BCOL$B●$X")
+Z1=("$BCOL$B$BEACON$X")
 case "$VERIFY" in
   pass)    Z1+=("$G$B✓ tests$X") ;;
   fail)    Z1+=("$R$B✗ tests$X") ;;
@@ -147,7 +158,7 @@ if [ "$NARROW" -eq 0 ]; then
   HIN="$(hud_human_tokens "$ITOK")"
   if [ -n "$HIN" ] && [ "${ITOK:-0}" -gt 0 ] 2>/dev/null; then
     HOUT="$(hud_human_tokens "$OTOK")"
-    Z3+=("${D}tok ⇡$HIN ⇣${HOUT:-0}$X")
+    Z3+=("${D}⇡$HIN ⇣${HOUT:-0}$X")
   fi
 fi
 if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
