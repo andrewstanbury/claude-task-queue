@@ -1,50 +1,15 @@
 # Claude Code companion plugins
 
-Four self-contained [Claude Code](https://claude.com/claude-code) plugins that let you
-**vibe-code a whole project** while Claude keeps it clean, low-debt, and token-efficient
-— **automatically, through hooks** — with the native task list as the one place you
-steer. Built for an owner who reads no code and *need never run a command* — though a
-few optional `/task-queue:` commands give deterministic control when you want it.
+Four self-contained [Claude Code](https://claude.com/claude-code) plugins that keep a
+vibe-coded project clean, low-debt, and token-efficient — automatically, through hooks.
+Built for an owner who reads no code; the native task list is the one place you steer.
 
-## The flow
-
-```
- ▐▌ always on   native permissions (auto · deny/ask) · hud status line (●health ✓tests ❓open-Qs ctx%)
-
- ● SessionStart   charter: gate on docs+decisions+scar-tissue · task-queue: queue policy+resume · tidy: standard
-
- ◆ you type a prompt
-      ├─ trivial ───────────────────────► runs straight through (auto)
-      ▼ substantive / visual / consequential
- ┏━ task-queue · review loop ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
- ┃  interpret → present (AskUserQuestion) → approve → queue      ┃
- ┃  visual change? → wireframe DESIGN PREVIEW you pick from       ┃
- ┃  unanswered ❓ questions re-surfaced so they don't get buried  ┃
- ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-      ▼
- ⚙ Claude works the queue   (each edit → tidy: format·lint·blast-radius·size)
-      ▼
- ┏━ Stop · the floors (each bounded, each opt-out) ━━━━━━━━━━━━━━┓
- ┃  tidy     quality gates → tests block-until-green → regression┃
- ┃  charter  alignment floor — don't silently reverse a decision ┃
- ┃  task-q   intent → outcome — did we build what you asked?      ┃
- ┃  tidy     import cycles + subtractive prune (after green)      ┃
- ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-      ▼
- ✓ done   hud flips to ✓ · plain-language recap (you verify by seeing)
-```
-
-> Run `./flow.sh` (or `make flow`) for the **live, colored** version — derived from the
-> repo, so it can't drift.
-
-## The four plugins
-
-| Plugin | Ver | Role | Highlights |
-|---|---|---|---|
-| **task-queue** | 0.40.0 | Orchestrate | review loop on every prompt (leans to a one-line pointer once documented) · **enforced** wireframe design-preview gate (no code before you've seen it) · **enforced** parked-review gate (clear the parked pile before new edits when autopilot ends) · queue-aware agent fan-out (names the independent tasks to parallelize) · intent→outcome gate · open-questions tracker · cross-session resume + mid-task breadcrumb · one-command ship (verify → PR → squash-merge to main) · **autopilot** (enforced autonomy — auto-continues the queue, blocks asking, parks the decisions you'll want as a reviewable ❓ pile, decides the routine rest, and never stalls — defaults to its recommendation when a decision can't wait; but a **prompt is presence** — typing to it keeps that one turn interactive so asking is never trapped, while the autonomous drain still parks) · per-feature slash commands (`/task-queue:autopilot` · `agents` · `resume` · `ship` · `status`) |
-| **tidy** | 0.41.0 | Change safely | secret floor (block credentials pre-write) · format/lint on touch · blast-radius · verification floor (runs your existing tests) · opt-in regression gate · quality floor · import-cycle check · auto-prune — tests are opt-in, never forced |
-| **charter** | 0.21.0 | Know the project | doc & decisions gate · alignment floor · outcome-memory "scar tissue" · conventions · owner loop · MCP reachability probe |
-| **hud** | 0.18.0 | Show | one read-only status line — animated health beacon (orbiting dots; green ok/yellow autopilot/red tests) · always-on feature status (✈️ autopilot/🤖 agents, green on/grey off) · model · tests · floors-off · open-Qs · tokens · branch (+unpushed) (`/hud:legend` decodes every symbol) |
+| Plugin | Ver | Role |
+|---|---|---|
+| **task-queue** | 0.40.0 | Orchestrate — native task list as a live queue: per-prompt review loop, enforced design-preview + parked-review gates, queue-aware agent fan-out, autopilot, one-command ship |
+| **tidy** | 0.41.0 | Change safely — format/lint on touch, blast-radius, verification floor (runs your existing tests), opt-in regression gate, quality floor, auto-prune (tests are opt-in, never forced) |
+| **charter** | 0.22.0 | Know the project — doc & decisions gate, alignment floor, scar-tissue memory, MCP reachability probe |
+| **hud** | 0.18.0 | Show — one read-only status line (health, feature state, tests, open-questions, tokens, branch) |
 
 Each plugin is independently installable · Bash + `jq` · zero build.
 
@@ -56,9 +21,3 @@ Each plugin is independently installable · Bash + `jq` · zero build.
 ```
 
 Or run `/plugin` and pick them from the **Discover** tab.
-
-## Design
-
-**Hooks-first** (no MCP, no skills), **token-efficient by construction** — near-zero at
-rest, cost proportional to the work. Design record:
-[docs/ROADMAP.md](docs/ROADMAP.md) · file map: [docs/MAP.md](docs/MAP.md).

@@ -66,9 +66,9 @@ cstatus="$(charter_conventions_status "$root" 2>/dev/null || printf 'missing')"
 
 # Baseline gaps (always actionable); QA gap only for web projects.
 gaps=()
-[ "$mstatus" = "missing" ] && gaps+=("project map (docs/MAP.md) — a file→responsibility index so sessions orient without re-scanning the tree; mark the high-fan-in / 'core' modules (the ones many files import) so a change's blast radius is known before it's touched")
-[ "$rstatus" = "missing" ] && gaps+=("roadmap/backlog (docs/ROADMAP.md) — a Now/Next/Later list + dated changelog, the cross-session record of what's next")
-[ "$status" = "missing" ] && [ "$web" = "web" ] && gaps+=("quality attributes (QUALITY.md) — web project, so Lighthouse-aligned: Core Web Vitals, accessibility (WCAG AA, jsx-a11y/stylelint at edit time), SEO, responsive + print styles, progressive enhancement, components-by-default (reuse existing before creating new)")
+[ "$mstatus" = "missing" ] && gaps+=("project map (docs/MAP.md) — file→responsibility index; mark high-fan-in 'core' modules so blast radius is known before a change")
+[ "$rstatus" = "missing" ] && gaps+=("roadmap/backlog (docs/ROADMAP.md) — Now/Next/Later backlog; the cross-session record of what's next (no prose changelog — git log is the history)")
+[ "$status" = "missing" ] && [ "$web" = "web" ] && gaps+=("quality attributes (QUALITY.md) — web, Lighthouse-aligned: Core Web Vitals, a11y (WCAG AA, jsx-a11y/stylelint at edit time), SEO, responsive + print, progressive enhancement, reuse-components-first")
 
 # Present docs → one consult list.
 present=()
@@ -83,7 +83,7 @@ parts=()
 if [ "${#gaps[@]}" -gt 0 ]; then
   body=""
   for g in "${gaps[@]}"; do body="$body"$'\n'"  • $g"; done
-  parts+=("[charter] Generate the missing baseline docs from the codebase/git (apply sensible defaults, note assumptions plainly), then commit — Claude can't infer these:$body"$'\n'"Document proportionally to complexity: capture the evident decisions (DECISIONS.md/ADRs) so they aren't re-litigated, add stack notes (STACK.md), and — for non-web — quality-attribute targets only as the project's size or risk makes them earn their keep. Don't over-document a small project. These docs are for Claude; also keep a thin plain-language owner layer (README: what this is / how to run it) so a non-technical owner isn't locked to one Claude session.")
+  parts+=("[charter] Generate these missing Claude-facing docs from the codebase/git (sensible defaults, note assumptions), then commit — Claude can't infer them:$body"$'\n'"Document proportionally: capture evident decisions (DECISIONS.md) + stack (STACK.md); non-web quality targets only as size/risk earns it. Don't over-document a small repo. Keep docs TERSE and for Claude; plus a thin owner README (what it is / how to run).")
 fi
 
 # The owner loop — charter owns the project's direction AND the owner relationship.
@@ -93,7 +93,7 @@ fi
 # for consequential/irreversible ops is now enforced natively (auto-mode safety
 # checks + permissions deny/ask in settings.json), not a charter hook.
 if [ "$documented" -eq 0 ]; then
-  parts+=("[charter] Owner loop — the owner is non-technical and can't read code: before substantive work, confirm what they want in plain language and play it back; build the simplest thing that meets it; then demonstrate it working and recap in plain terms (they verify by seeing it, not by reading tests). Autonomy on the reversible; get a plain-language yes before anything consequential or hard to undo — paid deps, data migrations/deletions, vendor lock-in (the line is reversibility + cost + data-safety, not technical-vs-product). Honor their OUTCOME, not their proposed implementation — if a request implies unwarranted complexity, re-anchor on what they want to happen, offer the simplest path that achieves it, and surface the cost in plain language. You are the only gatekeeper against over-engineering, theirs included.")
+  parts+=("[charter] Owner loop — owner is non-technical, can't read code: confirm intent in plain language + play it back before substantive work; build the simplest thing that meets it; demonstrate it working + recap plainly (they verify by seeing, not tests). Autonomy on the reversible; plain-language yes before anything consequential/hard-to-undo (paid deps, data migrations/deletions, lock-in — the line is reversibility + cost + data-safety). Honor the OUTCOME, not the proposed implementation — if a request implies needless complexity, re-anchor on the outcome and offer the simplest path. You're the gatekeeper against over-engineering, theirs included.")
 fi
 
 # Established conventions — the heart of "reuse before create": name the project's
@@ -103,7 +103,7 @@ fi
 # conventions are written down, then goes quiet. Silent when nothing is detected
 # (non-web / not enough signal), so it never guesses.
 if [ -n "$conv" ] && [ "$cstatus" = "missing" ]; then
-  parts+=("[charter] Established conventions detected — REUSE them; don't introduce a parallel pattern the owner has to clean up later: $conv. Build new features with the existing component library / patterns above; only reach for a new dependency or pattern when there's a real reason, and surface why in plain language first (you are the gatekeeper against unwarranted complexity). Make it durable: record these in a \"Conventions\" section of the map (or DECISIONS.md) and this reminder goes quiet.")
+  parts+=("[charter] Established conventions detected — REUSE them, don't add a parallel pattern the owner must clean up later: $conv. Extend the existing component library/patterns; new dep/pattern only with a real reason, surfaced plainly first. Record them in a \"Conventions\" section (map or DECISIONS.md) and this goes quiet.")
 fi
 
 if [ "$documented" -eq 0 ] && [ "${#present[@]}" -gt 0 ]; then
@@ -126,7 +126,7 @@ fi
 hot="$(charter_hotspots "$root" 2>/dev/null || true)"
 if [ -n "$hot" ]; then
   hotlist="$(printf '%s\n' "$hot" | awk -F'\t' '{printf "%s%s (%d fixes/%d changes)", sep, $3, $1, $2; sep=", "}')"
-  parts+=("[charter] Scar tissue — files this project has repeatedly had to FIX (outcome memory, from git): $hotlist. If your plan touches these, treat them as high-risk: understand WHY they churn before extending, cover them with tests, prefer the smallest change — and consider whether the churn means the abstraction is wrong (over-engineered) and should be simplified, not added to.")
+  parts+=("[charter] Scar tissue — files this project repeatedly had to FIX (from git): $hotlist. If your plan touches these, treat as high-risk: understand WHY they churn before extending, prefer the smallest change, and consider whether the churn means the abstraction is wrong (over-engineered) → simplify, don't add to.")
 fi
 
 # Join non-empty parts; silent when there's nothing to say (baseline present + marked).
