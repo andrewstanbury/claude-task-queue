@@ -32,9 +32,9 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   on adding** a dep/abstraction/layer — no seam until something *actually varies*
   across it (1 adapter = hypothetical, 2 = real); deletion test: if removing a module
   only relocates its complexity, it was a pass-through.
-- **2 · Verify + stay aligned** — confirm intent in plain language; characterize
-  before you change (no tests → pin current behaviour first); suite green before
-  done; weigh against recorded decisions. Verify observably; keep choices boring &
+- **2 · Verify + stay aligned** — confirm intent in plain language; verify the change
+  observably (tests are OPT-IN — a characterization test when it earns the safety net,
+  else types/build/run); existing suite green before done; weigh against recorded decisions. Verify observably; keep choices boring &
   reversible; honor the owner's *outcome* not their implementation; autonomy on the
   reversible, plain-language consent on the consequential. **Challenge ruthlessly** —
   including the prompt in front of you; when the work is architecturally significant
@@ -69,7 +69,9 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   design/structural choice, a new dependency or seam, a data-model/interface change, a
   genuinely ambiguous high-blast-radius fork, plus any irreversible/externally-binding
   action or a check you physically cannot run — so the owner returns to a reviewable
-  pile. **Decide the routine, low-stakes, cheap-to-undo calls yourself** (recommended
+  pile. **A human PLAYTEST is the one exception — never parked:** finish the work, mark it
+  done with a "playtest pending" note, and keep draining; never stall the queue for a
+  game's feel/visuals you can't run yourself. **Decide the routine, low-stakes, cheap-to-undo calls yourself** (recommended
   option, recorded) and keep moving; the test is what a wrong call would COST to undo,
   not mere uncertainty. And **never stall on the absent owner**: if a decision blocks all
   progress and genuinely can't be parked, take your recommended (safest, most reversible)

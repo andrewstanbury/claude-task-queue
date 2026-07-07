@@ -132,7 +132,7 @@ tidy_blast_radius() {
     if gi="$(tidy_go_importers "$file" "$label" "$sid")"; then
       [ -n "$gi" ] || return 0                              # go ran, nothing imports it
       n="${gi%%$'\t'*}"; sample="${gi#*$'\t'}"
-      printf 'blast-radius (~%d package(s) import %s): cover these with tests as part of this change; e.g. %s' "$n" "$label" "$sample"
+      printf 'blast-radius (~%d package(s) import %s): make sure this change does not break them; e.g. %s' "$n" "$label" "$sample"
       return 0
     fi
   fi
@@ -158,5 +158,5 @@ tidy_blast_radius() {
 
   n="$(printf '%s\n' "$hits" | grep -c .)"
   sample="$(printf '%s\n' "$hits" | head -n 3 | tr '\n' ',' | sed 's/,$//; s/,/, /g')"
-  printf 'blast-radius (~%d files reference %s): cover these with tests as part of this change; e.g. %s' "$n" "$label" "$sample"
+  printf 'blast-radius (~%d files reference %s): make sure this change does not break them; e.g. %s' "$n" "$label" "$sample"
 }

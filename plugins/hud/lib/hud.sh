@@ -28,7 +28,6 @@ hud_floors_disabled() {
   [ "${CLAUDE_TIDY_SECSCAN:-1}" = "0" ]         && out="$out secret-scan"
   [ "${CLAUDE_TIDY_CHECKS:-1}" = "0" ]          && out="$out tests"
   [ "${CLAUDE_TIDY_QUALITY_FLOOR:-1}" = "0" ]   && out="$out quality"
-  [ "${CLAUDE_TIDY_REGRESSION_GATE:-1}" = "0" ] && out="$out regression"
   [ "${CLAUDE_CHARTER_ALIGN_GATE:-1}" = "0" ]   && out="$out alignment"
   [ "${CLAUDE_TQ_INTENT_GATE:-1}" = "0" ]       && out="$out intent-check"
   printf '%s' "${out# }"

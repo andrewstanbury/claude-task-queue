@@ -50,7 +50,8 @@ run_touch() {
   [ "$status" -eq 0 ]
 }
 
-@test "touch: an untested source file is nudged to characterize before changing" {
+@test "touch: an untested source file is nudged to characterize (when opted in)" {
+  export CLAUDE_TIDY_COVERAGE=1                         # opt-in (off by default now)
   printf 'package x\n' > "$WORK/widget.go"
   run run_touch "$WORK/widget.go"
   [[ "$output" == *"coverage: widget.go has no test"* ]]
@@ -58,6 +59,7 @@ run_touch() {
 }
 
 @test "touch: silent once a test exists, and deduped per session" {
+  export CLAUDE_TIDY_COVERAGE=1
   printf 'package x\n' > "$WORK/mod.go"
   run run_touch "$WORK/mod.go"
   [[ "$output" == *"coverage: mod.go has no test"* ]]
@@ -68,12 +70,16 @@ run_touch() {
   [[ "$output" != *"coverage:"* ]]
 }
 
-@test "touch: test files and disabled mode produce no coverage nudge" {
+@test "touch: coverage nudge is OFF by default, skips test files / disabled mode when on" {
+  printf 'package x\n' > "$WORK/def.go"
+  run run_touch "$WORK/def.go"                          # no env → OFF by default (opt-in)
+  [[ "$output" != *"coverage:"* ]]
+  export CLAUDE_TIDY_COVERAGE=1                         # opt in for the skip checks
   printf 'package x\n' > "$WORK/a_test.go"
-  run run_touch "$WORK/a_test.go"
+  run run_touch "$WORK/a_test.go"                       # test file → skipped
   [[ "$output" != *"coverage:"* ]]
   printf 'package x\n' > "$WORK/b.go"
-  CLAUDE_TIDY_COVERAGE=0 run run_touch "$WORK/b.go"
+  CLAUDE_TIDY_COVERAGE=0 run run_touch "$WORK/b.go"     # explicitly disabled
   [[ "$output" != *"coverage:"* ]]
 }
 
