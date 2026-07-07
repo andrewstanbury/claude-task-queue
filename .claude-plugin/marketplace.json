@@ -16,8 +16,8 @@
     {
       "name": "tidy",
       "source": "./plugins/tidy",
-      "description": "Clean-as-you-touch: formats and lint-checks the file you just edited, surfaces its blast radius, and holds a Stop-hook verification floor (runs your existing tests, the project's own quality gates, and prune nudges) — the safety net a non-technical owner can't produce. Tests are opt-in, never forced. Full details on the plugin page.",
-      "version": "0.41.0"
+      "description": "Clean-as-you-touch: formats and lint-checks the file you just edited, surfaces its blast radius, and holds a Stop-hook verification floor (runs your existing tests, the project's own quality gates, and prune nudges) — the safety net a non-technical owner can't produce. On-demand /tidy:audit queues a whole-project cleanup. Tests are opt-in, never forced. Full details on the plugin page.",
+      "version": "0.42.0"
     },
     {
       "name": "charter",

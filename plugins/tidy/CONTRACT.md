@@ -192,13 +192,13 @@ deduped per file per session, and disable-able (`CLAUDE_TIDY_COVERAGE=0`); it's
 tuned for the target case (legacy app code with per-file or absent tests). Don't
 make the opt-in **gate** the default without weighing this.
 
-#### The automatic deliberate prune (same Stop hook, no command)
+#### The deliberate prune (automatic Stop hook + on-demand `/tidy:audit`)
 
-The slash commands are gone — the deliberate prune now fires **automatically**
-from `bin/tidy-verify.sh` (Stop), **after** the turn's work, gated on a debt
-threshold. It runs only when the tree is dirty *and* the verification floor passed
-clean, so it never derails the user's intent (the old SessionStart trigger fired
-before intent was known and re-injected a big report every session):
+The deliberate prune fires **automatically** from `bin/tidy-verify.sh` (Stop),
+**after** the turn's work, gated on a debt threshold. It runs only when the tree is
+dirty *and* the verification floor passed clean, so it never derails the user's
+intent (the old SessionStart trigger fired before intent was known and re-injected a
+big report every session):
 
 - It checks how many files are over the size budget. **At/above**
   `CLAUDE_TIDY_PRUNE_THRESHOLD` (default 3) it runs `bin/tidy-distill.sh` and emits
@@ -217,6 +217,16 @@ before intent was known and re-injected a big report every session):
   `CLAUDE_TIDY_SIZE_BUDGET` (default 400); lists the 10 heaviest files.
   It never writes and never hard-fails. The *judgment* (what to actually delete)
   is the model's, gated on confirmation.
+- **On-demand: `commands/audit.md` (`/tidy:audit`)** runs the same
+  `bin/tidy-distill.sh` report for the case the automatic firing can't reach — a
+  deliberate whole-project audit on a clean tree or below threshold. Because the owner
+  invoked it explicitly, it **auto-queues** every finding as a `TaskCreate` cleanup task
+  (smallest blast-radius first) instead of routing through the per-item approve loop; the
+  only exception is a finding with an obvious risk (uncertain-dead-code deletion,
+  high-blast-radius restructure, irreversible/ambiguous), which is PARKED as `❓` for the
+  owner. This is why the prune is no longer "no command to invoke" — the auto path stays
+  default, the command is the discoverable on-demand trigger (see docs/ROADMAP.md,
+  2026-07-07).
 
 ## Where the plugin writes
 

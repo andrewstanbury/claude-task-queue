@@ -22,8 +22,9 @@ what it depends on; each plugin's `tests/*.bats` exercises it.
 
 Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 (event wiring), `CONTRACT.md` (dependencies), `bin/` (hook entrypoints + controls),
-`lib/` (logic), `tests/`. (charter's `/charter:align` and hud's `/hud:setup` are
-the only `commands/` left; task-queue and tidy are hook-only now.)
+`lib/` (logic), `tests/`. (Slash commands are a thin optional
+surface over the hooks: task-queue's `/task-queue:*` family, charter's `/charter:align`,
+hud's `/hud:setup`, and tidy's `/tidy:audit`.)
 
 ## task-queue — *orchestrate the work* (hooks: SessionStart, UserPromptSubmit, Stop)
 
@@ -49,7 +50,8 @@ the only `commands/` left; task-queue and tidy are hook-only now.)
 | `bin/tidy-standard.sh` | SessionStart: the clean-as-you-go standard (trimmed to anchors) + the state prune. No longer surfaces whole-project debt — the deliberate prune now fires from `tidy-verify.sh` (Stop). |
 | `bin/tidy-touch.sh` | PostToolUse: format + lint (Go/web/Python/shell/GDScript) + blast-radius + coverage nudge + size for the edited file. |
 | `bin/tidy-verify.sh` | Stop: the verification floor — run the project's tests, block until green (bounded, timeout, change-throttled); opt-in coverage gate; the **regression gate** (block when a changed file is both a scar-tissue hotspot and untested — bounded, OPT-IN/off by default since tests are the owner's call, `CLAUDE_TIDY_REGRESSION_GATE=1` to enable); the **quality floor** (run the project's own declared typecheck/a11y/dep-rule gates before the tests, block until green, bounded — `CLAUDE_TIDY_QUALITY_FLOOR=0` to disable). Plus, after a clean verify on a dirty tree, one non-blocking post-work surface: **import cycles** touching the change (`lib/arch.sh`, content-deduped) + the **coupling-density trend** (`tidy_coupling_density`, nudge when import-edges-per-file climbs past `CLAUDE_TIDY_COUPLING_DELTA`) + the throttled deliberate-prune nudge (over `CLAUDE_TIDY_PRUNE_THRESHOLD` over-budget files → `tidy-distill.sh`'s weight report, once per debt episode). |
-| `bin/tidy-distill.sh` | Read-only whole-project weight report (the prune-report generator, run by `tidy-verify.sh` over threshold). |
+| `bin/tidy-distill.sh` | Read-only whole-project weight report (the prune-report generator, run by `tidy-verify.sh` over threshold, and on demand by `/tidy:audit`). |
+| `commands/audit.md` | `/tidy:audit` — on-demand whole-project audit: runs `tidy-distill.sh` and **auto-queues** every finding as a `TaskCreate` cleanup task (smallest blast-radius first), parking only obviously-risky ones as `❓`. The manual, clean-tree/below-threshold complement to the automatic prune. |
 | `lib/tidy.sh` | Language dispatch, Go/web/GDScript handlers, size nudge, state dir (`tidy_log_dir`); shared `tidy_root_for_cwd` + `tidy_run_linter`. |
 | `lib/lint.sh` | Multi-stack edit-time linters (Python `ruff` + format via `ruff format`/`black`, shell `shellcheck`) — Python also auto-formats; project's own tool. |
 | `lib/secscan.sh` | The secret-floor regex: prefix-anchored credential shapes (AWS/GitHub/Slack/Stripe/Google/PEM) + a placeholder-filtered generic pattern, and the exempt-path test. Pure regex, no external tool (works without gitleaks). |
