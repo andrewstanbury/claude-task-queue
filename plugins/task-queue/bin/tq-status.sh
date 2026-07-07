@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tq-status — on-demand readout of task-queue's per-repo CONTROL plane.
 #
-# Backs the bare `/tq` menu. Reports the mode switches (solo/checkpoint/agent) and a
+# Backs the bare `/tq` menu. Reports the mode switches (solo/agent) and a
 # repo-wide count of still-open work — deliberately NOT a re-listing of the native
 # task list (Claude Code renders that itself; duplicating it is the anti-pattern hud
 # already avoids). This answers "what modes am I in, and how much is still open
@@ -23,8 +23,6 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/tasks.sh"
 # shellcheck source=../lib/away.sh
 . "$PLUGIN_DIR/lib/away.sh"
-# shellcheck source=../lib/checkpoint.sh
-. "$PLUGIN_DIR/lib/checkpoint.sh"
 
 root="$(tq_root_for_cwd "$PWD")"
 
@@ -37,7 +35,6 @@ if tq_is_away "$root"; then
 else
   autopilot="off"
 fi
-if tq_ckpt_enabled "$root"; then checkpoint="on"; else checkpoint="off"; fi
 if tq_is_agent_mode "$root"; then agents="on"; else agents="off"; fi
 
 # ---- repo-wide open work (count only; not a re-listing) ----------------------
@@ -62,10 +59,6 @@ q="$(printf '%s' "$qsubs" | awk 'NF && !seen[$0]++' | grep -c . || true)"
 printf 'task-queue · %s\n\n' "$root"
 printf 'features (toggle each with its /task-queue: command, or just ask in plain words)\n'
 printf '  %-12s%-10s%s\n' "autopilot"  "$autopilot"  "keep working on my own while you are away"
-printf '  %-12s%-10s%s\n' "checkpoint" "$checkpoint" "auto-save every edit so a crash cannot lose work"
 printf '  %-12s%-10s%s\n\n' "agents"   "$agents"     "split big jobs across parallel helpers to go faster"
 printf 'open work in this repo\n'
 printf '  %s task(s) still open across sessions · %s ❓ awaiting you\n' "$open" "$q"
-if tq_ckpt_enabled "$root" && tq_ckpt_exists "$root"; then
-  printf '\na checkpoint snapshot is saved — recover crashed edits with /task-queue:resume\n'
-fi

@@ -4,7 +4,7 @@
 # test. Faked via CLAUDE_HUD_* overrides + a temp git repo.
 
 setup() {
-  unset CLAUDE_TQ_CHECKPOINT_MODE CLAUDE_TQ_AGENT_MODE   # isolate from any global default
+  unset CLAUDE_TQ_AGENT_MODE   # isolate from any global default
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   STATUS="$ROOT/bin/hud-status.sh"
   REPO="$(mktemp -d)/proj"; mkdir -p "$REPO"; git -C "$REPO" init -q
@@ -21,14 +21,6 @@ teardown() {
   touch "$CLAUDE_HUD_AGENT_DIR/-some-repo"
   run bash -c "$SRC"' hud_agent "/some/repo"' bash "$ROOT"; [ "$output" = "1" ]
   rm -rf "$CLAUDE_HUD_AGENT_DIR"
-}
-
-@test "hud_checkpoint reflects task-queue's per-repo checkpoint flag" {
-  export CLAUDE_HUD_CKPT_DIR="$(mktemp -d)"
-  run bash -c "$SRC"' hud_checkpoint "/some/repo"' bash "$ROOT"; [ "$output" = "0" ]
-  touch "$CLAUDE_HUD_CKPT_DIR/-some-repo"
-  run bash -c "$SRC"' hud_checkpoint "/some/repo"' bash "$ROOT"; [ "$output" = "1" ]
-  rm -rf "$CLAUDE_HUD_CKPT_DIR"
 }
 
 @test "hud_away reflects task-queue's per-repo away-mode flag" {
@@ -69,7 +61,6 @@ teardown() {
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
   [ "$status" -eq 0 ]
   [[ "$output" == *"✈️ autopilot"* ]]              # feature status always shown, icon-led
-  [[ "$output" == *"🧷 logs"* ]]                   # checkpoint feature, labelled "logs" in the status line
   [[ "$output" == *"🤖 agents"* ]]
   [[ "$output" == *"autopilot off"* ]]             # no-color terminal spells out on/off
   [[ "$output" == *"Opus 4.8"* ]]
@@ -104,18 +95,6 @@ teardown() {
   rm -rf "$CLAUDE_HUD_AWAY_DIR"
 }
 
-@test "render: checkpoint (labelled 'logs') on when armed, off otherwise" {
-  payload="$(jq -nc --arg c "$REPO" \
-    '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"logs off"* ]]                # off by default
-  export CLAUDE_HUD_CKPT_DIR="$(mktemp -d)"
-  touch "$CLAUDE_HUD_CKPT_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"logs on"* ]]                 # shown when armed
-  rm -rf "$CLAUDE_HUD_CKPT_DIR"
-}
-
 @test "render: ✓ tests when the verification floor last passed" {
   export CLAUDE_HUD_VERIFY_DIR="$(mktemp -d)"; printf 'pass' > "$CLAUDE_HUD_VERIFY_DIR/result-sess"
   payload="$(jq -nc --arg c "$REPO" \
@@ -143,10 +122,10 @@ teardown() {
   [[ "$output" != *"ctx"* ]]
 }
 
-@test "render: feature status honors the global-default env (checkpoint on, no flag)" {
+@test "render: feature status honors the global-default env (agents on, no flag)" {
   payload="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_TQ_CHECKPOINT_MODE=on "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"logs on"* ]]                 # checkpoint feature shows as "logs"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_TQ_AGENT_MODE=on "$2"' _ "$payload" "$STATUS"
+  [[ "$output" == *"agents on"* ]]               # env default flips the slot on with no per-repo flag
 }
 
 @test "render: narrow terminal collapses feature status to only the ON ones" {
@@ -155,7 +134,7 @@ teardown() {
   payload="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:60}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
   [[ "$output" == *"autopilot on"* ]]        # ON stays even on narrow
-  [[ "$output" != *"logs off"* ]]            # OFF collapses on narrow
+  [[ "$output" != *"agents off"* ]]          # OFF collapses on narrow
   rm -rf "$CLAUDE_HUD_AWAY_DIR"
 }
 

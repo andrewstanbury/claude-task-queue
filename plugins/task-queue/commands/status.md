@@ -1,5 +1,5 @@
 ---
-description: Show what's on (autopilot / checkpoint / agents) and what work is still open
+description: Show what's on (autopilot / agents) and what work is still open
 allowed-tools: Bash
 ---
 

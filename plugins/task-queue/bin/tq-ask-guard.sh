@@ -32,6 +32,8 @@ PLUGIN_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 . "$PLUGIN_DIR/lib/tasks.sh"
 # shellcheck source=../lib/away.sh
 . "$PLUGIN_DIR/lib/away.sh"
+# shellcheck source=../lib/capture.sh
+. "$PLUGIN_DIR/lib/capture.sh"
 set +e   # tasks.sh enables `set -e`; this hook is best-effort — never break the call.
 
 input=""
@@ -44,8 +46,10 @@ fi
 [ -n "$cwd" ] || cwd="$PWD"
 root="$(tq_root_for_cwd "$cwd")"
 
-tq_is_away "$root"      || allow                       # autopilot off → asking is fine
-tq_owner_present "$sid" && allow                       # owner just prompted → present for THIS turn, let it through
+# An AskUserQuestion that proceeds IS the design preview, so it satisfies any pending
+# design-preview gate (tq-design-guard) — clear the marker before letting the ask through.
+if ! tq_is_away "$root"; then tq_design_clear "$sid"; allow; fi   # autopilot off → asking is fine
+if tq_owner_present "$sid"; then tq_design_clear "$sid"; allow; fi # owner just prompted → present for THIS turn
 
 reason="🚶 Away-mode is ON — owner can't answer, so this is blocked. Don't ask. $(tq_park_rule) Parked items are the owner's review pile on return."
 jq -cn --arg r "$reason" \

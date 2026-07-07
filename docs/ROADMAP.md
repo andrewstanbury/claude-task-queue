@@ -72,7 +72,7 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   re-surfaces a repo's unfinished tasks — the system's confirmed native gap — with
   an imperative restore instruction + an on-disk pointer to the prior session's task
   files so a crash-resume is high-fidelity without inlining descriptions per startup) +
-  per-repo solo mode (merged away+pause, enforced autonomy) + opt-in agent-mode + opt-in crash-checkpoint + roadmap hydration + schema-drift canary.
+  per-repo solo mode (merged away+pause, enforced autonomy) + opt-in agent-mode + roadmap hydration + schema-drift canary.
   (Moving down the queue is left to Claude Code's native task nudges.) Its
   centerpiece is the **interpret→decompose→queue review loop**: on **every prompt**
   the capture hook has the model interpret the request, decompose it, and TaskCreate
@@ -317,6 +317,20 @@ Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT
 
 Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario,
 or a pain point that surfaces. No new layers planned.
+
+**Built (2026-07-07) — crash-recovery removed; three advisory→ENFORCED conversions (task-queue 0.39.0 / hud 0.17.0).**
+Owner's throughline: most "features" were advisory text the model skips, so things "never happened" (agents rarely fanned
+out, parked reviews were ignored). Fixes: (1) **removed crash-checkpoint entirely** — the hook, `refs/tq/checkpoint`, the
+`/task-queue:checkpoint` command, lib, hud `🧷 logs` slot, `CLAUDE_TQ_CHECKPOINT_MODE`; `/task-queue:resume` kept (task
+carryover only — owner explicitly wanted the explicit "bring my queue back" button). (2) **parked-review gate**
+(`tq-review-guard`, PreToolUse-deny): when autopilot ends with a parked `❓` pile, edits are blocked until the owner has
+reviewed each (menu) and cleared it; self-clears. (3) **design-preview gate** (`tq-design-guard`): a visual prompt arms a
+marker (capture) that blocks edits until a wireframe AskUserQuestion is shown (ask-guard clears it) — show-before-build, no
+rework. (4) **queue-aware agent fan-out**: capture names the independent unblocked tasks (`tq_ready_tasks`) and tells the
+model to parallelize them — the hook selects, the model spawns (no hook can spawn agents). All three have `CLAUDE_TQ_*=0`
+kill-switches + per-event token budgets. `./check.sh` green. **Parked for the owner: a Claude-only docs overhaul** — the
+owner reads no `.md` files, so curate every doc (this repo's + what charter generates in other projects) for Claude, not
+humans; trim the ROADMAP build-log (git holds history) and decide README/marketplace's fate.
 
 **Built (2026-07-06, latest) — a prompt is presence: autopilot ≠ absent (task-queue 0.38.0).**
 Owner hit the real footgun: while autopilot was on, typing a prompt left them stuck — the guard still hard-blocked

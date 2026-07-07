@@ -2,38 +2,28 @@
 # task-queue — support lib: SessionStart STATE-SIGNAL assembly.
 #
 # The per-repo mode banners the SessionStart hook appends after the policy/resume
-# text — checkpoint-armed, schema-drift, agent-mode, solo(away) + staleness. Pulled
-# out of bin/tq-resume.sh (which was assembling policy + resume + roadmap + these
-# four branches in one long script) so the signal logic is one cohesive, testable
-# unit and tq-resume just calls it. The banner STRINGS are load-bearing: several
-# tests (away.bats, checkpoint.bats, tasks.bats) assert their exact substrings, so
-# keep them verbatim when editing.
+# text — schema-drift, agent-mode, solo(away) + staleness. Pulled out of
+# bin/tq-resume.sh (which was assembling policy + resume + roadmap + these branches
+# in one long script) so the signal logic is one cohesive, testable unit and
+# tq-resume just calls it. The banner STRINGS are load-bearing: several tests
+# (away.bats, tasks.bats) assert their exact substrings, so keep them verbatim when
+# editing.
 #
 # Depends (sourced alongside by the caller) on lib/tasks.sh (tq_schema_status,
-# tq_is_agent_mode), lib/away.sh (tq_is_away, tq_away_since) and lib/checkpoint.sh
-# (tq_ckpt_enabled/exists/ref/restore_cmd). Read-only; emits text, writes nothing.
+# tq_is_agent_mode) and lib/away.sh (tq_is_away, tq_away_since). Read-only; emits
+# text, writes nothing.
 
 # Assemble the state-signal block for a repo, or empty when no mode is active.
 # Blocks are joined by a blank line so the caller appends the whole thing once.
 #   $1 root       absolute repo root
 #   $2 solo_cmd   the "bash …/tq-away.sh" invocation (for the off hints)
 #   $3 agent_cmd  the "bash …/tq-agent.sh" invocation (for the off hint)
-#   $4 plugin_dir the plugin root (for the checkpoint-disarm command)
 tq_state_signals() {
-  local root="$1" solo_cmd="$2" agent_cmd="$3" plugin_dir="$4"
-  local out="" nl=$'\n\n' ckpt_line block since now stale_h hours
+  local root="$1" solo_cmd="$2" agent_cmd="$3"
+  local out="" nl=$'\n\n' block since now stale_h hours
 
   # Append $1 as a block, blank-line-separated from whatever's already there.
   _sig_add() { [ -n "${1:-}" ] || return 0; out="${out:+$out$nl}$1"; }
-
-  if tq_ckpt_enabled "$root"; then
-    ckpt_line="🧷 Crash-checkpoint is ARMED — your working-tree edits are auto-snapshotted to a hidden ref ($(tq_ckpt_ref)) as you work, off your branch (history stays clean, nothing pushed)."
-    if tq_ckpt_exists "$root"; then
-      ckpt_line="$ckpt_line If a crash lost uncommitted edits this session, restore them with: $(tq_ckpt_restore_cmd)"
-    fi
-    ckpt_line="$ckpt_line (bash \"$plugin_dir/bin/tq-checkpoint.sh\" off to disarm.)"
-    _sig_add "$ckpt_line"
-  fi
 
   if [ "$(tq_schema_status 2>/dev/null || true)" = "drift" ]; then
     _sig_add "⚠️ [task-queue] The native task store no longer matches the expected schema — Claude Code may have changed it; carry-over/advance may be degraded (see CONTRACT.md)."

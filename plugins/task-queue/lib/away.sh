@@ -74,6 +74,39 @@ tq_away_since() {
   printf '%s' "${v:-0}"
 }
 
+# --- return-review gate: enforce "clear the parked pile before new work" -------
+# When autopilot turns OFF with a parked ❓ pile, tq-away.sh sets a per-repo
+# review-pending marker; the PreToolUse guard (bin/tq-review-guard.sh) then BLOCKS
+# edits until every parked ❓ is resolved, so the owner reviews what autopilot
+# decided before more code lands — the enforced backing for tq_away_digest's "review
+# these first" instruction. Same per-repo flag scheme as away; lives in the away dir.
+# (`review-` prefix never collides with the away flags, which encode an absolute path
+# and so always start with `-`, nor the `present-<sid>` markers.)
+tq_review_file()    { printf '%s/review-%s' "$(tq_away_dir)" "$(printf '%s' "${1:-}" | sed 's:/:-:g')"; }
+tq_review_set()     { [ -n "${1:-}" ] || return 0; mkdir -p "$(tq_away_dir)" 2>/dev/null || true; : > "$(tq_review_file "$1")" 2>/dev/null || true; }
+tq_review_clear()   { [ -n "${1:-}" ] && rm -f "$(tq_review_file "$1")" 2>/dev/null || true; }
+tq_review_pending() { [ -n "${1:-}" ] && [ -f "$(tq_review_file "$1")" ]; }
+
+# Does this repo still have any open parked ❓ across its sessions? Returns 0 (yes) on
+# the FIRST match — the guard only needs presence, not a count — else 1. Depends on
+# lib/tasks.sh (tq_tasks_dir/tq_session_root), sourced alongside.
+tq_repo_has_parked() {
+  local cur_root="${1:-}" tdir sdir sid f
+  [ -n "$cur_root" ] || return 1
+  tdir="$(tq_tasks_dir)"; [ -d "$tdir" ] || return 1
+  for sdir in "$tdir"/*/; do
+    [ -d "$sdir" ] || continue
+    sid="$(basename "$sdir")"
+    [ "$(tq_session_root "$sid" 2>/dev/null || true)" = "$cur_root" ] || continue
+    for f in "$sdir"*.json; do
+      [ -f "$f" ] || continue
+      jq -e '(.status=="pending" or .status=="in_progress") and ((.subject//"")|startswith("❓"))' \
+        "$f" >/dev/null 2>&1 && return 0
+    done
+  done
+  return 1
+}
+
 # Return-digest: what happened for cur_root while the owner was away (since epoch
 # `since`) — tasks COMPLETED since then and OPEN ❓ items still awaiting them, across
 # sessions rooted at this repo. Printed by tq-away.sh on "off" (the explicit "I'm
@@ -118,6 +151,6 @@ tq_away_digest() {
   if [ "$park_n" -gt 0 ]; then
     printf 'Parked decisions to review first (each carries a recommendation):\n'
     printf '%s\n' "${parked#$'\n'}"
-    printf 'Present each to the owner NOW the design-preview way — a blocking AskUserQuestion offering 2-3 concrete options with your recommended one first (labelled "(Recommended)"), so they pick rather than face an open prose question — and apply their choice BEFORE pulling any new queue work; resolve/clear each ❓ (TaskUpdate) as you go. Re-enabling autopilot resumes the rest of the queue. (Also in hud as ❓%d.)\n' "$park_n"
+    printf 'Present each to the owner NOW the design-preview way — a blocking AskUserQuestion offering 2-3 concrete options with your recommended one first (labelled "(Recommended)"), so they pick rather than face an open prose question — and apply their choice BEFORE pulling any new queue work; resolve/clear each ❓ (TaskUpdate) as you go. This is ENFORCED: editing code is BLOCKED until the parked pile is empty. Re-enabling autopilot resumes the rest of the queue. (Also in hud as ❓%d.)\n' "$park_n"
   fi
 }

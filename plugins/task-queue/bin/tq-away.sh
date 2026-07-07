@@ -43,11 +43,15 @@ case "$action" in
   on|enable)
     mkdir -p "$(tq_away_dir)" 2>/dev/null || true
     date +%s > "$flag" 2>/dev/null || : > "$flag"   # stamp the on-time (for staleness + digest)
+    tq_review_clear "$root"                          # re-enabling resumes the queue → drop any pending return-review gate
     printf 'Autopilot ON — running autonomously for %s: the queue auto-continues, asking is blocked, and anything that needs you is PARKED for review.\n' "$root"
     ;;
   off|disable)
     since="$(tq_away_since "$root")"                 # read before removing the flag
     rm -f "$flag" 2>/dev/null || true
+    # Arm the return-review gate when there's a parked pile: edits stay blocked until
+    # the owner has reviewed it (tq-review-guard.sh). No pile → no gate.
+    if tq_repo_has_parked "$root"; then tq_review_set "$root"; else tq_review_clear "$root"; fi
     printf 'Autopilot OFF — the normal review loop is back on for %s.\n' "$root"
     tq_away_digest "$root" "$since" 2>/dev/null || true
     ;;

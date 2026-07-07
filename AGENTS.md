@@ -57,15 +57,17 @@ Be honest about which is which:
 | Solo auto-continues the queue | ENFORCED | tq-verify Stop-block · `CLAUDE_TQ_AWAY_CONTINUE=0` |
 | Solo blocks AskUserQuestion | ENFORCED | tq-ask-guard PreToolUse-deny · `CLAUDE_TQ_AWAY_ASK_GUARD=0` |
 | Solo suppresses the approval loop | ENFORCED | tq-capture (deterministic) |
+| Return-review (clear the parked pile before new edits) | ENFORCED | tq-review-guard PreToolUse-deny · `CLAUDE_TQ_REVIEW_GATE=0` |
+| Design-preview shown before a visual change is built | ENFORCED | tq-design-guard PreToolUse-deny · `CLAUDE_TQ_DESIGN_GATE=0` |
 | Verification floor (tests green before done) | ENFORCED | tidy-verify Stop-block · `CLAUDE_TIDY_CHECKS=0` |
 | Secret pre-write scan | ENFORCED | tidy-presecret PreToolUse-block · `CLAUDE_TIDY_SECSCAN=0` |
 | Alignment gate (vs recorded decisions) | ENFORCED | charter-align-gate Stop-block · `CLAUDE_CHARTER_ALIGN_GATE=0` |
-| Crash-checkpoint snapshots | ENFORCED | tq-checkpoint PostToolUse (opt-in) |
 | Token budgets | ENFORCED | CI (`tests/token-budget.bats`) |
 | Interpret→decompose→queue, work in order | NUDGED | SessionStart/capture injection |
 | Steelman-then-challenge critique posture | NUDGED | injection |
 | Run-in-auto, advance without draining | NUDGED | injection |
-| Design-preview (wireframe before build) | NUDGED | capture injection |
+| Design-preview wireframe FIDELITY (faithful mockup) | NUDGED | capture injection — the gate forces a preview; its quality is nudged |
+| Agent fan-out — name independent ready tasks | NUDGED (queue-aware) | tq-capture injection — the hook selects the disjoint tasks; the model spawns (no hook can spawn agents) |
 | Park-as-`❓` under solo | NUDGED (but cornered) | injection — the enforced ask-block + auto-continue leave parking as the only exit |
 
 **On markers:** hud's `🛡✗` already covers the one honest runtime signal — an ENFORCED

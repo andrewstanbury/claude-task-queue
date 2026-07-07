@@ -11,7 +11,6 @@ set -uo pipefail
 # Default paths mirror where the sibling plugins write; overridable for tests.
 hud_agent_dir()  { printf '%s' "${CLAUDE_HUD_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}"; }
 hud_away_dir()   { printf '%s' "${CLAUDE_HUD_AWAY_DIR:-$HOME/.claude/state/task-queue/away}"; }
-hud_ckpt_dir()   { printf '%s' "${CLAUDE_HUD_CKPT_DIR:-$HOME/.claude/state/task-queue/checkpoint}"; }
 hud_verify_dir() { printf '%s' "${CLAUDE_HUD_VERIFY_DIR:-$HOME/.claude/state/tidy/verify}"; }
 hud_tasks_dir()  { printf '%s' "${CLAUDE_HUD_TASKS_DIR:-${CLAUDE_TQ_TASKS_DIR:-$HOME/.claude/tasks}}"; }
 
@@ -46,7 +45,6 @@ hud status-line key (left → right; the feature-status slot is always shown, th
   ⠋ (spinning) health beacon — dots orbit the cell · green: ok · yellow: autopilot on · red: tests failing
   ✈️ autopilot  on = I keep working on my own while you're away; off = normal review loop
   🤖 agents     on = big jobs split across parallel helpers; off = I work inline
-  🧷 logs       on = every edit auto-saved so a crash can't lose work; off = not saving
                (green = on, grey = off; on a no-color terminal the word on/off is spelled out)
   <model>      the model in use (shown without a label to save space)
   ✓/✗/⚠ tests  last test run — passed / failed / timed out
@@ -113,21 +111,6 @@ hud_away() {
   [ -n "$root" ] || { printf '0'; return 0; }
   flag="$(hud_away_dir)/$(printf '%s' "$root" | sed 's:/:-:g')"
   [ -f "$flag" ] && printf '1' || printf '0'
-}
-
-# Is the crash checkpoint ARMED for this repo? prints 1 / 0. Honors the per-repo flag
-# (content "off" = a tombstone) and the CLAUDE_TQ_CHECKPOINT_MODE global default, so
-# the status line stays honest when the owner arms it everywhere via settings env.
-# (Read-only mirror across the install boundary — mirrors tq_ckpt_enabled.)
-hud_checkpoint() {
-  local root="$1" flag
-  [ -n "$root" ] || { printf '0'; return 0; }
-  flag="$(hud_ckpt_dir)/$(printf '%s' "$root" | sed 's:/:-:g')"
-  if [ -f "$flag" ]; then
-    [ "$(cat "$flag" 2>/dev/null || true)" != "off" ] && printf '1' || printf '0'
-    return 0
-  fi
-  case "${CLAUDE_TQ_CHECKPOINT_MODE:-}" in on|1) printf '1' ;; *) printf '0' ;; esac
 }
 
 # The verification floor's last outcome for this session: "pass" | "fail" |

@@ -76,25 +76,22 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   default, record it, and leave a `❓` note to override — defaulting beats idling. The
   auto-continue is bounded by a per-prompt counter
   (`CLAUDE_TQ_AWAY_MAX_CONTINUE`, default 40) so a stuck model can't spin. `off` prints a
-  digest of what completed + what's parked; a staleness nudge fires if it's left on.
+  digest of what completed + what's parked, and ARMS a return-review gate: edits are
+  blocked (tq-review-guard PreToolUse) until you've reviewed each parked `❓` — as a
+  blocking AskUserQuestion, recommended option first — and cleared the pile, so you see
+  autopilot's deferred decisions before any more code lands (`CLAUDE_TQ_REVIEW_GATE=0`
+  disables; re-enabling autopilot drops the gate). A staleness nudge fires if it's left on.
 - **Per-feature commands** — each mode is a typeable slash command (discoverable via
-  Claude Code's `/` menu): `/task-queue:autopilot`, `/task-queue:checkpoint`,
+  Claude Code's `/` menu): `/task-queue:autopilot`,
   `/task-queue:agents` (each toggles + announces the new state), `/task-queue:resume`
-  (pick up where an earlier session left off — restore crashed edits + reinstate its
-  open tasks), `/task-queue:ship` (verify → PR → squash-merge completed work to main)
+  (pick up where an earlier session left off — reinstate its open tasks),
+  `/task-queue:ship` (verify → PR → squash-merge completed work to main)
   and `/task-queue:status` (what's on + open work). They replaced
   the single `/tq` hub. You never *need* them — plain language drives every mode ("keep
-  going while I'm gone" → autopilot on) — they're the power-user surface. Checkpoint and
-  agents also honor a global default env (`CLAUDE_TQ_CHECKPOINT_MODE` /
-  `CLAUDE_TQ_AGENT_MODE=on`) so the owner can enable them across every repo from
-  settings.json without a per-repo toggle; an explicit per-repo `off` still wins (a
-  tombstone). The shipped default stays **off**, so the opt-in invariant below holds.
-- **Crash-checkpoint** (`/task-queue:checkpoint`) — opt-in, per-repo. Auto-snapshots
-  the working tree (tracked + untracked) to a hidden ref (`refs/tq/checkpoint`) on
-  PostToolUse, off your branch so history stays clean and nothing is pushed; restore
-  after a crash with `git restore --source=refs/tq/checkpoint --worktree -- .`. This
-  is the **one deliberate exception** to "hooks are read-only" — the only hook that
-  writes to git — so it stays opt-in and best-effort (never breaks the triggering edit).
+  going while I'm gone" → autopilot on) — they're the power-user surface. Agents also
+  honors a global default env (`CLAUDE_TQ_AGENT_MODE=on`) so the owner can enable it
+  across every repo from settings.json without a per-repo toggle; an explicit per-repo
+  `off` still wins (a tombstone). The shipped default stays **off** (opt-in).
 
 Project docs: **[AGENTS.md](./AGENTS.md)**, **[docs/ROADMAP.md](./docs/ROADMAP.md)**,
 **[docs/MAP.md](./docs/MAP.md)**.
