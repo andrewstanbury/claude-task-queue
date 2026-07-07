@@ -147,9 +147,9 @@ plugins/<name>/
   blast radius (how far a change ripples → one owner per concern, contracts not
   copies). At scale, also watch that **total coupling isn't climbing** — compounding
   debt is a blast-radius-*at-scale* problem. Its legacy corollaries: **characterize
-  before you change** (no tests → pin the affected surface's current behavior with a
-  test first; blast radius says what to pin — so the project accrues a spec over
-  time), and **clean as you touch, bounded by blast radius** (improve the touched
+  before you change is OPT-IN** (tests are the owner's call — pin the affected surface's
+  current behavior with a test when you want the safety net; blast radius says what to
+  pin — never forced), and **clean as you touch, bounded by blast radius** (improve the touched
   area, but *ratchet, never sweep* — refactoring code whose ripple you can't see is
   itself a top cause of rework). Ask "how far does this ripple, and how do I contain
   it?" before every change.

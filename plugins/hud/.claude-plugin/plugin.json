@@ -1,6 +1,6 @@
 {
   "name": "hud",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "A consolidated, read-only status line for the companion plugins, grouped into three zones split by a dim divider: [health beacon · ✓/✗ tests · disabled-safety-floors 🛡✗ · ❓ parked-decisions/open-questions] │ [feature modes — ✈️ autopilot · 🤖 agents, each icon-led, green on / grey off] │ [model · token throughput ⇡in ⇣out · git branch with dirty */ahead ↑/behind ↓]. Rendered from existing plugin state plus the statusLine payload — no hooks, no scanning, zero model-token cost; empty slots and whole zones collapse when absent, and it sheds low-priority slots on a narrow terminal. It deliberately doesn't re-render signals shown elsewhere (the task list Claude Code renders natively; docs-health charter nudges at session start). Sets no refreshInterval (the beacon is static, so it stays battery-friendly). Run /hud:setup once to wire it into settings.json with a version-resilient command.",
   "author": {
     "name": "Andrew Stanbury"

@@ -162,9 +162,10 @@ scar_repo() {
   for i in 1 2 3; do printf 'v%s\n' "$i" > "$repo/healthy.sh"; git -C "$repo" add -A; git -C "$repo" commit -q -m "feat: extend $i"; done
 }
 
-@test "regression gate: blocks a touched file that is an untested scar-tissue hotspot" {
+@test "regression gate: blocks a touched untested scar-tissue hotspot when opted in" {
   local repo="$WORK/rg1"; scar_repo "$repo"
   printf 'echo d\n' >> "$repo/scar.sh"                 # touch the hotspot again (dirty)
+  export CLAUDE_TIDY_REGRESSION_GATE=1                 # opt-in (off by default now)
   run run_verify "$repo" rg1
   [[ "$output" == *'"decision":"block"'* ]]
   [[ "$output" == *"REPEATEDLY FIXED"* ]]
@@ -174,6 +175,7 @@ scar_repo() {
 @test "regression gate: silent on a touched file that is NOT a hotspot" {
   local repo="$WORK/rg2"; scar_repo "$repo"
   printf 'v4\n' > "$repo/healthy.sh"                   # healthy file → no rework history
+  export CLAUDE_TIDY_REGRESSION_GATE=1
   run run_verify "$repo" rg2
   [ -z "$output" ]
 }
@@ -183,6 +185,7 @@ scar_repo() {
   printf '#!/usr/bin/env bats\n@test x { run true; }\n' > "$repo/scar.bats"
   git -C "$repo" add -A; git -C "$repo" commit -q -m "test: scar"
   printf 'echo e\n' >> "$repo/scar.sh"                 # edit the now-tested hotspot
+  export CLAUDE_TIDY_REGRESSION_GATE=1
   run run_verify "$repo" rg3
   [ -z "$output" ]
 }
@@ -190,7 +193,7 @@ scar_repo() {
 @test "regression gate: bounded — gives up after the cap with a soft note" {
   local repo="$WORK/rg4"; scar_repo "$repo"
   printf 'echo d\n' >> "$repo/scar.sh"
-  export CLAUDE_TIDY_VERIFY_MAX=2
+  export CLAUDE_TIDY_REGRESSION_GATE=1 CLAUDE_TIDY_VERIFY_MAX=2
   run run_verify "$repo" rgc; [[ "$output" == *block* ]]      # attempt 1
   run run_verify "$repo" rgc; [[ "$output" == *block* ]]      # attempt 2
   run run_verify "$repo" rgc
@@ -199,17 +202,17 @@ scar_repo() {
   [[ "$output" != *block* ]]
 }
 
-@test "regression gate: disabled via CLAUDE_TIDY_REGRESSION_GATE=0" {
+@test "regression gate: OFF by default (tests are opt-in — no block unless enabled)" {
   local repo="$WORK/rg5"; scar_repo "$repo"
-  printf 'echo d\n' >> "$repo/scar.sh"
-  CLAUDE_TIDY_REGRESSION_GATE=0 run run_verify "$repo" rg5
+  printf 'echo d\n' >> "$repo/scar.sh"                 # touch the untested hotspot
+  run run_verify "$repo" rg5                           # no CLAUDE_TIDY_REGRESSION_GATE → off
   [ -z "$output" ]
 }
 
 @test "regression gate: stands down when the broad coverage ratchet is forcing" {
   local repo="$WORK/rg6"; scar_repo "$repo"
   printf 'echo d\n' >> "$repo/scar.sh"
-  CLAUDE_TIDY_COVERAGE_RATCHET=1 run run_verify "$repo" rg6
+  CLAUDE_TIDY_REGRESSION_GATE=1 CLAUDE_TIDY_COVERAGE_RATCHET=1 run run_verify "$repo" rg6
   [[ "$output" == *'"decision":"block"'* ]]
   [[ "$output" == *"Coverage ratchet"* ]]               # the ratchet's message…
   [[ "$output" != *"REPEATEDLY FIXED"* ]]               # …not the regression gate's

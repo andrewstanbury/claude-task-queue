@@ -318,6 +318,16 @@ Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT
 Demand-driven only — a new stack to lint, a real owner-not-at-the-terminal scenario,
 or a pain point that surfaces. No new layers planned.
 
+**Built (2026-07-07, later) — tests fully opt-in; autopilot never stalls for a playtest (tidy 0.41.0 / task-queue 0.40.0).**
+Owner: "support the TDD pattern, don't force tests — let the user decide if/when." (1) **tidy** — the regression gate
+(blocked untested scar-tissue hotspots) flipped from default-ON to **OPT-IN** (`CLAUDE_TIDY_REGRESSION_GATE=1`); the
+per-edit coverage nudge flipped to opt-in (`CLAUDE_TIDY_COVERAGE=1`); the blast-radius nudge dropped its "cover with tests"
+mandate ("make sure this change doesn't break them"). KEPT: the verification floor (runs EXISTING tests, silent when none)
+— that's the TDD *support*, not forcing. (2) **task-queue** — `tq_park_rule` carves out a **human playtest** as the one
+check you never park/stall for (a game's feel/visuals): finish the work, note "playtest pending", keep draining. Fixes the
+contradiction where "a check you can't run → park it" made autopilot stall a game task. Two per-event budgets ratcheted for
+the carve-out (960→1280, 780→1050). `./check.sh` green.
+
 **Built (2026-07-07) — crash-recovery removed; three advisory→ENFORCED conversions (task-queue 0.39.0 / hud 0.17.0).**
 Owner's throughline: most "features" were advisory text the model skips, so things "never happened" (agents rarely fanned
 out, parked reviews were ignored). Fixes: (1) **removed crash-checkpoint entirely** — the hook, `refs/tq/checkpoint`, the

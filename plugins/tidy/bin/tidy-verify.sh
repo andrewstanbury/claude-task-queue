@@ -166,16 +166,14 @@ if [ "${CLAUDE_TIDY_COVERAGE_RATCHET:-0}" = "1" ]; then
   rm -f "$gfile" 2>/dev/null || true                 # satisfied → reset the counter
 fi
 
-# Regression gate (always-on, NARROW): a changed file that is BOTH a scar-tissue
-# hotspot (repeatedly fixed — charter's outcome-memory signal) AND untested is the
-# highest regression risk in the tree — a fix here can silently come back. Block
-# until it's characterized, closing the loop charter's scar-tissue *detection*
-# opens. Unlike the broad coverage ratchet above (opt-in, every untested file),
-# this is safe to keep ON by default because it only fires on files that have
-# PROVEN they regress, and goes quiet the moment a test lands. Bounded like the
-# test floor (can't loop). Disable with CLAUDE_TIDY_REGRESSION_GATE=0; skipped when
-# the broad ratchet is already forcing (it covers these too).
-if [ "${CLAUDE_TIDY_REGRESSION_GATE:-1}" != "0" ] && [ "${CLAUDE_TIDY_COVERAGE_RATCHET:-0}" != "1" ]; then
+# Regression gate (OPT-IN, NARROW): a changed file that is BOTH a scar-tissue hotspot
+# (repeatedly fixed — charter's outcome-memory signal) AND untested is the highest
+# regression risk in the tree — a fix here can silently come back. When enabled, block
+# until it's characterized, closing the loop charter's scar-tissue *detection* opens.
+# OFF by default — tests are the OWNER'S call (support TDD, don't force it): opt in with
+# CLAUDE_TIDY_REGRESSION_GATE=1 for the safety net on proven debt-magnets. Bounded like
+# the test floor (can't loop); skipped when the broad ratchet is already forcing.
+if [ "${CLAUDE_TIDY_REGRESSION_GATE:-0}" = "1" ] && [ "${CLAUDE_TIDY_COVERAGE_RATCHET:-0}" != "1" ]; then
   hotun="$(tidy_untested_hotspots "$root" 2>/dev/null | head -n 20)"
   if [ -n "$hotun" ]; then
     rmax="${CLAUDE_TIDY_VERIFY_MAX:-3}"; rcount=0

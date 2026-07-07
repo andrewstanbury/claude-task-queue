@@ -11,13 +11,13 @@
       "name": "task-queue",
       "source": "./plugins/task-queue",
       "description": "Turns Claude Code's native task list into a live work queue: a review loop on every prompt, cross-session resume, one-command ship (verify → PR → squash-merge), and an enforced autopilot that parks the important decisions as a reviewable pile while deciding the routine rest. Full details on the plugin page.",
-      "version": "0.39.0"
+      "version": "0.40.0"
     },
     {
       "name": "tidy",
       "source": "./plugins/tidy",
-      "description": "Clean-as-you-touch: formats and lint-checks the file you just edited, surfaces its blast radius, and holds a Stop-hook verification floor (tests, the project's own quality gates, a regression gate on debt-magnet files, and prune nudges) — the safety net a non-technical owner can't produce. Full details on the plugin page.",
-      "version": "0.40.0"
+      "description": "Clean-as-you-touch: formats and lint-checks the file you just edited, surfaces its blast radius, and holds a Stop-hook verification floor (runs your existing tests, the project's own quality gates, and prune nudges) — the safety net a non-technical owner can't produce. Tests are opt-in, never forced. Full details on the plugin page.",
+      "version": "0.41.0"
     },
     {
       "name": "charter",
@@ -29,7 +29,7 @@
       "name": "hud",
       "source": "./plugins/hud",
       "description": "One read-only status line for the companion plugins — health, feature state, tests, parked-questions, token throughput, and git branch — in three glanceable zones. Zero model-token cost. Full details on the plugin page.",
-      "version": "0.17.0"
+      "version": "0.18.0"
     }
   ]
 }

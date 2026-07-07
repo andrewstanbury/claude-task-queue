@@ -160,17 +160,18 @@ default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   project didn't wire up; heavy Lighthouse/CWV audits stay in CI. `CLAUDE_TIDY_QUALITY_CMD`
   overrides with a single synthetic gate; `CLAUDE_TIDY_QUALITY_FLOOR=0` disables. It
   runs after the throttle, so a stored green hash means quality **and** tests passed.
-- **Regression gate (always-on, same Stop hook):** before the test run, it blocks
-  when a changed file is BOTH a **scar-tissue hotspot** (repeatedly fixed — by the
+- **Regression gate (OPT-IN, same Stop hook):** when enabled, before the test run it
+  blocks when a changed file is BOTH a **scar-tissue hotspot** (repeatedly fixed — by the
   git rework ratio) AND **untested** (`tidy_untested_hotspots` = `tidy_untested_changed`
-  ∩ `tidy_hotspots`). This is the always-on coverage ratchet *scoped to the files
-  that have earned it*, so it's safe to default on; it goes quiet the moment a test
-  lands. **Reads git history:** `git log -n 300 --no-merges --pretty=format:':C:%s'
+  ∩ `tidy_hotspots`). This is the coverage ratchet *scoped to the files that have earned
+  it*. **OFF by default — tests are the owner's call (support TDD, don't force it);** opt
+  in with `CLAUDE_TIDY_REGRESSION_GATE=1` for the safety net on proven debt-magnets, and
+  it goes quiet the moment a test lands. **Reads git history:** `git log -n 300 --no-merges --pretty=format:':C:%s'
   --name-only`, classifying a commit as rework when its subject word-matches
   `fix|bugfix|hotfix|bug|revert|undo|rollback|regression|rework` and flagging a file
   at rework-ratio ≥ 0.34 with ≥ 2 reworks (existing files only). **Bounded** like the
   test path (`CLAUDE_TIDY_VERIFY_MAX` blocks → `systemMessage`, never loops). Disable
-  with `CLAUDE_TIDY_REGRESSION_GATE=0`; stands down when the broad ratchet is forcing.
+  Enable with `CLAUDE_TIDY_REGRESSION_GATE=1`; stands down when the broad ratchet is forcing.
   **Limit:** existence-based like the ratchet — a hotspot that already has *any* test
   passes, even if the test doesn't cover the new change.
 - **Drift guard for the hotspot mirror:** `tidy_hotspots` is a hand copy of

@@ -52,10 +52,11 @@ tidy_has_test_for() {
 
 # Touch-time nudge: when a touched source file has no test, ask to characterize it
 # first. Deduped per file per session. Empty when fine/disabled. Skips test files
-# and generated code. CLAUDE_TIDY_COVERAGE=0 to disable.
+# and generated code. OPT-IN — tests are the owner's call (support TDD, don't nag):
+# off by default, enable the per-edit nudge with CLAUDE_TIDY_COVERAGE=1.
 tidy_coverage_nudge() {
   local file="$1" sid="${2:-}" mdir mark
-  [ "${CLAUDE_TIDY_COVERAGE:-1}" = "0" ] && return 0
+  [ "${CLAUDE_TIDY_COVERAGE:-0}" = "1" ] || return 0
   [ -n "$(tidy_lang_for_file "$file")" ] || return 0
   tidy_is_test_file "$file" && return 0
   case "$file" in *.go) tidy_is_generated_go "$file" && return 0 ;; esac

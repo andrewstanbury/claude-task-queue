@@ -59,7 +59,7 @@ tq_owner_present() {
 # call would COST to undo, not mere uncertainty. Kept lean — every caller carries a
 # per-event token budget (tests/token-budget.bats).
 tq_park_rule() {
-  printf '%s' "PARK the decisions the owner will want — an important direction or design/structural choice, a new dependency or interface/data-model change, an ambiguous high-blast-radius fork, anything irreversible or externally-binding (delete, push, send, spend), or a check you cannot run — as a '❓ [parked] <what needs deciding — with your recommendation>' task; decide the routine, low-stakes rest yourself (recommended option, noted). NEVER STALL on the absent owner: if an unparkable decision blocks all progress, take your recommended safest-reversible default, record it, and drop a '❓ [parked]' note to override."
+  printf '%s' "PARK the decisions the owner will want — an important direction or design/structural choice, a new dependency or interface/data-model change, an ambiguous high-blast-radius fork, anything irreversible or externally-binding (delete, push, send, spend), or a check you cannot run — as a '❓ [parked] <what needs deciding — with your recommendation>' task; decide the routine, low-stakes rest yourself (recommended option, noted). A human PLAYTEST is the ONE check you do NOT park or stop for (a game's feel/visuals you can't run): finish the work, mark the task DONE with a 'playtest pending' note for the owner to try on return, and KEEP DRAINING — never stall the queue for a playtest. NEVER STALL on the absent owner: if an unparkable decision blocks all progress, take your recommended safest-reversible default, record it, and drop a '❓ [parked]' note to override."
 }
 
 # Epoch when away-mode was turned on for this repo (the flag file holds it), or 0.
