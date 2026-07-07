@@ -6,7 +6,7 @@
 # control surface. Faked via CLAUDE_TQ_* + a temp repo.
 
 setup() {
-  unset CLAUDE_TQ_CHECKPOINT_MODE CLAUDE_TQ_AGENT_MODE   # isolate from any global default
+  unset CLAUDE_TQ_AGENT_MODE   # isolate from any global default
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   STATUS="$ROOT/bin/tq-status.sh"
   export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
@@ -14,12 +14,11 @@ setup() {
   export CLAUDE_TQ_STATE_DIR="$(mktemp -d)"
   export CLAUDE_TQ_AWAY_DIR="$(mktemp -d)"
   export CLAUDE_TQ_AGENT_DIR="$(mktemp -d)"
-  export CLAUDE_TQ_CKPT_DIR="$(mktemp -d)"
   REPO="$(mktemp -d)/proj"; mkdir -p "$REPO"; git -C "$REPO" init -q
 }
 teardown() {
   rm -rf "$CLAUDE_TQ_TASKS_DIR" "$CLAUDE_TQ_PROJECTS_DIR" "$CLAUDE_TQ_STATE_DIR" \
-         "$CLAUDE_TQ_AWAY_DIR" "$CLAUDE_TQ_AGENT_DIR" "$CLAUDE_TQ_CKPT_DIR" "$(dirname "$REPO")"
+         "$CLAUDE_TQ_AWAY_DIR" "$CLAUDE_TQ_AGENT_DIR" "$(dirname "$REPO")"
 }
 
 # tq-status reads the repo from PWD.
@@ -43,7 +42,6 @@ make_task() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"task-queue · $REPO"* ]]
   [[ "$output" =~ autopilot[[:space:]]+off ]]
-  [[ "$output" =~ checkpoint[[:space:]]+off ]]
   [[ "$output" =~ agents[[:space:]]+off ]]
 }
 
@@ -64,12 +62,6 @@ make_task() {
   : > "$(flag "$CLAUDE_TQ_AGENT_DIR")"
   run status
   [[ "$output" =~ agents[[:space:]]+on ]]
-}
-
-@test "checkpoint ON is reflected" {
-  : > "$(flag "$CLAUDE_TQ_CKPT_DIR")"
-  run status
-  [[ "$output" =~ checkpoint[[:space:]]+on ]]
 }
 
 @test "open-work line counts open tasks and the ❓ awaiting subset for this repo" {

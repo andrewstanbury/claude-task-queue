@@ -74,6 +74,33 @@ tq_open_worklist() {
   done | awk 'NF && !seen[$0]++'
 }
 
+# Tasks READY to start now in this session: pending, non-❓ tasks whose every blockedBy
+# is already completed (or that have none) — the independent, unblocked candidates the
+# capture hook offers for parallel subagent fan-out when agent-mode is on. It does the
+# dependency analysis (the hard part); the model still makes the Task calls, since no
+# hook can spawn agents. Prints one subject per ready task, deduped; empty when none.
+tq_ready_tasks() {
+  local sid="$1" tdir f bb blocker bstat ready
+  [ -n "$sid" ] || return 0
+  tdir="$(tq_tasks_dir)/$sid"
+  [ -d "$tdir" ] || return 0
+  for f in "$tdir"/*.json; do
+    [ -f "$f" ] || continue
+    jq -e 'select(.status=="pending" and ((.subject // "") | startswith("❓") | not))' \
+      "$f" >/dev/null 2>&1 || continue
+    ready=1
+    bb="$(jq -r '.blockedBy[]? // empty' "$f" 2>/dev/null || true)"
+    if [ -n "$bb" ]; then
+      while IFS= read -r blocker; do
+        [ -n "$blocker" ] || continue
+        bstat="$(jq -r '.status // ""' "$tdir/$blocker.json" 2>/dev/null || true)"
+        [ "$bstat" = "completed" ] || { ready=0; break; }
+      done <<< "$bb"
+    fi
+    [ "$ready" -eq 1 ] && jq -r '.subject // ""' "$f" 2>/dev/null || true
+  done | awk 'NF && !seen[$0]++'
+}
+
 # (The standalone pause mode was folded into solo — see lib/away.sh. `solo`, run when
 # the owner steps away, suppresses the approval loop the way pause used to, so there is
 # no separate pause flag any more.)

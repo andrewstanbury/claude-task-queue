@@ -6,7 +6,7 @@
 #
 # Three zones joined by a dim │ divider; empty slots (and empty zones) collapse:
 #   [ ● health · ✓/✗ tests · 🛡✗ floors-off · ❓ parked/open-Qs ]
-#   [ ✈️ autopilot · 🤖 agents · 🧷 logs  (green on, grey off) ]
+#   [ ✈️ autopilot · 🤖 agents  (green on, grey off) ]
 #   [ model · tok ⇡in ⇣out · ⎇ branch (+ dirty * · ↑ahead ↓behind) ]
 # Decode any symbol on demand with /hud:legend.
 #
@@ -76,7 +76,6 @@ SHORT_MODEL="$(printf '%s' "$MODEL" | sed -E 's/^claude-//; s/-[0-9]{8}([^0-9]|$
 
 AGENT="$(hud_agent "$ROOT")"
 AWAY="$(hud_away "$ROOT")"
-CKPT="$(hud_checkpoint "$ROOT")"
 VERIFY="$(hud_verify "$SID")"
 BRANCH="$(hud_branch "$CWD")"
 # Dirty-count + ahead/behind are only shown next to the branch (wide terminals, in
@@ -127,8 +126,7 @@ OPENQ="$(hud_open_questions "$SID" 2>/dev/null || printf 0)"
 [ "${OPENQ:-0}" -gt 0 ] 2>/dev/null && Z1+=("$Y$B❓$OPENQ$X")
 
 # Zone 2 — feature modes: ALWAYS shown, each mode led by its icon (✈️ autopilot · 🤖
-# agents · 🧷 logs — 🧷 is the crash-checkpoint feature, labelled "logs" in this line
-# only). green = on, grey = off. On a NARROW terminal it collapses to only the ON
+# agents). green = on, grey = off. On a NARROW terminal it collapses to only the ON
 # features to protect width. Emoji ignore ANSI color, so when color is OFF we spell
 # out on/off.
 FEAT=""
@@ -146,7 +144,6 @@ add_feat() {  # $1 icon  $2 label  $3 on(1)/off(0)
 }
 add_feat "✈️" autopilot "$AWAY"
 add_feat "🤖" agents    "$AGENT"
-add_feat "🧷" logs      "$CKPT"
 
 # Zone 3 — context: model · token throughput (⇡ input in the current context incl.
 # cache · ⇣ the last response; gated on input>0 so it's silent before the first API

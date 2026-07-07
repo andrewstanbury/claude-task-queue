@@ -37,8 +37,6 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/project.sh"
 # shellcheck source=../lib/away.sh
 . "$PLUGIN_DIR/lib/away.sh"
-# shellcheck source=../lib/checkpoint.sh
-. "$PLUGIN_DIR/lib/checkpoint.sh"
 # shellcheck source=../lib/signals.sh
 . "$PLUGIN_DIR/lib/signals.sh"
 
@@ -59,8 +57,8 @@ if [ -n "$input" ]; then
 fi
 [ -n "$cwd" ] || cwd="$PWD"
 root="$(tq_root_for_cwd "$cwd")"
-# Modes are per-repo slash commands (/task-queue:autopilot|checkpoint|agents|restore|
-# status); `autopilot` is the merged autonomous mode (was away + pause). These bare
+# Modes are per-repo slash commands (/task-queue:autopilot|agents|restore|status);
+# `autopilot` is the merged autonomous mode (was away + pause). These bare
 # invocations are what the model runs when the owner asks in plain language ("keep
 # going while I'm gone"); they take on|off (the commands themselves pass `toggle`).
 solo_cmd="bash \"$PLUGIN_DIR/bin/tq-away.sh\""
@@ -87,7 +85,7 @@ elif tq_policy_documented "$root"; then
   roadmap="$(tq_roadmap_path "$root" 2>/dev/null || true)"
   [ -n "$roadmap" ] && ctx="$ctx"$'\n\n'"[task-queue] Backlog at $roadmap — adopt its open items into your task list with TaskCreate; reflect finished work back."
 else
-  pause_hint="Modes are per-repo slash commands: /task-queue:autopilot (owner steps away — run fully autonomous, auto-continue the queue, block asking, PARK anything needing them), /task-queue:checkpoint (auto-save edits so a crash can't lose them), /task-queue:agents (fan independent tasks to parallel subagents, opt-in), /task-queue:resume (pick up where an earlier session left off — restore crashed edits + reinstate its open tasks), /task-queue:status (what's on + open work). Run a mode directly if needed: $solo_cmd on|off, $agent_cmd on|off. Natural language works too."
+  pause_hint="Modes are per-repo slash commands: /task-queue:autopilot (owner steps away — run fully autonomous, auto-continue the queue, block asking, PARK anything needing them), /task-queue:agents (fan independent tasks to parallel subagents, opt-in), /task-queue:resume (pick up where an earlier session left off — reinstate its open tasks), /task-queue:status (what's on + open work). Run a mode directly if needed: $solo_cmd on|off, $agent_cmd on|off. Natural language works too."
   # Bootstrap nudge: once the policy is recorded in CLAUDE.md, this goes lean.
   tip="Tip: record this standing policy in your CLAUDE.md and mark it with \"claude-companion\" — then this nudge re-anchors in one line each session instead of repeating in full."
   # Orientation/project-knowledge nudges live in the charter plugin (know-the-project),
@@ -102,10 +100,10 @@ else
   [ -n "$roadmap" ] && ctx="$ctx"$'\n\n'"[task-queue] This repo has a committed backlog at $roadmap — adopt its open (Now/Next) items into your task list with TaskCreate so the live queue reflects the shared backlog, and reflect finished work back to it as you go."
 fi
 
-# State signals — the per-repo mode banners (checkpoint/drift/agent/solo), assembled
-# in lib/signals.sh and appended after the policy/resume text. Always shown regardless
+# State signals — the per-repo mode banners (drift/agent/solo), assembled in
+# lib/signals.sh and appended after the policy/resume text. Always shown regardless
 # of source (they're state, not policy, so a compact/resume must not suppress them).
-signals="$(tq_state_signals "$root" "$solo_cmd" "$agent_cmd" "$PLUGIN_DIR")"
+signals="$(tq_state_signals "$root" "$solo_cmd" "$agent_cmd")"
 [ -n "$signals" ] && ctx="$ctx"$'\n\n'"$signals"
 
 # Emit as SessionStart additionalContext.

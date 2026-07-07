@@ -112,6 +112,33 @@ if [ "$away" -eq 1 ]; then
   if tq_owner_present "$sid"; then present=1; else paused=1; fi
 fi
 
+# Design-preview gate: on a PRESENT visual/design turn, arm the per-session marker so
+# the PreToolUse design guard blocks edits until a wireframe preview has been shown
+# (show-before-build, so a visual change can't be coded before the owner sees it).
+# Clear it otherwise — a non-design prompt (owner moved on) or an absent owner (autopilot
+# parks design decisions, it doesn't gate the autonomous drain). Best-effort side effect.
+if [ "$design" -eq 1 ] && [ "$paused" -eq 0 ]; then
+  tq_design_set "$sid"
+else
+  tq_design_clear "$sid"
+fi
+
+# Agent-mode fan-out: when agent-mode is on and 2+ queued tasks are unblocked and
+# independent (startable now, not ❓), NAME them and tell the model to fan them out to
+# parallel subagents this turn. This is the timely, specific form of agent-mode — the
+# hook does the independence analysis; the model still makes the Task calls (no hook can
+# spawn agents). Rides alongside the loop; off unless the repo opted into agent-mode.
+fanout=""
+if tq_is_agent_mode "$root"; then
+  ready="$(tq_ready_tasks "$sid" 2>/dev/null || true)"
+  rn="$(printf '%s\n' "$ready" | grep -c . || true)"
+  if [ "${rn:-0}" -ge 2 ]; then
+    rlist="$(printf '%s\n' "$ready" | head -n 6 | sed 's/^/  • /')"
+    [ "$rn" -gt 6 ] && rlist="$rlist"$'\n'"  …and $((rn - 6)) more"
+    fanout="🤖 [task-queue] Agent-mode: $rn queued tasks are unblocked and independent — FAN THEM OUT to parallel subagents now (one Task each), unless they touch the same files (keep those inline):"$'\n'"$rlist"
+  fi
+fi
+
 loopctx=""
 if [ "$paused" -eq 0 ]; then
   # Record the INTENT OF RECORD for the outcome gate (tq-verify, Stop): the owner's
@@ -175,8 +202,13 @@ if [ "$paused" -eq 0 ]; then
   fi
 fi
 
-# Combine the open-questions reminder (always, if any) with the loop instruction.
+# Combine the open-questions reminder + agent fan-out (both ride alongside, if any)
+# with the loop instruction.
 ctx="$qreminder"
+if [ -n "$fanout" ]; then
+  [ -n "$ctx" ] && ctx="$ctx"$'\n\n'
+  ctx="$ctx$fanout"
+fi
 if [ -n "$loopctx" ]; then
   [ -n "$ctx" ] && ctx="$ctx"$'\n\n'
   ctx="$ctx$loopctx"

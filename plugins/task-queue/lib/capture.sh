@@ -60,6 +60,17 @@ tq_looks_design() {
   return 0
 }
 
+# Design-preview gate marker (per session). On a present visual/design turn the capture
+# hook arms this; the PreToolUse design guard (bin/tq-design-guard.sh) then blocks edits
+# until a wireframe preview has been shown (the ask-guard clears it when an
+# AskUserQuestion fires). Enforces "show before you build" so a visual change can't be
+# coded before the owner has seen it. Stored in the shared state dir (tq_state_dir, from
+# tasks.sh — sourced alongside); `design-` prefix never collides with intent-<sid>.
+tq_design_file()    { printf '%s/design-%s' "$(tq_state_dir)" "$(printf '%s' "${1:-nosession}" | sed 's:/:-:g')"; }
+tq_design_set()     { [ -n "${1:-}" ] || return 0; mkdir -p "$(tq_state_dir)" 2>/dev/null || true; : > "$(tq_design_file "$1")" 2>/dev/null || true; }
+tq_design_clear()   { [ -n "${1:-}" ] && rm -f "$(tq_design_file "$1")" 2>/dev/null || true; }
+tq_design_pending() { [ -n "${1:-}" ] && [ -f "$(tq_design_file "$1")" ]; }
+
 # Is the repo at $root a Godot project? (a project.godot manifest at the root.)
 # Used to stand down the wireframe design-preview: that preview is a web-UI
 # convention (box/input/button layouts) and misleads on a game's scene/sprite

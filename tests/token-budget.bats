@@ -80,6 +80,15 @@ marked_repo() {
   # present-note prefix that overrides the standing "never ask" banner. Fires only on
   # this away+present path, so the normal-path budgets above are untouched.
   within "capture away-present" 900 "$(cap 'add the login form and wire it and test it')"
+  # agent-mode fan-out injection: a fresh (non-away) repo/session with 2 independent
+  # ready tasks + agent-mode on. Rides alongside the loop; opt-in, so normal paths pay 0.
+  local fp="$WORK/fan"; mkdir -p "$fp"; git -C "$fp" init -q
+  mkdir -p "$CLAUDE_TQ_TASKS_DIR/fan"
+  jq -n '{id:"1",subject:"build the header",status:"pending",blocks:[],blockedBy:[]}' > "$CLAUDE_TQ_TASKS_DIR/fan/1.json"
+  jq -n '{id:"2",subject:"build the footer",status:"pending",blocks:[],blockedBy:[]}' > "$CLAUDE_TQ_TASKS_DIR/fan/2.json"
+  capf() { jq -nc --arg p "$1" --arg s fan --arg c "$fp" '{prompt:$p, session_id:$s, cwd:$c}' \
+             | "$R/plugins/task-queue/bin/tq-capture.sh" | ctx; }
+  within "capture agent-fanout" 1000 "$(CLAUDE_TQ_AGENT_MODE=on capf 'thanks')"
 }
 
 @test "token budget: MCP probe is silent at rest, bounded when warning" {
@@ -115,6 +124,19 @@ marked_repo() {
   # ask-guard deny (pay-per-event PreToolUse): reason lives in permissionDecisionReason.
   local AG; AG="$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-ask-guard.sh" | jq -r '.hookSpecificOutput.permissionDecisionReason // ""')"
   within "ask-guard deny" 780 "$AG"   # ratchet 620→780: same never-stall clause in tq_park_rule
+  # review-guard deny (pay-per-event PreToolUse): armed marker + a parked ❓ for this repo.
+  export CLAUDE_TQ_PROJECTS_DIR="$WORK/rg-proj"
+  RG_ENC="$(printf '%s' "$g" | sed 's:/:-:g')"
+  mkdir -p "$CLAUDE_TQ_PROJECTS_DIR/$RG_ENC"; printf '{"cwd":"%s"}\n' "$g" > "$CLAUDE_TQ_PROJECTS_DIR/$RG_ENC/zz.jsonl"
+  jq -n '{id:"2",subject:"❓ [parked] pick the storage backend",status:"pending"}' > "$CLAUDE_TQ_TASKS_DIR/zz/2.json"
+  : > "$CLAUDE_TQ_AWAY_DIR/review-$RG_ENC"
+  local RG; RG="$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-review-guard.sh" | jq -r '.hookSpecificOutput.permissionDecisionReason // ""')"
+  within "review-guard deny" 520 "$RG"
+  # design-guard deny (pay-per-event PreToolUse): a pending design preview, owner present.
+  : > "$CLAUDE_TQ_STATE_DIR/design-zz"
+  date +%s > "$CLAUDE_TQ_AWAY_DIR/present-zz"   # owner present → gate active (not a drain)
+  local DG; DG="$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-design-guard.sh" | jq -r '.hookSpecificOutput.permissionDecisionReason // ""')"
+  within "design-guard deny" 520 "$DG"
   within "quality block" 360 "$(printf '%s' "$S" | CLAUDE_TIDY_QUALITY_CMD='echo ERR; exit 1' "$R/plugins/tidy/bin/tidy-verify.sh" | rsn)"
   within "diagnose block" 950 "$(printf '%s' "$S" | CLAUDE_TIDY_LOG_DIR="$WORK/dl" CLAUDE_TIDY_TEST_CMD='echo BOOM; exit 1' "$R/plugins/tidy/bin/tidy-verify.sh" | rsn)"
   # secret block writes its reason to STDERR (PreToolUse exit-2 convention), not JSON.

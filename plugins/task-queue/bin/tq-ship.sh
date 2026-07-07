@@ -35,7 +35,7 @@ cur="$(git rev-parse --abbrev-ref HEAD)"
 default_branch="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's:^origin/::')"
 [ -n "$default_branch" ] || default_branch="main"
 
-# Dirty = staged, unstaged, or untracked (checkpoint snapshots the same set).
+# Dirty = staged, unstaged, or untracked.
 dirty=0
 git diff --quiet && git diff --cached --quiet || dirty=1
 [ -n "$(git ls-files --others --exclude-standard)" ] && dirty=1
