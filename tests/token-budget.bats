@@ -49,7 +49,7 @@ marked_repo() {
 @test "token budget: SessionStart steady-state (marked repo) stays lean" {
   local repo="$WORK/m"; marked_repo "$repo"
   local ss; ss="$(jq -nc --arg c "$repo" '{cwd:$c, source:"startup"}')"
-  within "charter quiet+scar" 540  "$(printf '%s' "$ss" | "$R/plugins/charter/bin/charter-standard.sh" | ctx)"
+  within "charter quiet+scar" 420  "$(printf '%s' "$ss" | "$R/plugins/charter/bin/charter-standard.sh" | ctx)"
   within "tidy quiet"         640  "$(printf '%s' "$ss" | "$R/plugins/tidy/bin/tidy-standard.sh" | ctx)"
   within "task-queue lean"    1280 "$(printf '%s' "$ss" | "$R/plugins/task-queue/bin/tq-resume.sh" | ctx)"
 }

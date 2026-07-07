@@ -19,22 +19,22 @@ run_standard() {
 
 @test "non-web project: QA is not a baseline nudge; it scales up by complexity" {
   run run_standard startup                        # bare non-web repo
-  [[ "$output" == *"Generate the missing baseline docs"* ]]
-  [[ "$output" == *"Document proportionally to complexity"* ]]
-  [[ "$output" == *"quality-attribute targets"* ]]   # mentioned as scale-up, not demanded
+  [[ "$output" == *"Generate these missing"* ]]
+  [[ "$output" == *"Document proportionally"* ]]
+  [[ "$output" == *"quality targets"* ]]   # mentioned as scale-up, not demanded
   [[ "$output" != *"no documented quality attributes"* ]]
 }
 
 @test "baseline docs nudge keeps a plain-language owner layer (bus factor)" {
   run run_standard startup
-  [[ "$output" == *"plain-language owner layer"* ]]   # not just a Claude manual
-  [[ "$output" == *"locked to one Claude session"* ]]
+  [[ "$output" == *"owner README"* ]]   # not just a Claude manual
+  [[ "$output" == *"how to run"* ]]
 }
 
 @test "brief carries the owner loop (intent → demo → consent) until recorded" {
   run run_standard startup
   [[ "$output" == *"Owner loop"* ]]
-  [[ "$output" == *"confirm what they want in plain language"* ]]   # intent up front
+  [[ "$output" == *"confirm intent in plain language"* ]]   # intent up front
   [[ "$output" == *"demonstrate it working"* ]]                     # observable verify
   [[ "$output" == *"reversibility + cost + data-safety"* ]]         # consent line
   # goes quiet once the policy is recorded + marked in CLAUDE.md
@@ -66,7 +66,7 @@ run_standard() {
 @test "orientation points at the project map on a fresh context" {
   run run_standard startup                      # QA + map missing
   [[ "$output" == *"docs/MAP.md"* ]]
-  [[ "$output" == *"re-scanning"* ]]
+  [[ "$output" == *"blast radius"* ]]
   printf '# Quality Attributes\n' > "$REPO/QUALITY.md"
   run run_standard startup                      # QA documented, map still missing
   [[ "$output" == *"docs/MAP.md"* ]]
@@ -75,7 +75,7 @@ run_standard() {
 @test "omits orientation/map nudge in lean mode (token-light)" {
   run run_standard compact                      # QA missing → lean reminder only
   [[ "$output" != *"MAP.md"* ]]
-  [[ "$output" != *"re-scanning"* ]]
+  [[ "$output" != *"blast radius"* ]]
 }
 
 @test "qa-status: missing, then documented via QUALITY.md / CLAUDE.md section (ADRs do NOT count)" {
@@ -217,11 +217,11 @@ run_standard() {
 @test "web project + missing QA: nudge bakes in Lighthouse-aligned defaults (startup)" {
   : > "$REPO/index.html"
   run run_standard startup
-  [[ "$output" == *"web project"* ]]
+  [[ "$output" == *"Lighthouse"* ]]
   [[ "$output" == *"Core Web Vitals"* ]]
   [[ "$output" == *"progressive enhancement"* ]]
   [[ "$output" == *"print"* ]]
-  [[ "$output" == *"reuse existing before creating"* ]]   # components-by-default principle
+  [[ "$output" == *"reuse-components-first"* ]]   # components-by-default principle
 }
 
 @test "non-web project: no web QA specifics in the brief" {
@@ -255,7 +255,7 @@ run_standard() {
 
 @test "decisions: scale-up mention when missing (not demanded), consult when present" {
   run run_standard startup
-  [[ "$output" == *"capture the evident decisions (DECISIONS.md/ADRs)"* ]]  # scale-up, not a gap nag
+  [[ "$output" == *"capture evident decisions"* ]]  # scale-up, not a gap nag
   [[ "$output" != *"No decision record"* ]]
   [[ "$output" != *"alignment anchor"* ]]               # no anchor when there are no decisions
   printf '# Decisions\n- chose X over Y\n' > "$REPO/DECISIONS.md"
@@ -342,7 +342,7 @@ run_standard() {
 
 @test "stack: scale-up mention when missing (not demanded), consult when present" {
   run run_standard startup
-  [[ "$output" == *"stack notes (STACK.md)"* ]]   # mentioned as scale-up, not a gap nag
+  [[ "$output" == *"stack (STACK.md)"* ]]   # mentioned as scale-up, not a gap nag
   [[ "$output" != *"No stack notes"* ]]
   printf '# Stack\n- Go 1.22\n' > "$REPO/STACK.md"
   run run_standard startup
