@@ -148,8 +148,14 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   systemMessage throttled once per debt episode** (re-fires only after debt drops
   below the threshold and re-crosses), routing cuts through the task-queue loop.
   Firing post-turn keeps it from derailing the user's intent. SessionStart no longer
-  surfaces whole-project debt; the per-touch size nudge covers reactive size. No
-  slash commands.
+  surfaces whole-project debt; the per-touch size nudge covers reactive size. The
+  automatic post-turn firing stays the default path; **`/tidy:audit` adds an on-demand
+  trigger** (2026-07-07) for the case the auto-prune can't reach — a deliberate
+  whole-project audit on a clean tree or below threshold — and, being manually invoked,
+  auto-queues every finding as a cleanup task rather than nudging. This **retires the
+  earlier "no slash commands" clause** for the prune: an explicit trade-off, matching how
+  the task-queue command family already frames commands as an optional power-user surface
+  over the automatic behavior (plain language still works; the command is discoverability).
 - **charter** — at SessionStart, a compact **proportional brief** gating substantive
   work on the project's Claude manual (quality attributes, map, decisions anchor,
   roadmap, stack, established conventions), detect-not-author, quiet once summarised
