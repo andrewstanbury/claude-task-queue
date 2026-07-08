@@ -121,10 +121,12 @@ marked_repo() {
   # ratchet 960→1280: tq_park_rule gained a "human playtest is the one check you don't park —
   # finish + note playtest-pending + keep draining" carve-out (owner request), so autopilot
   # never stalls the queue for a game playtest; it rides into this per-Stop nudge.
-  within "away continue"  1280 "$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-verify.sh" | rsn)"
+  # ratchet 1280→1400: tq_park_rule now teaches TWO deferral markers — ❓ [parked] decisions
+  # vs ⏳ [blocked] owner-action items (owner request) — so it names both kinds + the gate rule.
+  within "away continue"  1400 "$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-verify.sh" | rsn)"
   # ask-guard deny (pay-per-event PreToolUse): reason lives in permissionDecisionReason.
   local AG; AG="$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-ask-guard.sh" | jq -r '.hookSpecificOutput.permissionDecisionReason // ""')"
-  within "ask-guard deny" 1050 "$AG"   # ratchet 780→1050: same playtest carve-out in tq_park_rule
+  within "ask-guard deny" 1200 "$AG"   # ratchet 780→1050 (playtest carve-out), 1050→1200 (two deferral markers ❓/⏳) in tq_park_rule
   # review-guard deny (pay-per-event PreToolUse): armed marker + a parked ❓ for this repo.
   export CLAUDE_TQ_PROJECTS_DIR="$WORK/rg-proj"
   RG_ENC="$(printf '%s' "$g" | sed 's:/:-:g')"

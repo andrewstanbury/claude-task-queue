@@ -89,9 +89,10 @@ make_task() {
   # the load-bearing behaviours: never block; park the important, decide the routine
   [[ "$output" == *"never call AskUserQuestion"* ]]
   [[ "$output" == *"PARK"* ]]
-  [[ "$output" == *"decide the routine"* ]]
-  # parked items land in the existing ❓ open-questions bucket (reused, not new)
+  [[ "$output" == *"ecide the routine"* ]]
+  # both deferral markers are taught: ❓ decisions and ⏳ owner-action items
   [[ "$output" == *"❓ [parked]"* ]]
+  [[ "$output" == *"⏳ [blocked]"* ]]
   # an unparkable, progress-blocking decision defaults to the recommendation — never a stall
   [[ "$output" == *"NEVER STALL"* ]]
 }
@@ -137,7 +138,7 @@ make_task() {
   run bash -c 'cd "$1" && bash "$2" off' _ "$REPO" "$AWAY"
   [[ "$output" == *"While you were away"* ]]
   [[ "$output" == *"1 task(s) completed"* ]]
-  [[ "$output" == *"1 ❓ parked"* ]]
+  [[ "$output" == *"1 ❓ to decide"* ]]
   [[ "$output" == *"✓ Wire the payment engine"* ]]
 }
 
@@ -148,7 +149,7 @@ make_task() {
   make_task "sess1" 3 pending     "❓ [parked] Approve the new webhooks dependency"
   bash -c 'cd "$1" && bash "$2" on' _ "$REPO" "$AWAY"
   run bash -c 'cd "$1" && bash "$2" off' _ "$REPO" "$AWAY"
-  [[ "$output" == *"3 ❓ parked"* ]]
+  [[ "$output" == *"3 ❓ to decide"* ]]
   # the FULL list is printed (not a first-N cap) so "off" is the review point
   [[ "$output" == *"Confirm Postgres over MySQL?"* ]]
   [[ "$output" == *"Pick the auth library"* ]]
@@ -158,6 +159,37 @@ make_task() {
   # design-preview posture: each parked decision is a pick-from-options review
   [[ "$output" == *"AskUserQuestion"* ]]
   [[ "$output" == *"2-3 concrete options"* ]]
+}
+
+@test "away off separates ⏳ owner-blocked items from ❓ decisions and does not gate on them" {
+  make_session "sess1"
+  make_task "sess1" 1 in_progress "❓ [parked] Confirm Postgres over MySQL?"
+  make_task "sess1" 2 pending     "⏳ [blocked] Plug in the Steam Deck to playtest input"
+  bash -c 'cd "$1" && bash "$2" on' _ "$REPO" "$AWAY"
+  run bash -c 'cd "$1" && bash "$2" off' _ "$REPO" "$AWAY"
+  # counted and labelled distinctly
+  [[ "$output" == *"1 ❓ to decide"* ]]
+  [[ "$output" == *"1 ⏳ waiting on you"* ]]
+  # the ⏳ item is listed under its own "manual action" heading
+  [[ "$output" == *"manual action from you"* ]]
+  [[ "$output" == *"Plug in the Steam Deck"* ]]
+  # and explicitly NOT part of the edit-blocking pile
+  [[ "$output" == *"do NOT block editing"* ]]
+}
+
+@test "away off surfaces UNFINISHED real work (no invisible mid-drain stall)" {
+  # If autopilot yields mid-drain (e.g. the continue cap), the digest MUST reveal the
+  # leftover real queue — not just completed/❓/⏳ — so the owner doesn't assume it's done.
+  make_session "sess1"
+  make_task "sess1" 1 completed   "Build the level editor"
+  make_task "sess1" 2 pending     "Wire the save system"
+  make_task "sess1" 3 in_progress "Polish the HUD"
+  bash -c 'cd "$1" && bash "$2" on' _ "$REPO" "$AWAY"
+  run bash -c 'cd "$1" && bash "$2" off' _ "$REPO" "$AWAY"
+  [[ "$output" == *"2 still queued"* ]]
+  [[ "$output" == *"STILL QUEUED"* ]]
+  [[ "$output" == *"NOT finished"* ]]
+  [[ "$output" == *"Wire the save system"* ]]
 }
 
 @test "away off is quiet when nothing changed" {
@@ -194,6 +226,26 @@ continue_file() { printf '%s/away-continue-%s' "$CLAUDE_TQ_STATE_DIR" "$1"; }
   [[ "$output" == *"wire the login form"* ]]  # names the next task
 }
 
+@test "away auto-continue leans the park rule after the first continuation (token lever)" {
+  date +%s > "$(away_flag)"
+  make_task sV 1 pending "wire the login form"
+  run run_verify sV                           # continuation #1 (cnt=0) → FULL park rule
+  [[ "$output" == *"PLAYTEST"* ]]             # the full rule carries the playtest carve-out
+  run run_verify sV                           # continuation #2 (cnt=1) → terse pointer
+  [[ "$output" != *"PLAYTEST"* ]]             # full rule NOT re-sent (already in context)
+  [[ "$output" == *"per the standing rule"* ]]
+  [[ "$output" == *"still open in the queue"* ]]   # still drives the drain
+}
+
+@test "away auto-continue survives a non-numeric continue cap (valve not disabled)" {
+  date +%s > "$(away_flag)"
+  make_task sV 1 pending "do the thing"
+  run env CLAUDE_TQ_AWAY_MAX_CONTINUE=forty bash -c \
+    'printf "%s" "$(jq -nc --arg c "$1" --arg s sV "{cwd:\$c,session_id:\$s}")" | "$2"' _ "$REPO" "$VERIFY"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"decision":"block"'* ]]   # falls back to 40, still continues (doesn't throw/disable)
+}
+
 @test "away ON auto-continue increments a per-prompt safety counter" {
   date +%s > "$(away_flag)"
   make_task sV 1 pending "do the thing"
@@ -226,6 +278,27 @@ continue_file() { printf '%s/away-continue-%s' "$CLAUDE_TQ_STATE_DIR" "$1"; }
   run run_verify sV
   [ "$status" -eq 0 ]
   [[ "$output" != *"Away-mode"* ]]
+}
+
+@test "away ON but only ⏳ blocked items left: NOT drainable → Stop allowed (no runaway continue)" {
+  # A ⏳ item waits on a manual owner action — the model can't action it, so it must NOT
+  # count as open work, else the Stop hook would auto-continue forever trying to "do" it.
+  date +%s > "$(away_flag)"
+  make_task sV 1 pending "⏳ [blocked] plug in the Deck to playtest"
+  run run_verify sV
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"Away-mode"* ]]
+}
+
+@test "away ON + real work alongside a ⏳ item: drains the real work, ignores the ⏳" {
+  date +%s > "$(away_flag)"
+  make_task sV 1 pending "⏳ [blocked] deploy the backend"
+  make_task sV 2 pending "wire the settings page"
+  run run_verify sV
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"decision":"block"'* ]]        # keeps draining
+  [[ "$output" == *"wire the settings page"* ]]     # the next task is the real one
+  [[ "$output" != *"deploy the backend"* ]]         # the ⏳ item is never offered as next
 }
 
 @test "CLAUDE_TQ_AWAY_CONTINUE=0 disables auto-continue even when away" {

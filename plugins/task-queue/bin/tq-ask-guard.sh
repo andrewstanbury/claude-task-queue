@@ -5,7 +5,7 @@
 # advisory: the model can still call AskUserQuestion and pause the whole session
 # waiting for someone who isn't at the keyboard. This hook makes it real — while
 # away is ON for the repo, it DENIES the AskUserQuestion call and feeds back
-# "decide-if-reversible, else PARK as ❓", so the queue keeps moving. Silent no-op
+# "decide-if-reversible, else PARK (❓ decision / ⏳ owner-action)", so the queue keeps moving. Silent no-op
 # when away is OFF (normal asking works) or when disabled (CLAUDE_TQ_AWAY_ASK_GUARD=0).
 #
 # Best-effort: any internal error degrades to "allow" — a companion must never break

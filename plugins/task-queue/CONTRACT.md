@@ -71,7 +71,7 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
 - **Use:** on a fresh SessionStart, if present, the standing **policy** prose is
   replaced by a one-line re-anchor (bootstrap-once + drift-detect) — the manual
   is always loaded, so re-injecting it is a token tax. **State is never
-  suppressed:** carryover, roadmap hydration, pause, and drift signals still
+  suppressed:** carryover, roadmap hydration, and drift signals still
   fire. When absent, the full policy is injected with a one-line tip to record it
   and add the marker. The token is shared by convention with the other companion
   plugins (each detects it independently — install boundary).
@@ -103,10 +103,10 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
   procedure + critique posture the lean path re-anchors to ride the **SessionStart
   policy** (`tq-resume.sh`), stated once per session, not re-injected per prompt. It
   fires **regardless of existing queue state**. Only **slash/bang commands and empty
-  prompts** are skipped (not user work). **Pause
-  gates the review loop:** when the repo is paused (§ pause flag), the loop is
-  suppressed and prompts run straight through in auto without presenting for
-  approval. Disabled with `CLAUDE_TQ_CAPTURE_DISABLED`. *(History: before
+  prompts** are skipped (not user work). **Autopilot suppresses the interrupt:**
+  when the repo is running autonomously (§ autopilot flag) and the owner isn't
+  present for the turn, the present-and-approve is skipped and prompts run straight
+  through in auto. Disabled with `CLAUDE_TQ_CAPTURE_DISABLED`. *(History: before
   2026-06-26 the loop fired only on multi-step / consequential / visual prompts and
   stayed silent on trivial ones; `tq_looks_multistep` was removed when that
   "substantive" gate was dropped.)*
@@ -127,6 +127,17 @@ of truth — do not cross it. See the `never-mutate-native-store` design note.
   when unanswered questions get buried. The model records them (TaskCreate `❓ …`) and
   clears them (TaskUpdate → completed); recording is model-assisted (the hook only
   re-surfaces). Disable with `CLAUDE_TQ_OPEN_Q=0`. hud mirrors the count (`❓N`).
+- **Return-review nudge (only while the gate is armed):** when autopilot turned OFF
+  leaving parked `❓` decisions, `tq-away.sh` armed a per-repo review marker and the
+  PreToolUse guard (`tq-review-guard.sh`) blocks *edits* until it clears. But the guard
+  only bites on a write — a read-only turn could pass the one-time off-digest without
+  presenting the pile. So while the marker is armed (`tq_review_pending` + a parked `❓`
+  still exists), this prepends a **leading** instruction to present the `❓` pile via a
+  blocking AskUserQuestion FIRST, on every prompt until the pile empties. Conditional on
+  the armed marker → **zero steady-state per-prompt cost**. Self-heals a stale marker
+  (armed but no `❓` left → clears it). Honors the guard's `CLAUDE_TQ_REVIEW_GATE=0`
+  escape. `⏳ [blocked]` owner-action items never arm or hold this — they're relayed,
+  not gated.
 - **Intent of record (side effect):** on any non-paused prompt it also stashes the
   prompt text to `tq_intent_file($session_id)` (in the state dir) for the Stop gate
   below. Best-effort; gated off by `CLAUDE_TQ_INTENT_GATE=0`.
@@ -188,14 +199,13 @@ A few small files, all outside `~/.claude/tasks`:
   prompt, written by `tq-capture.sh`, read+consumed by `tq-verify.sh`). Both hooks
   run with `CLAUDE_TQ_STATE_DIR=${CLAUDE_PLUGIN_DATA}`, so they share the path; not
   the task store.
-- **Pause flags** — `~/.claude/state/task-queue/paused/<encoded-repo-root>`
-  (overridable via `CLAUDE_TQ_PAUSE_DIR`). One empty file per paused repo; its
-  presence is the pause, which **suppresses the interpret→present→approve review
-  loop** so substantive prompts run straight through in auto. A fixed home so the
-  `tq-capture.sh` hook and `bin/tq-pause.sh` (run by the model in plain bash) both
-  resolve the identical path.
+- **Autopilot (away) flags** — `~/.claude/state/task-queue/away/<encoded-repo-root>`
+  (overridable via `CLAUDE_TQ_AWAY_DIR`). One file per repo running autonomously
+  (stamped with the on-time); its presence drives the auto-continue, ask-block, and
+  park behaviour. Written by `bin/tq-away.sh`; read by the capture/verify/ask-guard
+  hooks. The old separate *pause* flag was folded into this — there is no `tq-pause.sh`.
 - **Agent-mode flags** — `~/.claude/state/task-queue/agent/<encoded-repo-root>`
-  (overridable via `CLAUDE_TQ_AGENT_DIR`). Same scheme as pause: an empty file
+  (overridable via `CLAUDE_TQ_AGENT_DIR`). Same scheme: an empty file
   per repo where agent-mode is explicitly enabled. `bin/tq-agent.sh` writes it; the
   SessionStart hook reads it to decide whether to permit subagent fan-out.
   **Global default:** `CLAUDE_TQ_AGENT_MODE=on|1` (e.g. in settings.json `env`)

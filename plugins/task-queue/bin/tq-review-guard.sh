@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # PreToolUse(Edit|Write|NotebookEdit) guard — enforce the RETURN-REVIEW.
 #
-# When autopilot turns OFF with a parked ❓ pile, tq-away.sh sets a per-repo
+# When autopilot turns OFF with a parked ❓ DECISION pile, tq-away.sh sets a per-repo
 # review-pending marker. Until every parked ❓ is resolved, this hook DENIES edits and
 # tells the model to walk the pile WITH the owner first (a blocking AskUserQuestion per
 # item, recommended option first) — so the owner reviews what autopilot decided before
@@ -48,6 +48,6 @@ if ! tq_repo_has_parked "$root"; then       # pile cleared → retire the gate, 
   allow
 fi
 
-reason="🧷 Parked-review pending — autopilot left decisions for you to make. Review them FIRST: present each open '❓ [parked]' task to the owner as a blocking AskUserQuestion (2-3 concrete options, your recommended one first), apply their pick, and resolve the ❓ (TaskUpdate) — BEFORE editing code. Editing is blocked until the parked pile is empty (it clears itself then). (Owner: CLAUDE_TQ_REVIEW_GATE=0 disables this gate.)"
+reason="🧷 Parked-review pending — autopilot left DECISIONS for you to make. Review them FIRST: present each open '❓ [parked]' task to the owner as a blocking AskUserQuestion (2-3 concrete options, your recommended one first), apply their pick, and resolve the ❓ (TaskUpdate) — BEFORE editing code. Editing is blocked until the ❓ pile is empty (it clears itself then). '⏳ [blocked]' owner-action items do NOT block editing — just relay them; leave them parked. (Owner: CLAUDE_TQ_REVIEW_GATE=0 disables this gate.)"
 jq -cn --arg r "$reason" \
   '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'

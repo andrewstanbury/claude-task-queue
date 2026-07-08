@@ -47,7 +47,8 @@ hud status-line key (left → right; the feature-status slot is always shown, th
                (green = on, grey = off; on a no-color terminal the word on/off is spelled out)
   <model>      the model in use (shown without a label to save space)
   ✓/✗/⚠ tests  last test run — passed / failed / timed out
-  ❓N          N parked decisions / open questions awaiting you this session
+  ❓N          N parked decisions / open questions awaiting your call this session
+  ⏳N          N items blocked on a manual action from you (device / external / owner-only step)
   🛡✗N         N SAFETY CHECKS DISABLED — the dot can look green while a guard is off
   ⇡in ⇣out     tokens in the current context / in the last response
   ⎇ branch     git branch · *N uncommitted · ↑N unpushed · ↓N unpulled
@@ -69,6 +70,24 @@ hud_open_questions() {
         [ -f "$f" ] || continue
         jq -r 'select((.status=="pending" or .status=="in_progress")
                       and ((.subject // "") | startswith("❓"))) | (.subject // "")' "$f" 2>/dev/null
+      done | awk 'NF && !seen[$0]++' | grep -c .)"
+  printf '%s' "${c:-0}"
+}
+
+# Count of items BLOCKED on a manual owner action this session — native tasks whose
+# subject starts with "⏳", pending/in_progress, deduped by subject. Disjoint from
+# hud_open_questions (❓ decisions): a ⏳ item waits on the owner to DO something (a
+# device, an external/paid service, an owner-only step), not to decide. Read-only mirror
+# of task-queue's ⏳ convention; drift-guard.bats keeps the two prefixes disjoint. Prints a number.
+hud_blocked() {
+  local sid="$1" tdir f c
+  [ -n "$sid" ] || { printf '0'; return 0; }
+  tdir="$(hud_tasks_dir)/$sid"
+  [ -d "$tdir" ] || { printf '0'; return 0; }
+  c="$(for f in "$tdir"/*.json; do
+        [ -f "$f" ] || continue
+        jq -r 'select((.status=="pending" or .status=="in_progress")
+                      and ((.subject // "") | startswith("⏳"))) | (.subject // "")' "$f" 2>/dev/null
       done | awk 'NF && !seen[$0]++' | grep -c .)"
   printf '%s' "${c:-0}"
 }

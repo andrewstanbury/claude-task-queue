@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tq-ship — take completed work from the working tree to merged-on-main in one gated
-# step. Backs /task-queue:ship. This is DETERMINISTIC GIT PLUMBING ONLY; the CALLER
-# (the model, per commands/ship.md) MUST have VERIFIED the work is green first — a
+# step. Backs /task-queue:ship-it. This is DETERMINISTIC GIT PLUMBING ONLY; the CALLER
+# (the model, per commands/ship-it.md) MUST have VERIFIED the work is green first — a
 # bash script can't know an arbitrary repo's test command, so the green gate lives
 # with the caller, not here. The mechanical, repeatable part:
 #   on default branch? -> branch. uncommitted? -> commit. push -> PR -> squash-merge

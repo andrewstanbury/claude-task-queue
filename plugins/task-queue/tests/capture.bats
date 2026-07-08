@@ -15,6 +15,8 @@ setup() {
   VERIFY="$ROOT/bin/tq-verify.sh"
   export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
   export CLAUDE_TQ_STATE_DIR="$(mktemp -d)"          # isolate intent-of-record writes
+  export CLAUDE_TQ_PROJECTS_DIR="$(mktemp -d)"       # isolate session→root resolution
+  export CLAUDE_TQ_AWAY_DIR="$(mktemp -d)"           # isolate away/review-gate markers
   # Isolated repo for cwd so the alignment clause keys off fixture docs, not this
   # repo's own ROADMAP/decisions. Tests that want the clause drop docs into REPO.
   REPO="$(mktemp -d)/proj"; mkdir -p "$REPO"; git -C "$REPO" init -q
@@ -22,7 +24,29 @@ setup() {
   MULTI="Add the login form and then wire the auth endpoint and update the tests"
 }
 
-teardown() { rm -rf "$CLAUDE_TQ_TASKS_DIR" "$CLAUDE_TQ_STATE_DIR" "$(dirname "$REPO")"; }
+teardown() {
+  rm -rf "$CLAUDE_TQ_TASKS_DIR" "$CLAUDE_TQ_STATE_DIR" "$CLAUDE_TQ_PROJECTS_DIR" \
+         "$CLAUDE_TQ_AWAY_DIR" "$(dirname "$REPO")"
+}
+
+# Register a session→REPO mapping so tq_repo_has_parked resolves a task's session to
+# this repo (mirrors away.bats). REPO is a git repo, so its root maps to itself.
+make_session() {
+  local sid="$1" enc; enc="$(printf '%s' "$REPO" | sed 's:/:-:g')"
+  mkdir -p "$CLAUDE_TQ_PROJECTS_DIR/$enc"
+  printf '{"cwd":"%s","type":"session"}\n' "$REPO" > "$CLAUDE_TQ_PROJECTS_DIR/$enc/$sid.jsonl"
+}
+# A task with an explicit subject (capture's own make_task hard-codes subject "x").
+make_subject_task() {
+  mkdir -p "$CLAUDE_TQ_TASKS_DIR/$1"
+  jq -n --arg id "$2" --arg s "$3" --arg subj "$4" \
+    '{id:$id, subject:$subj, status:$s, blocks:[], blockedBy:[]}' \
+    > "$CLAUDE_TQ_TASKS_DIR/$1/$2.json"
+}
+# Arm the return-review marker for REPO exactly as tq-away.sh off does (path convention
+# from tq_review_file: away_dir/review-<root with / → ->).
+review_marker() { printf '%s/review-%s' "$CLAUDE_TQ_AWAY_DIR" "$(printf '%s' "$REPO" | sed 's:/:-:g')"; }
+arm_review() { : > "$(review_marker)"; }
 
 intent_file() { printf '%s/intent-%s' "$CLAUDE_TQ_STATE_DIR" "${1:-sess}"; }
 # Feed the Stop hook a payload; echo its stdout.
@@ -405,4 +429,48 @@ make_question() {   # $1=session $2=id $3=subject
   [[ "$output" == *"6 unanswered question"* ]]          # header still counts them all
   [[ "$output" == *"…and 2 more"* ]]                    # only the first 4 are listed
   [ "$(printf '%s\n' "$output" | grep -c '  • ')" -eq 4 ]
+}
+
+# ---- return-review nudge: prompt-time trigger for the parked-review (armed gate) ----
+# The PreToolUse guard only blocks EDITS; a read-only turn could sail past the one-time
+# off-digest without presenting the pile. So while the review marker is armed, capture
+# re-raises "present the ❓ pile FIRST" on every prompt, anchored to lead the context.
+
+@test "return-review nudge fires while the gate is armed and LEADS the injected context" {
+  make_session sess
+  make_subject_task sess 1 in_progress "❓ [parked] pick the auth library"
+  arm_review
+  run run_capture "start some new work"
+  [[ "$output" == *"Return-review PENDING"* ]]
+  [[ "$output" == *"Present them FIRST this turn"* ]]
+  [[ "$output" == *"AskUserQuestion"* ]]
+  # it must be the FIRST thing the model sees, ahead of the loop re-anchor
+  [[ "$output" == "🧷 [task-queue] Return-review PENDING"* ]]
+}
+
+@test "no return-review nudge when the gate is NOT armed (zero steady-state cost)" {
+  make_session sess
+  make_subject_task sess 1 in_progress "❓ [parked] pick the auth library"
+  # marker deliberately not armed
+  run run_capture "start some new work"
+  [[ "$output" != *"Return-review PENDING"* ]]
+}
+
+@test "return-review nudge self-heals: armed but no parked ❓ left → no nudge, marker cleared" {
+  make_session sess
+  make_subject_task sess 1 pending "plain queued work"   # no ❓ in the pile
+  arm_review
+  run run_capture "start some new work"
+  [[ "$output" != *"Return-review PENDING"* ]]
+  [ ! -f "$(review_marker)" ]                              # stale marker retired
+}
+
+@test "CLAUDE_TQ_REVIEW_GATE=0 suppresses the return-review nudge even when armed" {
+  make_session sess
+  make_subject_task sess 1 in_progress "❓ [parked] pick the auth library"
+  arm_review
+  run env CLAUDE_TQ_REVIEW_GATE=0 bash -c \
+    'printf "%s" "$(jq -nc --arg p "go" --arg s sess --arg c "$1" "{prompt:\$p,session_id:\$s,cwd:\$c}")" | "$2" | jq -r ".hookSpecificOutput.additionalContext // empty"' \
+    _ "$REPO" "$CAPTURE"
+  [[ "$output" != *"Return-review PENDING"* ]]
 }
