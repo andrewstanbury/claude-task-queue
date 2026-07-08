@@ -96,14 +96,15 @@ if [ "$documented" -eq 0 ]; then
   parts+=("[charter] Owner loop — owner is non-technical, can't read code: confirm intent in plain language + play it back before substantive work; build the simplest thing that meets it; demonstrate it working + recap plainly (they verify by seeing, not tests). Autonomy on the reversible; plain-language yes before anything consequential/hard-to-undo (paid deps, data migrations/deletions, lock-in — the line is reversibility + cost + data-safety). Honor the OUTCOME, not the proposed implementation — if a request implies needless complexity, re-anchor on the outcome and offer the simplest path. You're the gatekeeper against over-engineering, theirs included.")
 fi
 
-# Established conventions — the heart of "reuse before create": name the project's
-# existing component library / patterns so new features extend them instead of
-# introducing a parallel design the owner must clean up later. Gated on its OWN
-# recorded-status (not the claude-companion marker) so it stays automatic until the
-# conventions are written down, then goes quiet. Silent when nothing is detected
-# (non-web / not enough signal), so it never guesses.
+# Established conventions — the heart of "reuse before create": name WHERE the
+# project's stack + patterns live (its manifest, source, tests) so new work extends
+# them instead of introducing a parallel design the owner must clean up later. Detected
+# language-agnostically (any ecosystem), so the model reads the named manifest for the
+# specifics. Gated on its OWN recorded-status (not the claude-companion marker) so it
+# stays automatic until the conventions are written down, then goes quiet. Silent when
+# there's no signal (a bare repo), so it never guesses.
 if [ -n "$conv" ] && [ "$cstatus" = "missing" ]; then
-  parts+=("[charter] Established conventions detected — REUSE them, don't add a parallel pattern the owner must clean up later: $conv. Extend the existing component library/patterns; new dep/pattern only with a real reason, surfaced plainly first. Record them in a \"Conventions\" section (map or DECISIONS.md) and this goes quiet.")
+  parts+=("[charter] Established stack detected — REUSE it, don't add a parallel pattern the owner must clean up later: $conv. READ the named manifest for the actual deps/scripts and extend the existing patterns; a new dependency or pattern only with a real reason, surfaced plainly first. Record them in a \"Conventions\" section (map or DECISIONS.md) and this goes quiet.")
 fi
 
 if [ "$documented" -eq 0 ] && [ "${#present[@]}" -gt 0 ]; then

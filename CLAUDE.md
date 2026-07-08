@@ -14,6 +14,13 @@ Hard invariants (do not violate):
 - **Zero per-prompt cost**; keep files cohesive (CI fails scripts over 300 lines).
   Per-hook **token budgets** are CI-enforced (`tests/token-budget.bats`) — growing
   one is a deliberate ratchet, bumped in the same change.
+- **Rules stay generic (wide audience)** — NO hardcoded language/framework/ecosystem
+  allowlists. Such a list rots and silently biases the suite to one audience. Instead:
+  delegate *recognition* to the model (it already knows every framework); hardcode only
+  *invocation* a hook genuinely can't avoid (e.g. the actual formatter command), and
+  even then prefer the project's OWN configured tool; detect *structure* generically
+  (manifest present, source/test layout, file types). New detection must work for any
+  ecosystem, not one.
 
 Verify everything with **`./check.sh`** — CI runs the same script.
 
