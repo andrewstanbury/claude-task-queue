@@ -59,7 +59,7 @@ tq_owner_present() {
 # call would COST to undo, not mere uncertainty. Kept lean — every caller carries a
 # per-event token budget (tests/token-budget.bats).
 tq_park_rule() {
-  printf '%s' "PARK the decisions the owner will want — an important direction or design/structural choice, a new dependency or interface/data-model change, an ambiguous high-blast-radius fork, anything irreversible or externally-binding (delete, push, send, spend), or a check you cannot run — as a '❓ [parked] <what needs deciding — with your recommendation>' task; decide the routine, low-stakes rest yourself (recommended option, noted). A human PLAYTEST is the ONE check you do NOT park or stop for (a game's feel/visuals you can't run): finish the work, mark the task DONE with a 'playtest pending' note for the owner to try on return, and KEEP DRAINING — never stall the queue for a playtest. NEVER STALL on the absent owner: if an unparkable decision blocks all progress, take your recommended safest-reversible default, record it, and drop a '❓ [parked]' note to override."
+  printf '%s' "PARK what needs the owner, TAGGED by kind. A DECISION they must make — a direction/design/structural choice, a new dependency or interface/data-model change, an ambiguous high-blast-radius fork, or approving anything irreversible/externally-binding — as a '❓ [parked] <what to decide + your rec>' task. A manual ACTION only they can do — a device, an external/paid service, an owner-only test, a step you can't run here — as a '⏳ [blocked] <what they must do>' task (⏳ items don't hold the review gate; the queue drains around them and they resurface when unblocked). Decide the routine, low-stakes rest yourself (recommended option, noted). A human PLAYTEST is the ONE check you do NOT park or stop for (a game's feel/visuals you can't run): finish the work, mark it DONE with a 'playtest pending' note, and KEEP DRAINING. NEVER STALL on the absent owner: if an unparkable decision blocks all progress, take your recommended safest-reversible default, record it, and drop a '❓' note to override."
 }
 
 # Epoch when away-mode was turned on for this repo (the flag file holds it), or 0.
@@ -75,11 +75,13 @@ tq_away_since() {
 }
 
 # --- return-review gate: enforce "clear the parked pile before new work" -------
-# When autopilot turns OFF with a parked ❓ pile, tq-away.sh sets a per-repo
+# When autopilot turns OFF with a parked ❓ DECISION pile, tq-away.sh sets a per-repo
 # review-pending marker; the PreToolUse guard (bin/tq-review-guard.sh) then BLOCKS
 # edits until every parked ❓ is resolved, so the owner reviews what autopilot
 # decided before more code lands — the enforced backing for tq_away_digest's "review
-# these first" instruction. Same per-repo flag scheme as away; lives in the away dir.
+# these first" instruction. Only ❓ decisions arm/hold the gate; ⏳ [blocked]
+# owner-action items are informational (surfaced, not gated) so editing isn't frozen
+# on a manual step. Same per-repo flag scheme as away; lives in the away dir.
 # (`review-` prefix never collides with the away flags, which encode an absolute path
 # and so always start with `-`, nor the `present-<sid>` markers.)
 tq_review_file()    { printf '%s/review-%s' "$(tq_away_dir)" "$(printf '%s' "${1:-}" | sed 's:/:-:g')"; }
@@ -87,9 +89,10 @@ tq_review_set()     { [ -n "${1:-}" ] || return 0; mkdir -p "$(tq_away_dir)" 2>/
 tq_review_clear()   { [ -n "${1:-}" ] && rm -f "$(tq_review_file "$1")" 2>/dev/null || true; }
 tq_review_pending() { [ -n "${1:-}" ] && [ -f "$(tq_review_file "$1")" ]; }
 
-# Does this repo still have any open parked ❓ across its sessions? Returns 0 (yes) on
-# the FIRST match — the guard only needs presence, not a count — else 1. Depends on
-# lib/tasks.sh (tq_tasks_dir/tq_session_root), sourced alongside.
+# Does this repo still have any open parked ❓ DECISION across its sessions? Returns 0
+# (yes) on the FIRST match — the guard only needs presence, not a count — else 1. ⏳
+# [blocked] owner-action items are deliberately NOT counted here: they don't hold the
+# return-review gate. Depends on lib/tasks.sh (tq_tasks_dir/tq_session_root), sourced alongside.
 tq_repo_has_parked() {
   local cur_root="${1:-}" tdir sdir sid f
   [ -n "$cur_root" ] || return 1
@@ -100,7 +103,7 @@ tq_repo_has_parked() {
     [ "$(tq_session_root "$sid" 2>/dev/null || true)" = "$cur_root" ] || continue
     for f in "$sdir"*.json; do
       [ -f "$f" ] || continue
-      jq -e '(.status=="pending" or .status=="in_progress") and ((.subject//"")|startswith("❓"))' \
+      jq -e '(.status=="pending" or .status=="in_progress") and '"$TQ_JQ_PARKED" \
         "$f" >/dev/null 2>&1 && return 0
     done
   done
@@ -108,18 +111,20 @@ tq_repo_has_parked() {
 }
 
 # Return-digest: what happened for cur_root while the owner was away (since epoch
-# `since`) — tasks COMPLETED since then and OPEN ❓ items still awaiting them, across
-# sessions rooted at this repo. Printed by tq-away.sh on "off" (the explicit "I'm
-# back"). Counts + up to 3 completed subjects; ALL parked ❓ subjects listed in full
-# (each carries its recommendation) so "off" is itself the review checkpoint — the
-# owner unblocks the pile here before the queue resumes. One line when nothing changed.
+# `since`) — tasks COMPLETED since then, OPEN ❓ DECISIONS still awaiting a call, and
+# ⏳ [blocked] items waiting on a manual owner action, across sessions rooted at this
+# repo. Printed by tq-away.sh on "off" (the explicit "I'm back"). Counts + up to 3
+# completed subjects; ALL ❓ subjects listed in full (each carries its recommendation)
+# so "off" is itself the review checkpoint — the owner decides the ❓ pile here before
+# the queue resumes; ⏳ items are listed as "do these when you can" (they don't gate
+# editing). One line when nothing changed.
 tq_away_digest() {
   local cur_root="$1" since="${2:-0}"
   [ -n "$cur_root" ] || return 0
-  local tdir sdir sid root f m done_n park_n subj shown parked
+  local tdir sdir sid root f m done_n park_n block_n open_n subj shown parked blocked open_show
   tdir="$(tq_tasks_dir)"
   [ -d "$tdir" ] || return 0
-  done_n=0; park_n=0; shown=""; parked=""
+  done_n=0; park_n=0; block_n=0; open_n=0; shown=""; parked=""; blocked=""; open_show=""
   for sdir in "$tdir"/*/; do
     [ -d "$sdir" ] || continue
     sid="$(basename "$sdir")"
@@ -135,22 +140,43 @@ tq_away_digest() {
           [ -n "$subj" ] && [ "$(printf '%s\n' "$shown" | grep -c .)" -lt 3 ] \
             && shown="$shown"$'\n'"  ✓ $subj"
         fi
-      elif jq -e '(.status=="pending" or .status=="in_progress") and ((.subject//"")|startswith("❓"))' "$f" >/dev/null 2>&1; then
+      elif jq -e '(.status=="pending" or .status=="in_progress") and '"$TQ_JQ_PARKED" "$f" >/dev/null 2>&1; then
         park_n=$((park_n + 1))
         subj="$(jq -r '.subject // ""' "$f" 2>/dev/null || true)"
         [ -n "$subj" ] && parked="$parked"$'\n'"  $subj"
+      elif jq -e '(.status=="pending" or .status=="in_progress") and '"$TQ_JQ_BLOCKED" "$f" >/dev/null 2>&1; then
+        block_n=$((block_n + 1))
+        subj="$(jq -r '.subject // ""' "$f" 2>/dev/null || true)"
+        [ -n "$subj" ] && blocked="$blocked"$'\n'"  $subj"
+      elif jq -e '.status=="pending" or .status=="in_progress"' "$f" >/dev/null 2>&1; then
+        # Open + NOT deferred = real work the drain left unfinished (e.g. it hit the
+        # per-prompt continue cap). Surfacing this is the anti-blind-stall guarantee.
+        open_n=$((open_n + 1))
+        subj="$(jq -r '.subject // ""' "$f" 2>/dev/null || true)"
+        [ -n "$subj" ] && [ "$(printf '%s\n' "$open_show" | grep -c .)" -lt 3 ] \
+          && open_show="$open_show"$'\n'"  • $subj"
       fi
     done
   done
-  if [ "$done_n" -eq 0 ] && [ "$park_n" -eq 0 ]; then
-    printf 'While you were away: nothing recorded as completed, and no parked items to review.\n'
+  if [ "$done_n" -eq 0 ] && [ "$park_n" -eq 0 ] && [ "$block_n" -eq 0 ] && [ "$open_n" -eq 0 ]; then
+    printf 'While you were away: nothing recorded as completed, and nothing waiting on you.\n'
     return 0
   fi
-  printf 'While you were away: %d task(s) completed, %d ❓ parked for your review.\n' "$done_n" "$park_n"
+  printf 'While you were away: %d task(s) completed, %d ❓ to decide, %d ⏳ waiting on you, %d still queued.\n' "$done_n" "$park_n" "$block_n" "$open_n"
   [ -n "$shown" ] && printf '%s\n' "${shown#$'\n'}"
+  if [ "$open_n" -gt 0 ]; then
+    printf 'STILL QUEUED — %d task(s) NOT finished (autopilot did not drain the whole queue — likely the per-prompt continue cap). Do NOT assume the work is done; pick these up:\n' "$open_n"
+    printf '%s\n' "${open_show#$'\n'}"
+    [ "$open_n" -gt 3 ] && printf '  …and %d more (see the task list)\n' "$((open_n - 3))"
+  fi
   if [ "$park_n" -gt 0 ]; then
-    printf 'Parked decisions to review first (each carries a recommendation):\n'
+    printf 'Decisions to review FIRST (each carries a recommendation):\n'
     printf '%s\n' "${parked#$'\n'}"
-    printf 'Present each to the owner NOW the design-preview way — a blocking AskUserQuestion offering 2-3 concrete options with your recommended one first (labelled "(Recommended)"), so they pick rather than face an open prose question — and apply their choice BEFORE pulling any new queue work; resolve/clear each ❓ (TaskUpdate) as you go. This is ENFORCED: editing code is BLOCKED until the parked pile is empty. Re-enabling autopilot resumes the rest of the queue. (Also in hud as ❓%d.)\n' "$park_n"
+    printf 'Present each to the owner NOW the design-preview way — a blocking AskUserQuestion offering 2-3 concrete options with your recommended one first (labelled "(Recommended)"), so they pick rather than face an open prose question — and apply their choice BEFORE pulling any new queue work; resolve/clear each ❓ (TaskUpdate) as you go. This is ENFORCED: editing code is BLOCKED until the ❓ pile is empty. Re-enabling autopilot resumes the rest of the queue. (Also in hud as ❓%d.)\n' "$park_n"
+  fi
+  if [ "$block_n" -gt 0 ]; then
+    printf 'Waiting on a manual action from you (the queue drains AROUND these — they do NOT block editing, and resurface when unblocked):\n'
+    printf '%s\n' "${blocked#$'\n'}"
+    printf 'Relay these so the owner knows what only they can unblock (device, external/paid service, owner-only test, an action you cannot run). Leave each ⏳ as-is; drop the ⏳ (TaskUpdate → normal queued task) only once the blocker is actually cleared. (Also in hud as ⏳%d.)\n' "$block_n"
   fi
 }

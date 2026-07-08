@@ -45,9 +45,9 @@ root="$(tq_root_for_cwd "$cwd")"
 # ---- AWAY/SOLO AUTO-CONTINUE ------------------------------------------------
 # When the owner is away, an end-of-turn Stop must NOT hand control back to an
 # absent owner — keep DRAINING the live queue autonomously. Fires regardless of
-# the intent gate or tree state: as long as real (non-❓) work is still queued for
-# this session, re-continue instead of stopping. Self-terminates when only ❓
-# parked items remain, and a per-prompt counter caps the drive so a stuck model
+# the intent gate or tree state: as long as real (non-deferred) work is still queued
+# for this session, re-continue instead of stopping. Self-terminates when only ❓/⏳
+# deferred items remain, and a per-prompt counter caps the drive so a stuck model
 # can't spin forever (reset by tq-capture each prompt). Disable with
 # CLAUDE_TQ_AWAY_CONTINUE=0; cap via CLAUDE_TQ_AWAY_MAX_CONTINUE (default 40).
 if [ "${CLAUDE_TQ_AWAY_CONTINUE:-1}" != "0" ] && tq_is_away "$root"; then
@@ -55,17 +55,26 @@ if [ "${CLAUDE_TQ_AWAY_CONTINUE:-1}" != "0" ] && tq_is_away "$root"; then
   if [ -n "$work" ]; then
     cfile="$(tq_away_continue_file "$sid")"
     cnt="$(head -n1 "$cfile" 2>/dev/null | tr -dc '0-9' || true)"; cnt="${cnt:-0}"
-    [ "$cnt" -ge "${CLAUDE_TQ_AWAY_MAX_CONTINUE:-40}" ] && allow   # safety valve: yield, don't loop
+    # Sanitize the cap to digits with a 40 fallback so a non-numeric misconfig
+    # (CLAUDE_TQ_AWAY_MAX_CONTINUE=forty) can't throw and silently disable the valve.
+    max="$(printf '%s' "${CLAUDE_TQ_AWAY_MAX_CONTINUE:-40}" | tr -dc '0-9')"; max="${max:-40}"
+    [ "$cnt" -ge "$max" ] && allow                                # safety valve: yield, don't loop
     { mkdir -p "$(tq_state_dir)" 2>/dev/null && printf '%s' "$((cnt + 1))" > "$cfile"; } 2>/dev/null || true
     rm -f "$(tq_intent_file "$sid")" 2>/dev/null || true          # away: no owner-confirm gate
     tq_clear_present "$sid"                                        # owner-driven turn is over → drain turns are autonomous, asks park again
     n="$(printf '%s\n' "$work" | grep -c .)"
     next="$(printf '%s\n' "$work" | head -n1)"
-    reason="🚶 Away-mode: $n task(s) still open in the queue — next: '$next'. The owner is away, so DO NOT stop and DO NOT ask. Take the next unblocked task, do it, verify your own work (run the tests/build yourself — you have a shell), update the task, and continue. $(tq_park_rule) Keep going until nothing is left but ❓ parked items."
+    # Token lever: inject the FULL park rule only on the FIRST continuation of this
+    # prompt's drain (cnt==0). It stays in context for every continuation after, so
+    # re-sending ~1KB each time (up to the cap) is pure waste — a terse pointer suffices.
+    if [ "$cnt" -eq 0 ]; then park="$(tq_park_rule)"
+    else park="PARK what needs the owner per the standing rule — ❓ [parked] for a decision, ⏳ [blocked] for a manual owner action — and decide the routine, low-stakes rest yourself."
+    fi
+    reason="🚶 Away-mode: $n task(s) still open in the queue — next: '$next'. The owner is away, so DO NOT stop and DO NOT ask. Take the next unblocked task, do it, verify your own work (run the tests/build yourself — you have a shell), update the task, and continue. $park Keep going until nothing is left but ❓/⏳ deferred items."
     jq -cn --arg r "$reason" '{decision: "block", reason: $r}'
     exit 0
   fi
-  # Queue drained (only ❓ parked items remain) → genuinely done for now. Clear the
+  # Queue drained (only ❓/⏳ deferred items remain) → genuinely done for now. Clear the
   # counter and let the stop proceed; skip the owner-confirm gate (no owner present).
   rm -f "$(tq_away_continue_file "$sid")" "$(tq_intent_file "$sid")" 2>/dev/null || true
   tq_clear_present "$sid"

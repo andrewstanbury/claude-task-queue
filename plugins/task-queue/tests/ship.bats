@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
 #
 # Tests for bin/tq-ship.sh — the gated working-tree→merged-on-main flow behind
-# /task-queue:ship. Hermetic: a local bare repo stands in for origin, and a `gh` stub
+# /task-queue:ship-it. Hermetic: a local bare repo stands in for origin, and a `gh` stub
 # on PATH simulates PR view/create/merge (performing the merge on the bare remote), so
 # nothing touches the network. The script itself is deterministic git plumbing only;
-# the green gate is the caller's job (commands/ship.md), not tested here.
+# the green gate is the caller's job (commands/ship-it.md), not tested here.
 
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"

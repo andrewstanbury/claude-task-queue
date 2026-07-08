@@ -89,6 +89,22 @@ assert_decisions_agree() {   # charter vs task-queue
   rm -rf "$CLAUDE_TQ_TASKS_DIR"
 }
 
+# The two deferral markers must stay DISJOINT: ❓ [parked] decisions (hold the gate) vs
+# ⏳ [blocked] owner-action items (surfaced, not gated). A ⏳ item must never leak into the
+# ❓ count and vice-versa, in either plugin — else the gate would fire on the wrong pile.
+@test "parked markers: hud ❓ and ⏳ counters are disjoint" {
+  . "$R/plugins/hud/lib/hud.sh"
+  export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
+  mkdir -p "$CLAUDE_TQ_TASKS_DIR/sE"
+  jq -n '{id:"1",subject:"❓ decide auth",status:"pending"}'       > "$CLAUDE_TQ_TASKS_DIR/sE/1.json"
+  jq -n '{id:"2",subject:"❓ decide schema",status:"in_progress"}' > "$CLAUDE_TQ_TASKS_DIR/sE/2.json"
+  jq -n '{id:"3",subject:"⏳ plug in the Deck",status:"pending"}'  > "$CLAUDE_TQ_TASKS_DIR/sE/3.json"
+  jq -n '{id:"4",subject:"plain work",status:"pending"}'          > "$CLAUDE_TQ_TASKS_DIR/sE/4.json"
+  [ "$(hud_open_questions sE)" = "2" ]   # ❓ only — ⏳ does not leak in
+  [ "$(hud_blocked sE)" = "1" ]          # ⏳ only — ❓ does not leak in
+  rm -rf "$CLAUDE_TQ_TASKS_DIR"
+}
+
 @test "disabled-floor marker: every flag hud checks is still honored by a sibling" {
   # hud's 🛡✗ marker reads the floors' CLAUDE_*=0 disable flags by name (install
   # boundary forbids importing them). If a sibling renamed its flag, the marker would

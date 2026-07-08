@@ -5,7 +5,7 @@
 # writes — it only reads and prints, so it can't interfere with anything.
 #
 # Three zones joined by a dim │ divider; empty slots (and empty zones) collapse:
-#   [ ● health · ✓/✗ tests · 🛡✗ floors-off · ❓ parked/open-Qs ]
+#   [ ● health · ✓/✗ tests · 🛡✗ floors-off · ❓ decisions · ⏳ owner-blocked ]
 #   [ ✈️ autopilot · 🤖 agents  (green on, grey off) ]
 #   [ model · tok ⇡in ⇣out · ⎇ branch (+ dirty * · ↑ahead ↓behind) ]
 # Decode any symbol on demand with /hud:legend.
@@ -110,7 +110,8 @@ DIVSEP=" $GREY│$X "
 join_slots() { local out="" s; for s in "$@"; do [ -n "$s" ] && out="${out:+$out }$s"; done; printf '%s' "$out"; }
 
 # Zone 1 — health & alerts: the beacon, the tests outcome, any disabled safety floors,
-# and the ❓ count (parked decisions / open questions — the pile the owner reviews).
+# the ❓ count (parked decisions the owner reviews) and the ⏳ count (items blocked on a
+# manual owner action).
 Z1=("$BCOL$B$BEACON$X")
 case "$VERIFY" in
   pass)    Z1+=("$G$B✓ tests$X") ;;
@@ -124,6 +125,8 @@ if [ -n "$DISABLED" ]; then
 fi
 OPENQ="$(hud_open_questions "$SID" 2>/dev/null || printf 0)"
 [ "${OPENQ:-0}" -gt 0 ] 2>/dev/null && Z1+=("$Y$B❓$OPENQ$X")
+BLOCKED="$(hud_blocked "$SID" 2>/dev/null || printf 0)"
+[ "${BLOCKED:-0}" -gt 0 ] 2>/dev/null && Z1+=("$Y$B⏳$BLOCKED$X")
 
 # Zone 2 — feature modes: ALWAYS shown, each mode led by its icon (✈️ autopilot · 🤖
 # agents). green = on, grey = off. On a NARROW terminal it collapses to only the ON

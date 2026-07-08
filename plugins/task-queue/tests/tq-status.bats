@@ -64,11 +64,12 @@ make_task() {
   [[ "$output" =~ agents[[:space:]]+on ]]
 }
 
-@test "open-work line counts open tasks and the ❓ awaiting subset for this repo" {
+@test "open-work line counts open tasks and the ❓/⏳ deferred subsets for this repo" {
   make_session sS
   make_task sS 1 pending     "build the settings page"
   make_task sS 2 in_progress "❓ [parked] pick a color"
   make_task sS 3 completed   "done thing"
+  make_task sS 4 pending     "⏳ [blocked] plug in the Deck"
   run status
-  [[ "$output" == *"2 task(s) still open across sessions · 1 ❓ awaiting you"* ]]
+  [[ "$output" == *"3 task(s) still open across sessions · 1 ❓ to decide · 1 ⏳ waiting on you"* ]]
 }

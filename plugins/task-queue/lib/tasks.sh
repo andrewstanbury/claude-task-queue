@@ -1,21 +1,12 @@
 #!/usr/bin/env bash
-# claude-task-queue (v0.4): support lib for the SessionStart "resume bridge".
-#
-# Claude Code's native task list is per-session working memory — a fresh session
-# starts empty and can't see tasks an earlier session left unfinished. This lib
-# backs bin/tq-resume.sh, which reads Claude Code's native task store and
-# surfaces a repo's still-open tasks from earlier sessions so the model can
-# re-adopt them.
-#
-# Claude Code persists every task the model creates (TaskCreate / TaskUpdate) as
-# a JSON file under ~/.claude/tasks/<session-id>/<n>.json:
-#   { "id", "subject", "description", "activeForm",
-#     "status": "pending" | "in_progress" | "completed", "blocks", "blockedBy" }
-#
-# Read-only by principle: this never writes the native store. The model owns
-# those tasks; we only read them. A task folder is keyed by session id; we map a
-# session to its repo by reading the cwd from its transcript
-# ~/.claude/projects/<enc-cwd>/<sid>.jsonl (immutable per session, so cached).
+# claude-task-queue: support lib for the SessionStart "resume bridge" + live-queue
+# queries. The native task list is per-session working memory (a fresh session can't
+# see an earlier one's unfinished tasks); this reads Claude Code's store to re-surface
+# and classify them. Claude Code persists each TaskCreate/TaskUpdate as a JSON file at
+# ~/.claude/tasks/<session-id>/<n>.json ({ id, subject, activeForm, status:
+# pending|in_progress|completed, blocks, blockedBy }). READ-ONLY by principle — the
+# model owns those tasks. A folder is keyed by session id; we map a session to its repo
+# via its transcript ~/.claude/projects/<enc-cwd>/<sid>.jsonl (immutable, so cached).
 
 set -euo pipefail
 
@@ -38,6 +29,15 @@ tq_intent_file()     { printf '%s/intent-%s' "$(tq_state_dir)" "$(printf '%s' "$
 # both hooks share it); reset by tq-capture on each new prompt (fresh budget per ask).
 tq_away_continue_file() { printf '%s/away-continue-%s' "$(tq_state_dir)" "$(printf '%s' "${1:-nosession}" | sed 's:/:-:g')"; }
 
+# ---- deferred-marker predicates (single source of truth) --------------------
+# DEFERRED = subject leads with `❓ [parked]` (a DECISION; holds the review gate) or
+# `⏳ [blocked]` (WAITING ON AN OWNER ACTION). Neither drains — this is the load-bearing
+# stall/spin boundary, so it lives ONCE and tolerates leading whitespace (`sub("^\\s+";"")`)
+# so a stray space can't flip a parked item into "work". Spliced into select() via `'"$VAR"'`.
+TQ_JQ_PARKED='((.subject // "") | sub("^\\s+";"") | startswith("❓"))'
+TQ_JQ_BLOCKED='((.subject // "") | sub("^\\s+";"") | startswith("⏳"))'
+TQ_JQ_DEFERRED="($TQ_JQ_PARKED or $TQ_JQ_BLOCKED)"
+
 # Open QUESTIONS the user still owes an answer on (so a new prompt doesn't bury
 # them). Modelled as native tasks whose subject is marked with a leading "❓": the
 # model creates one with TaskCreate when it leaves an answer-worthy question
@@ -52,15 +52,17 @@ tq_open_questions() {
   for f in "$tdir"/*.json; do
     [ -f "$f" ] || continue
     jq -r 'select((.status=="pending" or .status=="in_progress")
-                  and ((.subject // "") | startswith("❓")))
+                  and '"$TQ_JQ_PARKED"')
            | (.subject // "")' "$f" 2>/dev/null || true
   done | awk 'NF && !seen[$0]++'
 }
 
-# Open, non-parked WORK in this session's live queue: pending/in_progress tasks whose
-# subject is NOT a ❓ parked item. This is the "is there real queue left to drain"
-# signal that drives away/solo auto-continue — the Stop hook keeps the model working
-# until this is empty (only ❓ parked items remain). Subjects, one per line, deduped.
+# Open, non-parked WORK in this session's live queue: pending/in_progress tasks that
+# are NOT deferred — neither a ❓ [parked] decision NOR a ⏳ [blocked] owner-action item
+# (both wait on the owner, so neither is drainable). This is the "is there real queue
+# left to drain" signal that drives away/solo auto-continue — the Stop hook keeps the
+# model working until this is empty (only ❓/⏳ items remain, which it can't action
+# alone). Subjects, one per line, deduped.
 tq_open_worklist() {
   local sid="$1" tdir f
   [ -n "$sid" ] || return 0
@@ -69,12 +71,12 @@ tq_open_worklist() {
   for f in "$tdir"/*.json; do
     [ -f "$f" ] || continue
     jq -r 'select((.status=="pending" or .status=="in_progress")
-                  and ((.subject // "") | startswith("❓") | not))
+                  and ('"$TQ_JQ_DEFERRED"' | not))
            | (.subject // "")' "$f" 2>/dev/null || true
   done | awk 'NF && !seen[$0]++'
 }
 
-# Tasks READY to start now in this session: pending, non-❓ tasks whose every blockedBy
+# Tasks READY to start now in this session: pending, non-deferred (not ❓/⏳) tasks whose every blockedBy
 # is already completed (or that have none) — the independent, unblocked candidates the
 # capture hook offers for parallel subagent fan-out when agent-mode is on. It does the
 # dependency analysis (the hard part); the model still makes the Task calls, since no
@@ -86,7 +88,7 @@ tq_ready_tasks() {
   [ -d "$tdir" ] || return 0
   for f in "$tdir"/*.json; do
     [ -f "$f" ] || continue
-    jq -e 'select(.status=="pending" and ((.subject // "") | startswith("❓") | not))' \
+    jq -e 'select(.status=="pending" and ('"$TQ_JQ_DEFERRED"' | not))' \
       "$f" >/dev/null 2>&1 || continue
     ready=1
     bb="$(jq -r '.blockedBy[]? // empty' "$f" 2>/dev/null || true)"

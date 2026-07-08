@@ -67,6 +67,24 @@ rm -f "$(tq_away_continue_file "$sid")" 2>/dev/null || true
 away=0
 tq_is_away "$root" && { away=1; tq_mark_present "$sid"; }
 
+# RETURN-REVIEW nudge: when autopilot turned OFF leaving a parked ❓ pile, tq-away.sh
+# armed a review-pending marker and the PreToolUse guard blocks EDITS until it clears.
+# But the guard only bites when the model tries to write — a turn of read-only work (or
+# a zero-token `off` with no model turn) could sail past the one-time digest without ever
+# presenting the pile. So while the marker is armed we re-raise the instruction on EVERY
+# prompt (the moment the owner is back and typing), anchored FIRST, until the pile is
+# empty. Conditional on the armed marker → zero steady-state per-prompt cost. Honors the
+# same CLAUDE_TQ_REVIEW_GATE=0 escape as the guard. Self-heals a stale marker (pile
+# cleared some other way) so it can't nag forever.
+reviewnudge=""
+if [ "${CLAUDE_TQ_REVIEW_GATE:-1}" != "0" ] && tq_review_pending "$root"; then
+  if tq_repo_has_parked "$root"; then
+    reviewnudge="🧷 [task-queue] Return-review PENDING — autopilot parked ❓ decisions for you. Present them FIRST this turn, BEFORE any other work: a blocking AskUserQuestion per ❓ [parked] item (2-3 concrete options, your recommended one first), apply their pick, and resolve each ❓ (TaskUpdate). Editing stays blocked until the ❓ pile is empty. (⏳ [blocked] items are just relayed, not gated — leave them parked.)"
+  else
+    tq_review_clear "$root"                          # pile already empty → retire the marker
+  fi
+fi
+
 # OPEN-QUESTIONS reminder: if the user has answer-owed questions still open from
 # earlier in this conversation (❓ tasks), surface them NOW — a new prompt is exactly
 # when they get buried. Fires regardless of whether THIS prompt is substantive,
@@ -202,9 +220,14 @@ if [ "$paused" -eq 0 ]; then
   fi
 fi
 
-# Combine the open-questions reminder + agent fan-out (both ride alongside, if any)
-# with the loop instruction.
-ctx="$qreminder"
+# Combine the injected blocks. The return-review nudge LEADS when armed (it must be the
+# model's first action this turn); then the open-questions reminder + agent fan-out (both
+# ride alongside, if any); then the loop instruction.
+ctx="$reviewnudge"
+if [ -n "$qreminder" ]; then
+  [ -n "$ctx" ] && ctx="$ctx"$'\n\n'
+  ctx="$ctx$qreminder"
+fi
 if [ -n "$fanout" ]; then
   [ -n "$ctx" ] && ctx="$ctx"$'\n\n'
   ctx="$ctx$fanout"
