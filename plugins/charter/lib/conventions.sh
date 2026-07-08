@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# charter — established-conventions detection.
+# charter — established-conventions detection (language-agnostic).
 #
 # Split out of lib/charter.sh (size guard); charter.sh sources this, so every
 # consumer gets these helpers transitively. Read-only (install boundary): it
@@ -7,81 +7,54 @@
 
 set -uo pipefail
 
-# The project's ESTABLISHED conventions — the existing component library, styling
-# system, state approach, components directory, and test framework. This is what
-# lets new work REUSE what's there instead of introducing a parallel pattern the
-# owner has to clean up later; charter surfaces it (see charter-standard.sh) so
-# "reuse before create" is concrete (names the actual library), not just a slogan.
-#
-# Detection only: package.json deps + a few config files/dirs. Focused on the
-# UI/web surface where "don't reinvent the component library" actually bites;
-# prints a compact "Label: value; …" summary, or nothing when there isn't enough
-# signal (so non-web projects stay silent rather than guess). One detection per
-# session — token-cheap.
+# The project's ESTABLISHED conventions, detected LANGUAGE-AGNOSTICALLY: which
+# dependency MANIFEST the project uses (the file that records its actual stack), its
+# source layout, and whether it already has a test surface. This primes "reuse before
+# create" for ANY ecosystem — we name WHERE the conventions live and let the model
+# (which already knows every framework) read them, instead of hardcoding a framework
+# allowlist that only covers one ecosystem and rots. Prints a compact "label: value; …"
+# summary, or nothing when there isn't enough signal (so a bare repo stays silent
+# rather than guess). One detection per session — token-cheap.
 charter_conventions() {
-  local root="$1" pkg parts=() ui="" style="" state="" tests="" comps="" nav="" platform="" d
+  local root="$1" parts=() man="" src="" tests="" d m
   [ -n "$root" ] || return 0
-  pkg="$root/package.json"
-  _has() { [ -f "$pkg" ] && grep -qiE "\"$1\"[[:space:]]*:" "$pkg" 2>/dev/null; }
 
-  # UI / component library (the headline convention).
-  [ -f "$root/components.json" ]            && ui="shadcn/ui"
-  [ -z "$ui" ] && _has '@mui/material'      && ui="MUI"
-  [ -z "$ui" ] && _has '@chakra-ui/react'   && ui="Chakra UI"
-  [ -z "$ui" ] && _has 'antd'               && ui="Ant Design"
-  [ -z "$ui" ] && _has '@mantine/core'      && ui="Mantine"
-  [ -z "$ui" ] && _has '@radix-ui/.*'       && ui="Radix UI"
-  [ -z "$ui" ] && _has 'react-bootstrap'    && ui="React-Bootstrap"
-  [ -z "$ui" ] && _has 'bootstrap'          && ui="Bootstrap"
-  [ -z "$ui" ] && _has 'vuetify'            && ui="Vuetify"
-
-  # Styling system. NativeWind first — it ships a tailwind.config, so it would
-  # otherwise read as plain Tailwind and mislabel a React Native project.
-  _has 'nativewind'                         && style="NativeWind"
-  [ -z "$style" ] && \
-  { [ -f "$root/tailwind.config.js" ] || [ -f "$root/tailwind.config.ts" ] || \
-    [ -f "$root/tailwind.config.cjs" ] || [ -f "$root/tailwind.config.mjs" ] || _has 'tailwindcss'; } \
-                                            && style="Tailwind"
-  [ -z "$style" ] && _has 'styled-components' && style="styled-components"
-  [ -z "$style" ] && _has '@emotion/react'  && style="Emotion"
-  [ -z "$style" ] && _has 'sass'            && style="Sass"
-
-  # State management.
-  _has '@reduxjs/toolkit' && state="Redux Toolkit"
-  [ -z "$state" ] && _has 'redux'           && state="Redux"
-  [ -z "$state" ] && _has 'zustand'         && state="Zustand"
-  [ -z "$state" ] && _has 'jotai'           && state="Jotai"
-  [ -z "$state" ] && _has 'mobx'            && state="MobX"
-  [ -z "$state" ] && _has 'pinia'           && state="Pinia"
-  [ -z "$state" ] && { _has '@tanstack/react-query' || _has 'react-query'; } && state="TanStack Query"
-
-  # Test framework.
-  _has 'vitest' && tests="Vitest"
-  [ -z "$tests" ] && _has 'jest'            && tests="Jest"
-  [ -z "$tests" ] && { _has '@playwright/test' || _has 'playwright'; } && tests="Playwright"
-  [ -z "$tests" ] && _has 'cypress'         && tests="Cypress"
-
-  # React Native specifics. These libs only exist on an RN project, so they're
-  # self-gating (no web false-positives): navigation lib + Expo-vs-bare platform.
-  _has '@react-navigation/native' && nav="React Navigation"
-  [ -z "$nav" ] && _has 'expo-router' && nav="Expo Router"
-  _has 'expo' && platform="Expo"
-  [ -z "$platform" ] && _has 'react-native' && platform="bare React Native"
-
-  # Components directory (where to reuse from).
-  for d in src/components app/components components src/screens screens src/lib/components lib/components; do
-    [ -d "$root/$d" ] && { comps="$d/"; break; }
+  # Dependency manifest → ecosystem label. The manifest is the source of truth for the
+  # project's stack, so naming it points the model straight at what to reuse. First
+  # match wins; the model reads the file for the specifics (deps, versions, scripts).
+  for m in \
+    "package.json:Node/JS (package.json)" \
+    "Cargo.toml:Rust (Cargo.toml)" \
+    "go.mod:Go (go.mod)" \
+    "pyproject.toml:Python (pyproject.toml)" \
+    "requirements.txt:Python (requirements.txt)" \
+    "Pipfile:Python (Pipfile)" \
+    "Gemfile:Ruby (Gemfile)" \
+    "composer.json:PHP (composer.json)" \
+    "pom.xml:Java/Maven (pom.xml)" \
+    "build.gradle:JVM/Gradle (build.gradle)" \
+    "build.gradle.kts:JVM/Gradle (build.gradle.kts)" \
+    "pubspec.yaml:Dart/Flutter (pubspec.yaml)" \
+    "mix.exs:Elixir (mix.exs)" \
+    "project.godot:Godot (project.godot)" \
+    "deno.json:Deno (deno.json)"; do
+    [ -f "$root/${m%%:*}" ] && { man="${m#*:}"; break; }
   done
+  # .NET / Xcode identify by glob, not a fixed filename. Check each glob separately —
+  # `ls a.csproj *.sln` exits non-zero when only one side matches.
+  [ -z "$man" ] && { ls "$root"/*.csproj >/dev/null 2>&1 || ls "$root"/*.sln >/dev/null 2>&1; } && man=".NET (*.csproj)"
+  [ -z "$man" ] && ls -d "$root"/*.xcodeproj >/dev/null 2>&1 && man="Xcode project"
 
-  unset -f _has 2>/dev/null || true
-  [ -n "$platform" ] && parts+=("platform: $platform")
-  [ -n "$ui" ]    && parts+=("UI: $ui")
-  [ -n "$comps" ] && parts+=("components in $comps")
-  [ -n "$style" ] && parts+=("styling: $style")
-  [ -n "$state" ] && parts+=("state: $state")
-  [ -n "$nav" ]   && parts+=("navigation: $nav")
+  # Source layout — where to reuse existing modules/patterns from.
+  for d in src app lib source; do [ -d "$root/$d" ] && { src="$d/"; break; }; done
+
+  # Test surface — a convention to follow (dir-based; language-agnostic).
+  for d in tests test spec __tests__; do [ -d "$root/$d" ] && { tests="present ($d/)"; break; }; done
+
+  [ -n "$man" ]   && parts+=("stack: $man")
+  [ -n "$src" ]   && parts+=("source in $src")
   [ -n "$tests" ] && parts+=("tests: $tests")
-  [ "${#parts[@]}" -gt 0 ] || return 0       # not enough signal → stay silent
+  [ "${#parts[@]}" -gt 0 ] || return 0        # not enough signal → stay silent
 
   local out="" p
   for p in "${parts[@]}"; do [ -z "$out" ] && out="$p" || out="$out; $p"; done

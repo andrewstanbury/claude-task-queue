@@ -23,7 +23,7 @@
       "name": "charter",
       "source": "./plugins/charter",
       "description": "Know the project: a SessionStart brief flagging missing Claude-facing docs and git-derived \"scar tissue\" (repeatedly-fixed files), a Stop-time gate that checks finished work against recorded decisions, and /charter:align on demand. Full details on the plugin page.",
-      "version": "0.22.0"
+      "version": "0.23.0"
     },
     {
       "name": "hud",

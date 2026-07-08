@@ -399,78 +399,64 @@ run_align() { ( cd "$REPO" && "$ROOT/bin/charter-align.sh" ); }
 
 CONV_SRC='. "$1/lib/charter.sh";'   # charter.sh transitively sources conventions.sh
 
-@test "charter_conventions detects the UI lib, components dir, styling, state, tests" {
-  mkdir -p "$REPO/src/components"
-  printf '{"dependencies":{"@mui/material":"^5","zustand":"^4","tailwindcss":"^3"},"devDependencies":{"vitest":"^1"}}' > "$REPO/package.json"
+@test "charter_conventions names the manifest (stack), source layout, and tests — language-agnostic" {
+  mkdir -p "$REPO/src" "$REPO/tests"
+  printf '{"dependencies":{}}' > "$REPO/package.json"
   run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
-  [[ "$output" == *"UI: MUI"* ]]
-  [[ "$output" == *"components in src/components/"* ]]
-  [[ "$output" == *"styling: Tailwind"* ]]
-  [[ "$output" == *"state: Zustand"* ]]
-  [[ "$output" == *"tests: Vitest"* ]]
+  [[ "$output" == *"stack: Node/JS (package.json)"* ]]
+  [[ "$output" == *"source in src/"* ]]
+  [[ "$output" == *"tests: present (tests/)"* ]]
 }
 
-@test "charter_conventions detects shadcn/ui via components.json" {
-  : > "$REPO/components.json"
+@test "charter_conventions works for NON-web ecosystems (Rust, Python, Go, Godot)" {
+  : > "$REPO/Cargo.toml"
   run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
-  [[ "$output" == *"UI: shadcn/ui"* ]]
+  [[ "$output" == *"stack: Rust (Cargo.toml)"* ]]
+  rm "$REPO/Cargo.toml"; : > "$REPO/pyproject.toml"
+  run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
+  [[ "$output" == *"stack: Python (pyproject.toml)"* ]]
+  rm "$REPO/pyproject.toml"; : > "$REPO/go.mod"
+  run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
+  [[ "$output" == *"stack: Go (go.mod)"* ]]
+  rm "$REPO/go.mod"; : > "$REPO/project.godot"
+  run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
+  [[ "$output" == *"stack: Godot (project.godot)"* ]]
 }
 
-@test "charter_conventions stays silent with no signal (non-web / empty repo)" {
+@test "charter_conventions detects .NET via *.csproj glob" {
+  : > "$REPO/App.csproj"
+  run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
+  [[ "$output" == *'stack: .NET (*.csproj)'* ]]
+}
+
+@test "charter_conventions stays silent with no manifest (bare repo)" {
   run bash -c "$CONV_SRC"' echo "[$(charter_conventions "$2")]"' bash "$ROOT" "$REPO"
   [ "$output" = "[]" ]
-}
-
-@test "charter_conventions: React Native — Expo platform, React Navigation, NativeWind" {
-  mkdir -p "$REPO/src/screens"
-  printf '{"dependencies":{"react":"^18","react-native":"0.74.0","expo":"^51","@react-navigation/native":"^6","nativewind":"^4","zustand":"^4"},"devDependencies":{"jest":"^29"}}' > "$REPO/package.json"
-  run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
-  [[ "$output" == *"platform: Expo"* ]]
-  [[ "$output" == *"navigation: React Navigation"* ]]
-  [[ "$output" == *"styling: NativeWind"* ]]      # NativeWind, not mislabeled "Tailwind"
-  [[ "$output" != *"styling: Tailwind"* ]]
-  [[ "$output" == *"state: Zustand"* ]]           # cross-platform libs still detected
-  [[ "$output" == *"components in src/screens/"* ]]
-}
-
-@test "charter_conventions: bare React Native (no Expo) reads as bare + React Navigation" {
-  printf '{"dependencies":{"react-native":"0.74.0","@react-navigation/native":"^6"}}' > "$REPO/package.json"
-  run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
-  [[ "$output" == *"platform: bare React Native"* ]]   # react-native present, no expo
-  [[ "$output" == *"navigation: React Navigation"* ]]
-}
-
-@test "charter_conventions: a Tailwind WEB project is still labeled Tailwind (not NativeWind)" {
-  printf '{"dependencies":{"react":"^18","react-dom":"^18","tailwindcss":"^3"}}' > "$REPO/package.json"
-  run bash -c "$CONV_SRC"' charter_conventions "$2"' bash "$ROOT" "$REPO"
-  [[ "$output" == *"styling: Tailwind"* ]]
-  [[ "$output" != *"NativeWind"* ]]
-  [[ "$output" != *"platform:"* ]]                # no RN platform line on a web project
 }
 
 @test "charter_conventions_status: missing until recorded, then documented" {
   run bash -c "$CONV_SRC"' charter_conventions_status "$2"' bash "$ROOT" "$REPO"
   [ "$output" = "missing" ]
-  printf '# Map\n## Conventions\n- use MUI\n' > "$REPO/docs/MAP.md" 2>/dev/null || { mkdir -p "$REPO/docs"; printf '# Map\n## Conventions\n- use MUI\n' > "$REPO/docs/MAP.md"; }
+  mkdir -p "$REPO/docs"; printf '# Map\n## Conventions\n- reuse the existing modules\n' > "$REPO/docs/MAP.md"
   run bash -c "$CONV_SRC"' charter_conventions_status "$2"' bash "$ROOT" "$REPO"
   [ "$output" = "documented" ]
 }
 
-@test "standard hook surfaces detected conventions with the reuse framing" {
-  mkdir -p "$REPO/src/components"
-  printf '{"dependencies":{"@chakra-ui/react":"^2"}}' > "$REPO/package.json"
+@test "standard hook surfaces the detected stack with the reuse framing" {
+  mkdir -p "$REPO/src"
+  : > "$REPO/Cargo.toml"                            # a NON-web project still gets the nudge
   run run_standard startup
-  [[ "$output" == *"Established conventions detected"* ]]
-  [[ "$output" == *"REUSE them"* ]]
-  [[ "$output" == *"Chakra UI"* ]]
+  [[ "$output" == *"Established stack detected"* ]]
+  [[ "$output" == *"REUSE it"* ]]
+  [[ "$output" == *"Rust (Cargo.toml)"* ]]
 }
 
 @test "standard hook goes quiet about conventions once they're recorded" {
-  mkdir -p "$REPO/src/components" "$REPO/docs"
-  printf '{"dependencies":{"@chakra-ui/react":"^2"}}' > "$REPO/package.json"
-  printf '# Map\n## Conventions\n- Chakra UI for components\n' > "$REPO/docs/MAP.md"
+  mkdir -p "$REPO/src" "$REPO/docs"
+  : > "$REPO/Cargo.toml"
+  printf '# Map\n## Conventions\n- reuse the workspace crates\n' > "$REPO/docs/MAP.md"
   run run_standard startup
-  [[ "$output" != *"Established conventions detected"* ]]
+  [[ "$output" != *"Established stack detected"* ]]
 }
 
 # ---- outcome memory (scar-tissue hotspots) ----------------------------------

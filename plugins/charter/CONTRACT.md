@@ -103,14 +103,15 @@ observed behaviour, not documented APIs.
 - **Stack notes:** `STACK.md`, `docs/STACK.md`, or a `## Stack` / `## Tech stack`
   heading in `CLAUDE.md` / `AGENTS.md` / `README.md`. Present → consult; missing →
   capture languages/frameworks/versions (durable context for the model's own judgment).
-- **Established conventions** (`lib/conventions.sh`): inferred read-only from
-  `package.json` deps + a few config files/dirs — UI/component library
-  (`components.json` → shadcn, `@mui/material`, `@chakra-ui/react`, `antd`, …),
-  styling (`tailwind.config.*`/`tailwindcss`, styled-components, …), state
-  (Redux/Zustand/Jotai/…), a components dir (`src/components`/…), and test
-  framework. Surfaced with a *reuse-before-create* framing until recorded (a
-  `## Conventions` section in the map/manual/`DECISIONS.md`, or `CONVENTIONS.md`),
-  then quiet. Silent when nothing is detected (non-web / not enough signal).
+- **Established conventions** (`lib/conventions.sh`): detected read-only and
+  **language-agnostically** — the dependency *manifest* present (`package.json`,
+  `Cargo.toml`, `go.mod`, `pyproject.toml`, `pom.xml`, `*.csproj`, `pubspec.yaml`,
+  `project.godot`, …), the source layout (`src`/`app`/`lib`/…), and a test dir. It
+  names *where the stack lives* and lets the model read the manifest for the specifics,
+  rather than hardcoding a per-ecosystem framework allowlist. Surfaced with a
+  *reuse-before-create* framing until recorded (a `## Conventions` section in the
+  map/manual/`DECISIONS.md`, or `CONVENTIONS.md`), then quiet. Silent on a bare repo
+  (no manifest / not enough signal).
 - **Policy marker:** the `claude-companion` token in `CLAUDE.md` / `AGENTS.md` /
   `docs/CLAUDE.md`. When present, charter drops its recurring *honor/consult*
   reminders (the manual is always loaded) and emits only the drift nudges for
