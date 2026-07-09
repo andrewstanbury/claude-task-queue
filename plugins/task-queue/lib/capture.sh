@@ -70,7 +70,7 @@ tq_looks_design() {
 # reach task-queue's CLAUDE_PLUGIN_DATA). `design-` prefix never collides with those.
 tq_design_file()    { printf '%s/design-%s' "$(tq_away_dir)" "$(printf '%s' "${1:-nosession}" | sed 's:/:-:g')"; }
 tq_design_set()     { [ -n "${1:-}" ] || return 0; mkdir -p "$(tq_away_dir)" 2>/dev/null || true; : > "$(tq_design_file "$1")" 2>/dev/null || true; }
-tq_design_clear()   { [ -n "${1:-}" ] && rm -f "$(tq_design_file "$1")" 2>/dev/null || true; }
+tq_design_clear()   { [ -n "${1:-}" ] || return 0; rm -f "$(tq_design_file "$1")" 2>/dev/null || true; }
 tq_design_pending() { [ -n "${1:-}" ] && [ -f "$(tq_design_file "$1")" ]; }
 
 # Build the " First weigh it against <decisions/backlog> ..." alignment clause for

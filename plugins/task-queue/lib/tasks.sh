@@ -99,7 +99,8 @@ tq_ready_tasks() {
         [ "$bstat" = "completed" ] || { ready=0; break; }
       done <<< "$bb"
     fi
-    [ "$ready" -eq 1 ] && jq -r '.subject // ""' "$f" 2>/dev/null || true
+    [ "$ready" -eq 1 ] || continue
+    jq -r '.subject // ""' "$f" 2>/dev/null || true
   done | awk 'NF && !seen[$0]++'
 }
 
