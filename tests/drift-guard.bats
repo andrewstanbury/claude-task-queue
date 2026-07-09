@@ -126,6 +126,48 @@ assert_decisions_agree() {   # charter vs task-queue
   rm -rf "$d"
 }
 
+@test "feature toggles: hud_away/hud_agent agree with task-queue's writers AND follow its dir relocation" {
+  # The status line's headline slots (✈️ autopilot · 🤖 agents) are a hand-mirror of
+  # task-queue's flag files across the install boundary. Two ways that silently lies,
+  # both asserted here: (1) hud must read the SAME dir/encoding the real writer uses, and
+  # (2) hud must CHAIN through task-queue's own relocation var — so we set ONLY the
+  # CLAUDE_TQ_* dir (never CLAUDE_HUD_*) and confirm hud still sees the flag.
+  . "$R/plugins/task-queue/lib/tasks.sh"
+  . "$R/plugins/task-queue/lib/away.sh"
+  . "$R/plugins/hud/lib/hud.sh"
+  local d; d="$(mktemp -d)"
+  export CLAUDE_TQ_AWAY_DIR="$d/away" CLAUDE_TQ_AGENT_DIR="$d/agent"
+  unset CLAUDE_HUD_AWAY_DIR CLAUDE_HUD_AGENT_DIR CLAUDE_TQ_AGENT_MODE
+  mkdir -p "$CLAUDE_TQ_AWAY_DIR" "$CLAUDE_TQ_AGENT_DIR"
+  # away/autopilot: writer file → hud reads 1 (proves dir-chain + encoding agree)
+  [ "$(hud_away /a/repo)" = "0" ]
+  : > "$(tq_away_file /a/repo)";   [ "$(hud_away /a/repo)" = "1" ]
+  rm -f "$(tq_away_file /a/repo)"; [ "$(hud_away /a/repo)" = "0" ]
+  # agents: on-flag → 1; "off" tombstone → 0 (both plugins honor the tombstone the same way)
+  [ "$(hud_agent /a/repo)" = "0" ]
+  : > "$(tq_agent_file /a/repo)";          [ "$(hud_agent /a/repo)" = "1" ]
+  printf 'off' > "$(tq_agent_file /a/repo)"; [ "$(hud_agent /a/repo)" = "0" ]
+  rm -rf "$d"
+}
+
+@test "worktree root: hud and tq_root_for_cwd both normalize a linked worktree to the primary" {
+  # A per-repo flag is keyed by root. In a linked worktree --show-toplevel is the WORKTREE
+  # path, so a flag set from the main checkout would be invisible there → status line lies.
+  # Both resolvers now fold a worktree back to its primary; assert they (a) normalize and
+  # (b) agree — hud-status.sh inlines the identical git-common-dir resolution.
+  . "$R/plugins/task-queue/lib/tasks.sh"
+  git -C "$REPO" init -q; git -C "$REPO" config user.email t@t; git -C "$REPO" config user.name t
+  echo x > "$REPO/f"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m init
+  local wt="$REPO/wt" gcd hud_root tq_root
+  git -C "$REPO" worktree add -q "$wt" -b feat
+  tq_root="$(tq_root_for_cwd "$wt")"
+  # hud-status.sh's inline resolution (kept byte-aligned with the block there):
+  gcd="$(git -C "$wt" rev-parse --git-common-dir 2>/dev/null || true)"
+  hud_root="$(cd "$wt" 2>/dev/null && cd "$(dirname "$gcd")" 2>/dev/null && pwd)"
+  [ "$tq_root" != "$wt" ]          # normalized AWAY from the worktree path
+  [ "$hud_root" = "$tq_root" ]     # and the two resolvers converge — the whole point
+}
+
 @test "disabled-floor marker: every flag hud checks is still honored by a sibling" {
   # hud's 🛡✗ marker reads the floors' CLAUDE_*=0 disable flags by name (install
   # boundary forbids importing them). If a sibling renamed its flag, the marker would

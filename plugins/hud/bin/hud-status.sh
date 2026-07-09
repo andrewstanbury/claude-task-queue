@@ -74,7 +74,16 @@ TERM_W="${F[3]:-0}"; IN_TOK="${F[4]:-}"; OUT_TOK="${F[5]:-}"
 [ "$TERM_W" -le 0 ] && TERM_W=200
 NARROW=0; [ "$TERM_W" -lt 100 ] && NARROW=1
 
-ROOT="$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$CWD")"
+# Normalize a linked git worktree to its PRIMARY worktree so per-repo flags key to the
+# SAME root task-queue's toggles wrote — otherwise a worktree session's --show-toplevel
+# is the worktree path, misses the main-checkout flag, and the status line lies about
+# what's on. git-common-dir points at "<primary>/.git"; its parent IS the primary
+# worktree (and equals --show-toplevel for a non-worktree repo, so this is a no-op
+# there). tq_root_for_cwd does the identical resolution; drift-guard.bats asserts they agree.
+ROOT=""
+GCD="$(git -C "$CWD" rev-parse --git-common-dir 2>/dev/null || true)"
+[ -n "$GCD" ] && ROOT="$(cd "$CWD" 2>/dev/null && cd "$(dirname "$GCD")" 2>/dev/null && pwd)"
+[ -n "$ROOT" ] || ROOT="$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$CWD")"
 SHORT_MODEL="$(printf '%s' "$MODEL" | sed -E 's/^claude-//; s/-[0-9]{8}([^0-9]|$)/\1/')"
 
 AGENT="$(hud_agent "$ROOT")"

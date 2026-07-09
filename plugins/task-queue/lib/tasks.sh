@@ -158,12 +158,12 @@ tq_mtime() {
   stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || printf '0'
 }
 
-# A cwd -> absolute project ROOT: the git repo toplevel. Falls back to the cwd
-# itself when the session didn't run inside a repo (or the path is gone).
+# A cwd -> absolute project ROOT: git toplevel, normalized to the PRIMARY worktree (git-common-dir's
+# parent) so a linked worktree keys the same flags/tasks as the main checkout. hud mirrors this exactly.
 tq_root_for_cwd() {
-  local cwd="$1" top dir
-  top="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null || true)"
-  if [ -n "$top" ]; then printf '%s' "$top"; return 0; fi
+  local cwd="$1" top dir gcd
+  gcd="$(git -C "$cwd" rev-parse --git-common-dir 2>/dev/null || true)"
+  [ -n "$gcd" ] && top="$(cd "$cwd" 2>/dev/null && cd "$(dirname "$gcd")" 2>/dev/null && pwd)" && [ -n "$top" ] && { printf '%s' "$top"; return 0; }
   dir="$cwd"
   while [ -n "$dir" ] && [ "$dir" != "/" ]; do
     [ -e "$dir/.git" ] && { printf '%s' "$dir"; return 0; }

@@ -9,13 +9,17 @@
 set -uo pipefail
 
 # Default paths mirror where the sibling plugins write; overridable for tests.
-# These three deliberately DON'T chain through the sibling's own env var (the way
-# hud_tasks_dir chains CLAUDE_TQ_TASKS_DIR below): the agent/away/verify dirs aren't
-# relocatable today, so adding that chain would be speculative coupling — no seam
-# until something actually varies. (CLAUDE_TQ_TASKS_DIR is a real, existing knob.)
-hud_agent_dir()  { printf '%s' "${CLAUDE_HUD_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}"; }
-hud_away_dir()   { printf '%s' "${CLAUDE_HUD_AWAY_DIR:-$HOME/.claude/state/task-queue/away}"; }
-hud_verify_dir() { printf '%s' "${CLAUDE_HUD_VERIFY_DIR:-$HOME/.claude/state/tidy/verify}"; }
+# Each CHAINS through the sibling's OWN relocation env var before the hardcoded
+# default (the way hud_tasks_dir already does for CLAUDE_TQ_TASKS_DIR) — because the
+# siblings honor these vars (tq_agent_dir/tq_away_dir read CLAUDE_TQ_*_DIR; tidy's
+# verify result lives under CLAUDE_TIDY_LOG_DIR), so if the owner relocates a sibling's
+# state hud must follow or the status line silently reads the wrong dir and shows a
+# feature OFF while it's ON. The variance is real (2 sibling knobs, not hypothetical),
+# so this is not speculative coupling — it's honesty. drift-guard.bats exercises the
+# chain (it sets only the CLAUDE_TQ_* var and asserts hud still sees the flag).
+hud_agent_dir()  { printf '%s' "${CLAUDE_HUD_AGENT_DIR:-${CLAUDE_TQ_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}}"; }
+hud_away_dir()   { printf '%s' "${CLAUDE_HUD_AWAY_DIR:-${CLAUDE_TQ_AWAY_DIR:-$HOME/.claude/state/task-queue/away}}"; }
+hud_verify_dir() { printf '%s' "${CLAUDE_HUD_VERIFY_DIR:-${CLAUDE_TIDY_LOG_DIR:-$HOME/.claude/state/tidy}/verify}"; }
 hud_tasks_dir()  { printf '%s' "${CLAUDE_HUD_TASKS_DIR:-${CLAUDE_TQ_TASKS_DIR:-$HOME/.claude/tasks}}"; }
 
 # Which safety floors are currently DISABLED — prints the friendly names of the

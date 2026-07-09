@@ -11,7 +11,7 @@
       "name": "task-queue",
       "source": "./plugins/task-queue",
       "description": "Turns Claude Code's native task list into a live work queue: a review loop on every prompt, cross-session resume, one-command ship (verify → PR → squash-merge), and an enforced autopilot that defers what needs the owner as a reviewable pile — ❓ decisions vs ⏳ owner-action items — while deciding the routine rest. Full details on the plugin page.",
-      "version": "0.42.0"
+      "version": "0.42.1"
     },
     {
       "name": "tidy",
@@ -29,7 +29,7 @@
       "name": "hud",
       "source": "./plugins/hud",
       "description": "One read-only status line for the companion plugins — health, an always-on 🛡 safety shield (🛡✗N when a floor is off), tests, the 🎨 design / 🔒 review edit-gates, feature state, parked ❓ decisions + ⏳ owner-blocked items, token throughput, and git branch — in three glanceable zones. Zero model-token cost. Full details on the plugin page.",
-      "version": "0.20.0"
+      "version": "0.20.1"
     }
   ]
 }

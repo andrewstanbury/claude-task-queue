@@ -6,3 +6,5 @@ dist/
 tmp/
 *.log
 .tq-sandbox/
+.claude/settings.local.json
+.claude/worktrees/
