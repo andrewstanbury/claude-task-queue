@@ -18,10 +18,16 @@ setup() {
   export CLAUDE_TQ_STATE_DIR="$(mktemp -d)"
   export CLAUDE_CHARTER_LOG_DIR="$(mktemp -d)"
   export CLAUDE_TIDY_LOG_DIR="$(mktemp -d)"
+  # Sandbox the away dir too: the capture hook arms the design-preview marker there
+  # (tq_design_file → tq_away_dir), so a design-prompt budget case would otherwise
+  # leak a design-<sid> file into the owner's real ~/.claude. (Two tests re-point this
+  # at $WORK/away mid-body; that's the same tree, cleaned below.)
+  export CLAUDE_TQ_AWAY_DIR="$(mktemp -d)"
   WORK="$(mktemp -d)"
 }
 teardown() {
-  rm -rf "$CLAUDE_TQ_TASKS_DIR" "$CLAUDE_TQ_STATE_DIR" "$CLAUDE_CHARTER_LOG_DIR" "$CLAUDE_TIDY_LOG_DIR" "$WORK"
+  rm -rf "$CLAUDE_TQ_TASKS_DIR" "$CLAUDE_TQ_STATE_DIR" "$CLAUDE_CHARTER_LOG_DIR" \
+         "$CLAUDE_TIDY_LOG_DIR" "$CLAUDE_TQ_AWAY_DIR" "$WORK"
 }
 
 ctx() { jq -r '.hookSpecificOutput.additionalContext // ""'; }
