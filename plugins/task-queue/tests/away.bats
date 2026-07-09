@@ -243,7 +243,7 @@ continue_file() { printf '%s/away-continue-%s' "$CLAUDE_TQ_STATE_DIR" "$1"; }
   run env CLAUDE_TQ_AWAY_MAX_CONTINUE=forty bash -c \
     'printf "%s" "$(jq -nc --arg c "$1" --arg s sV "{cwd:\$c,session_id:\$s}")" | "$2"' _ "$REPO" "$VERIFY"
   [ "$status" -eq 0 ]
-  [[ "$output" == *'"decision":"block"'* ]]   # falls back to 40, still continues (doesn't throw/disable)
+  [[ "$output" == *'"decision":"block"'* ]]   # falls back to 15, still continues (doesn't throw/disable)
 }
 
 @test "away ON auto-continue increments a per-prompt safety counter" {
@@ -266,7 +266,7 @@ continue_file() { printf '%s/away-continue-%s' "$CLAUDE_TQ_STATE_DIR" "$1"; }
 @test "away ON but counter at the cap: YIELDS (allows the stop, no runaway loop)" {
   date +%s > "$(away_flag)"
   make_task sV 1 pending "do the thing"
-  printf '40' > "$(continue_file sV)"          # default CLAUDE_TQ_AWAY_MAX_CONTINUE
+  printf '15' > "$(continue_file sV)"          # default CLAUDE_TQ_AWAY_MAX_CONTINUE
   run run_verify sV
   [ "$status" -eq 0 ]
   [[ "$output" != *"Away-mode"* ]]             # yielded, not blocked

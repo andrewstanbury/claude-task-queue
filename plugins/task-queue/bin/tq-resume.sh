@@ -20,6 +20,11 @@
 
 set -euo pipefail
 
+# Missing jq → clean silent no-op (we emit via `jq -cn` at the end; without it the
+# whole hook would die with "jq: command not found"). Guard BEFORE the lib source,
+# since a sourced lib enables `set -e` and the emit is unreachable regardless.
+command -v jq >/dev/null 2>&1 || exit 0
+
 # Resolve symlinks so a relocated/PATH-installed entrypoint still finds lib/.
 SELF="${BASH_SOURCE[0]}"
 while [ -L "$SELF" ]; do

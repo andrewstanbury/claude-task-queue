@@ -5,7 +5,7 @@
 # writes — it only reads and prints, so it can't interfere with anything.
 #
 # Three zones joined by a dim │ divider; empty slots (and empty zones) collapse:
-#   [ ● health · ✓/✗ tests · 🛡✗ floors-off · ❓ decisions · ⏳ owner-blocked ]
+#   [ ● health · 🛡 safety(✗N off) · ✓/✗ tests · 🎨 design-gate · 🔒 review-gate · ❓ decisions · ⏳ owner-blocked ]
 #   [ ✈️ autopilot · 🤖 agents  (green on, grey off) ]
 #   [ model · tok ⇡in ⇣out · ⎇ branch (+ dirty * · ↑ahead ↓behind) ]
 # Decode any symbol on demand with /hud:legend.
@@ -56,7 +56,10 @@ fi
 if [ "${1:-}" = "--legend" ]; then hud_legend; exit 0; fi
 
 INPUT=""; [ -t 0 ] || INPUT="$(cat 2>/dev/null || true)"; [ -n "$INPUT" ] || INPUT="{}"
-mapfile -t F < <(printf '%s' "$INPUT" | jq -r '[
+# Portable read into F (no mapfile — that's bash-4-only; stock macOS ships bash 3.2).
+# jq emits exactly 6 lines in this fixed order, so F[0..5] map 1:1 to the fields below.
+F=()
+while IFS= read -r x; do F+=("$x"); done < <(printf '%s' "$INPUT" | jq -r '[
     (.model.display_name // .model.id // "?"),
     (.session_id // ""),
     (.workspace.current_dir // .cwd // ""),
@@ -77,6 +80,8 @@ SHORT_MODEL="$(printf '%s' "$MODEL" | sed -E 's/^claude-//; s/-[0-9]{8}([^0-9]|$
 AGENT="$(hud_agent "$ROOT")"
 AWAY="$(hud_away "$ROOT")"
 VERIFY="$(hud_verify "$SID")"
+REVIEW="$(hud_review_pending "$ROOT")"   # 🔒 return-review gate armed (edits blocked)
+DESIGN="$(hud_design_pending "$SID")"    # 🎨 design preview pending (edits blocked)
 BRANCH="$(hud_branch "$CWD")"
 # Dirty-count + ahead/behind are only shown next to the branch (wide terminals, in
 # a repo). Skip their git calls otherwise — they run every render.
@@ -110,19 +115,30 @@ DIVSEP=" $GREY│$X "
 join_slots() { local out="" s; for s in "$@"; do [ -n "$s" ] && out="${out:+$out }$s"; done; printf '%s' "$out"; }
 
 # Zone 1 — health & alerts: the beacon, the tests outcome, any disabled safety floors,
-# the ❓ count (parked decisions the owner reviews) and the ⏳ count (items blocked on a
-# manual owner action).
+# the two active EDIT-GATES (🎨 design-preview pending · 🔒 return-review armed — each
+# blocks edits, so like the safety marker they never shed on a narrow terminal), the ❓
+# count (parked decisions the owner reviews) and the ⏳ count (items blocked on a manual
+# owner action).
 Z1=("$BCOL$B$BEACON$X")
+# Safety shield — ALWAYS shown, right after the beacon: green 🛡 when every floor is on,
+# red 🛡✗N when N are off. A permanent positive shield (chosen for a non-technical owner
+# who verifies by SEEING) actively signals "protected" rather than leaving it to the
+# absence-means-safe convention; the ✗N suffix distinguishes the alarm state even with
+# color off. Never sheds on a narrow terminal — safety is the one thing that always shows.
+DISABLED="$(hud_floors_disabled 2>/dev/null || true)"
+if [ -n "$DISABLED" ]; then
+  NOFF="$(printf '%s' "$DISABLED" | wc -w | tr -d ' ')"
+  Z1+=("$R$B🛡✗$NOFF$X")     # a disabled guard makes the green dot misleading
+else
+  Z1+=("$G$B🛡$X")           # all floors on
+fi
 case "$VERIFY" in
   pass)    Z1+=("$G$B✓ tests$X") ;;
   fail)    Z1+=("$R$B✗ tests$X") ;;
   timeout) Z1+=("$Y$B⚠ tests$X") ;;
 esac
-DISABLED="$(hud_floors_disabled 2>/dev/null || true)"
-if [ -n "$DISABLED" ]; then
-  NOFF="$(printf '%s' "$DISABLED" | wc -w | tr -d ' ')"
-  Z1+=("$R$B🛡✗$NOFF$X")     # a disabled guard makes the green dot misleading — always shown
-fi
+[ "$DESIGN" = "1" ] && Z1+=("$Y$B🎨$X")   # design preview pending — edits gated until shown
+[ "$REVIEW" = "1" ] && Z1+=("$Y$B🔒$X")   # return-review armed — edits gated until the ❓ pile clears (sits next to ❓)
 OPENQ="$(hud_open_questions "$SID" 2>/dev/null || printf 0)"
 [ "${OPENQ:-0}" -gt 0 ] 2>/dev/null && Z1+=("$Y$B❓$OPENQ$X")
 BLOCKED="$(hud_blocked "$SID" 2>/dev/null || printf 0)"

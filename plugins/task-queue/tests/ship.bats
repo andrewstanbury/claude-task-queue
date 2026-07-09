@@ -31,7 +31,11 @@ setup() {
 #!/usr/bin/env bash
 set -uo pipefail
 S="$GH_STUB_STATE"
-[ "${1:-}" = pr ] || { echo "gh-stub: unsupported: $*" >&2; exit 3; }
+case "${1:-}" in
+  auth) exit 0 ;;                                       # authenticated (gh_ok probe)
+  pr)   ;;                                              # handled below
+  *)    echo "gh-stub: unsupported: $*" >&2; exit 3 ;;
+esac
 shift; action="${1:-}"; shift || true
 case "$action" in
   view)   [ -f "$S/pr" ] && echo 1 || exit 1 ;;
@@ -89,4 +93,53 @@ teardown() {
   run bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$SHIP"
   [ "$status" -eq 1 ]
   [[ "$output" == *"no --title"* ]]
+}
+
+# ---- gh-absent degraded path ------------------------------------------------
+# When gh is missing/unauthenticated, ship still branches + commits + pushes, then hands
+# back a compare URL instead of opening/merging a PR — and exits SUCCESS.
+
+# Swap the happy-path gh stub for one whose `auth status` FAILS (unauthenticated) and
+# which records a marker if `pr` is ever invoked (it must not be, on the degraded path).
+stub_gh_unauth() {
+  cat > "$STUB_DIR/gh" <<'STUBEOF'
+#!/usr/bin/env bash
+set -uo pipefail
+case "${1:-}" in
+  auth) exit 1 ;;                                        # unauthenticated → degraded path
+  pr)   : > "$GH_STUB_STATE/pr-invoked"; exit 3 ;;       # must NOT be reached
+  *)    exit 3 ;;
+esac
+STUBEOF
+  chmod +x "$STUB_DIR/gh"
+}
+
+@test "gh unavailable: branches, commits, pushes, prints a compare URL, exits 0, no PR/merge" {
+  stub_gh_unauth
+  printf 'v2\n' > "$REPO/tracked.txt"                    # a completed change on main
+  run bash -c 'cd "$1" && bash "$2" --title "ship it" --branch ship/feat' _ "$REPO" "$SHIP"
+  [ "$status" -eq 0 ]                                    # SUCCESS despite no gh
+  [[ "$output" == *"cannot open or merge a PR"* ]]       # clear manual-merge message
+  [[ "$output" == *"ship/feat"* ]]                       # names the pushed branch
+  [[ "$output" == *"/compare/ship/feat?expand=1"* ]]     # compare URL for the branch
+  # the branch was pushed to origin…
+  git -C "$ORIGIN" rev-parse --verify -q "refs/heads/ship/feat" >/dev/null
+  # …and no PR create/merge was ever attempted.
+  [ ! -f "$GH_STUB_STATE/pr-invoked" ]
+  [[ "$output" != *"squash-merged"* ]]
+  # fail-safe: the default branch is not left dirty (work moved onto the feature branch).
+  [ "$(git -C "$REPO" rev-parse --abbrev-ref HEAD)" = "ship/feat" ]
+}
+
+@test "gh unavailable: derives owner/repo compare URL from a git@ origin form" {
+  # Parse check without touching the network: origin's FETCH url is a github git@ form
+  # (what `git remote get-url` reads for the compare URL), while its PUSH url stays the
+  # hermetic local bare repo, so the branch push still lands locally.
+  stub_gh_unauth
+  git -C "$REPO" remote set-url origin "git@github.com:acme/widgets.git"
+  git -C "$REPO" remote set-url --push origin "$ORIGIN"
+  printf 'v2\n' > "$REPO/tracked.txt"
+  run bash -c 'cd "$1" && bash "$2" --title "ship it" --branch ship/feat' _ "$REPO" "$SHIP"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"https://github.com/acme/widgets/compare/ship/feat?expand=1"* ]]
 }

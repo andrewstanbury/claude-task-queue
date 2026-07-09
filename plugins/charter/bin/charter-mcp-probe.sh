@@ -10,6 +10,10 @@
 
 set -uo pipefail
 
+# Missing jq → clean silent no-op (input parse + the final emit use jq; without it
+# the hook would spray "jq: command not found" at every fresh session start).
+command -v jq >/dev/null 2>&1 || exit 0
+
 SELF="${BASH_SOURCE[0]}"
 while [ -L "$SELF" ]; do
   link="$(readlink "$SELF")"

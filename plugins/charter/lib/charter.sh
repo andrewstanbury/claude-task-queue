@@ -163,11 +163,12 @@ charter_stack_status() {
   [ -n "$(charter_stack_path "${1:-}")" ] && printf 'present' || printf 'missing'
 }
 
-# Is this a React Native project? RN ships `react` in package.json so it would
-# trip charter_is_web's react match — but it's NOT web (no DOM, so web-only gates
-# like Lighthouse/CWV and DOM a11y don't apply). Detect it via a strong native
-# signal: a Metro bundler config, a react-native/expo dep, or an Expo app manifest.
-# Returns 0 yes / 1 no. (Reused by the conventions detector.)
+# Is this a React Native project? RN is NOT web — no DOM, so web-only gates like
+# Lighthouse/CWV and DOM a11y don't apply — even if its scaffolding happens to leave
+# an HTML shell around, so charter_is_web excludes it before structural detection.
+# Detect it via a strong native signal: a Metro bundler config, a react-native/expo
+# dep, or an Expo app manifest. Returns 0 yes / 1 no. (Reused by the conventions
+# detector, which is why the native-signal names live here, not in charter_is_web.)
 charter_is_react_native() {
   local root="$1"
   [ -n "$root" ] || return 1
@@ -182,9 +183,13 @@ charter_is_react_native() {
 # Is this a web project? Lets charter seed Lighthouse-aligned quality-attribute
 # defaults (CWV, a11y, print CSS, progressive enhancement, components-by-default)
 # so web best practices are designed-in, not audited after. Prints "web" or "no".
-# CLAUDE_CHARTER_WEB=1|0 overrides; else infer from a web framework dep in
-# package.json, an index.html, or a known web config file. React Native is
-# excluded first — it has `react` but no DOM, so the web gates don't fit.
+# CLAUDE_CHARTER_WEB=1|0 overrides. Detection is purely STRUCTURAL (invariant: no
+# framework/language allowlist) — a web app is one that ships a browser entry point:
+# a committed HTML page at the root or a conventional web root, or a web app
+# manifest. React Native is excluded first (native, no DOM). Honest limitation: a
+# meta-framework that GENERATES its HTML at build time (nothing committed) won't
+# match — accepted, since this only gates a minor web-QA nudge and the invariant
+# forbids enumerating those frameworks by name (use CLAUDE_CHARTER_WEB=1 to force it).
 charter_is_web() {
   local root="$1" f
   case "${CLAUDE_CHARTER_WEB:-}" in
@@ -193,16 +198,21 @@ charter_is_web() {
   esac
   [ -n "$root" ] || { printf 'no'; return 0; }
   charter_is_react_native "$root" && { printf 'no'; return 0; }
-  [ -f "$root/index.html" ] && { printf 'web'; return 0; }
-  for f in next.config.js next.config.mjs next.config.ts nuxt.config.js nuxt.config.ts \
-           vite.config.js vite.config.ts astro.config.mjs svelte.config.js angular.json \
-           gatsby-config.js remix.config.js; do
+  # A committed HTML entry point at the root or a conventional web root.
+  for f in index.html public/index.html src/index.html app/index.html static/index.html; do
     [ -f "$root/$f" ] && { printf 'web'; return 0; }
   done
-  if [ -f "$root/package.json" ]; then
-    grep -qiE '"(react|react-dom|vue|svelte|preact|solid-js|astro|next|nuxt|gatsby|lit|vite|@angular/core|@remix-run/react)"[[:space:]]*:' \
-      "$root/package.json" 2>/dev/null && { printf 'web'; return 0; }
-  fi
+  # A web app manifest — .webmanifest is web by definition; a bare manifest.json
+  # counts only with a web-app-manifest shape (display mode or start_url), since
+  # unrelated tools also write manifest.json.
+  for f in manifest.webmanifest public/manifest.webmanifest src/manifest.webmanifest \
+           static/manifest.webmanifest; do
+    [ -f "$root/$f" ] && { printf 'web'; return 0; }
+  done
+  for f in manifest.json public/manifest.json src/manifest.json static/manifest.json; do
+    [ -f "$root/$f" ] && grep -qE '"(display|start_url)"[[:space:]]*:' "$root/$f" 2>/dev/null \
+      && { printf 'web'; return 0; }
+  done
   printf 'no'
 }
 

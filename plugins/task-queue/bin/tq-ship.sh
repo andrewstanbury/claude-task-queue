@@ -26,7 +26,12 @@ done
 die() { printf 'tq-ship: %s\n' "$1" >&2; exit 1; }
 
 command -v git >/dev/null 2>&1 || die "git not found"
-command -v gh  >/dev/null 2>&1 || die "the GitHub CLI (gh) is not installed/authenticated — cannot open or merge a PR"
+# gh is OPTIONAL. When it's missing or unauthenticated we can't open/merge a PR, but we
+# can still branch + commit + push and hand the owner a ready-to-open compare URL (the
+# DEGRADED path below). Detect once here so the mechanical git steps run identically
+# either way; the gh-present flow past the push is unchanged.
+gh_ok=1
+{ command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; } || gh_ok=0
 root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a git repository"
 cd "$root" || die "cannot cd to repo root"
 git remote get-url origin >/dev/null 2>&1 || die "no 'origin' remote to push to"
@@ -63,8 +68,26 @@ fi
 ahead="$(git rev-list --count "origin/$default_branch..HEAD" 2>/dev/null || echo 0)"
 [ "${ahead:-0}" -ge 1 ] || die "no commits ahead of $default_branch — nothing to ship"
 
-# 3. Push.
+# 3. Push. The commit already moved the work off the default branch, so a push failure
+#    leaves the default branch clean (not dirty) — just report and stop.
 git push -q -u origin "$cur" || die "git push failed"
+
+# 3b. DEGRADED PATH — gh missing/unauthenticated. The branch is committed and pushed, so
+#     the work is safely on the remote; we just can't drive the PR. Derive a compare URL
+#     (owner/repo parsed from origin, both git@ and https forms) and hand it back, exiting
+#     SUCCESS: the owner opens + merges the PR by hand. No PR/merge is attempted.
+if [ "$gh_ok" -eq 0 ]; then
+  remote_url="$(git remote get-url origin 2>/dev/null)"
+  slug="${remote_url%.git}"
+  case "$slug" in
+    *://*) slug="${slug#*://}"; slug="${slug#*@}"; slug="${slug#*/}" ;;  # scheme://[user@]host/owner/repo
+    *@*:*) slug="${slug##*@}"; slug="${slug#*:}" ;;                       # git@host:owner/repo
+  esac
+  compare_url="https://github.com/${slug}/compare/${cur}?expand=1"
+  printf 'tq-ship: the GitHub CLI (gh) is unavailable/unauthenticated — cannot open or merge a PR automatically.\nBranch %s is committed and pushed to origin. Open and merge the PR manually:\n  %s\n' \
+    "$cur" "$compare_url"
+  exit 0
+fi
 
 # 4. PR — reuse an existing one for this branch, else create it.
 pr="$(gh pr view "$cur" --json number --jq '.number' 2>/dev/null || true)"

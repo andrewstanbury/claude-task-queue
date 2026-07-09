@@ -25,7 +25,7 @@ This plugin is deliberately conservative because it *mutates files*:
 
 ### 1. `PostToolUse` hook payload (stdin)
 
-- **Matcher:** `Edit|Write`.
+- **Matcher:** `Edit|Write|NotebookEdit`.
 - **Field read:** `tool_input.file_path` — the edited file. (Also `tool_name`,
   unused beyond the matcher.)
 - **Timing:** PostToolUse fires *after* the tool writes, so the file is present
@@ -44,14 +44,15 @@ This plugin is deliberately conservative because it *mutates files*:
 - **If it changes:** the format/lint-on-touch silently stops.
 
 **Size-check tunables** (both hooks): `CLAUDE_TIDY_SIZE_BUDGET` (lines/file,
-default 400) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
+default 300) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
 
 ### 5. `PreToolUse` hook payload (stdin) — the secret floor
 
-- **Matcher:** `Edit|Write|MultiEdit`. Script: `bin/tidy-presecret.sh`.
+- **Matcher:** `Edit|Write|NotebookEdit`. Script: `bin/tidy-presecret.sh`.
 - **Fields read:** `tool_input.file_path` (to skip exempt paths), and the content
   about to be written — `tool_input.content` (Write) / `.new_string` (Edit) /
-  `.edits[].new_string` (MultiEdit), joined.
+  `.edits[].new_string` (MultiEdit) / `.new_source` (plus `.cell_source` /
+  `.source`, NotebookEdit), joined.
 - **Timing:** PreToolUse fires *before* the tool writes, so a hit stops the secret
   from ever reaching disk (this is why it's a Pre, not Post, hook).
 - **Output contract:** on a confirmed hit it writes a plain-language reason to
@@ -214,7 +215,7 @@ big report every session):
   generator: it enumerates files with `git ls-files --cached --others
   --exclude-standard` (fallback `find`) and reports file/line counts, the heaviest
   + over-budget files, cruft markers, and junk artefacts. Tunables:
-  `CLAUDE_TIDY_SIZE_BUDGET` (default 400); lists the 10 heaviest files.
+  `CLAUDE_TIDY_SIZE_BUDGET` (default 300); lists the 10 heaviest files.
   It never writes and never hard-fails. The *judgment* (what to actually delete)
   is the model's, gated on confirmation.
 - **On-demand: `commands/audit.md` (`/tidy:audit`)** runs the same
@@ -260,7 +261,7 @@ It writes **nothing** to Claude Code's own state.
 - **`tests/secscan.bats`** drives the PreToolUse secret floor — blocks
   (exit 2) on runtime-assembled AWS-key/PEM/generic-credential shapes, stays silent
   (exit 0) on ordinary code / placeholders / env-var refs / exempt paths, honors the
-  disable switch, scans MultiEdit, and never echoes the raw secret back.
+  disable switch, scans MultiEdit + NotebookEdit, and never echoes the raw secret back.
 - **`tests/drift-guard.bats`** asserts `tidy_hotspots` is byte-identical to
   `charter_hotspots` (the cross-plugin mirror guard).
 - The real toolchain boundary is exercised by using the plugin on an actual Go

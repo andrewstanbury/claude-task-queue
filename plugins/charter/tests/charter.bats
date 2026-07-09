@@ -160,23 +160,47 @@ run_standard() {
   [[ "$output" != *"project map (docs/MAP.md)"* ]]   # not in the baseline gap list
 }
 
-@test "is-web: no by default; web via index.html / package.json dep; env override wins" {
+@test "is-web: structural — no by default; web via HTML entry / web manifest; env override wins" {
   src='. "$1/lib/charter.sh";'
   run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
   [ "$output" = "no" ]
 
   : > "$REPO/index.html"
   run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
-  [ "$output" = "web" ]
-
-  rm "$REPO/index.html"; printf '{"dependencies":{"react":"^18.0.0"}}\n' > "$REPO/package.json"
-  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
-  [ "$output" = "web" ]
+  [ "$output" = "web" ]                          # committed HTML entry point → web
 
   CLAUDE_CHARTER_WEB=0 run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
-  [ "$output" = "no" ]                           # override forces non-web
+  [ "$output" = "no" ]                           # override forces non-web despite index.html
+  rm "$REPO/index.html"
 
+  # HTML in a conventional web root also counts.
+  mkdir -p "$REPO/public"; : > "$REPO/public/index.html"
+  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "web" ]
+  rm -r "$REPO/public"
+
+  # A framework dep with NO browser entry point is NOT a web app (purely structural:
+  # a component library or a dep-only project needs no Lighthouse gate).
+  printf '{"dependencies":{"react":"^18.0.0"}}\n' > "$REPO/package.json"
+  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "no" ]
   rm "$REPO/package.json"
+
+  # A web app manifest is a structural web signal too.
+  printf '{"display":"standalone","start_url":"/"}\n' > "$REPO/manifest.webmanifest"
+  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "web" ]
+  rm "$REPO/manifest.webmanifest"
+
+  # A bare manifest.json only counts with a web-app-manifest shape.
+  printf '{"name":"unrelated tooling manifest"}\n' > "$REPO/manifest.json"
+  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "no" ]                           # no display/start_url → not a web manifest
+  printf '{"display":"standalone","start_url":"/"}\n' > "$REPO/manifest.json"
+  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "web" ]
+  rm "$REPO/manifest.json"
+
   CLAUDE_CHARTER_WEB=1 run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
   [ "$output" = "web" ]                          # override forces web
 }
@@ -203,15 +227,24 @@ run_standard() {
   rm "$REPO/app.json"
 }
 
-@test "pure-web React is still web (no react-native signal) and the env override still wins for RN" {
+@test "a real web app (HTML entry, no react-native signal) is web; env override still wins for RN" {
   src='. "$1/lib/charter.sh";'
+  # a genuine web app: has a browser entry point and no native signal → web.
   printf '{"dependencies":{"react":"^18.0.0","react-dom":"^18.0.0"}}\n' > "$REPO/package.json"
+  : > "$REPO/index.html"
   run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
-  [ "$output" = "web" ]                           # plain React app unaffected by the RN guard
+  [ "$output" = "web" ]                           # web structure present; RN guard doesn't fire
+  rm "$REPO/index.html"
 
+  # even with an HTML shell, a native signal keeps it non-web by default…
   printf '{"dependencies":{"react-native":"0.74.0"}}\n' > "$REPO/package.json"
+  : > "$REPO/index.html"
+  run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
+  [ "$output" = "no" ]                            # RN excluded before structural detection
+
+  # …but an explicit override still wins (e.g. Expo web).
   CLAUDE_CHARTER_WEB=1 run bash -c "$src"' charter_is_web "$2"' bash "$ROOT" "$REPO"
-  [ "$output" = "web" ]                           # explicit override still wins (e.g. Expo web)
+  [ "$output" = "web" ]
 }
 
 @test "web project + missing QA: nudge bakes in Lighthouse-aligned defaults (startup)" {

@@ -22,6 +22,10 @@
 
 set -uo pipefail
 
+# Missing jq → clean silent no-op (all parsing + the final emit use jq). Guard
+# BEFORE the lib source, since a sourced lib enables `set -e`.
+command -v jq >/dev/null 2>&1 || exit 0
+
 SELF="${BASH_SOURCE[0]}"
 while [ -L "$SELF" ]; do
   link="$(readlink "$SELF")"
@@ -117,8 +121,6 @@ fi
 consequential=0; design=0; paused=0
 tq_looks_consequential "$prompt" && consequential=1
 tq_looks_design "$prompt" && design=1
-# (Godot design-preview suppression removed at owner's request — UI/visual prompts
-# now get the wireframe demonstrate-before-build flow in Godot projects too.)
 # Autopilot suppresses the loop ONLY while the owner is genuinely absent: the
 # present-and-approve checkpoint can't fire mid-drain (the ask-guard hard-blocks
 # AskUserQuestion), so injecting it would only spend tokens on an approval the model
@@ -222,7 +224,11 @@ fi
 
 # Combine the injected blocks. The return-review nudge LEADS when armed (it must be the
 # model's first action this turn); then the open-questions reminder + agent fan-out (both
-# ride alongside, if any); then the loop instruction.
+# ride alongside, if any); then the loop instruction. When the review nudge IS armed the
+# loop instruction is DROPPED: "queue this new work" directly contradicts "present the ❓
+# pile FIRST, before any other work" (editing is blocked anyway until the pile clears), so
+# injecting it only spends tokens on an instruction the model can't act on this turn. The
+# loop's side effects (intent record, design-gate arming) already ran above, unaffected.
 ctx="$reviewnudge"
 if [ -n "$qreminder" ]; then
   [ -n "$ctx" ] && ctx="$ctx"$'\n\n'
@@ -232,7 +238,7 @@ if [ -n "$fanout" ]; then
   [ -n "$ctx" ] && ctx="$ctx"$'\n\n'
   ctx="$ctx$fanout"
 fi
-if [ -n "$loopctx" ]; then
+if [ -n "$loopctx" ] && [ -z "$reviewnudge" ]; then
   [ -n "$ctx" ] && ctx="$ctx"$'\n\n'
   ctx="$ctx$loopctx"
 fi

@@ -11,8 +11,10 @@ set -uo pipefail
 
 settings="${CLAUDE_SETTINGS:-$HOME/.claude/settings.json}"
 
-# Self-resolving: pick the highest-version installed hud-status.sh at run time.
-cmd="bash -c 'exec \"\$(ls -d ~/.claude/plugins/cache/andrewstanbury/hud/*/bin/hud-status.sh 2>/dev/null | sort -V | tail -1)\"'"
+# Self-resolving: pick the newest-installed hud-status.sh at run time. `ls -dt`
+# orders by mtime (newest first) so an update always wins — no version parsing, and
+# portable (sort -V is GNU-only; on macOS it collapses to empty and the line blanks).
+cmd="bash -c 'exec \"\$(ls -dt ~/.claude/plugins/cache/andrewstanbury/hud/*/bin/hud-status.sh 2>/dev/null | head -1)\"'"
 
 mkdir -p "$(dirname "$settings")" 2>/dev/null || true
 [ -s "$settings" ] || printf '{}\n' > "$settings"

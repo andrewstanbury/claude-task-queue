@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PreToolUse(Edit|Write|MultiEdit) hook — block a hardcoded secret BEFORE it lands.
+# PreToolUse(Edit|Write|NotebookEdit) hook — block a hardcoded secret BEFORE it lands.
 #
 # Scans the content the tool is about to write for credential-shaped literals and,
 # on a confirmed hit, blocks the write (stderr reason + exit 2, Claude Code's block
@@ -36,10 +36,12 @@ file="$(printf '%s' "$input" | jq -r '.tool_input.file_path // .tool_input.path 
 # Don't scan files where secret-shaped strings are legitimate (docs, fixtures).
 [ -n "$file" ] && tidy_secscan_excluded "$file" && exit 0
 
-# The content about to be written, across the three tool shapes:
-#   Write -> .content ; Edit -> .new_string ; MultiEdit -> .edits[].new_string
+# The content about to be written, across the tool shapes:
+#   Write -> .content ; Edit -> .new_string ; MultiEdit -> .edits[].new_string ;
+#   NotebookEdit -> .new_source (also .cell_source / .source across variants).
 content="$(printf '%s' "$input" | jq -r '
-  [ .tool_input.content, .tool_input.new_string, (.tool_input.edits[]?.new_string) ]
+  [ .tool_input.content, .tool_input.new_string, (.tool_input.edits[]?.new_string),
+    .tool_input.new_source, .tool_input.cell_source, .tool_input.source ]
   | map(select(. != null)) | join("\n") // empty' 2>/dev/null || true)"
 [ -n "$content" ] || exit 0
 

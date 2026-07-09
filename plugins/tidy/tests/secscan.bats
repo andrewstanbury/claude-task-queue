@@ -90,6 +90,20 @@ run_hook() { # $1=file_path  $2=content
   [ "$status" -eq 2 ]
 }
 
+@test "scans NotebookEdit new_source content" {
+  json="$(jq -nc --arg p "$WORK/nb.ipynb" --arg s "tok = '$(aws_key)'" \
+            '{tool_name:"NotebookEdit", tool_input:{file_path:$p, new_source:$s}}')"
+  run bash -c 'printf "%s" "$2" | "$1"' _ "$HOOK" "$json"
+  [ "$status" -eq 2 ]
+}
+
+@test "allows a clean NotebookEdit" {
+  json="$(jq -nc --arg p "$WORK/nb.ipynb" --arg s "print('hello world')" \
+            '{tool_name:"NotebookEdit", tool_input:{file_path:$p, new_source:$s}}')"
+  run bash -c 'printf "%s" "$2" | "$1"' _ "$HOOK" "$json"
+  [ "$status" -eq 0 ]
+}
+
 @test "empty / shapeless payload passes through" {
   run bash -c 'printf "%s" "{}" | "$1"' _ "$HOOK"
   [ "$status" -eq 0 ]

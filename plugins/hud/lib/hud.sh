@@ -9,6 +9,10 @@
 set -uo pipefail
 
 # Default paths mirror where the sibling plugins write; overridable for tests.
+# These three deliberately DON'T chain through the sibling's own env var (the way
+# hud_tasks_dir chains CLAUDE_TQ_TASKS_DIR below): the agent/away/verify dirs aren't
+# relocatable today, so adding that chain would be speculative coupling — no seam
+# until something actually varies. (CLAUDE_TQ_TASKS_DIR is a real, existing knob.)
 hud_agent_dir()  { printf '%s' "${CLAUDE_HUD_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}"; }
 hud_away_dir()   { printf '%s' "${CLAUDE_HUD_AWAY_DIR:-$HOME/.claude/state/task-queue/away}"; }
 hud_verify_dir() { printf '%s' "${CLAUDE_HUD_VERIFY_DIR:-$HOME/.claude/state/tidy/verify}"; }
@@ -33,6 +37,30 @@ hud_floors_disabled() {
   printf '%s' "${out# }"
 }
 
+# Is task-queue's RETURN-REVIEW gate armed for this repo? prints 1 / 0. When autopilot
+# turns off with parked ❓ decisions, tq-away.sh writes a review-<root> marker in the
+# shared away dir and the PreToolUse guard blocks edits until the ❓ pile clears — so the
+# status line shows 🔒 to explain WHY edits are being denied. Read-only mirror of
+# task-queue's tq_review_pending (install boundary forbids sharing the lib;
+# drift-guard.bats keeps the path/prefix in agreement). Same root-encoding as hud_away.
+hud_review_pending() {
+  local root="$1"
+  [ -n "$root" ] || { printf '0'; return 0; }
+  [ -f "$(hud_away_dir)/review-$(printf '%s' "$root" | sed 's:/:-:g')" ] && printf '1' || printf '0'
+}
+
+# Is a DESIGN-PREVIEW pending for this session? prints 1 / 0. On a visual/design prompt
+# task-queue arms a design-<sid> marker (relocated into the shared away dir so hud can
+# see it) and the PreToolUse guard blocks edits until a wireframe preview is shown; the
+# status line shows 🎨 while it's pending. Read-only mirror of tq_design_pending
+# (drift-guard.bats keeps them in agreement). Short-lived — cleared the moment the
+# preview AskUserQuestion fires, so it flashes briefly rather than lingering.
+hud_design_pending() {
+  local sid="$1"
+  [ -n "$sid" ] || { printf '0'; return 0; }
+  [ -f "$(hud_away_dir)/design-$(printf '%s' "$sid" | sed 's:/:-:g')" ] && printf '1' || printf '0'
+}
+
 # The on-demand symbol key (`/hud:legend`). The status line is a non-technical
 # owner's primary trust signal but renders as bare symbols; this decodes every one
 # in plain language. Static text (no stdin), so it costs nothing until invoked.
@@ -49,6 +77,9 @@ hud status-line key (left → right; the feature-status slot is always shown, th
   ✓/✗/⚠ tests  last test run — passed / failed / timed out
   ❓N          N parked decisions / open questions awaiting your call this session
   ⏳N          N items blocked on a manual action from you (device / external / owner-only step)
+  🔒          review gate armed — editing is paused until you clear the ❓ decisions above
+  🎨          design preview pending — I'll show a wireframe before building a visual change
+  🛡           all safety checks ON — you're protected (shown whenever every floor is enabled)
   🛡✗N         N SAFETY CHECKS DISABLED — the dot can look green while a guard is off
   ⇡in ⇣out     tokens in the current context / in the last response
   ⎇ branch     git branch · *N uncommitted · ↑N unpushed · ↓N unpulled

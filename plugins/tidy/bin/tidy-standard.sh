@@ -9,6 +9,10 @@
 
 set -uo pipefail
 
+# Missing jq → clean silent no-op (we emit via `jq -cn`; without it the hook would
+# spray "jq: command not found" at every session start). Guard before the lib source.
+command -v jq >/dev/null 2>&1 || exit 0
+
 # Resolve symlinks so a relocated entrypoint still finds lib/ (for the size lib).
 SELF="${BASH_SOURCE[0]}"
 while [ -L "$SELF" ]; do

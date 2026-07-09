@@ -34,7 +34,7 @@ tidy_cycles_changed() {
   git -C "$root" rev-parse >/dev/null 2>&1 || return 0
   changed="$(_tidy_arch_changed "$root")"; [ -n "$changed" ] || return 0
   madge="$(_tidy_madge "$root")" || return 0
-  to="${CLAUDE_TIDY_VERIFY_TIMEOUT:-60}"
+  to="${CLAUDE_TIDY_CYCLE_TIMEOUT:-60}"
   # Scan the common source roots that exist, else the repo. madge skips
   # node_modules by default.
   targets=""

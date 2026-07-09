@@ -37,7 +37,7 @@ tq_mark_present() {
   mkdir -p "$(tq_away_dir)" 2>/dev/null || true
   date +%s > "$(tq_away_present_file "$1")" 2>/dev/null || true
 }
-tq_clear_present() { [ -n "${1:-}" ] && rm -f "$(tq_away_present_file "$1")" 2>/dev/null || true; }
+tq_clear_present() { [ -n "${1:-}" ] || return 0; rm -f "$(tq_away_present_file "$1")" 2>/dev/null || true; }
 
 # True when the owner submitted a prompt recently in this session (marker fresh).
 tq_owner_present() {
@@ -86,7 +86,7 @@ tq_away_since() {
 # and so always start with `-`, nor the `present-<sid>` markers.)
 tq_review_file()    { printf '%s/review-%s' "$(tq_away_dir)" "$(printf '%s' "${1:-}" | sed 's:/:-:g')"; }
 tq_review_set()     { [ -n "${1:-}" ] || return 0; mkdir -p "$(tq_away_dir)" 2>/dev/null || true; : > "$(tq_review_file "$1")" 2>/dev/null || true; }
-tq_review_clear()   { [ -n "${1:-}" ] && rm -f "$(tq_review_file "$1")" 2>/dev/null || true; }
+tq_review_clear()   { [ -n "${1:-}" ] || return 0; rm -f "$(tq_review_file "$1")" 2>/dev/null || true; }
 tq_review_pending() { [ -n "${1:-}" ] && [ -f "$(tq_review_file "$1")" ]; }
 
 # Does this repo still have any open parked ❓ DECISION across its sessions? Returns 0
