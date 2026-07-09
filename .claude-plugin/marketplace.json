@@ -28,8 +28,8 @@
     {
       "name": "hud",
       "source": "./plugins/hud",
-      "description": "One read-only status line for the companion plugins — health, feature state, tests, parked ❓ decisions + ⏳ owner-blocked items, token throughput, and git branch — in three glanceable zones. Zero model-token cost. Full details on the plugin page.",
-      "version": "0.19.0"
+      "description": "One read-only status line for the companion plugins — health, an always-on 🛡 safety shield (🛡✗N when a floor is off), tests, the 🎨 design / 🔒 review edit-gates, feature state, parked ❓ decisions + ⏳ owner-blocked items, token throughput, and git branch — in three glanceable zones. Zero model-token cost. Full details on the plugin page.",
+      "version": "0.20.0"
     }
   ]
 }

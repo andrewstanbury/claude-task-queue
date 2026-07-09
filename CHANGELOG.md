@@ -73,6 +73,13 @@ Launch-hardening pass (no version bumps yet):
 
 ## hud
 
+### 0.20.0
+- Always-on `🛡` safety shield (green when every floor is on, `🛡✗N` when any are
+  off) — a positive "you're protected" signal, not just an exception warning.
+- Two edit-gate indicators: `🔒` when the return-review gate is armed and `🎨`
+  while a design-preview is pending. (task-queue relocates the design marker into
+  the shared state dir so the status line can read it read-only.)
+
 ### 0.19.0
 - `⏳N` owner-blocked count in the status line.
 

@@ -185,6 +185,47 @@ teardown() {
   rm -rf "$CLAUDE_HUD_TASKS_DIR"
 }
 
+@test "hud_review_pending reflects task-queue's return-review gate marker (per repo)" {
+  export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
+  run bash -c "$SRC"' hud_review_pending "/some/repo"' bash "$ROOT"; [ "$output" = "0" ]
+  touch "$CLAUDE_HUD_AWAY_DIR/review--some-repo"    # tq_review_file encoding: sed s:/:-:g
+  run bash -c "$SRC"' hud_review_pending "/some/repo"' bash "$ROOT"; [ "$output" = "1" ]
+  run bash -c "$SRC"' hud_review_pending ""' bash "$ROOT"; [ "$output" = "0" ]
+  rm -rf "$CLAUDE_HUD_AWAY_DIR"
+}
+
+@test "hud_design_pending reflects task-queue's design-preview marker (per session)" {
+  export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
+  run bash -c "$SRC"' hud_design_pending "sX"' bash "$ROOT"; [ "$output" = "0" ]
+  touch "$CLAUDE_HUD_AWAY_DIR/design-sX"
+  run bash -c "$SRC"' hud_design_pending "sX"' bash "$ROOT"; [ "$output" = "1" ]
+  run bash -c "$SRC"' hud_design_pending ""' bash "$ROOT"; [ "$output" = "0" ]
+  rm -rf "$CLAUDE_HUD_AWAY_DIR"
+}
+
+@test "status line shows 🔒 when the return-review gate is armed for the repo" {
+  export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
+  local root enc; root="$(git -C "$REPO" rev-parse --show-toplevel)"; enc="$(printf '%s' "$root" | sed 's:/:-:g')"
+  json="$(jq -nc --arg s sL --arg c "$REPO" '{model:{display_name:"Opus"},session_id:$s,cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" != *"🔒"* ]]                          # not armed → hidden
+  touch "$CLAUDE_HUD_AWAY_DIR/review-$enc"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *"🔒"* ]]                          # armed → shown
+  rm -rf "$CLAUDE_HUD_AWAY_DIR"
+}
+
+@test "status line shows 🎨 while a design preview is pending for the session" {
+  export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
+  json="$(jq -nc --arg s sD --arg c "$REPO" '{model:{display_name:"Opus"},session_id:$s,cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" != *"🎨"* ]]                          # not pending → hidden
+  touch "$CLAUDE_HUD_AWAY_DIR/design-sD"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *"🎨"* ]]                          # pending → shown
+  rm -rf "$CLAUDE_HUD_AWAY_DIR"
+}
+
 @test "hud_ahead_behind: empty without an upstream, '<ahead> <behind>' with one" {
   run bash -c "$SRC"' hud_ahead_behind "$2"' bash "$ROOT" "$REPO"   # no upstream yet
   [ -z "$output" ]
@@ -254,12 +295,20 @@ teardown() {
   [ "$output" = "secret-scan intent-check" ]   # owner-ordered, space-separated, no leading space
 }
 
-@test "status line shows 🛡✗N when a safety floor is disabled, hidden when all on" {
+@test "status line shows green 🛡 when all floors on, 🛡✗N when any disabled" {
   json="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
-  [[ "$output" != *"🛡"* ]]                                    # all on → no marker
+  [[ "$output" == *"🛡"* ]]                                    # all on → shield present (positive)
+  [[ "$output" != *"🛡✗"* ]]                                   # ...and it's the healthy shield, not the alarm
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_TIDY_CHECKS=0 CLAUDE_CHARTER_ALIGN_GATE=0 "$2"' _ "$json" "$STATUS"
   [[ "$output" == *"🛡✗2"* ]]                                  # two off → count of 2
+}
+
+@test "status line keeps the green 🛡 even on a narrow terminal (safety never sheds)" {
+  json="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:60}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *"🛡"* ]]
+  [[ "$output" != *"🛡✗"* ]]
 }
 
 @test "status line keeps the 🛡✗ warning even on a narrow terminal (safety never sheds)" {

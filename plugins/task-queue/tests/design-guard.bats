@@ -24,7 +24,7 @@ teardown() {
          "$CLAUDE_TQ_PROJECTS_DIR" "$(dirname "$REPO")"
 }
 
-design_flag() { printf '%s/design-%s' "$CLAUDE_TQ_STATE_DIR" "$SID"; }
+design_flag() { printf '%s/design-%s' "$CLAUDE_TQ_AWAY_DIR" "$SID"; }   # marker now lives in the shared away dir (hud-readable)
 guard()  { bash -c 'printf "{\"cwd\":\"%s\",\"session_id\":\"%s\"}" "$1" "$2" | bash "$3"' _ "$REPO" "$SID" "$GUARD"; }
 capture() { bash -c 'printf "{\"prompt\":\"%s\",\"cwd\":\"%s\",\"session_id\":\"%s\"}" "$1" "$2" "$3" | bash "$4" >/dev/null' _ "$1" "$REPO" "$SID" "$CAPTURE"; }
 away_flag() { printf '%s/%s' "$CLAUDE_TQ_AWAY_DIR" "$(printf '%s' "$REPO" | sed 's:/:-:g')"; }

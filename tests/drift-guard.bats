@@ -105,6 +105,27 @@ assert_decisions_agree() {   # charter vs task-queue
   rm -rf "$CLAUDE_TQ_TASKS_DIR"
 }
 
+@test "edit-gates: hud's 🔒/🎨 readers agree with task-queue's marker locations" {
+  # hud mirrors two task-queue edit-gate markers by reconstructing their path convention
+  # (install boundary forbids sharing the lib). If task-queue moved a marker or renamed a
+  # prefix, hud would silently miss it — so drive the REAL writers and assert hud sees them.
+  . "$R/plugins/task-queue/lib/tasks.sh"
+  . "$R/plugins/task-queue/lib/away.sh"
+  . "$R/plugins/task-queue/lib/capture.sh"
+  . "$R/plugins/hud/lib/hud.sh"
+  local d; d="$(mktemp -d)"
+  export CLAUDE_TQ_AWAY_DIR="$d" CLAUDE_HUD_AWAY_DIR="$d"
+  # review gate (per-repo): task-queue writes it, hud must see the same file
+  [ "$(hud_review_pending /a/repo)" = "0" ]
+  tq_review_set /a/repo;   [ "$(hud_review_pending /a/repo)" = "1" ]
+  tq_review_clear /a/repo; [ "$(hud_review_pending /a/repo)" = "0" ]
+  # design gate (per-session): relocated into the shared away dir so hud can read it
+  [ "$(hud_design_pending sess1)" = "0" ]
+  tq_design_set sess1;   [ "$(hud_design_pending sess1)" = "1" ]
+  tq_design_clear sess1; [ "$(hud_design_pending sess1)" = "0" ]
+  rm -rf "$d"
+}
+
 @test "disabled-floor marker: every flag hud checks is still honored by a sibling" {
   # hud's 🛡✗ marker reads the floors' CLAUDE_*=0 disable flags by name (install
   # boundary forbids importing them). If a sibling renamed its flag, the marker would

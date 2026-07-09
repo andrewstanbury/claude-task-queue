@@ -24,7 +24,7 @@ default and only takes effect when you set it.
 | `CLAUDE_TQ_AWAY_MAX_CONTINUE` | `15` | Cap on auto-continues per prompt, so a stuck model can't spin. |
 | `CLAUDE_TQ_AWAY_STALE_HOURS` | `12` | Hours before an "autopilot still on" staleness nudge fires. |
 | `CLAUDE_TQ_REVIEW_GATE` | `1` | Return-review gate: blocks edits until the parked `❓` decision pile is cleared. |
-| `CLAUDE_TQ_DESIGN_GATE` | `1` | Design-preview guard on architecturally significant work. |
+| `CLAUDE_TQ_DESIGN_GATE` | `1` | Design-preview guard: blocks edits on a **visual/design** change until a wireframe preview has been shown. |
 | `CLAUDE_TQ_INTENT_GATE` | `1` | Intent-confirmation gate on prompt capture and verify. |
 | `CLAUDE_TQ_OPEN_Q` | `1` | Surface open `❓` parked-decision reminders during capture. |
 | `CLAUDE_TQ_CAPTURE_DISABLED` | *(unset → off)* | Set to any value to disable the per-prompt capture hook entirely. |
