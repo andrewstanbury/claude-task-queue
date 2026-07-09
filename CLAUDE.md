@@ -44,9 +44,12 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   else types/build/run); existing suite green before done; weigh against recorded decisions. Verify observably; keep choices boring &
   reversible; honor the owner's *outcome* not their implementation; autonomy on the
   reversible, plain-language consent on the consequential. **Challenge ruthlessly** —
-  including the prompt in front of you; when the work is architecturally significant
-  or rests on an assumption, PRESENT a recommended approach + 2-3 alternatives (like
-  the design-preview) and let the owner pick; a better option that retires a prior
+  including the prompt in front of you; when the work is architecturally significant,
+  rests on an assumption, or the viable approaches diverge on a meaningful axis,
+  PRESENT a recommended approach + 2-3 alternatives (like the design-preview) and let
+  the owner pick — this ranked shape is the default for any surfaced fork, but only
+  enumerate genuinely viable options; a clear low-stakes winner you just decide and
+  record; a better option that retires a prior
   requirement is proposed as a *visible* trade-off (name what it retires), never a
   silent override.
 - **3 · Subtract as you add** — net surface flat or smaller; reuse before create;
