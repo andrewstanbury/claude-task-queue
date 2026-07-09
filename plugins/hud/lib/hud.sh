@@ -9,6 +9,10 @@
 set -uo pipefail
 
 # Default paths mirror where the sibling plugins write; overridable for tests.
+# These three deliberately DON'T chain through the sibling's own env var (the way
+# hud_tasks_dir chains CLAUDE_TQ_TASKS_DIR below): the agent/away/verify dirs aren't
+# relocatable today, so adding that chain would be speculative coupling — no seam
+# until something actually varies. (CLAUDE_TQ_TASKS_DIR is a real, existing knob.)
 hud_agent_dir()  { printf '%s' "${CLAUDE_HUD_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}"; }
 hud_away_dir()   { printf '%s' "${CLAUDE_HUD_AWAY_DIR:-$HOME/.claude/state/task-queue/away}"; }
 hud_verify_dir() { printf '%s' "${CLAUDE_HUD_VERIFY_DIR:-$HOME/.claude/state/tidy/verify}"; }

@@ -71,16 +71,6 @@ tq_design_set()     { [ -n "${1:-}" ] || return 0; mkdir -p "$(tq_state_dir)" 2>
 tq_design_clear()   { [ -n "${1:-}" ] && rm -f "$(tq_design_file "$1")" 2>/dev/null || true; }
 tq_design_pending() { [ -n "${1:-}" ] && [ -f "$(tq_design_file "$1")" ]; }
 
-# Is the repo at $root a Godot project? (a project.godot manifest at the root.)
-# Used to stand down the wireframe design-preview: that preview is a web-UI
-# convention (box/input/button layouts) and misleads on a game's scene/sprite
-# visuals — there the "demonstrate before build" step is running the game, not an
-# ASCII mockup. Returns 0 yes / 1 no.
-tq_is_godot_project() {
-  local root="$1"
-  [ -n "$root" ] && [ -f "$root/project.godot" ]
-}
-
 # Build the " First weigh it against <decisions/backlog> ..." alignment clause for
 # the repo at $cwd, or empty if the project records no direction. Shared by the
 # capture nudge and the consequential review-gate so neither duplicates it — the

@@ -88,7 +88,7 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   progress and genuinely can't be parked, take your recommended (safest, most reversible)
   default, record it, and leave a `❓` note to override — defaulting beats idling. The
   auto-continue is bounded by a per-prompt counter
-  (`CLAUDE_TQ_AWAY_MAX_CONTINUE`, default 40) so a stuck model can't spin. `off` prints a
+  (`CLAUDE_TQ_AWAY_MAX_CONTINUE`, default 15) so a stuck model can't spin. `off` prints a
   digest of what completed, the `❓` decisions, and the `⏳` owner-blocked items, and ARMS
   a return-review gate: edits are blocked (tq-review-guard PreToolUse) until you've reviewed
   each parked `❓` — as a blocking AskUserQuestion, recommended option first — and cleared

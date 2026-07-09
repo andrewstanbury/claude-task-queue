@@ -56,7 +56,10 @@ fi
 if [ "${1:-}" = "--legend" ]; then hud_legend; exit 0; fi
 
 INPUT=""; [ -t 0 ] || INPUT="$(cat 2>/dev/null || true)"; [ -n "$INPUT" ] || INPUT="{}"
-mapfile -t F < <(printf '%s' "$INPUT" | jq -r '[
+# Portable read into F (no mapfile — that's bash-4-only; stock macOS ships bash 3.2).
+# jq emits exactly 6 lines in this fixed order, so F[0..5] map 1:1 to the fields below.
+F=()
+while IFS= read -r x; do F+=("$x"); done < <(printf '%s' "$INPUT" | jq -r '[
     (.model.display_name // .model.id // "?"),
     (.session_id // ""),
     (.workspace.current_dir // .cwd // ""),

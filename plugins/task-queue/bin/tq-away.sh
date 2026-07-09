@@ -44,7 +44,7 @@ case "$action" in
     mkdir -p "$(tq_away_dir)" 2>/dev/null || true
     date +%s > "$flag" 2>/dev/null || : > "$flag"   # stamp the on-time (for staleness + digest)
     tq_review_clear "$root"                          # re-enabling resumes the queue → drop any pending return-review gate
-    printf 'Autopilot ON — running autonomously for %s: the queue auto-continues, asking is blocked, and anything that needs you is PARKED for review.\n' "$root"
+    printf 'Autopilot ON — running autonomously for %s: the queue auto-continues, asking is blocked, and anything that needs you is PARKED for review. Off-switches: CLAUDE_TQ_AWAY_ASK_GUARD=0 (allow asks), CLAUDE_TQ_AWAY_CONTINUE=0 (stop auto-continue).\n' "$root"
     ;;
   off|disable)
     since="$(tq_away_since "$root")"                 # read before removing the flag

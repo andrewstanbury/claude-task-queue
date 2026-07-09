@@ -15,6 +15,11 @@
 
 set -uo pipefail
 
+# Missing jq → allow the stop and no-op (this hook parses input + emits block/message
+# JSON via jq; without it every emit would error). exit 0 = let the stop proceed, the
+# safe degrade for a best-effort companion. Guard before the lib source.
+command -v jq >/dev/null 2>&1 || exit 0
+
 SELF="${BASH_SOURCE[0]}"
 while [ -L "$SELF" ]; do
   link="$(readlink "$SELF")"

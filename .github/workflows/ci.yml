@@ -10,11 +10,18 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    # macOS coverage is advisory until validated on real hardware; promote to required once green
+    continue-on-error: ${{ matrix.os == 'macos-latest' }}
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install tools
+      - name: Install tools (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update && sudo apt-get install -y bats
           ver=8.21.2
@@ -22,6 +29,11 @@ jobs:
             | tar -xz gitleaks
           sudo mv gitleaks /usr/local/bin/gitleaks
           # jq and shellcheck are preinstalled on ubuntu-latest runners.
+
+      - name: Install tools (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install jq bats-core shellcheck gitleaks
 
       - name: Check
         run: ./check.sh

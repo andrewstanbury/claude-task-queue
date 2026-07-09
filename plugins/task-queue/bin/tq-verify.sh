@@ -49,15 +49,15 @@ root="$(tq_root_for_cwd "$cwd")"
 # for this session, re-continue instead of stopping. Self-terminates when only ❓/⏳
 # deferred items remain, and a per-prompt counter caps the drive so a stuck model
 # can't spin forever (reset by tq-capture each prompt). Disable with
-# CLAUDE_TQ_AWAY_CONTINUE=0; cap via CLAUDE_TQ_AWAY_MAX_CONTINUE (default 40).
+# CLAUDE_TQ_AWAY_CONTINUE=0; cap via CLAUDE_TQ_AWAY_MAX_CONTINUE (default 15).
 if [ "${CLAUDE_TQ_AWAY_CONTINUE:-1}" != "0" ] && tq_is_away "$root"; then
   work="$(tq_open_worklist "$sid" 2>/dev/null || true)"
   if [ -n "$work" ]; then
     cfile="$(tq_away_continue_file "$sid")"
     cnt="$(head -n1 "$cfile" 2>/dev/null | tr -dc '0-9' || true)"; cnt="${cnt:-0}"
-    # Sanitize the cap to digits with a 40 fallback so a non-numeric misconfig
+    # Sanitize the cap to digits with a 15 fallback so a non-numeric misconfig
     # (CLAUDE_TQ_AWAY_MAX_CONTINUE=forty) can't throw and silently disable the valve.
-    max="$(printf '%s' "${CLAUDE_TQ_AWAY_MAX_CONTINUE:-40}" | tr -dc '0-9')"; max="${max:-40}"
+    max="$(printf '%s' "${CLAUDE_TQ_AWAY_MAX_CONTINUE:-15}" | tr -dc '0-9')"; max="${max:-15}"
     [ "$cnt" -ge "$max" ] && allow                                # safety valve: yield, don't loop
     { mkdir -p "$(tq_state_dir)" 2>/dev/null && printf '%s' "$((cnt + 1))" > "$cfile"; } 2>/dev/null || true
     rm -f "$(tq_intent_file "$sid")" 2>/dev/null || true          # away: no owner-confirm gate

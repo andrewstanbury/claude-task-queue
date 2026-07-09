@@ -448,6 +448,20 @@ make_question() {   # $1=session $2=id $3=subject
   [[ "$output" == "🧷 [task-queue] Return-review PENDING"* ]]
 }
 
+@test "return-review nudge armed DROPS the loop pointer; unarmed keeps it" {
+  make_session sess
+  make_subject_task sess 1 in_progress "❓ [parked] pick the auth library"
+  arm_review
+  run run_capture "start some new work"
+  [[ "$output" == *"Return-review PENDING"* ]]
+  [[ "$output" != *"interpret it"* ]]       # loop suppressed — would contradict "review the ❓ pile FIRST"
+  # same prompt, marker cleared → the loop instruction is back to normal
+  rm -f "$(review_marker)"
+  run run_capture "start some new work"
+  [[ "$output" != *"Return-review PENDING"* ]]
+  [[ "$output" == *"interpret it"* ]]
+}
+
 @test "no return-review nudge when the gate is NOT armed (zero steady-state cost)" {
   make_session sess
   make_subject_task sess 1 in_progress "❓ [parked] pick the auth library"

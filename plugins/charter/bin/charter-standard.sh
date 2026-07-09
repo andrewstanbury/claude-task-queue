@@ -9,6 +9,10 @@
 
 set -euo pipefail
 
+# Missing jq → clean silent no-op (we emit via `jq -cn`; without it the hook would
+# spray "jq: command not found" at every session start). Guard before the lib source.
+command -v jq >/dev/null 2>&1 || exit 0
+
 SELF="${BASH_SOURCE[0]}"
 while [ -L "$SELF" ]; do
   link="$(readlink "$SELF")"
@@ -83,7 +87,7 @@ parts=()
 if [ "${#gaps[@]}" -gt 0 ]; then
   body=""
   for g in "${gaps[@]}"; do body="$body"$'\n'"  • $g"; done
-  parts+=("[charter] Generate these missing Claude-facing docs from the codebase/git (sensible defaults, note assumptions), then commit — Claude can't infer them:$body"$'\n'"Document proportionally: capture evident decisions (DECISIONS.md) + stack (STACK.md); non-web quality targets only as size/risk earns it. Don't over-document a small repo. Keep docs TERSE and for Claude; plus a thin owner README (what it is / how to run).")
+  parts+=("[charter] Generate these missing Claude-facing docs from the codebase/git — Claude can't infer them. OFFER them and leave UNCOMMITTED for the owner to review:$body"$'\n'"Document proportionally: capture evident decisions (DECISIONS.md) + stack (STACK.md); non-web quality targets only as size/risk earns it. Keep docs TERSE and Claude-facing, plus a thin owner README (what it is / how to run).")
 fi
 
 # The owner loop — charter owns the project's direction AND the owner relationship.
@@ -93,7 +97,7 @@ fi
 # for consequential/irreversible ops is now enforced natively (auto-mode safety
 # checks + permissions deny/ask in settings.json), not a charter hook.
 if [ "$documented" -eq 0 ]; then
-  parts+=("[charter] Owner loop — owner is non-technical, can't read code: confirm intent in plain language + play it back before substantive work; build the simplest thing that meets it; demonstrate it working + recap plainly (they verify by seeing, not tests). Autonomy on the reversible; plain-language yes before anything consequential/hard-to-undo (paid deps, data migrations/deletions, lock-in — the line is reversibility + cost + data-safety). Honor the OUTCOME, not the proposed implementation — if a request implies needless complexity, re-anchor on the outcome and offer the simplest path. You're the gatekeeper against over-engineering, theirs included.")
+  parts+=("[charter] Owner loop — owner is non-technical, can't read code: confirm intent in plain language + play it back first, build the simplest thing that meets it, then demonstrate it working + recap plainly (they verify by seeing, not tests). Autonomy on the reversible; a plain-language yes before anything consequential/hard-to-undo — the line is reversibility + cost + data-safety. Honor the OUTCOME not the implementation: re-anchor needless complexity on the outcome, offer the simplest path. You're the gatekeeper against over-engineering.")
 fi
 
 # Established conventions — the heart of "reuse before create": name WHERE the
@@ -127,7 +131,7 @@ fi
 hot="$(charter_hotspots "$root" 2>/dev/null || true)"
 if [ -n "$hot" ]; then
   hotlist="$(printf '%s\n' "$hot" | awk -F'\t' '{printf "%s%s (%d fixes/%d changes)", sep, $3, $1, $2; sep=", "}')"
-  parts+=("[charter] Scar tissue — files this project repeatedly had to FIX (from git): $hotlist. If your plan touches these, treat as high-risk: understand WHY they churn before extending, prefer the smallest change, and consider whether the churn means the abstraction is wrong (over-engineered) → simplify, don't add to.")
+  parts+=("[charter] Scar tissue — files this project repeatedly had to FIX (from git): $hotlist. If your plan touches these, understand WHY they churn before extending, and prefer the smallest change.")
 fi
 
 # Join non-empty parts; silent when there's nothing to say (baseline present + marked).
