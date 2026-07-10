@@ -29,7 +29,7 @@
       "name": "hud",
       "source": "./plugins/hud",
       "description": "One clean status line that shows everything at a glance: whether your tests are passing, whether the safety checks are on, which project and branch you're in, and anything waiting on your decision. Updates live and costs nothing in tokens.",
-      "version": "0.20.3"
+      "version": "0.20.4"
     }
   ]
 }

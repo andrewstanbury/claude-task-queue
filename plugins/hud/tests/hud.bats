@@ -287,15 +287,22 @@ teardown() {
   [[ "$output" != *"⇡"* ]]
 }
 
-@test "health beacon: animated braille-orbit frame with color, static ● without" {
+@test "health beacon: braille-orbit frame animates with color AND with no-color; static ● only on TERM=dumb" {
   json="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200}')"
-  # no-color / dumb terminal → static dot (can't meaningfully spin a colored glyph)
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
-  [[ "$output" == *"●"* ]]
-  # color on → one of the braille-orbit frames, never the static dot
+  braille='⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏'
+  # color on → a braille frame, never the static dot
   run bash -c 'printf "%s" "$1" | TERM=xterm NO_COLOR= "$2"' _ "$json" "$STATUS"
   [[ "$output" != *"●"* ]]
-  printf '%s' "$output" | grep -qE '⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏'
+  printf '%s' "$output" | grep -qE "$braille"
+  # NO_COLOR (capable terminal) → STILL animates: a braille frame, no static dot. The
+  # braille shapes read without color, so no-color no longer means a frozen beacon.
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 TERM=xterm "$2"' _ "$json" "$STATUS"
+  [[ "$output" != *"●"* ]]
+  printf '%s' "$output" | grep -qE "$braille"
+  # TERM=dumb → static ● (can't rely on braille rendering there)
+  run bash -c 'printf "%s" "$1" | TERM=dumb "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *"●"* ]]
+  ! printf '%s' "$output" | grep -qE "$braille"
 }
 
 @test "hud_floors_disabled: empty when all on, names each floor set to 0" {
