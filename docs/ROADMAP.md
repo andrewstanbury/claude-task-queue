@@ -199,6 +199,17 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   (hud), native **AskUserQuestion** (the present-before-queue interaction), native
   **subagents** (agent-mode fan-out). Hooks earn their keep only where they *execute*
   on an event or read state a session can't see.
+  *(2026-07-10 amendment — the native task list is no longer unconditionally available:
+  Anthropic's server flag `tengu_vellum_ash` disables the native task tools for the newest
+  models — Opus 4.8 / Sonnet 5 / Fable 5 — leaving those sessions with NO task tool. Native-first
+  now carries a fallback: `bin/tq` lets the model write the queue itself when it lacks the native
+  tool, in the SAME format/location so every reader is unchanged, and it self-routes back to native
+  the moment the tool returns. This **retires the old "task-queue is read-only over `~/.claude/tasks`"
+  invariant** — a deliberate, owner-approved trade-off to keep the queue, cross-session resume, and
+  autopilot working on the models the owner actually uses, rather than depend on a capability a vendor
+  flag can revoke without notice. Kept a reversible FALLBACK, not a rip-and-replace: if the flag lifts,
+  native resumes and `tq` goes idle. Shipped in slices — the `tq` writer + self-routing policy first;
+  resume-bridge and autopilot-drain dual-source follow.)*
 - **Run in auto.** The user's `~/.claude/settings.json` sets
   `permissions.defaultMode: "auto"` (auto-approve **with background safety checks**)
   plus a hard-block `deny` set (`rm -rf /` and `~`) and an `ask` set (force-push,
