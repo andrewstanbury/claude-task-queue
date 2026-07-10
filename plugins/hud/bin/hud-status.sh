@@ -165,7 +165,7 @@ esac
 # earns its space exactly where the icon is both cryptic and consequential.
 [ "$DESIGN" = "1" ] && Z1+=("$Y$B🎨 design$X")   # design preview pending — edits gated until shown
 [ "$REVIEW" = "1" ] && Z1+=("$Y$B🔒 review$X")   # return-review armed — edits gated until the ❓ pile clears (sits next to ❓)
-# Open, non-parked WORK in this session (☐ N) plus the CURRENT in_progress task
+# Open, non-parked WORK in this session (📋 N) plus the CURRENT in_progress task
 # (▸ subject, wide terminals only — it sheds first when space is tight). Cyan, NOT the
 # yellow of ❓/⏳: open work is normal state, not an attention alarm. Disjoint from the
 # ❓/⏳ badges that follow, so the three read as separate buckets (work · decisions ·
@@ -174,7 +174,7 @@ esac
 WORK="$(hud_worklist "$SID" 2>/dev/null || printf '0\n\n')"
 WORK_N="$(printf '%s\n' "$WORK" | sed -n '1p')"
 if [ "${WORK_N:-0}" -gt 0 ] 2>/dev/null; then
-  Z1+=("$C$B☐ $WORK_N$X")
+  Z1+=("$C$B📋 $WORK_N$X")
   if [ "$NARROW" -eq 0 ]; then
     WORK_CUR="$(printf '%s\n' "$WORK" | sed -n '2p')"
     if [ -n "$WORK_CUR" ]; then
