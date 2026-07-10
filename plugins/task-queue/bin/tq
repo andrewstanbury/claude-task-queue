@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# tq — task-queue's FALLBACK queue writer.
+#
+# Claude Code's native task tools (TaskCreate/TaskUpdate) ARE the live queue
+# whenever they're available. But Anthropic gates them off per-model via the
+# `tengu_vellum_ash` server flag (Opus 4.8 / Sonnet 5 / Fable 5, as of 2026-07):
+# on those models the model has NO task tool at all, so the queue would be
+# invisible and cross-session resume + autopilot-drain would go dark.
+#
+# This CLI restores it. The model runs `tq add/doing/done` and we write the SAME
+# native-format JSON to the SAME per-session store (<tasks>/<session>/<n>.json)
+# that every reader — hud, tq-status, the resume bridge, autopilot's drain — already
+# keys off. So nothing downstream changes: the queue reappears exactly as if the
+# native tool had written it.
+#
+# This is the ONE place task-queue writes ~/.claude/tasks — a deliberate, recorded
+# reversal of the old read-only invariant, scoped to this fallback. The model
+# SELF-ROUTES (per the SessionStart policy): it uses native TaskCreate when it has
+# it and only falls back to `tq` when it doesn't, so the two never write at once and
+# a lifted flag silently returns to native with `tq` idle. Coarse by design — a few
+# calls per prompt, not per micro-update — so the active-token cost stays small.
+#
+# Session id: $CLAUDE_CODE_SESSION_ID (Claude Code sets it for tool subprocesses);
+# override with CLAUDE_TQ_SESSION_ID for tests. Store root: CLAUDE_TQ_TASKS_DIR.
+# Best-effort + never destructive: bad input prints usage to stderr, exits 1, writes
+# nothing.
+
+set -uo pipefail
+
+# Symlink-safe self-resolution (the documented PATH install may symlink this) so we
+# find the sibling lib whether invoked directly, via PATH, or through a link.
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  link="$(readlink "$SELF")"
+  case "$link" in /*) SELF="$link" ;; *) SELF="$(dirname "$SELF")/$link" ;; esac
+done
+LIB="$(cd "$(dirname "$SELF")/../lib" && pwd)/tasks.sh"
+# shellcheck source=../lib/tasks.sh
+. "$LIB"
+
+command -v jq >/dev/null 2>&1 || { echo "tq: jq is required" >&2; exit 1; }
+
+SID="${CLAUDE_TQ_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"
+[ -n "$SID" ] || { echo "tq: no session id (CLAUDE_CODE_SESSION_ID unset)" >&2; exit 1; }
+DIR="$(tq_tasks_dir)/$SID"
+
+usage() {
+  cat >&2 <<'EOF'
+tq — fallback task queue (used when the native task tools are unavailable)
+  tq add "<subject>" [more...]   queue one or more tasks (pending)
+  tq doing <id>                  mark a task in progress
+  tq done  <id>                  mark a task completed
+  tq list                        show the current queue
+Park an item by leading its subject with ❓ (a decision) or ⏳ (owner-blocked) —
+the same convention every reader already understands.
+EOF
+}
+
+# Next numeric id = highest existing <n>.json + 1 (native files are numbered). The
+# model runs tq calls sequentially per turn, so there's a single writer — no lock.
+next_id() {
+  local f n max=0
+  for f in "$DIR"/*.json; do
+    [ -f "$f" ] || continue
+    n="$(basename "$f" .json)"
+    case "$n" in ''|*[!0-9]*) continue ;; esac
+    [ "$n" -gt "$max" ] && max="$n"
+  done
+  printf '%d' $((max + 1))
+}
+
+set_status() {   # id status
+  local tmp="$DIR/.$1.tmp"
+  jq --arg st "$2" '.status=$st' "$DIR/$1.json" > "$tmp" && mv "$tmp" "$DIR/$1.json"
+}
+
+cmd="${1:-list}"; shift || true
+case "$cmd" in
+  add)
+    [ "$#" -gt 0 ] || { usage; exit 1; }
+    mkdir -p "$DIR" || { echo "tq: cannot create $DIR" >&2; exit 1; }
+    id="$(next_id)"
+    for subj in "$@"; do
+      [ -n "$subj" ] || continue
+      jq -n --arg id "$id" --arg s "$subj" \
+        '{id:$id, subject:$s, status:"pending", blocks:[], blockedBy:[]}' > "$DIR/$id.json"
+      echo "added #$id  $subj"
+      id=$((id + 1))
+    done
+    ;;
+  doing|done)
+    { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }
+    [ "$cmd" = doing ] && st=in_progress || st=completed
+    set_status "$1" "$st"
+    echo "#$1 → $st"
+    ;;
+  list)
+    lines=""
+    if [ -d "$DIR" ]; then
+      for f in "$DIR"/*.json; do
+        [ -f "$f" ] || continue
+        lines+="$(jq -r '"\(.id)\t\(.status)\t\(.subject)"' "$f" 2>/dev/null)"$'\n'
+      done
+    fi
+    if printf '%s' "$lines" | grep -q '[^[:space:]]'; then
+      printf '%s' "$lines" | sort -n | awk -F'\t' 'NF>=3{printf "  #%s  [%s]  %s\n",$1,$2,$3}'
+    else
+      echo "(queue empty)"
+    fi
+    ;;
+  -h|--help|help) usage ;;
+  *) echo "tq: unknown command '$cmd'" >&2; usage; exit 1 ;;
+esac

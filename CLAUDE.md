@@ -9,8 +9,14 @@ Hard invariants (do not violate):
   its own `${CLAUDE_PLUGIN_ROOT}`. The small duplication between plugins is intentional.
 - **Hooks are best-effort and must never break the action that triggered them**
   (`set -uo pipefail`, swallow errors, exit 0 when silent).
-- **`task-queue` is read-only** over `~/.claude/tasks`; **`tidy` only auto-applies
-  behavior-preserving fixes** (formatting), surfacing everything else.
+- **`task-queue` reads `~/.claude/tasks`; its ONE write is the `tq` fallback CLI**
+  (`bin/tq`), used by the model to keep the queue alive when Claude Code's native task
+  tools are gated off for a model (the `tengu_vellum_ash` flag — Opus 4.8 / Sonnet 5 /
+  Fable 5). It writes the SAME native format to the SAME per-session store, so every
+  reader is unchanged; the model self-routes (native when it has it, `tq` when it
+  doesn't) so the two never write at once. *This deliberately retires the old "read-only
+  over `~/.claude/tasks`" invariant — see [docs/ROADMAP.md](./docs/ROADMAP.md).* **`tidy`
+  only auto-applies behavior-preserving fixes** (formatting), surfacing everything else.
 - **Zero per-prompt cost**; keep files cohesive (CI fails scripts over 300 lines).
   Per-hook **token budgets** are CI-enforced (`tests/token-budget.bats`) — growing
   one is a deliberate ratchet, bumped in the same change.
@@ -62,6 +68,9 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   **document proportionally** (token efficiency is the payoff, not a separate chase).
   An `in_progress` task carries a one-line progress breadcrumb in its description
   (what's done / what's next) so a crash resumes it mid-task, not from the top.
+  When the native task tools are unavailable (gated off for the newest models), the
+  `tq` CLI is the write-fallback the model uses in their place — same store, same
+  behavior, so visibility/resume/autopilot are unaffected.
 - **Autopilot mode** (`/task-queue:autopilot` — merges the old *solo/away* + *pause*) —
   when the owner steps away, run fully autonomous. **Enforced, not advised:** the Stop
   hook auto-continues the queue while non-deferred work remains, `AskUserQuestion` is
