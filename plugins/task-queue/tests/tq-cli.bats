@@ -42,6 +42,26 @@ teardown() { rm -rf "$CLAUDE_TQ_TASKS_DIR"; }
   [ "$(jq -r .status "$CLAUDE_TQ_TASKS_DIR/sess1/1.json")" = "completed" ]
 }
 
+@test "tq breadcrumb: doing sets an optional note, tq note updates it, done keeps it" {
+  "$TQ" add "build it" >/dev/null
+  "$TQ" doing 1 "scaffolding written; next: wire the handler"
+  [ "$(jq -r .description "$CLAUDE_TQ_TASKS_DIR/sess1/1.json")" = "scaffolding written; next: wire the handler" ]
+  "$TQ" note 1 "handler wired; next: tests"
+  [ "$(jq -r .description "$CLAUDE_TQ_TASKS_DIR/sess1/1.json")" = "handler wired; next: tests" ]
+  "$TQ" done 1
+  # completing must NOT wipe the breadcrumb (it's the crash-resume detail)
+  [ "$(jq -r .description "$CLAUDE_TQ_TASKS_DIR/sess1/1.json")" = "handler wired; next: tests" ]
+  [ "$(jq -r .status "$CLAUDE_TQ_TASKS_DIR/sess1/1.json")" = "completed" ]
+}
+
+@test "tq note: needs an id and text, errors otherwise" {
+  "$TQ" add "x" >/dev/null
+  run "$TQ" note 1
+  [ "$status" -ne 0 ]
+  run "$TQ" note 9 "text"
+  [ "$status" -ne 0 ]
+}
+
 @test "tq done: unknown id errors, writes nothing" {
   run "$TQ" done 9
   [ "$status" -ne 0 ]
