@@ -89,6 +89,24 @@ assert_decisions_agree() {   # charter vs task-queue
   rm -rf "$CLAUDE_TQ_TASKS_DIR"
 }
 
+@test "worklist: hud_worklist count agrees with task-queue's tq_open_worklist (❓/⏳ excluded)" {
+  . "$R/plugins/task-queue/lib/tasks.sh"
+  . "$R/plugins/hud/lib/hud.sh"
+  export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
+  mkdir -p "$CLAUDE_TQ_TASKS_DIR/sV"
+  jq -n '{id:"1",subject:"build the thing",status:"in_progress"}' > "$CLAUDE_TQ_TASKS_DIR/sV/1.json"
+  jq -n '{id:"2",subject:"test the thing",status:"pending"}'      > "$CLAUDE_TQ_TASKS_DIR/sV/2.json"
+  jq -n '{id:"3",subject:"❓ parked",status:"pending"}'            > "$CLAUDE_TQ_TASKS_DIR/sV/3.json"
+  jq -n '{id:"4",subject:"⏳ blocked",status:"in_progress"}'       > "$CLAUDE_TQ_TASKS_DIR/sV/4.json"
+  jq -n '{id:"5",subject:"shipped",status:"completed"}'           > "$CLAUDE_TQ_TASKS_DIR/sV/5.json"
+  local hud_n tq_n
+  hud_n="$(hud_worklist sV | sed -n '1p')"
+  tq_n="$(tq_open_worklist sV | grep -c .)"
+  [ "$hud_n" = "$tq_n" ]
+  [ "$hud_n" = "2" ]                        # ❓ / ⏳ / completed all excluded — only real work counts
+  rm -rf "$CLAUDE_TQ_TASKS_DIR"
+}
+
 # The two deferral markers must stay DISJOINT: ❓ [parked] decisions (hold the gate) vs
 # ⏳ [blocked] owner-action items (surfaced, not gated). A ⏳ item must never leak into the
 # ❓ count and vice-versa, in either plugin — else the gate would fire on the wrong pile.

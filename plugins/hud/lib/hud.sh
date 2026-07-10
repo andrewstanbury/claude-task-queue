@@ -87,6 +87,7 @@ hud status-line key (left → right; the feature-status slot is always shown, th
                (green = on, grey = off; on a no-color terminal the word on/off is spelled out)
   <model>      the model in use (shown without a label to save space)
   ✓/✗/⚠ tests  last test run — passed / failed / timed out
+  ☐ N ▸ task  N open tasks in the live queue (non-parked work) · ▸ names the one in progress
   ❓N          N parked decisions / open questions awaiting your call this session
   ⏳N          N items blocked on a manual action from you (device / external / owner-only step)
   🔒          review gate armed — editing is paused until you clear the ❓ decisions above
@@ -133,6 +134,33 @@ hud_blocked() {
                       and ((.subject // "") | sub("^\\s+";"") | startswith("⏳"))) | (.subject // "")' "$f" 2>/dev/null
       done | awk 'NF && !seen[$0]++' | grep -c .)"
   printf '%s' "${c:-0}"
+}
+
+# Open, non-parked WORK in this session's live queue — the read-only mirror of
+# task-queue's tq_open_worklist: pending/in_progress tasks that are NOT deferred
+# (neither a ❓ [parked] decision nor a ⏳ [blocked] owner-action — those have their
+# own badges, so excluding them keeps the three buckets disjoint instead of one total
+# counted three ways). ONE scan of the session's files — the per-second render can't
+# afford more — printing TWO lines: (1) the count, deduped by subject; (2) the subject
+# of the CURRENT in_progress task (first found), empty when nothing is running. The
+# native Task tools populate the store, so a model with them gated off has an empty
+# store and this collapses to "0" (the slot then disappears). Prints "0" + a blank line
+# for no session / no store.
+hud_worklist() {
+  local sid="$1" tdir f
+  [ -n "$sid" ] || { printf '0\n\n'; return 0; }
+  tdir="$(hud_tasks_dir)/$sid"
+  [ -d "$tdir" ] || { printf '0\n\n'; return 0; }
+  for f in "$tdir"/*.json; do
+    [ -f "$f" ] || continue
+    jq -r 'select((.status=="pending" or .status=="in_progress")
+                  and (((.subject // "") | sub("^\\s+";"")
+                        | (startswith("❓") or startswith("⏳"))) | not))
+           | "\(.status)\t\(.subject // "")"' "$f" 2>/dev/null || true
+  done | awk -F'\t' '
+    $2!="" && !seen[$2]++ { n++; if ($1=="in_progress" && cur=="") cur=$2 }
+    END { print n+0; print cur }
+  '
 }
 
 # Humanize a token count for the status line: <1000 verbatim, thousands as N.Nk,
