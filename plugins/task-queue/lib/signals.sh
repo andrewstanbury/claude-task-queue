@@ -30,7 +30,7 @@ tq_state_signals() {
   fi
 
   if tq_is_agent_mode "$root"; then
-    _sig_add "🤖 Agent-mode is ON — DEFAULT to fanning work out to subagents (Task tool) when it pays off in speed: parallel reads/exploration/audits across many files, independent per-item transforms, and parallel verification. Safe to parallelize = unblocked, no shared blockedBy, disjoint files, low blast radius. Keep INLINE: coupled/chained work, edits to shared or high-fan-in files, or when unsure — conflicting parallel edits are the risk the blast-radius principle guards against. Decide per-task from your task list; don't ask each time. ($agent_cmd off to disable for this repo.)"
+    _sig_add "🤖 Agent-mode is ON — but the native task list in THIS session is ALWAYS the live queue: decompose every prompt into it (TaskCreate) and keep its statuses current (pending→in_progress→parked/done) so work stays visible and trackable HERE. Agent-mode ONLY adds parallel subagents to do the WORK UNDER an already-queued task when it pays off in speed — parallel reads/exploration/audits across many files, independent per-item transforms, parallel verification — each reporting back so the MAIN session flips the native task done. NEVER spawn a subagent instead of queueing, never delegate the decomposition or status-tracking itself, and never let the main queue go empty. Fan out only when safe (unblocked, no shared blockedBy, disjoint files, low blast radius); keep coupled/chained or shared-file work INLINE — conflicting parallel edits are the risk the blast-radius principle guards against. Decide per-task from your task list; don't ask each time. ($agent_cmd off to disable for this repo.)"
   fi
 
   if tq_is_away "$root"; then

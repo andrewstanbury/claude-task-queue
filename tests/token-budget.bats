@@ -14,6 +14,12 @@
 
 setup() {
   R="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  # Hermetic budgets: the mode env-defaults must not leak in from the runner's shell.
+  # The steady-state case measures the NO-mode baseline, and the mode-ON case turns
+  # modes on via flag FILES (below) — so an ambient CLAUDE_TQ_AGENT_MODE/CHECKPOINT_MODE
+  # would silently inflate the baseline and spuriously bust its budget. (agent-fanout.bats
+  # unsets the same var for the same reason.)
+  unset CLAUDE_TQ_AGENT_MODE CLAUDE_TQ_CHECKPOINT_MODE
   export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
   export CLAUDE_TQ_STATE_DIR="$(mktemp -d)"
   export CLAUDE_CHARTER_LOG_DIR="$(mktemp -d)"
