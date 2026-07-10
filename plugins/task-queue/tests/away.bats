@@ -322,7 +322,7 @@ run_guard() {
   run run_guard
   [ "$status" -eq 0 ]
   [[ "$output" == *'"permissionDecision":"deny"'* ]]
-  [[ "$output" == *"Away-mode"* ]]
+  [[ "$output" == *"Autopilot is ON"* ]]
   [[ "$output" == *"❓ [parked]"* ]]           # tells the model to park instead
 }
 

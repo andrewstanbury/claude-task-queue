@@ -11,7 +11,7 @@
       "name": "task-queue",
       "source": "./plugins/task-queue",
       "description": "Turns your requests into a live to-do list you can watch Claude work through, and remembers unfinished work between sessions. Keeps that list working even on the newest models, where Claude's built-in task tracking is switched off. Step away and it keeps going on its own — handling the routine work and setting the big decisions aside for you to review when you're back. One command ships finished work as a pull request.",
-      "version": "0.44.2"
+      "version": "0.45.0"
     },
     {
       "name": "tidy",
