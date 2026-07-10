@@ -164,7 +164,10 @@ marked_repo() {
   local RG; RG="$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-review-guard.sh" | jq -r '.hookSpecificOutput.permissionDecisionReason // ""')"
   within "review-guard deny" 520 "$RG"
   # design-guard deny (pay-per-event PreToolUse): a pending design preview, owner present.
-  : > "$CLAUDE_TQ_STATE_DIR/design-zz"
+  # Marker MUST live in the away dir — tq_design_file reads $(tq_away_dir)/design-<sid>, not
+  # the state dir; a stale STATE_DIR path here made the guard find no marker and ALLOW, so this
+  # budget silently measured an empty string and never exercised the deny (fixed 2026-07-10).
+  : > "$CLAUDE_TQ_AWAY_DIR/design-zz"
   date +%s > "$CLAUDE_TQ_AWAY_DIR/present-zz"   # owner present → gate active (not a drain)
   local DG; DG="$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-design-guard.sh" | jq -r '.hookSpecificOutput.permissionDecisionReason // ""')"
   within "design-guard deny" 520 "$DG"
