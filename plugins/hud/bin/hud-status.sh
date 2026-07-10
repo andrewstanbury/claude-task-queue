@@ -210,10 +210,18 @@ if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
   Z3+=("$bseg")
 fi
 
-# Join each non-empty zone (single-space within), then the zones with the dim │.
-line=""
-for zone in "$(join_slots "${Z1[@]}")" "$FEAT" "$(join_slots "${Z3[@]}")"; do
-  [ -n "$zone" ] || continue
-  line="${line:+$line$DIVSEP}$zone"
-done
+# Join the zones with the dim │ divider. The FEATURE zone (Zone 2) is always a wide emoji
+# (✈️/🤖): those advance 2 cells but many fonts under-fill the glyph, so a normal " │ " AFTER
+# one looks like a double space before the bar. Give the feature zone a TIGHT trailing divider
+# (no leading space) so the emoji's own advance supplies that gap and "│ 🤖 │" reads even.
+DIVTIGHT="$GREY│$X "        # no leading space — for the boundary right after the wide-emoji zone
+Z1J="$(join_slots "${Z1[@]}")"
+Z3J="$(join_slots "${Z3[@]}")"
+line="$Z1J"
+if [ -n "$FEAT" ]; then
+  line="${line:+$line$DIVSEP}$FEAT"                 # …│ 🤖
+  [ -n "$Z3J" ] && line="$line$DIVTIGHT$Z3J"        # 🤖│ … — tight: the emoji's advance is the gap
+elif [ -n "$Z3J" ]; then
+  line="${line:+$line$DIVSEP}$Z3J"
+fi
 printf '%s\n' "$line"

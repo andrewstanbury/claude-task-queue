@@ -139,6 +139,17 @@ teardown() {
   [[ "$output" != *"agents"* ]]                   # no word
 }
 
+@test "render: the feature zone hugs the trailing divider (no space after the wide emoji)" {
+  # Wide emoji under-fill their 2-cell slot, so a normal " │" after one looks double-spaced.
+  # The trailing divider is tight so the emoji's own advance supplies the gap → "│ 🤖 │" reads even.
+  export CLAUDE_HUD_AGENT_DIR="$(mktemp -d)"
+  touch "$CLAUDE_HUD_AGENT_DIR/$(printf '%s' "$REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  payload="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
+  [[ "$output" == *"🤖│"* ]]                       # emoji immediately followed by the divider, no space
+  rm -rf "$CLAUDE_HUD_AGENT_DIR"
+}
+
 @test "render: narrow terminal collapses feature status to only the ON ones" {
   export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
   touch "$CLAUDE_HUD_AWAY_DIR/$(printf '%s' "$REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
