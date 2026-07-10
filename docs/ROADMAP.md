@@ -18,9 +18,7 @@ review-loop steps, versions, permission state) so it can't drift; and (2) a lean
 artifact-free principle addresses (repo visitors deciding whether to install, not the
 owner operating the system). The README is deliberately high-level (what it is, the
 flow, the 4 plugins, install) so it ages slowly, and points at `flow.sh` for the live
-flow. Keep both; don't prune them. *(2026-06-17: README re-added — the original
-redesign deleted it as an owner-workflow doc; this restores it for discoverability,
-which that decision didn't contemplate.)*
+flow. Keep both; don't prune them.
 
 ## Prioritized criteria (in order)
 
@@ -85,14 +83,7 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   would recommend against the ask — judgements a per-prompt regex can't make. The
   full procedure + critique posture the lean path re-anchors to ride the
   **SessionStart policy** (stated once per session), keeping the per-prompt budget
-  lean while preserving 100% capture. *(2026-06-26: owner override — fire on every
-  prompt; the "only multi-step fires" filter and `tq_looks_multistep` were removed,
-  reversing the "trivial stays silent" decision below. 2026-06-27: split-from-
-  interrupt — keep routing every prompt, but make the per-prompt injection lean (fat
-  procedure + critique moved to the SessionStart policy, re-firing inline only on the
-  consequential/design signal or the model's judgement), restoring the per-prompt
-  efficiency the 2026-06-26 change had spent without a leaky "is this substantive"
-  classifier — the model, not a regex, decides whether to interrupt.)* **Autopilot**
+  lean while preserving 100% capture. **Autopilot**
   (opt-in, per repo, `/task-queue:autopilot` → `tq-away.sh`; merges the old away + pause) is the
   owner-away autonomy toggle, and it is ENFORCED: the Stop hook auto-continues the queue
   while non-`❓` work remains, a PreToolUse guard hard-blocks AskUserQuestion, the review
@@ -137,8 +128,8 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   (block when a changed file is BOTH a scar-tissue hotspot — repeatedly fixed, by
   the same rework-ratio detector charter uses, mirrored + drift-guarded — AND still
   untested, so a fix to a proven debt-magnet gets pinned before it can silently
-  regress; default-on but narrow, quiet once a test lands, `CLAUDE_TIDY_REGRESSION_GATE=0`
-  to disable); and — only after a clean verify on a dirty tree — the **deliberate
+  regress; OFF by default (opt-in) and narrow, quiet once a test lands, enable with
+  `CLAUDE_TIDY_REGRESSION_GATE=1`); and — only after a clean verify on a dirty tree — the **deliberate
   prune** when over-budget files cross a
   threshold (`CLAUDE_TIDY_PRUNE_THRESHOLD`, default 3): a weight report
   (`tidy-distill.sh`) + an instruction to prune now, as a **non-blocking
@@ -199,20 +190,12 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   (hud), native **AskUserQuestion** (the present-before-queue interaction), native
   **subagents** (agent-mode fan-out). Hooks earn their keep only where they *execute*
   on an event or read state a session can't see.
-  *(2026-07-10 amendment — the native task list is no longer unconditionally available:
-  Anthropic's server flag `tengu_vellum_ash` disables the native task tools for the newest
-  models — Opus 4.8 / Sonnet 5 / Fable 5 — leaving those sessions with NO task tool. Native-first
-  now carries a fallback: `bin/tq` lets the model write the queue itself when it lacks the native
-  tool, in the SAME format/location so every reader is unchanged, and it self-routes back to native
-  the moment the tool returns. This **retires the old "task-queue is read-only over `~/.claude/tasks`"
-  invariant** — a deliberate, owner-approved trade-off to keep the queue, cross-session resume, and
-  autopilot working on the models the owner actually uses, rather than depend on a capability a vendor
-  flag can revoke without notice. Kept a reversible FALLBACK, not a rip-and-replace: if the flag lifts,
-  native resumes and `tq` goes idle. Because `tq` writes the NATIVE store (same path/format), the
-  resume bridge and autopilot-drain read it with **zero extra code** — all three (hud visibility,
-  cross-session resume, Stop-hook drain) verified end-to-end over `tq`'s output, so the planned
-  slices 2–3 collapsed into the one ship. `tq note`/`tq doing <id> "<breadcrumb>"` close the
-  crash-resume-breadcrumb parity gap. Remaining nicety, not built: nothing outstanding.)*
+  *(2026-07-10 — native-first now carries a fallback. Anthropic's `tengu_vellum_ash` flag
+  disables the native task tools for the newest models (Opus 4.8 / Sonnet 5 / Fable 5), so
+  `bin/tq` lets the model write the queue itself in the SAME native format/location every reader
+  keys off, self-routing back to native the moment the tool returns. This **retires the old
+  "task-queue is read-only over `~/.claude/tasks`" invariant** — a deliberate, reversible
+  trade-off: if the flag lifts, native resumes and `tq` goes idle.)*
 - **Run in auto.** The user's `~/.claude/settings.json` sets
   `permissions.defaultMode: "auto"` (auto-approve **with background safety checks**)
   plus a hard-block `deny` set (`rm -rf /` and `~`) and an `ask` set (force-push,
@@ -238,24 +221,12 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   (2026-06-19) — the review loop EVALUATES before executing (steelman → challenge →
   recommend-against when warranted), challenging **both** the project's recorded
   constraints *and* the owner's own accumulated requirements/bias when they contradict
-  or force a poor/over-engineered design. ~~**Not on every prompt** — only the
-  substantive/consequential gate: mandated on-everything critique becomes theater and
-  *false pushback trains rubber-stamping*, and per-prompt critique on trivial work
-  breaks the zero-cost invariant.~~ *(2026-06-26: superseded — the owner chose to
-  route every prompt through the loop, so the critique posture now rides every
-  prompt too. The original theater/rubber-stamping risk is mitigated by the loop's
-  "Be SELECTIVE — only on real signal" instruction and its scaling, not by gating
-  which prompts fire. The "no per-prompt cost" framing is unchanged: classification
-  is still local bash/jq; what changed is the loop now injects on every prompt.)*
-  *(2026-06-27: refined by split-from-interrupt — the standing critique posture now
-  lives in the SessionStart policy (stated once per session), and the heavy inline
-  critique re-fires per-prompt only on the deterministic consequential/design signal;
-  the default path carries only a lean selective cue and delegates the
-  challenge/recommend-against to the model's judgement. This partially restores the
-  2026-06-19 "not on every prompt" intent for the INLINE injection — the per-prompt
-  token weight of the full critique no longer rides trivial prompts — without
-  reversing the 2026-06-26 "route everything" decision: every prompt is still
-  interpreted and queued; what re-gates on signal is the interrupt, not the loop.)*
+  or force a poor/over-engineered design. The critique posture rides every prompt but is
+  SELECTIVE — the standing posture lives in the SessionStart policy (stated once per session),
+  and the heavy inline critique re-fires per-prompt only on the deterministic
+  consequential/design signal or the model's judgement; the default path carries a lean
+  selective cue and delegates the challenge/recommend-against to the model, not a regex, so the
+  per-prompt token weight of the full critique never rides trivial prompts.
   Claims only what's feasible (contradiction +
   named-anti-pattern detection; **not** general "bias" — no reference frame). Shipped
   in task-queue's existing UserPromptSubmit injection (no new hook/plugin).
@@ -301,7 +272,7 @@ detect-not-decide Stop-time floor** (the hook supplies facts; the model judges):
 | Open loop (cause of future rework) | Closed by | Disable |
 |---|---|---|
 | Tests red at "done" | tidy verification floor | `CLAUDE_TIDY_CHECKS=0` |
-| Regression of a repeatedly-fixed file | tidy regression gate (← charter scar tissue) | `CLAUDE_TIDY_REGRESSION_GATE=0` |
+| Regression of a repeatedly-fixed file | tidy regression gate (← charter scar tissue) | opt-in; `CLAUDE_TIDY_REGRESSION_GATE=1` to enable |
 | Silent reversal of a recorded decision | charter alignment floor | `CLAUDE_CHARTER_ALIGN_GATE=0` |
 | Built ≠ what the owner asked | task-queue intent→outcome gate | `CLAUDE_TQ_INTENT_GATE=0` |
 

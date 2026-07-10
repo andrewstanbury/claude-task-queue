@@ -38,9 +38,11 @@ observed behaviour, not documented APIs.
   remote (`type: http|sse|streamable-http|ws` + `url` + `headers`).
 - **How it probes (bounded):** each server in parallel, hard-capped at
   `CLAUDE_CHARTER_MCP_TIMEOUT` seconds each (default 3) and `CLAUDE_CHARTER_MCP_MAX`
-  servers (default 25). stdio → spawn under `timeout` and send the MCP `initialize`
-  handshake (a JSON-RPC `result`/`error` reply = reachable); skipped silently when
-  `timeout` is unavailable. http/sse → POST `initialize` via `curl --max-time` (any
+  servers (default 25). stdio → spawn under a portable wall-clock bound
+  (`timeout` → `gtimeout` → `perl` alarm, so stock macOS — which ships neither
+  coreutils binary — still bounds the spawn) and send the MCP `initialize`
+  handshake (a JSON-RPC `result`/`error` reply = reachable); skipped silently only
+  when none of `timeout`/`gtimeout`/`perl` is available. http/sse → POST `initialize` via `curl --max-time` (any
   HTTP status, **incl. 401/403**, = reachable; only a connection failure is "down");
   skipped silently when `curl` is absent.
 - **Output contract:** `{ "hookSpecificOutput": { "hookEventName": "SessionStart",
