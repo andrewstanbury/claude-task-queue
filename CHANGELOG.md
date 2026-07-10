@@ -91,6 +91,11 @@ Launch-hardening pass (no version bumps yet):
 
 ## hud
 
+### 0.20.4
+- The health-beacon spinner now animates on a no-color terminal too — the braille frames
+  read by shape, so `NO_COLOR` no longer freezes the beacon. Only a `TERM=dumb` terminal
+  (which may not render braille) falls back to the static `●`.
+
 ### 0.20.3
 - Tests outcome shows a self-colored emoji (`✅` pass / `❌` fail / `⚠️` timeout) instead
   of a text `✓`/`✗`, so it stays colorful even on a no-color terminal.

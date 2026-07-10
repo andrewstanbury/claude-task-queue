@@ -22,7 +22,8 @@
 # this command every second (plus its event-driven refreshes on each message / after
 # compact), which both animates the beacon AND keeps every other slot fresh. The cost is
 # waking jq+git once a second on idle — a deliberate battery trade the owner opted into
-# for a live status line (a no-color terminal falls back to a static ●, needing no timer).
+# for a live status line. The spinner animates with color ON or OFF (braille reads by
+# shape); only a TERM=dumb terminal falls back to a static ●.
 #
 # Wire it (settings.json):
 #   { "statusLine": { "type": "command", "command": "bash <THIS_PATH>" } }
@@ -41,7 +42,11 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 # shellcheck source=../lib/hud.sh
 . "$PLUGIN_DIR/lib/hud.sh"
 
-if [ -n "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ]; then
+# DUMB tracks a terminal that can't render the braille spinner (TERM=dumb) — kept SEPARATE
+# from no-color, because NO_COLOR only drops the ANSI hues; a no-color terminal still draws
+# braille shapes fine, so the beacon can animate there (the frames read by shape, not color).
+DUMB=""; [ "${TERM:-}" = "dumb" ] && DUMB=1
+if [ -n "${NO_COLOR:-}" ] || [ -n "$DUMB" ]; then
   Y=""; G=""; C=""; R=""; B=""; D=""; GREY=""; X=""
 else
   # Default terminal palette — plain ANSI SGR colors, not pinned 24-bit RGB, so the
@@ -107,16 +112,16 @@ if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
 fi
 
 # 1) Health beacon — an ANIMATED braille-orbit spinner (dots sweeping around the cell),
-# colored by overall health: red = tests failing, yellow = autopilot (autonomous, an
-# attention state), green otherwise. One frame per real second, selected by the clock,
-# so the statusLine config sets refreshInterval=1 to repaint it (see hud-install.sh).
-# On a no-color / dumb terminal we can't spin a colored glyph meaningfully, so it falls
-# back to a static ● (and no timer is needed there).
+# advancing one frame per real second (selected by the clock; the statusLine config sets
+# refreshInterval=1 to repaint it — see hud-install.sh). When color is on it's tinted by
+# overall health: red = tests failing, yellow = autopilot (an attention state), green
+# otherwise. It ANIMATES even with color OFF — the braille shapes read without hue — so
+# only a TERM=dumb terminal (which may not render braille) falls back to a static ●.
 BCOL="$G"
 [ "$AWAY" = "1" ] && BCOL="$Y"
 [ "$VERIFY" = "fail" ] && BCOL="$R"
 BEACON_FRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)   # dots rotating clockwise around the border
-if [ -n "$G" ]; then
+if [ -z "$DUMB" ]; then
   BEACON="${BEACON_FRAMES[$(( $(date +%s 2>/dev/null || echo 0) % ${#BEACON_FRAMES[@]} ))]}"
 else
   BEACON="●"
