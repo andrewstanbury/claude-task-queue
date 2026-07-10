@@ -237,6 +237,15 @@ teardown() {
   rm -rf "$CLAUDE_HUD_TASKS_DIR"
 }
 
+@test "status line always shows 📋 0 on an empty queue (no ▸ breadcrumb)" {
+  export CLAUDE_HUD_TASKS_DIR="$(mktemp -d)"    # no session dir → empty queue
+  json="$(jq -nc --arg s sEmpty --arg c "$REPO" '{model:{display_name:"Opus"},session_id:$s,cwd:$c,terminal_width:200}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *"📋 0"* ]]                   # always visible so the owner sees the queue is live
+  [[ "$output" != *"▸"* ]]                      # no in_progress task → no breadcrumb
+  rm -rf "$CLAUDE_HUD_TASKS_DIR"
+}
+
 @test "status line: ▸ current task sheds on a narrow terminal, 📋N stays" {
   export CLAUDE_HUD_TASKS_DIR="$(mktemp -d)"
   mkdir -p "$CLAUDE_HUD_TASKS_DIR/sN"
