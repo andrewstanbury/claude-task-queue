@@ -91,6 +91,11 @@ Launch-hardening pass (no version bumps yet):
 
 ## hud
 
+### 0.20.5
+- Feature-zone spacing: the wide toggle emoji (`✈️`/`🤖`) now hug the trailing `│` divider
+  (tight, no leading space) so a font that under-fills the emoji's 2-cell slot no longer
+  looks double-spaced before the bar — `│ 🤖 │` reads even.
+
 ### 0.20.4
 - The health-beacon spinner now animates on a no-color terminal too — the braille frames
   read by shape, so `NO_COLOR` no longer freezes the beacon. Only a `TERM=dumb` terminal
