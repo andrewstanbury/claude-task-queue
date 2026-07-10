@@ -48,8 +48,8 @@ shown elsewhere — the task list (Claude Code renders it natively), docs-health
 (charter nudges it at session start), or last-tidy — which also removed the
 heaviest cross-plugin doc-detection mirrors. Remaining reads:
 
-- **Solo mode:** task-queue's away flag at `~/.claude/state/task-queue/away/<encoded-root>`
-  (solo folded in the old pause; there is no separate pause flag). Rendered as `🚶 solo`
+- **Autopilot:** task-queue's away flag at `~/.claude/state/task-queue/away/<encoded-root>`
+  (autopilot folded in the old away + pause; there is no separate pause flag). Rendered as a bare `✈️` (icon only, shown only when on)
   and colors the health beacon yellow. Override: `CLAUDE_HUD_AWAY_DIR`.
 - **Agent-mode:** task-queue's flag at `~/.claude/state/task-queue/agent/<encoded-root>`.
   Override: `CLAUDE_HUD_AGENT_DIR`.

@@ -22,6 +22,14 @@ hud_away_dir()   { printf '%s' "${CLAUDE_HUD_AWAY_DIR:-${CLAUDE_TQ_AWAY_DIR:-$HO
 hud_verify_dir() { printf '%s' "${CLAUDE_HUD_VERIFY_DIR:-${CLAUDE_TIDY_LOG_DIR:-$HOME/.claude/state/tidy}/verify}"; }
 hud_tasks_dir()  { printf '%s' "${CLAUDE_HUD_TASKS_DIR:-${CLAUDE_TQ_TASKS_DIR:-$HOME/.claude/tasks}}"; }
 
+# Injective encoding of a repo ROOT into one filename component — a read-only MIRROR of
+# task-queue's tq_enc_root (install boundary forbids sharing it), so hud reads the exact
+# flag files task-queue writes. Percent-encodes '/' (escaping '%' first) so distinct roots
+# never collide. MUST stay byte-identical to tq_enc_root; drift-guard.bats asserts it. Only
+# the root-keyed flags (away/agent/review) use this; sid-keyed markers (design/verify) can't
+# collide (a session id has no '/') and stay '/'→'-'.
+hud_enc_root() { printf '%s' "${1:-}" | sed -e 's:%:%25:g' -e 's:/:%2F:g'; }
+
 # Which safety floors are currently DISABLED — prints the friendly names of the
 # anti-rework gates the owner (or Claude) has switched off via a CLAUDE_*=0 env var
 # (space-separated, empty when all are on). The beacon can read "green" while a
@@ -50,7 +58,7 @@ hud_floors_disabled() {
 hud_review_pending() {
   local root="$1"
   [ -n "$root" ] || { printf '0'; return 0; }
-  [ -f "$(hud_away_dir)/review-$(printf '%s' "$root" | sed 's:/:-:g')" ] && printf '1' || printf '0'
+  [ -f "$(hud_away_dir)/review-$(hud_enc_root "$root")" ] && printf '1' || printf '0'
 }
 
 # Is a DESIGN-PREVIEW pending for this session? prints 1 / 0. On a visual/design prompt
@@ -104,7 +112,7 @@ hud_open_questions() {
   c="$(for f in "$tdir"/*.json; do
         [ -f "$f" ] || continue
         jq -r 'select((.status=="pending" or .status=="in_progress")
-                      and ((.subject // "") | startswith("❓"))) | (.subject // "")' "$f" 2>/dev/null
+                      and ((.subject // "") | sub("^\\s+";"") | startswith("❓"))) | (.subject // "")' "$f" 2>/dev/null
       done | awk 'NF && !seen[$0]++' | grep -c .)"
   printf '%s' "${c:-0}"
 }
@@ -122,7 +130,7 @@ hud_blocked() {
   c="$(for f in "$tdir"/*.json; do
         [ -f "$f" ] || continue
         jq -r 'select((.status=="pending" or .status=="in_progress")
-                      and ((.subject // "") | startswith("⏳"))) | (.subject // "")' "$f" 2>/dev/null
+                      and ((.subject // "") | sub("^\\s+";"") | startswith("⏳"))) | (.subject // "")' "$f" 2>/dev/null
       done | awk 'NF && !seen[$0]++' | grep -c .)"
   printf '%s' "${c:-0}"
 }
@@ -146,7 +154,7 @@ hud_human_tokens() {
 hud_agent() {
   local root="$1" flag
   [ -n "$root" ] || { printf '0'; return 0; }
-  flag="$(hud_agent_dir)/$(printf '%s' "$root" | sed 's:/:-:g')"
+  flag="$(hud_agent_dir)/$(hud_enc_root "$root")"
   if [ -f "$flag" ]; then
     [ "$(cat "$flag" 2>/dev/null || true)" != "off" ] && printf '1' || printf '0'
     return 0
@@ -162,7 +170,7 @@ hud_agent() {
 hud_away() {
   local root="$1" flag
   [ -n "$root" ] || { printf '0'; return 0; }
-  flag="$(hud_away_dir)/$(printf '%s' "$root" | sed 's:/:-:g')"
+  flag="$(hud_away_dir)/$(hud_enc_root "$root")"
   [ -f "$flag" ] && printf '1' || printf '0'
 }
 

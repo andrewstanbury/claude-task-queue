@@ -79,10 +79,16 @@ NARROW=0; [ "$TERM_W" -lt 100 ] && NARROW=1
 # is the worktree path, misses the main-checkout flag, and the status line lies about
 # what's on. git-common-dir points at "<primary>/.git"; its parent IS the primary
 # worktree (and equals --show-toplevel for a non-worktree repo, so this is a no-op
-# there). tq_root_for_cwd does the identical resolution; drift-guard.bats asserts they agree.
+# there). A SUBMODULE's common-dir is <super>/.git/modules/<name>, whose parent is INSIDE
+# .git (not a working root, shared across sibling submodules) — detect that and fall back
+# to the submodule's own --show-toplevel. tq_root_for_cwd does the identical resolution;
+# drift-guard.bats asserts they agree.
 ROOT=""
 GCD="$(git -C "$CWD" rev-parse --git-common-dir 2>/dev/null || true)"
-[ -n "$GCD" ] && ROOT="$(cd "$CWD" 2>/dev/null && cd "$(dirname "$GCD")" 2>/dev/null && pwd)"
+if [ -n "$GCD" ]; then
+  ROOT="$(cd "$CWD" 2>/dev/null && cd "$(dirname "$GCD")" 2>/dev/null && pwd)"
+  case "$ROOT" in */.git|*/.git/*) ROOT="" ;; esac   # submodule/gitdir-inside-.git → not a real root
+fi
 [ -n "$ROOT" ] || ROOT="$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$CWD")"
 SHORT_MODEL="$(printf '%s' "$MODEL" | sed -E 's/^claude-//; s/-[0-9]{8}([^0-9]|$)/\1/')"
 
@@ -141,37 +147,31 @@ if [ -n "$DISABLED" ]; then
 else
   Z1+=("$G$B🛡$X")           # all floors on
 fi
+# Tests outcome — a bare icon (✓ pass / ✗ fail / ⚠ timeout), no "tests" word: the glyph
+# is self-evident and the word was redundant. Hidden entirely when never run.
 case "$VERIFY" in
-  pass)    Z1+=("$G$B✓ tests$X") ;;
-  fail)    Z1+=("$R$B✗ tests$X") ;;
-  timeout) Z1+=("$Y$B⚠ tests$X") ;;
+  pass)    Z1+=("$G$B✓$X") ;;
+  fail)    Z1+=("$R$B✗$X") ;;
+  timeout) Z1+=("$Y$B⚠$X") ;;
 esac
-[ "$DESIGN" = "1" ] && Z1+=("$Y$B🎨$X")   # design preview pending — edits gated until shown
-[ "$REVIEW" = "1" ] && Z1+=("$Y$B🔒$X")   # return-review armed — edits gated until the ❓ pile clears (sits next to ❓)
+# Edit-GATES keep a one-word tag while armed (🎨 design · 🔒 review): unlike the toggles,
+# a bare lock that's silently BLOCKING your edits is a "why can't I save?" trap — the word
+# earns its space exactly where the icon is both cryptic and consequential.
+[ "$DESIGN" = "1" ] && Z1+=("$Y$B🎨 design$X")   # design preview pending — edits gated until shown
+[ "$REVIEW" = "1" ] && Z1+=("$Y$B🔒 review$X")   # return-review armed — edits gated until the ❓ pile clears (sits next to ❓)
 OPENQ="$(hud_open_questions "$SID" 2>/dev/null || printf 0)"
 [ "${OPENQ:-0}" -gt 0 ] 2>/dev/null && Z1+=("$Y$B❓$OPENQ$X")
 BLOCKED="$(hud_blocked "$SID" 2>/dev/null || printf 0)"
 [ "${BLOCKED:-0}" -gt 0 ] 2>/dev/null && Z1+=("$Y$B⏳$BLOCKED$X")
 
-# Zone 2 — feature modes: ALWAYS shown, each mode led by its icon (✈️ autopilot · 🤖
-# agents). green = on, grey = off. On a NARROW terminal it collapses to only the ON
-# features to protect width. Emoji ignore ANSI color, so when color is OFF we spell
-# out on/off.
+# Zone 2 — feature modes as bare ICONS, PRESENCE = on (✈️ autopilot · 🤖 agents). The word
+# was redundant next to a self-evident icon, and presence-as-signal removes the color-off
+# ambiguity a greyed "off" icon would have: the icon appears only when the mode is ON, and
+# is simply absent otherwise (the whole zone collapses when both are off — the shipped
+# default). Discoverability of what the icons mean lives in /hud:legend.
 FEAT=""
-add_feat() {  # $1 icon  $2 label  $3 on(1)/off(0)
-  local seg word=""
-  if [ "$3" = "1" ]; then
-    [ -z "$G" ] && word=" on"
-    seg="$1 $G$B$2$word$X"
-  elif [ "$NARROW" -eq 0 ]; then
-    [ -z "$GREY" ] && word=" off"
-    seg="$1 $GREY$2$word$X"
-  else return 0; fi
-  [ -n "$FEAT" ] && FEAT="$FEAT "        # single space within the zone
-  FEAT="$FEAT$seg"
-}
-add_feat "✈️" autopilot "$AWAY"
-add_feat "🤖" agents    "$AGENT"
+[ "$AWAY"  = "1" ] && FEAT="✈️"
+[ "$AGENT" = "1" ] && FEAT="${FEAT:+$FEAT }🤖"
 
 # Zone 3 — context: model · token throughput (⇡ input in the current context incl.
 # cache · ⇣ the last response; gated on input>0 so it's silent before the first API
@@ -187,6 +187,13 @@ if [ "$NARROW" -eq 0 ]; then
   fi
 fi
 if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
+  # Repo-name anchor, just left of the branch — glanceable "which project is this" for a
+  # multi-repo owner with several panes open. It's the basename of the already-computed
+  # ROOT (no extra git call), truncated so a long name can't crowd the signals, and it
+  # rides in the wide-only branch block so it's the first context to shed on a narrow term.
+  RNAME="$(basename "$ROOT" 2>/dev/null || true)"
+  [ "${#RNAME}" -gt 14 ] && RNAME="${RNAME:0:13}…"
+  [ -n "$RNAME" ] && Z3+=("$D$RNAME$X")
   bseg="$C$B⎇ $BRANCH$X"
   [ -n "$DIRTY" ] && bseg="$bseg $Y$B*$DIRTY$X"
   if [ -n "$AB" ]; then

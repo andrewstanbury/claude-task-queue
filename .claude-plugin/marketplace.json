@@ -4,32 +4,32 @@
     "name": "Andrew Stanbury"
   },
   "metadata": {
-    "description": "Native-first, low-friction companion plugins for Claude Code."
+    "description": "Four Claude Code plugins that keep your projects organized, safe, and easy to work in — automatically, with almost no setup."
   },
   "plugins": [
     {
       "name": "task-queue",
       "source": "./plugins/task-queue",
-      "description": "Turns Claude Code's native task list into a live work queue: a review loop on every prompt, cross-session resume, one-command ship (verify → PR → squash-merge), and an enforced autopilot that defers what needs the owner as a reviewable pile — ❓ decisions vs ⏳ owner-action items — while deciding the routine rest. Full details on the plugin page.",
-      "version": "0.42.1"
+      "description": "Turns your requests into a live to-do list you can watch Claude work through, and remembers unfinished work between sessions. Step away and it keeps going on its own — handling the routine work and setting the big decisions aside for you to review when you're back. One command ships finished work as a pull request.",
+      "version": "0.42.2"
     },
     {
       "name": "tidy",
       "source": "./plugins/tidy",
-      "description": "Clean-as-you-touch: formats and lint-checks the file you just edited, surfaces its blast radius, and holds a Stop-hook verification floor (runs your existing tests, the project's own quality gates, and prune nudges) — the safety net a non-technical owner can't produce. On-demand /tidy:audit queues a whole-project cleanup. Tests are opt-in, never forced. Full details on the plugin page.",
-      "version": "0.42.0"
+      "description": "Keeps your code clean and safe while you work: it auto-formats the file you just edited, shows what else your change might affect, and runs your project's own tests before treating anything as done — so mistakes get caught early. Ask it for a full-project cleanup any time. Tests stay optional; nothing is forced on you.",
+      "version": "0.42.1"
     },
     {
       "name": "charter",
       "source": "./plugins/charter",
-      "description": "Know the project: a SessionStart brief flagging missing Claude-facing docs and git-derived \"scar tissue\" (repeatedly-fixed files), a Stop-time gate that checks finished work against recorded decisions, and /charter:align on demand. Full details on the plugin page.",
+      "description": "Helps Claude understand your project before it starts changing things. It points out missing documentation, spots the files that keep breaking (from your git history), and checks finished work against the decisions you've written down — so changes stay true to how you want the project built.",
       "version": "0.23.0"
     },
     {
       "name": "hud",
       "source": "./plugins/hud",
-      "description": "One read-only status line for the companion plugins — health, an always-on 🛡 safety shield (🛡✗N when a floor is off), tests, the 🎨 design / 🔒 review edit-gates, feature state, parked ❓ decisions + ⏳ owner-blocked items, token throughput, and git branch — in three glanceable zones. Zero model-token cost. Full details on the plugin page.",
-      "version": "0.20.1"
+      "description": "One clean status line that shows everything at a glance: whether your tests are passing, whether the safety checks are on, which project and branch you're in, and anything waiting on your decision. Updates live and costs nothing in tokens.",
+      "version": "0.20.2"
     }
   ]
 }

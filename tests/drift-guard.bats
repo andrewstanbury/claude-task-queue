@@ -168,6 +168,89 @@ assert_decisions_agree() {   # charter vs task-queue
   [ "$hud_root" = "$tq_root" ]     # and the two resolvers converge — the whole point
 }
 
+@test "verify-result: hud_verify reads the marker tidy-verify.sh actually writes" {
+  # hud's ✓/✗ tests slot mirrors the result-<sid> marker tidy-verify.sh writes, across the
+  # install boundary. The other edit-gate mirrors are drift-guarded by driving the real
+  # writer; this one wasn't — a fake marker was written and read back, so a rename of the
+  # prefix / dir / key encoding in tidy would slip through green. Drive the REAL hook end
+  # to end (dirty repo + a passing test command) and assert hud reads its output via the
+  # shared CLAUDE_TIDY_LOG_DIR chain (CLAUDE_HUD_VERIFY_DIR left unset on purpose).
+  . "$R/plugins/hud/lib/hud.sh"
+  local d; d="$(mktemp -d)"
+  export CLAUDE_TIDY_LOG_DIR="$d/tidy"
+  unset CLAUDE_HUD_VERIFY_DIR
+  local repo="$d/repo"; mkdir -p "$repo"
+  git -C "$repo" init -q; git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
+  echo x > "$repo/f"; git -C "$repo" add -A; git -C "$repo" commit -q -m init
+  echo y > "$repo/f"                                   # dirty tree → the verify floor runs
+  export CLAUDE_TIDY_TEST_CMD=true                     # discoverable command that passes
+  [ -z "$(hud_verify sVR)" ]                           # nothing recorded yet
+  printf '{"cwd":"%s","session_id":"sVR"}' "$repo" | bash "$R/plugins/tidy/bin/tidy-verify.sh" || true
+  [ "$(hud_verify sVR)" = "pass" ]                     # hud reads the REAL marker the hook wrote
+  unset CLAUDE_TIDY_LOG_DIR CLAUDE_TIDY_TEST_CMD
+  rm -rf "$d"
+}
+
+@test "submodule root: hud and tq_root_for_cwd resolve a submodule to its OWN toplevel, not .git/modules" {
+  # A submodule's git-common-dir is <super>/.git/modules/<name>; its parent lands inside
+  # .git and is SHARED across sibling submodules — so without the guard, every submodule of
+  # a superproject collides to one bogus flag key. Both resolvers must fall back to the
+  # submodule's own --show-toplevel, and agree (hud-status.sh inlines the same resolution).
+  . "$R/plugins/task-queue/lib/tasks.sh"
+  local st; st="$(mktemp -d)"; local sub="$st/sub"; mkdir -p "$sub"
+  git -C "$sub" init -q; git -C "$sub" config user.email t@t; git -C "$sub" config user.name t
+  echo a > "$sub/a"; git -C "$sub" add -A; git -C "$sub" commit -q -m init
+  git -C "$REPO" init -q; git -C "$REPO" config user.email t@t; git -C "$REPO" config user.name t
+  echo b > "$REPO/b"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m init
+  git -C "$REPO" -c protocol.file.allow=always submodule add -q "$sub" mod
+  local subwt tq_root gcd hud_root
+  subwt="$(cd "$REPO/mod" && pwd)"
+  tq_root="$(tq_root_for_cwd "$subwt")"
+  # hud-status.sh's inline resolution (kept byte-aligned with the block there):
+  gcd="$(git -C "$subwt" rev-parse --git-common-dir 2>/dev/null || true)"
+  hud_root="$(cd "$subwt" 2>/dev/null && cd "$(dirname "$gcd")" 2>/dev/null && pwd)"
+  case "$hud_root" in */.git|*/.git/*) hud_root="" ;; esac
+  [ -n "$hud_root" ] || hud_root="$(git -C "$subwt" rev-parse --show-toplevel 2>/dev/null || true)"
+  [ "$tq_root" = "$subwt" ]         # the submodule's own working root, NOT …/.git/modules
+  [ "$hud_root" = "$tq_root" ]      # and the two resolvers converge
+  rm -rf "$st"
+}
+
+@test "counter whitespace: an indented ❓/⏳ subject still counts, and hud agrees with task-queue" {
+  # task-queue's marker predicates strip leading whitespace before matching (a stray space
+  # must not flip a parked item into "work"); hud's counters didn't, so an indented " ❓ …"
+  # counted in task-queue but not hud. Guard the two against re-drifting on that strip.
+  . "$R/plugins/task-queue/lib/tasks.sh"
+  . "$R/plugins/hud/lib/hud.sh"
+  export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
+  mkdir -p "$CLAUDE_TQ_TASKS_DIR/sW"
+  jq -n '{id:"1",subject:"  ❓ indented decide",status:"pending"}'    > "$CLAUDE_TQ_TASKS_DIR/sW/1.json"
+  jq -n '{id:"2",subject:"❓ flush decide",status:"pending"}'         > "$CLAUDE_TQ_TASKS_DIR/sW/2.json"
+  jq -n '{id:"3",subject:"   ⏳ indented blocked",status:"pending"}'  > "$CLAUDE_TQ_TASKS_DIR/sW/3.json"
+  [ "$(hud_open_questions sW)" = "2" ]
+  [ "$(tq_open_questions sW | grep -c .)" = "2" ]      # both readers agree, indent included
+  [ "$(hud_blocked sW)" = "1" ]
+  rm -rf "$CLAUDE_TQ_TASKS_DIR"
+}
+
+@test "flag encoding: previously-colliding roots get DISTINCT keys, and hud mirrors it" {
+  # The old '/'→'-' scheme was not injective: /a/foo-bar and /a/foo/bar both encoded to
+  # '-a-foo-bar', so two unrelated repos SHARED autopilot/agent/review state. tq_enc_root
+  # percent-encodes '/' so they diverge; hud_enc_root must mirror it byte-for-byte.
+  . "$R/plugins/task-queue/lib/tasks.sh"
+  . "$R/plugins/task-queue/lib/away.sh"
+  . "$R/plugins/hud/lib/hud.sh"
+  [ "$(tq_enc_root /a/foo-bar)" != "$(tq_enc_root /a/foo/bar)" ]      # no longer collide
+  [ "$(tq_enc_root /a/foo/bar)" = "$(hud_enc_root /a/foo/bar)" ]      # both plugins agree
+  # end to end: away flag set for one root must NOT show as on for the colliding root
+  local d; d="$(mktemp -d)"
+  export CLAUDE_TQ_AWAY_DIR="$d" CLAUDE_HUD_AWAY_DIR="$d"
+  : > "$(tq_away_file /a/foo-bar)"
+  [ "$(hud_away /a/foo-bar)" = "1" ]      # the repo we set
+  [ "$(hud_away /a/foo/bar)" = "0" ]      # the once-colliding repo is unaffected
+  rm -rf "$d"
+}
+
 @test "disabled-floor marker: every flag hud checks is still honored by a sibling" {
   # hud's 🛡✗ marker reads the floors' CLAUDE_*=0 disable flags by name (install
   # boundary forbids importing them). If a sibling renamed its flag, the marker would

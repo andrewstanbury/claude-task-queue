@@ -57,7 +57,7 @@ can't silently regress.
 
 | Plugin | Responsibility |
 |---|---|
-| **task-queue** | **Orchestrate** — the interpret→present→approve review loop, capture, order, cross-session resume, solo mode (gates the loop + enforced autonomy), the Stop-time intent→outcome gate (loop close) |
+| **task-queue** | **Orchestrate** — the interpret→present→approve review loop, capture, order, cross-session resume, autopilot (gates the loop + enforced autonomy), the Stop-time intent→outcome gate (loop close) |
 | **tidy** | **Change safely & cleanly** — format/lint on touch, blast-radius, verification floor, automatic prune |
 | **charter** | **Know the project + own the owner loop** — doc gate, map, decisions anchor (+ Stop-time alignment floor), conventions, outcome memory, intent→demo→consent posture |
 | **hud** | **Show** — a consolidated read-only status line (the owner's at-a-glance trust signal) |
@@ -72,7 +72,7 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   re-surfaces a repo's unfinished tasks — the system's confirmed native gap — with
   an imperative restore instruction + an on-disk pointer to the prior session's task
   files so a crash-resume is high-fidelity without inlining descriptions per startup) +
-  per-repo solo mode (merged away+pause, enforced autonomy) + opt-in agent-mode + roadmap hydration + schema-drift canary.
+  per-repo autopilot (merged away+pause, enforced autonomy) + opt-in agent-mode + roadmap hydration + schema-drift canary.
   (Moving down the queue is left to Claude Code's native task nudges.) Its
   centerpiece is the **interpret→decompose→queue review loop**: on **every prompt**
   the capture hook has the model interpret the request, decompose it, and TaskCreate
@@ -92,8 +92,8 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   procedure + critique moved to the SessionStart policy, re-firing inline only on the
   consequential/design signal or the model's judgement), restoring the per-prompt
   efficiency the 2026-06-26 change had spent without a leaky "is this substantive"
-  classifier — the model, not a regex, decides whether to interrupt.)* **Solo mode**
-  (opt-in, per repo, `/tq solo` → `tq-away.sh`; merges the old away + pause) is the
+  classifier — the model, not a regex, decides whether to interrupt.)* **Autopilot**
+  (opt-in, per repo, `/task-queue:autopilot` → `tq-away.sh`; merges the old away + pause) is the
   owner-away autonomy toggle, and it is ENFORCED: the Stop hook auto-continues the queue
   while non-`❓` work remains, a PreToolUse guard hard-blocks AskUserQuestion, the review
   loop is suppressed, and anything that genuinely needs the owner — a design/ambiguous
@@ -101,7 +101,7 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   a `❓` task rather than guessed or executed, so it re-surfaces (open-questions bucket +
   hud count) for review on return. On a **visual/design**
   prompt the loop specializes into a **design preview**: the model presents a
-  recommended design + 2-3 alternatives as faithful **ASCII mockups** in the
+  recommended design + 2-3 alternatives as faithful **wireframe** mockups in the
   AskUserQuestion `preview` (native keyboard-nav + Enter, recommended first), and
   builds only the chosen one — the owner-loop's "demonstrate" moved *ahead* of the
   work (a non-technical owner verifies by seeing, not by reading code). Detected by
@@ -112,10 +112,10 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   against the actual diff — blocking **once** (consumed per ask, so it can't loop)
   so the model verifies the OUTCOME matches the request and recaps in plain language,
   surfacing "built the wrong thing / only part / something extra" to the non-technical
-  owner before declaring done. `CLAUDE_TQ_INTENT_GATE=0` disables it; solo mode suppresses
+  owner before declaring done. `CLAUDE_TQ_INTENT_GATE=0` disables it; autopilot suppresses
   capture too. **Open-questions tracker:** answer-owed questions the model leaves
   hanging are recorded as native `❓` tasks; the capture hook re-surfaces any
-  unanswered one on the **next** prompt (even a trivial/solo-mode one — a new prompt is
+  unanswered one on the **next** prompt (even a trivial/autopilot one — a new prompt is
   exactly when they get buried), and **hud** shows an ambient `❓N` count so they get
   *noticed* without anyone re-raising them. Model-assisted recording (it judges which
   questions are answer-worthy; the hooks make them persistent + visible);
@@ -133,10 +133,7 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   detect-and-run package.json scripts, install/invent nothing, heavy Lighthouse/CWV
   audits stay in CI — block until green, bounded; `CLAUDE_TIDY_QUALITY_FLOOR=0` to
   disable); the **import-cycle check** (madge, post-green, surface cycles touching the
-  change); the **coupling-density trend** (nudge when import-edges-per-file — a
-  size-normalized proxy, so healthy growth doesn't false-alarm — climbs past a
-  threshold vs the last check; per-repo baseline, `CLAUDE_TIDY_COUPLING_TREND=0` to
-  disable); the **regression gate**
+  change); the **regression gate**
   (block when a changed file is BOTH a scar-tissue hotspot — repeatedly fixed, by
   the same rework-ratio detector charter uses, mirrored + drift-guarded — AND still
   untested, so a fix to a proven debt-magnet gets pinned before it can silently
@@ -184,7 +181,7 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   non-technical owner in plain language. An HTTP auth challenge counts as reachable;
   only a fresh start probes (not compact/resume); self-disables when no servers are
   declared; never blocks; `CLAUDE_CHARTER_MCP_PROBE=0` disables it.
-- **hud** — a static health beacon + solo + agent + the verification floor's ✓/✗
+- **hud** — a static health beacon + autopilot + agent + the verification floor's ✓/✗
   tests + **🛡✗N disabled-floor marker** + context-window fill % + token throughput
   (⇡input ⇣output, current-context) + branch & dirty + model. Read-only, zero token
   cost. The owner's primary trust signal, so it stays **honest + legible**: `🛡✗N`

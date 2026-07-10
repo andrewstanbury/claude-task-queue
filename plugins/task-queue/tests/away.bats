@@ -32,7 +32,7 @@ session_ctx() {
 }
 
 # The away flag file for $REPO (its repo-root maps to itself since it's a git repo).
-away_flag() { printf '%s/%s' "$CLAUDE_TQ_AWAY_DIR" "$(printf '%s' "$REPO" | sed 's:/:-:g')"; }
+away_flag() { printf '%s/%s' "$CLAUDE_TQ_AWAY_DIR" "$(printf '%s' "$REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"; }
 
 # Register a fake session -> $REPO mapping so the digest can resolve tasks to this repo.
 make_session() {

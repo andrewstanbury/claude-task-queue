@@ -16,6 +16,19 @@ Launch-hardening pass (no version bumps yet):
 
 ## task-queue
 
+### 0.42.2
+- Fixed a return-review-gate lock: a crashed autopilot session's unresolved `❓`
+  could block editing repo-wide forever — the parked-pile check now ages out
+  abandoned sessions (same cutoff as the resume bridge).
+- `tq_root_for_cwd` resolves a git submodule to its own working root instead of a
+  shared `.git/modules` path (sibling submodules no longer collide to one flag key).
+- Per-repo flag files now use an injective encoding (`/`→`%2F`), so two repos whose
+  paths differ only by `-` vs `/` no longer share autopilot/agent/review state. NOTE:
+  a one-time reset — flags set before this upgrade read as off until re-toggled.
+- Extracted the resume bridge to `lib/resume.sh` so the per-prompt hot path doesn't
+  parse it and `lib/tasks.sh` stays under the size budget.
+- `tq-capture` runs best-effort (`set +e`) like the other per-prompt hooks.
+
 ### 0.42.0
 - `⏳` owner-blocked marker (drains the queue around owner-action items); leaner
   autopilot drain; `/task-queue:ship` renamed to `/task-queue:ship-it`.
@@ -48,6 +61,11 @@ Launch-hardening pass (no version bumps yet):
 
 ## tidy
 
+### 0.42.1
+- Verification-floor bounded counters (quality / coverage / regression / test) share
+  `tidy_gate_count`/`tidy_gate_bump` helpers so the "can never loop" arithmetic lives
+  in one place instead of four hand-copies.
+
 ### 0.42.0
 - `/tidy:audit` — on-demand whole-project audit that auto-queues cleanup.
 
@@ -72,6 +90,18 @@ Launch-hardening pass (no version bumps yet):
   detection for the web-QA nudge.
 
 ## hud
+
+### 0.20.2
+- Cleaner status line: feature toggles are now bare icons (`✈️` autopilot, `🤖` agents)
+  shown only when on, tests show a bare `✓`/`✗`/`⚠`, and the edit-gates keep a short
+  word only while armed (`🎨 design`, `🔒 review`). The `🛡` safety shield stays.
+- Added a project-name anchor just left of the branch (truncated; wide terminals only)
+  so multi-repo users can tell panes apart at a glance.
+- Submodule-aware root resolution (matches task-queue) so a submodule's status line
+  keys to its own root, not a shared `.git/modules` path; mirrors task-queue's new
+  injective flag encoding.
+- `❓`/`⏳` counters strip leading whitespace before matching, agreeing with
+  task-queue's marker predicates (an indented subject no longer miscounts).
 
 ### 0.20.0
 - Always-on `🛡` safety shield (green when every floor is on, `🛡✗N` when any are

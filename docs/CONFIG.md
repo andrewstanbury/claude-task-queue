@@ -67,6 +67,7 @@ default and only takes effect when you set it.
 | `CLAUDE_CHARTER_MCP_PROBE` | `1` | Probe configured MCP servers for reachability. |
 | `CLAUDE_CHARTER_MCP_TIMEOUT` | `3` | Seconds per individual MCP-server probe. |
 | `CLAUDE_CHARTER_MCP_MAX` | `25` | Max MCP servers probed in one pass. |
+| `CLAUDE_MCP_HOME_CONFIG` | `~/.claude.json` | Path to the user-level MCP config the probe merges declared servers from. |
 | `CLAUDE_CHARTER_WEB` | *(unset → auto-detect)* | Force the web-QA nudge on (`1`) or off (`0`); default detects a web app structurally. |
 | `CLAUDE_CHARTER_LOG_DIR` | `~/.claude/state/charter` | charter's state/log directory. |
 

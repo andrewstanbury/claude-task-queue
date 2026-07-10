@@ -23,7 +23,7 @@ teardown() {
 
 # tq-status reads the repo from PWD.
 status() { bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$STATUS"; }
-flag()   { printf '%s/%s' "$1" "$(printf '%s' "$REPO" | sed 's:/:-:g')"; }
+flag()   { printf '%s/%s' "$1" "$(printf '%s' "$REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"; }
 # Map a fake session to $REPO so the open-work scan resolves its tasks to this repo.
 make_session() {
   local sid="$1" enc; enc="$(printf '%s' "$REPO" | sed 's:/:-:g')"

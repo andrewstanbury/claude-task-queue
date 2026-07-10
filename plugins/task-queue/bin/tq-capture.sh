@@ -44,6 +44,8 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/project.sh"
 # shellcheck source=../lib/away.sh
 . "$PLUGIN_DIR/lib/away.sh"
+set +e   # tasks.sh enables `set -e`; this per-prompt hook is best-effort — a future
+         # unguarded command must degrade to "no context injected", never break the prompt.
 
 [ -n "${CLAUDE_TQ_CAPTURE_DISABLED:-}" ] && exit 0
 

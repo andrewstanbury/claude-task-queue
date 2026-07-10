@@ -65,12 +65,13 @@ run_restore() { bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$RESTORE"; }
   [[ "$output" == *"carry over from an earlier session"* ]]
 }
 
-# ---- lib/tasks.sh tq_resume_context (characterization) ----------------------
+# ---- lib/resume.sh tq_resume_context (characterization) ---------------------
 # Pin the awk ranking / age-cutoff / cap+tail logic directly. Characterization only —
 # these assert what the code does TODAY, not a desired change. `set +e` mirrors how
-# tq-restore.sh actually calls it (best-effort readout).
+# tq-restore.sh actually calls it (best-effort readout). resume.sh depends on tasks.sh
+# helpers, so it is sourced after it (the real consumers do the same).
 
-resume_ctx() { bash -c '. "$1/lib/tasks.sh"; set +e; tq_resume_context "$2" ""' _ "$ROOT" "$REPO"; }
+resume_ctx() { bash -c '. "$1/lib/tasks.sh"; . "$1/lib/resume.sh"; set +e; tq_resume_context "$2" ""' _ "$ROOT" "$REPO"; }
 line_of() { printf '%s\n' "$1" | grep -n -- "$2" | head -n1 | cut -d: -f1; }
 
 @test "resume_context: in-progress tasks rank before pending todos" {

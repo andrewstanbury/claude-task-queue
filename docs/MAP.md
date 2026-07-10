@@ -24,7 +24,7 @@ Per plugin: `.claude-plugin/plugin.json` (manifest+version), `hooks/hooks.json`
 (event wiring), `CONTRACT.md` (dependencies), `bin/` (hook entrypoints + controls),
 `lib/` (logic), `tests/`. (Slash commands are a thin optional
 surface over the hooks: task-queue's `/task-queue:*` family, charter's `/charter:align`,
-hud's `/hud:setup`, and tidy's `/tidy:audit`.)
+hud's `/hud:setup` + `/hud:legend`, and tidy's `/tidy:audit`.)
 
 ## task-queue — *orchestrate the work* (hooks: SessionStart, UserPromptSubmit, Stop)
 
@@ -38,9 +38,15 @@ hud's `/hud:setup`, and tidy's `/tidy:audit`.)
 | `bin/tq-design-guard.sh` | PreToolUse[Edit\|Write\|NotebookEdit]: on a visual/design prompt, deny edits until a wireframe preview (AskUserQuestion) has been shown — the ask-guard clears the per-session marker capture armed. Stands down during an autopilot drain. Enforces show-before-build. `CLAUDE_TQ_DESIGN_GATE=0` disables. |
 | `bin/tq-status.sh` | Control: the `/task-queue:status` readout — feature states (autopilot/agents) + open-work count. The other modes are per-feature slash commands (`/task-queue:autopilot\|agents` `toggle` via `tq-away.sh`/`tq-agent.sh`; `resume` re-surfaces an earlier session's open tasks). The single `/tq` hub was retired for these. |
 | `bin/tq-agent.sh` | Control: opt-in agent-mode toggle. When on, the capture hook names the independent unblocked tasks (`tq_ready_tasks`) and tells the model to fan them to parallel subagents — the hook selects, the model spawns. |
-| `lib/tasks.sh` | Native task-store reads, resume logic, agent flag + the away/solo auto-continue counter, the intent-of-record file, `tq_open_questions` + `tq_open_worklist`, drift canary. |
+| `bin/tq-away.sh` | Control: the `/task-queue:autopilot` toggle — flip autopilot on (run fully autonomous, never block, PARK what needs the owner) / off (normal review loop resumes). |
+| `bin/tq-restore.sh` | Control: the manual `/task-queue:resume` twin — re-surface an earlier session's open tasks on demand (after a crash-relaunch or a compacted-away startup note), complementing the automatic SessionStart resume. |
+| `bin/tq-ship.sh` | Control: `/task-queue:ship-it` — deterministic git plumbing that takes verified work from the tree to merged-on-main (the caller supplies the green gate). |
+| `lib/tasks.sh` | Native task-store reads, agent flag + the away/solo auto-continue counter, the intent-of-record file, `tq_open_questions` + `tq_open_worklist`, drift canary. |
+| `lib/away.sh` | Autopilot/away state (`tq_is_away`) + the owner-present marker (`tq_mark_present`/`tq_owner_present`), the park-rule, the return-review flag (`tq_review_pending`/`set`/`clear`), and the away digest (`tq_away_digest`). |
+| `lib/signals.sh` | `tq_state_signals` — the compact autopilot/agent/drift state line for the SessionStart resume bridge. |
+| `lib/resume.sh` | `tq_resume_context` — the cross-session resume bridge (reinstate an earlier session's open tasks). |
 | `lib/project.sh` | Detect the committed roadmap/backlog file + the `claude-companion` marker. |
-| `lib/capture.sh` | Multi-step / consequential / **visual-design** heuristics (the design-preview stands down on Godot projects — `tq_is_godot_project`); shared alignment clause. |
+| `lib/capture.sh` | Multi-step / consequential / **visual-design** heuristics; shared alignment clause. |
 
 ## tidy — *change safely & cleanly* (hooks: SessionStart, PreToolUse[Edit\|Write\|MultiEdit], PostToolUse[Edit\|Write], Stop)
 
@@ -49,7 +55,7 @@ hud's `/hud:setup`, and tidy's `/tidy:audit`.)
 | `bin/tidy-presecret.sh` | PreToolUse: the **secret floor** — scan the content a write would land for hardcoded credentials and block (exit 2) before it reaches disk. tidy's one deliberate hard-stop; fail-open on anything else. `CLAUDE_TIDY_SECSCAN=0` to disable. |
 | `bin/tidy-standard.sh` | SessionStart: the clean-as-you-go standard (trimmed to anchors) + the state prune. No longer surfaces whole-project debt — the deliberate prune now fires from `tidy-verify.sh` (Stop). |
 | `bin/tidy-touch.sh` | PostToolUse: format + lint (Go/web/Python/shell/GDScript) + blast-radius + coverage nudge + size for the edited file. |
-| `bin/tidy-verify.sh` | Stop: the verification floor — run the project's tests, block until green (bounded, timeout, change-throttled); opt-in coverage gate; the **regression gate** (block when a changed file is both a scar-tissue hotspot and untested — bounded, OPT-IN/off by default since tests are the owner's call, `CLAUDE_TIDY_REGRESSION_GATE=1` to enable); the **quality floor** (run the project's own declared typecheck/a11y/dep-rule gates before the tests, block until green, bounded — `CLAUDE_TIDY_QUALITY_FLOOR=0` to disable). Plus, after a clean verify on a dirty tree, one non-blocking post-work surface: **import cycles** touching the change (`lib/arch.sh`, content-deduped) + the **coupling-density trend** (`tidy_coupling_density`, nudge when import-edges-per-file climbs past `CLAUDE_TIDY_COUPLING_DELTA`) + the throttled deliberate-prune nudge (over `CLAUDE_TIDY_PRUNE_THRESHOLD` over-budget files → `tidy-distill.sh`'s weight report, once per debt episode). |
+| `bin/tidy-verify.sh` | Stop: the verification floor — run the project's tests, block until green (bounded, timeout, change-throttled); opt-in coverage gate; the **regression gate** (block when a changed file is both a scar-tissue hotspot and untested — bounded, OPT-IN/off by default since tests are the owner's call, `CLAUDE_TIDY_REGRESSION_GATE=1` to enable); the **quality floor** (run the project's own declared typecheck/a11y/dep-rule gates before the tests, block until green, bounded — `CLAUDE_TIDY_QUALITY_FLOOR=0` to disable). Plus, after a clean verify on a dirty tree, one non-blocking post-work surface: **import cycles** touching the change (`lib/arch.sh`, content-deduped) + the throttled deliberate-prune nudge (over `CLAUDE_TIDY_PRUNE_THRESHOLD` over-budget files → `tidy-distill.sh`'s weight report, once per debt episode). |
 | `bin/tidy-distill.sh` | Read-only whole-project weight report (the prune-report generator, run by `tidy-verify.sh` over threshold, and on demand by `/tidy:audit`). |
 | `commands/audit.md` | `/tidy:audit` — on-demand whole-project audit: runs `tidy-distill.sh` and **auto-queues** every finding as a `TaskCreate` cleanup task (smallest blast-radius first), parking only obviously-risky ones as `❓`. The manual, clean-tree/below-threshold complement to the automatic prune. |
 | `lib/tidy.sh` | Language dispatch, Go/web/GDScript handlers, size nudge, state dir (`tidy_log_dir`); shared `tidy_root_for_cwd` + `tidy_run_linter`. |
@@ -58,7 +64,7 @@ hud's `/hud:setup`, and tidy's `/tidy:audit`.)
 | `lib/coverage.sh` | Coverage ratchet: per-language test detection, opt-in characterize-before-change nudge (`CLAUDE_TIDY_COVERAGE=1`), untested-changed lister for the opt-in gate; `tidy_hotspots` (scar-tissue mirror of charter, drift-guarded) + `tidy_untested_hotspots` (the regression gate's target — untested ∩ hotspot). |
 | `lib/checks.sh` | Test-command discovery + bounded run + working-tree fingerprint (verify throttle); `tidy_quality_commands` (discover the project's own typecheck/a11y/dep-rule scripts for the quality floor). |
 | `lib/blast.sh` | Blast-radius (Go: exact `go list` importers, cached, → git grep fallback; basename heuristic elsewhere). |
-| `lib/arch.sh` | Clean-architecture checks: import-cycle detection (detect-and-run `madge`) + `tidy_coupling_density` (import-edges-per-file proxy for the coupling trend). |
+| `lib/arch.sh` | Clean-architecture checks: import-cycle detection (detect-and-run `madge`, `tidy_cycles_changed`). |
 
 ## charter — *know the project + own the owner relationship* (hooks: SessionStart, Stop)
 
@@ -78,7 +84,7 @@ hud's `/hud:setup`, and tidy's `/tidy:audit`.)
 
 | File | Responsibility |
 |---|---|
-| `bin/hud-status.sh` | The status-line renderer: health beacon · agent · 🚶 solo · ✓/✗ tests · **❓ open-questions count** · **🔗↑ coupling-rising** · ctx % · **💲 session-cost** (hidden at zero) · branch+dirty · **↑ahead ↓behind** (unpushed/unpulled vs upstream) · model. |
+| `bin/hud-status.sh` | The status-line renderer, three zones: **health & alerts** (beacon · 🛡 safety shield / 🛡✗N disabled-floor count · bare ✓/✗/⚠ tests · 🎨 design / 🔒 review edit-gates, tagged with a word only while armed · **❓N** parked decisions · **⏳N** owner-blocked) · **feature state** (bare ✈️ autopilot / 🤖 agents, shown only when on) · **context** (model · ⇡/⇣ token throughput · **project name** · branch+dirty · **↑ahead ↓behind** vs upstream). |
 | `bin/hud-install.sh` | Wire the status line into `settings.json`, version-resilient, `refreshInterval: 1` for the animated beacon (`/hud:setup`). |
 | `commands/setup.md` | `/hud:setup`. |
-| `lib/hud.sh` | Read-only accessors over the other plugins' state (solo/away, agent, verify result, branch, dirty, `hud_open_questions` ❓-count, `hud_coupling` 🔗↑ direction, `hud_ahead_behind` unpushed/unpulled vs upstream — read-only mirrors/markers). |
+| `lib/hud.sh` | Read-only accessors over the other plugins' state (autopilot/away, agent, verify result, `hud_floors_disabled` shield count, `hud_design_pending`/`hud_review_pending` edit-gates, `hud_open_questions` ❓-count, `hud_blocked` ⏳-count, `hud_human_tokens`, branch, dirty, `hud_ahead_behind` unpushed/unpulled vs upstream, `hud_legend` — read-only mirrors/markers). |

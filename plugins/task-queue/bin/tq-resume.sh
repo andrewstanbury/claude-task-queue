@@ -44,6 +44,8 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/away.sh"
 # shellcheck source=../lib/signals.sh
 . "$PLUGIN_DIR/lib/signals.sh"
+# shellcheck source=../lib/resume.sh
+. "$PLUGIN_DIR/lib/resume.sh"
 
 # Trimmed standing policy (re-injected on each fresh SessionStart, so kept lean).
 # This is the FULL procedure + critique posture, stated ONCE per session — the

@@ -30,6 +30,8 @@ PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 . "$PLUGIN_DIR/lib/tasks.sh"
 # shellcheck source=../lib/project.sh
 . "$PLUGIN_DIR/lib/project.sh"
+# shellcheck source=../lib/resume.sh
+. "$PLUGIN_DIR/lib/resume.sh"
 set +e   # tasks.sh enables `set -e`; this is a best-effort readout — never abort mid-report.
 
 root="$(tq_root_for_cwd "$PWD")"
