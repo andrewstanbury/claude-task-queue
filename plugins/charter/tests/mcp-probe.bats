@@ -68,6 +68,21 @@ run_probe() {
   [[ "$output" == *"no MCP response"* ]]
 }
 
+@test "stdio probe still bounds + warns when timeout/gtimeout are absent (perl fallback; stock macOS)" {
+  # Stock macOS (and GitHub's macOS runners) ship NEITHER timeout nor gtimeout — perl must
+  # carry the wall-clock bound, else the probe skips silently and Mac users get no MCP
+  # warnings at all. Hide the coreutils binaries and prove the perl path still works.
+  mcp_have() { case "$1" in timeout|gtimeout) return 1;; *) command -v "$1" >/dev/null 2>&1;; esac; }
+  mcp_can_bound                                   # perl present ⇒ a bound IS available
+  local out; out="$(mcp_probe_stdio ghost '{"command":"definitely-not-a-real-cmd-xyz"}' 1 || true)"
+  [[ "$out" == *"ghost"* ]]
+  [[ "$out" == *"command not found"* ]]           # warned, not silently skipped
+  local start end; start="$(date +%s)"
+  mcp_bounded 1 sh -c 'sleep 5' >/dev/null 2>&1 || true
+  end="$(date +%s)"
+  [ "$((end - start))" -lt 4 ]                    # the 1s bound really cut off a 5s hang
+}
+
 @test "an unreachable http endpoint is flagged as down" {
   mcp_json '{"mcpServers":{"remote":{"type":"http","url":"http://127.0.0.1:1/mcp"}}}'
   run run_probe startup

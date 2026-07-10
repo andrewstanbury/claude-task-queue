@@ -19,6 +19,21 @@ set -uo pipefail
 
 mcp_have() { command -v "$1" >/dev/null 2>&1; }
 
+# Run a command under a hard wall-clock bound, portably. Prefers GNU `timeout`
+# (Linux), then `gtimeout` (Homebrew coreutils), and falls back to perl's alarm —
+# present on stock macOS, which ships NEITHER `timeout` nor `gtimeout` — so the probe
+# still BOUNDS the spawn there instead of skipping the health check entirely. The perl
+# form leaves a pending SIGALRM across exec (default disposition terminates), which is
+# the classic portable timeout. Returns 127 when no mechanism exists.
+mcp_bounded() {  # mcp_bounded SECONDS cmd...
+  local t="$1"; shift
+  if   mcp_have timeout;  then timeout  -k 1 "$t" "$@"
+  elif mcp_have gtimeout; then gtimeout -k 1 "$t" "$@"
+  elif mcp_have perl;     then perl -e 'my $t=shift; alarm $t; exec @ARGV or exit 127' "$t" "$@"
+  else return 127; fi
+}
+mcp_can_bound() { mcp_have timeout || mcp_have gtimeout || mcp_have perl; }
+
 # The MCP `initialize` request every probe sends — a minimal valid JSON-RPC
 # handshake. A server that answers it (result OR error) is speaking the protocol.
 MCP_INIT_REQ='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"charter-mcp-probe","version":"1"}}}'
@@ -47,13 +62,14 @@ mcp_discover() {
 
 # Probe ONE stdio server. Spawns it, sends the initialize handshake, and reads the
 # reply under a hard timeout. Prints "<name>\t<reason>" if DOWN, nothing if up.
-# Skipped silently when `timeout` is unavailable — spawning a server unbounded at
-# session start could hang the turn, which is worse than a missed warning.
+# Skipped silently when no bounded-run mechanism (timeout/gtimeout/perl) exists —
+# spawning a server unbounded at session start could hang the turn, which is worse
+# than a missed warning.
 mcp_probe_stdio() {
   local name="$1" cfg="$2" t="$3" cmd out
   cmd="$(printf '%s' "$cfg" | jq -r '.command // empty' 2>/dev/null)"
   [ -n "$cmd" ] || return 0          # malformed entry — don't false-warn
-  mcp_have timeout || return 0
+  mcp_can_bound || return 0
   local args=() envs=() runline=(env)
   while IFS= read -r a; do args+=("$a"); done \
     < <(printf '%s' "$cfg" | jq -r '.args[]? // empty' 2>/dev/null)
@@ -63,7 +79,7 @@ mcp_probe_stdio() {
   runline+=("$cmd")
   [ "${#args[@]}" -gt 0 ] && runline+=("${args[@]}")
   out="$(printf '%s\n' "$MCP_INIT_REQ" \
-          | timeout -k 1 "$t" "${runline[@]}" 2>/dev/null \
+          | mcp_bounded "$t" "${runline[@]}" 2>/dev/null \
           | head -c 65536)" || true
   if printf '%s' "$out" | grep -q '"jsonrpc"' \
      && printf '%s' "$out" | grep -Eq '"(result|error)"'; then

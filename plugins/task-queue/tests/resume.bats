@@ -73,6 +73,9 @@ run_restore() { bash -c 'cd "$1" && bash "$2"' _ "$REPO" "$RESTORE"; }
 
 resume_ctx() { bash -c '. "$1/lib/tasks.sh"; . "$1/lib/resume.sh"; set +e; tq_resume_context "$2" ""' _ "$ROOT" "$REPO"; }
 line_of() { printf '%s\n' "$1" | grep -n -- "$2" | head -n1 | cut -d: -f1; }
+# Portable mtime setter: BSD `touch` (stock macOS) rejects GNU's `touch -d @epoch`
+# and `touch -d 'N days ago'`; perl utime sets the epoch identically on both.
+set_mtime() { perl -e 'utime $ARGV[0], $ARGV[0], $ARGV[1]' "$1" "$2"; }   # set_mtime EPOCH FILE
 
 @test "resume_context: in-progress tasks rank before pending todos" {
   make_session sA "$REPO"
@@ -91,8 +94,8 @@ line_of() { printf '%s\n' "$1" | grep -n -- "$2" | head -n1 | cut -d: -f1; }
   make_session sOld "$REPO"
   make_task sNew 1 pending "newer task"
   make_task sOld 1 pending "older task"
-  touch -d "@$(( $(date +%s) - 5000 ))" "$CLAUDE_TQ_TASKS_DIR/sOld/1.json"
-  touch -d "@$(date +%s)"               "$CLAUDE_TQ_TASKS_DIR/sNew/1.json"
+  set_mtime "$(( $(date +%s) - 5000 ))" "$CLAUDE_TQ_TASKS_DIR/sOld/1.json"
+  set_mtime "$(date +%s)"               "$CLAUDE_TQ_TASKS_DIR/sNew/1.json"
   run resume_ctx
   [ "$status" -eq 0 ]
   [ "$(line_of "$output" "newer task")" -lt "$(line_of "$output" "older task")" ]
@@ -103,7 +106,7 @@ line_of() { printf '%s\n' "$1" | grep -n -- "$2" | head -n1 | cut -d: -f1; }
   make_session sStale "$REPO"
   make_task sFresh 1 pending "fresh work"
   make_task sStale 1 pending "stale work"
-  touch -d "@$(( $(date +%s) - 30*86400 ))" "$CLAUDE_TQ_TASKS_DIR/sStale/1.json"
+  set_mtime "$(( $(date +%s) - 30*86400 ))" "$CLAUDE_TQ_TASKS_DIR/sStale/1.json"
   export CLAUDE_TQ_RESUME_MAX_AGE_DAYS=14
   run resume_ctx
   [ "$status" -eq 0 ]
