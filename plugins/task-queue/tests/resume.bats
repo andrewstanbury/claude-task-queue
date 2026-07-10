@@ -80,8 +80,8 @@ line_of() { printf '%s\n' "$1" | grep -n -- "$2" | head -n1 | cut -d: -f1; }
   make_task sA 2 in_progress "doing thing"
   run resume_ctx
   [ "$status" -eq 0 ]
-  # ⏳ in-progress bullet is emitted above the ◻ pending bullet
-  [[ "$output" == *"⏳ doing thing"* ]]
+  # ▸ in-progress bullet (NOT ⏳, which means owner-blocked) is emitted above the ◻ pending bullet
+  [[ "$output" == *"▸ doing thing"* ]]
   [[ "$output" == *"◻ pending thing"* ]]
   [ "$(line_of "$output" "doing thing")" -lt "$(line_of "$output" "pending thing")" ]
 }

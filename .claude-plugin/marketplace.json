@@ -11,7 +11,7 @@
       "name": "task-queue",
       "source": "./plugins/task-queue",
       "description": "Turns your requests into a live to-do list you can watch Claude work through, and remembers unfinished work between sessions. Keeps that list working even on the newest models, where Claude's built-in task tracking is switched off. Step away and it keeps going on its own — handling the routine work and setting the big decisions aside for you to review when you're back. One command ships finished work as a pull request.",
-      "version": "0.44.1"
+      "version": "0.44.2"
     },
     {
       "name": "tidy",
@@ -29,7 +29,7 @@
       "name": "hud",
       "source": "./plugins/hud",
       "description": "One clean status line that shows everything at a glance: how many tasks are open and which one you're on, whether your tests are passing, whether the safety checks are on, which project and branch you're in, and anything waiting on your decision. Updates live and costs nothing in tokens.",
-      "version": "0.21.2"
+      "version": "0.21.3"
     }
   ]
 }

@@ -169,7 +169,7 @@ teardown() {
   [ "$status" -eq 0 ]
   jq -e '.existingKey == true' "$s"                       # preserved
   jq -e '.statusLine.type == "command"' "$s"
-  jq -e '.statusLine.refreshInterval == 1' "$s"          # drives the animated beacon (1 fps)
+  jq -e '.statusLine.refreshInterval == 2' "$s"          # drives the animated beacon; 2s halves idle CPU (battery-first default)
   [[ "$(jq -r '.statusLine.command' "$s")" == *"ls -dt"*"| head -1"* ]]   # self-resolving (newest mtime wins), not version-pinned
   [[ "$(jq -r '.statusLine.command' "$s")" != *"/0.1.0/"* ]]
   rm -rf "$(dirname "$s")"
