@@ -61,6 +61,14 @@ Launch-hardening pass (no version bumps yet):
 
 ## tidy
 
+### 0.42.2
+- `/tidy:audit` now includes a model-driven **performance pass**: it recognises the project's
+  hot/realtime paths generically (no engine/framework allowlist) and flags likely per-frame /
+  hot-loop regressions (allocations in loops, O(n) per frame, blocking I/O in the loop, …) with
+  concrete fixes. Honest about the limit — it can't measure fps/frame-time/thermals, so it
+  routes perf-sensitive changes to a before/after profile (incl. a thermal/fan check on
+  handheld targets) rather than asserting numbers.
+
 ### 0.42.1
 - Verification-floor bounded counters (quality / coverage / regression / test) share
   `tidy_gate_count`/`tidy_gate_bump` helpers so the "can never loop" arithmetic lives
@@ -90,6 +98,10 @@ Launch-hardening pass (no version bumps yet):
   detection for the web-QA nudge.
 
 ## hud
+
+### 0.20.6
+- Project-name anchor is now shown bold (bright) instead of dim, so it stands apart from the
+  dim token counts and the cyan branch at a glance.
 
 ### 0.20.5
 - Feature-zone spacing: the wide toggle emoji (`✈️`/`🤖`) now hug the trailing `│` divider

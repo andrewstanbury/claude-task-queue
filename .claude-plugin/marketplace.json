@@ -17,7 +17,7 @@
       "name": "tidy",
       "source": "./plugins/tidy",
       "description": "Keeps your code clean and safe while you work: it auto-formats the file you just edited, shows what else your change might affect, and runs your project's own tests before treating anything as done — so mistakes get caught early. Ask it for a full-project cleanup any time. Tests stay optional; nothing is forced on you.",
-      "version": "0.42.1"
+      "version": "0.42.2"
     },
     {
       "name": "charter",
@@ -29,7 +29,7 @@
       "name": "hud",
       "source": "./plugins/hud",
       "description": "One clean status line that shows everything at a glance: whether your tests are passing, whether the safety checks are on, which project and branch you're in, and anything waiting on your decision. Updates live and costs nothing in tokens.",
-      "version": "0.20.5"
+      "version": "0.20.6"
     }
   ]
 }
