@@ -132,6 +132,12 @@ run_resume() {
   run run_resume "sA" "$repo"
   [[ "$output" == *"Agent-mode is ON"* ]]
   [[ "$output" == *"subagents"* ]]
+  # Queue-first invariant: agent-mode must NOT read as "delegate whole prompts to
+  # subagents" — the native list in THIS session stays the live queue, subagents only
+  # do the work UNDER an already-queued task. Pin the load-bearing phrasing so a future
+  # banner edit can't silently drop the guarantee and re-empty the visible queue.
+  [[ "$output" == *"ALWAYS the live queue"* ]]
+  [[ "$output" == *"never let the main queue go empty"* ]]
   rm -rf "$repo"
 }
 
