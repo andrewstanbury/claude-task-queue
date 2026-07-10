@@ -1,5 +1,5 @@
 ---
-description: Audit the whole project against the clean-code guidelines (file size, blast radius, cruft) and auto-queue the cleanup as tasks
+description: Audit the whole project against the clean-code guidelines (file size, blast radius, cruft, performance hot-paths) and auto-queue the cleanup as tasks
 allowed-tools: Bash, TaskCreate, TaskList
 ---
 
@@ -11,8 +11,31 @@ markers, junk artefacts, and the **complexity surface** (dependencies + top-leve
 the drivers of **blast-radius** growth). It only surfaces measurable facts; turning them
 into work is your job.
 
+**Also run a PERFORMANCE pass — model-driven and generic.** The report above is static
+structure; performance is a RUNTIME property, so this part is your judgement, not the script.
+Recognise the project's HOT / REALTIME paths yourself from the code and its engine — a frame /
+update / physics / tick loop, render or draw calls, input handlers, high-frequency event
+callbacks, shaders or GPU work, anything on a per-frame or per-request budget — and flag
+changed or existing code that likely costs time THERE: memory allocated / garbage created per
+frame, O(n) or worse work run every frame, unbounded growth, blocking or synchronous I/O in the
+loop, or repeated expensive lookups that could be cached, precomputed, or moved off the hot
+path. Queue each likely regression as a task with a concrete fix (PARK it if the fix is
+ambiguous or high-blast-radius). Stay GENERIC — bake in NO engine/framework/language
+assumptions; recognise the hot path from the project's own structure (you already know every
+engine). The ONLY concrete thing to run is the project's OWN profiler / benchmark command, if
+it has one.
+
+**Be honest about the hard limit: this audit CANNOT measure fps, frame-time, or thermals** —
+those are runtime, seen only by PROFILING the running build on the target device (a handheld's
+fan/thermals show up in a playtest, not in source). So never assert a number; for any
+perf-sensitive change, queue a task to capture a BEFORE/AFTER profile (frame time, allocations,
+draw calls — plus a thermal/fan check during playtest on battery/handheld targets) and mitigate
+only what the measurement confirms. And do NOT chase cold-path or one-time costs — optimising
+off the hot path is premature and just adds noise; a perf finding needs a realtime/hot path or
+a real measured cost behind it.
+
 **This is a manually-triggered audit, so queue aggressively — the trigger IS the owner's
-approval.** Turn the findings into a live cleanup backlog:
+approval.** Turn the findings (weight report + your performance pass) into a live cleanup backlog:
 
 1. **Auto-queue every actionable finding** as its own scoped `TaskCreate` task — do NOT
    run the per-item present-and-approve loop and do NOT ask; the owner ran this command to

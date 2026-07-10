@@ -1,6 +1,6 @@
 {
   "name": "tidy",
-  "version": "0.42.1",
+  "version": "0.42.2",
   "description": "Tidy-as-you-touch: after each edit it formats and lint-checks just the file you touched (fixing only what's safe), surfaces its blast radius (the dependents to check), and flags it for decomposition past a size budget — keeping an actively-worked project trending down in complexity. Findings-only edit-time linters run the project's own tools for Go (goimports/gofumpt + golangci-lint), web (eslint incl. jsx-a11y, stylelint), Python (ruff) and shell (shellcheck). A Stop hook is the verification floor: when the working tree changed and the project has a discoverable test command, it runs the tests and blocks until they pass (bounded) — the safety net a non-technical owner can't produce. After a clean verify the same hook enforces the project's own quality gates (typecheck / a11y / architecture scripts), an opt-in coverage ratchet + opt-in regression gate on scar-tissue files (tests are the owner's call — never forced), an import-cycle check, and a debt-prune nudge past a threshold — all detect-and-run (installs/invents nothing), with any cuts routed through the task-queue review loop. Goes quiet (one-line re-anchor) once recorded in the project's CLAUDE.md. The same whole-project weight report is also available on demand via /tidy:audit, which auto-queues every finding as a cleanup task.",
   "author": {
     "name": "Andrew Stanbury"

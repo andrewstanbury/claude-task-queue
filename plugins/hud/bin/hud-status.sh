@@ -199,7 +199,9 @@ if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
   # rides in the wide-only branch block so it's the first context to shed on a narrow term.
   RNAME="$(basename "$ROOT" 2>/dev/null || true)"
   [ "${#RNAME}" -gt 14 ] && RNAME="${RNAME:0:13}…"
-  [ -n "$RNAME" ] && Z3+=("$D$RNAME$X")
+  # Bold (bright) rather than dim so the project reads clearly and stands apart from the
+  # dim token counts and the cyan branch — a glanceable "which project" anchor, not a footnote.
+  [ -n "$RNAME" ] && Z3+=("$B$RNAME$X")
   bseg="$C$B⎇ $BRANCH$X"
   [ -n "$DIRTY" ] && bseg="$bseg $Y$B*$DIRTY$X"
   if [ -n "$AB" ]; then

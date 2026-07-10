@@ -7,9 +7,9 @@ to run hands-off: the native task list is the one place you steer.
 | Plugin | Ver | Role |
 |---|---|---|
 | **task-queue** | 0.42.2 | Orchestrate — native task list as a live queue: per-prompt review loop, enforced design-preview + parked-review gates, two deferral markers (❓ decisions / ⏳ owner-blocked), lean autopilot drain (park-rule sent once, not per continuation), queue-aware agent fan-out, one-command ship |
-| **tidy** | 0.42.1 | Change safely — format/lint on touch, blast-radius, verification floor (runs your existing tests), opt-in regression gate, quality floor, auto-prune + on-demand `/tidy:audit` (tests are opt-in, never forced) |
+| **tidy** | 0.42.2 | Change safely — format/lint on touch, blast-radius, verification floor (runs your existing tests), opt-in regression gate, quality floor, auto-prune + on-demand `/tidy:audit` (now with a performance hot-path pass; tests are opt-in, never forced) |
 | **charter** | 0.23.0 | Know the project — doc & decisions gate, alignment floor, scar-tissue memory, language-agnostic convention detection |
-| **hud** | 0.20.5 | Show — one read-only status line (health, always-on 🛡 safety shield, ✅/❌ tests, 🎨/🔒 edit gates, feature state as bare icons, ❓ decisions + ⏳ owner-blocked, tokens, project + branch) |
+| **hud** | 0.20.6 | Show — one read-only status line (health, always-on 🛡 safety shield, ✅/❌ tests, 🎨/🔒 edit gates, feature state as bare icons, ❓ decisions + ⏳ owner-blocked, tokens, project + branch) |
 
 Each plugin is independently installable · Bash + `jq` · zero build.
 
