@@ -106,16 +106,16 @@ EOF
 # Read-only mirror of task-queue's tq_open_questions (install boundary forbids
 # sharing the lib; drift-guard.bats keeps the two in agreement). Prints a number.
 hud_open_questions() {
-  local sid="$1" tdir f c
+  local sid="$1" tdir files
   [ -n "$sid" ] || { printf '0'; return 0; }
   tdir="$(hud_tasks_dir)/$sid"
-  [ -d "$tdir" ] || { printf '0'; return 0; }
-  c="$(for f in "$tdir"/*.json; do
-        [ -f "$f" ] || continue
-        jq -r 'select((.status=="pending" or .status=="in_progress")
-                      and ((.subject // "") | sub("^\\s+";"") | startswith("❓"))) | (.subject // "")' "$f" 2>/dev/null
-      done | awk 'NF && !seen[$0]++' | grep -c .)"
-  printf '%s' "${c:-0}"
+  files=("$tdir"/*.json); [ -e "${files[0]}" ] || { printf '0'; return 0; }  # no store / empty glob
+  # ONE jq slurp over the whole session — the render runs every second, so a jq
+  # PER FILE (×3 counters × N tasks) was the dominant per-render cost. Same result:
+  # distinct ❓ subjects among pending/in_progress.
+  jq -rs '[.[] | select((.status=="pending" or .status=="in_progress")
+            and ((.subject // "") | sub("^\\s+";"") | startswith("❓")))
+          | (.subject // "") | select(. != "")] | unique | length' "${files[@]}" 2>/dev/null || printf '0'
 }
 
 # Count of items BLOCKED on a manual owner action this session — native tasks whose
@@ -124,16 +124,13 @@ hud_open_questions() {
 # device, an external/paid service, an owner-only step), not to decide. Read-only mirror
 # of task-queue's ⏳ convention; drift-guard.bats keeps the two prefixes disjoint. Prints a number.
 hud_blocked() {
-  local sid="$1" tdir f c
+  local sid="$1" tdir files
   [ -n "$sid" ] || { printf '0'; return 0; }
   tdir="$(hud_tasks_dir)/$sid"
-  [ -d "$tdir" ] || { printf '0'; return 0; }
-  c="$(for f in "$tdir"/*.json; do
-        [ -f "$f" ] || continue
-        jq -r 'select((.status=="pending" or .status=="in_progress")
-                      and ((.subject // "") | sub("^\\s+";"") | startswith("⏳"))) | (.subject // "")' "$f" 2>/dev/null
-      done | awk 'NF && !seen[$0]++' | grep -c .)"
-  printf '%s' "${c:-0}"
+  files=("$tdir"/*.json); [ -e "${files[0]}" ] || { printf '0'; return 0; }
+  jq -rs '[.[] | select((.status=="pending" or .status=="in_progress")
+            and ((.subject // "") | sub("^\\s+";"") | startswith("⏳")))
+          | (.subject // "") | select(. != "")] | unique | length' "${files[@]}" 2>/dev/null || printf '0'
 }
 
 # Open, non-parked WORK in this session's live queue — the read-only mirror of
@@ -147,20 +144,17 @@ hud_blocked() {
 # store and this collapses to "0" (the slot then disappears). Prints "0" + a blank line
 # for no session / no store.
 hud_worklist() {
-  local sid="$1" tdir f
+  local sid="$1" tdir files
   [ -n "$sid" ] || { printf '0\n\n'; return 0; }
   tdir="$(hud_tasks_dir)/$sid"
-  [ -d "$tdir" ] || { printf '0\n\n'; return 0; }
-  for f in "$tdir"/*.json; do
-    [ -f "$f" ] || continue
-    jq -r 'select((.status=="pending" or .status=="in_progress")
-                  and (((.subject // "") | sub("^\\s+";"")
-                        | (startswith("❓") or startswith("⏳"))) | not))
-           | "\(.status)\t\(.subject // "")"' "$f" 2>/dev/null || true
-  done | awk -F'\t' '
-    $2!="" && !seen[$2]++ { n++; if ($1=="in_progress" && cur=="") cur=$2 }
-    END { print n+0; print cur }
-  '
+  files=("$tdir"/*.json); [ -e "${files[0]}" ] || { printf '0\n\n'; return 0; }
+  # ONE jq slurp (per-second render path): $n = distinct non-deferred open subjects,
+  # $cur = the current in_progress one (first in file order), empty when none.
+  jq -rs '[.[] | select((.status=="pending" or .status=="in_progress")
+              and (((.subject // "") | sub("^\\s+";"") | (startswith("❓") or startswith("⏳"))) | not))] as $w
+          | ([$w[] | (.subject // "") | select(. != "")] | unique | length) as $n
+          | ([$w[] | select(.status=="in_progress") | (.subject // "") | select(. != "")] | .[0] // "") as $cur
+          | "\($n)\n\($cur)"' "${files[@]}" 2>/dev/null || printf '0\n\n'
 }
 
 # Humanize a token count for the status line: <1000 verbatim, thousands as N.Nk,
