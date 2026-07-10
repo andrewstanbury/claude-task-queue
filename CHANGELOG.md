@@ -99,9 +99,13 @@ Launch-hardening pass (no version bumps yet):
 
 ## hud
 
+### 0.20.7
+- Project-name anchor renders at normal (bright) weight — not dim, not bold — so it's clearly
+  visible without the heaviness of bold.
+
 ### 0.20.6
-- Project-name anchor is now shown bold (bright) instead of dim, so it stands apart from the
-  dim token counts and the cyan branch at a glance.
+- Project-name anchor is now shown brighter than dim so it stands apart from the dim token
+  counts and the cyan branch at a glance.
 
 ### 0.20.5
 - Feature-zone spacing: the wide toggle emoji (`✈️`/`🤖`) now hug the trailing `│` divider
