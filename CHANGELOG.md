@@ -91,10 +91,14 @@ Launch-hardening pass (no version bumps yet):
 
 ## hud
 
+### 0.20.3
+- Tests outcome shows a self-colored emoji (`✅` pass / `❌` fail / `⚠️` timeout) instead
+  of a text `✓`/`✗`, so it stays colorful even on a no-color terminal.
+
 ### 0.20.2
 - Cleaner status line: feature toggles are now bare icons (`✈️` autopilot, `🤖` agents)
-  shown only when on, tests show a bare `✓`/`✗`/`⚠`, and the edit-gates keep a short
-  word only while armed (`🎨 design`, `🔒 review`). The `🛡` safety shield stays.
+  shown only when on, tests show a bare check, and the edit-gates keep a short word only
+  while armed (`🎨 design`, `🔒 review`). The `🛡` safety shield stays.
 - Added a project-name anchor just left of the branch (truncated; wide terminals only)
   so multi-repo users can tell panes apart at a glance.
 - Submodule-aware root resolution (matches task-queue) so a submodule's status line

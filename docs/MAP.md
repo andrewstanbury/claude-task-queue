@@ -84,7 +84,7 @@ hud's `/hud:setup` + `/hud:legend`, and tidy's `/tidy:audit`.)
 
 | File | Responsibility |
 |---|---|
-| `bin/hud-status.sh` | The status-line renderer, three zones: **health & alerts** (beacon · 🛡 safety shield / 🛡✗N disabled-floor count · bare ✓/✗/⚠ tests · 🎨 design / 🔒 review edit-gates, tagged with a word only while armed · **❓N** parked decisions · **⏳N** owner-blocked) · **feature state** (bare ✈️ autopilot / 🤖 agents, shown only when on) · **context** (model · ⇡/⇣ token throughput · **project name** · branch+dirty · **↑ahead ↓behind** vs upstream). |
+| `bin/hud-status.sh` | The status-line renderer, three zones: **health & alerts** (beacon · 🛡 safety shield / 🛡✗N disabled-floor count · ✅/❌/⚠️ tests (self-colored emoji) · 🎨 design / 🔒 review edit-gates, tagged with a word only while armed · **❓N** parked decisions · **⏳N** owner-blocked) · **feature state** (bare ✈️ autopilot / 🤖 agents, shown only when on) · **context** (model · ⇡/⇣ token throughput · **project name** · branch+dirty · **↑ahead ↓behind** vs upstream). |
 | `bin/hud-install.sh` | Wire the status line into `settings.json`, version-resilient, `refreshInterval: 1` for the animated beacon (`/hud:setup`). |
 | `commands/setup.md` | `/hud:setup`. |
 | `lib/hud.sh` | Read-only accessors over the other plugins' state (autopilot/away, agent, verify result, `hud_floors_disabled` shield count, `hud_design_pending`/`hud_review_pending` edit-gates, `hud_open_questions` ❓-count, `hud_blocked` ⏳-count, `hud_human_tokens`, branch, dirty, `hud_ahead_behind` unpushed/unpulled vs upstream, `hud_legend` — read-only mirrors/markers). |

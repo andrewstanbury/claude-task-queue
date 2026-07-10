@@ -147,12 +147,13 @@ if [ -n "$DISABLED" ]; then
 else
   Z1+=("$G$B🛡$X")           # all floors on
 fi
-# Tests outcome — a bare icon (✓ pass / ✗ fail / ⚠ timeout), no "tests" word: the glyph
-# is self-evident and the word was redundant. Hidden entirely when never run.
+# Tests outcome — a self-colored emoji (✅ pass / ❌ fail / ⚠️ timeout), no "tests" word and
+# no ANSI wrap: the emoji carries its own color, so it stays legible even on a no-color
+# terminal (where the old ✓/✗ went monochrome). Hidden entirely when never run.
 case "$VERIFY" in
-  pass)    Z1+=("$G$B✓$X") ;;
-  fail)    Z1+=("$R$B✗$X") ;;
-  timeout) Z1+=("$Y$B⚠$X") ;;
+  pass)    Z1+=("✅") ;;
+  fail)    Z1+=("❌") ;;
+  timeout) Z1+=("⚠️") ;;
 esac
 # Edit-GATES keep a one-word tag while armed (🎨 design · 🔒 review): unlike the toggles,
 # a bare lock that's silently BLOCKING your edits is a "why can't I save?" trap — the word

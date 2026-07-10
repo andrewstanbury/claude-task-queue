@@ -101,7 +101,7 @@ teardown() {
     '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c,
       context_window:{used_percentage:5}, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"✓"* ]]                          # Hybrid: bare tick, no "tests" word
+  [[ "$output" == *"✅"* ]]                          # self-colored pass emoji, no "tests" word
   [[ "$output" != *"tests"* ]]
   rm -rf "$CLAUDE_HUD_VERIFY_DIR"
 }
@@ -111,7 +111,7 @@ teardown() {
   payload="$(jq -nc --arg c "$REPO" \
     '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, context_window:{used_percentage:5}, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"✗"* ]]                          # bare cross, no "tests" word
+  [[ "$output" == *"❌"* ]]                          # self-colored fail emoji, no "tests" word
   rm -rf "$CLAUDE_HUD_VERIFY_DIR"
 }
 
