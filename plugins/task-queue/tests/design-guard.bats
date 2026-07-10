@@ -70,6 +70,17 @@ away_flag() { printf '%s/%s' "$CLAUDE_TQ_AWAY_DIR" "$(printf '%s' "$REPO" | sed 
   [ -z "$output" ]                            # design decisions are parked, not gated
 }
 
+@test "guard still DENIES when away is on but the owner is PRESENT (fresh prompt overrides the stand-down)" {
+  # The stand-down only applies to an autonomous drain (owner absent). A fresh prompt makes
+  # the owner present for this turn, so the design gate stays active — show the preview.
+  : > "$(design_flag)"
+  : > "$(away_flag)"                                # autopilot on…
+  date +%s > "$CLAUDE_TQ_AWAY_DIR/present-$SID"     # …but the owner just prompted → present this turn
+  run guard
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"permissionDecision":"deny"'* ]]   # present ⇒ stand-down does NOT apply ⇒ gated
+}
+
 @test "guard allows when disabled via CLAUDE_TQ_DESIGN_GATE=0" {
   : > "$(design_flag)"
   run bash -c 'printf "{\"cwd\":\"%s\",\"session_id\":\"%s\"}" "$1" "$2" | CLAUDE_TQ_DESIGN_GATE=0 bash "$3"' _ "$REPO" "$SID" "$GUARD"
