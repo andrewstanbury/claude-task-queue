@@ -19,12 +19,15 @@ cmd="bash -c 'exec \"\$(ls -dt ~/.claude/plugins/cache/andrewstanbury/hud/*/bin/
 mkdir -p "$(dirname "$settings")" 2>/dev/null || true
 [ -s "$settings" ] || printf '{}\n' > "$settings"
 
-# refreshInterval=1 (second): hud's beacon is an animated spinner, so it needs a timer
-# to advance one frame per second. This wakes jq+git once a second on idle — a battery
-# trade the owner opted into for a live status line. (jq numbers are unquoted → real 1.)
+# refreshInterval=2 (seconds): hud's beacon is an animated spinner, so it needs a timer to
+# advance. Each wake re-runs the whole command (~110ms of bash+jq+git that repeats forever
+# on idle), and the ONLY thing needing sub-refresh cadence is the beacon — everything else
+# also repaints on each message. So 2s (not 1s) roughly HALVES the idle CPU/battery cost for
+# a barely-slower spinner: a battery-first default. Bump to 1 for a smoother beacon.
+# (jq numbers are unquoted → a real number.)
 tmp="$(mktemp)"
 if jq --arg c "$cmd" \
-     '.statusLine = {type: "command", command: $c, refreshInterval: 1}' \
+     '.statusLine = {type: "command", command: $c, refreshInterval: 2}' \
      "$settings" > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
   mv "$tmp" "$settings"
   printf 'hud: status line wired into %s (version-resilient — survives hud updates).\n' "$settings"

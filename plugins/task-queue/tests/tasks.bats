@@ -208,7 +208,7 @@ resume_with_source() {
   make_task s1 3 completed   "Init repo"
   run run_resume "s2" "/home/x/alpha"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"⏳ Wire engine"* ]]
+  [[ "$output" == *"▸ Wire engine"* ]]
   [[ "$output" == *"◻ Build login"* ]]
   # completed tasks are not carried over
   [[ "$output" != *"Init repo"* ]]
@@ -262,7 +262,7 @@ resume_with_source() {
   make_task s1 1 in_progress "Deep work"
   run run_resume "s2" "$repo/c"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"⏳ Deep work"* ]]
+  [[ "$output" == *"▸ Deep work"* ]]
   rm -rf "$(dirname "$repo")"
 }
 
