@@ -16,6 +16,18 @@ Launch-hardening pass (no version bumps yet):
 
 ## task-queue
 
+### 0.42.3
+- Agent-mode no longer risks hiding the native queue. The SessionStart banner used
+  to say "DEFAULT to fanning work out to subagents", which could let a whole prompt
+  be delegated to a subagent that tracked its work in its own context — leaving the
+  main session's native task list (the plugin's core feature) empty. It now asserts a
+  queue-first invariant: the native list in THIS session is always the live queue, and
+  agent-mode only adds subagents to do the work *under* an already-queued task.
+- Test isolation: `tests/token-budget.bats` now unsets `CLAUDE_TQ_AGENT_MODE` /
+  `CLAUDE_TQ_CHECKPOINT_MODE` in setup, so the steady-state baseline measures the true
+  no-mode injection instead of spuriously busting its budget when the runner has the
+  global mode default on.
+
 ### 0.42.2
 - Fixed a return-review-gate lock: a crashed autopilot session's unresolved `❓`
   could block editing repo-wide forever — the parked-pile check now ages out
