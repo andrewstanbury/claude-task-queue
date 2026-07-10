@@ -169,18 +169,19 @@ esac
 # (▸ subject, wide terminals only — it sheds first when space is tight). Cyan, NOT the
 # yellow of ❓/⏳: open work is normal state, not an attention alarm. Disjoint from the
 # ❓/⏳ badges that follow, so the three read as separate buckets (work · decisions ·
-# blocked). Collapses when the queue is empty — including when a model has the native
-# Task tools gated off and nothing can be queued (the store stays empty).
+# blocked). ALWAYS shown — 📋 0 on an empty queue — so the owner SEES the queue is live
+# (same "verify by seeing" rationale as the always-on 🛡 shield), including when a model
+# has the native Task tools gated off and the store stays empty. Only the ▸ breadcrumb
+# is conditional (needs an in_progress task) and sheds on a narrow terminal.
 WORK="$(hud_worklist "$SID" 2>/dev/null || printf '0\n\n')"
 WORK_N="$(printf '%s\n' "$WORK" | sed -n '1p')"
-if [ "${WORK_N:-0}" -gt 0 ] 2>/dev/null; then
-  Z1+=("$C$B📋 $WORK_N$X")
-  if [ "$NARROW" -eq 0 ]; then
-    WORK_CUR="$(printf '%s\n' "$WORK" | sed -n '2p')"
-    if [ -n "$WORK_CUR" ]; then
-      [ "${#WORK_CUR}" -gt 24 ] && WORK_CUR="${WORK_CUR:0:23}…"
-      Z1+=("$C▸ $WORK_CUR$X")
-    fi
+case "$WORK_N" in ''|*[!0-9]*) WORK_N=0 ;; esac
+Z1+=("$C$B📋 $WORK_N$X")
+if [ "$NARROW" -eq 0 ] && [ "$WORK_N" -gt 0 ]; then
+  WORK_CUR="$(printf '%s\n' "$WORK" | sed -n '2p')"
+  if [ -n "$WORK_CUR" ]; then
+    [ "${#WORK_CUR}" -gt 24 ] && WORK_CUR="${WORK_CUR:0:23}…"
+    Z1+=("$C▸ $WORK_CUR$X")
   fi
 fi
 OPENQ="$(hud_open_questions "$SID" 2>/dev/null || printf 0)"
