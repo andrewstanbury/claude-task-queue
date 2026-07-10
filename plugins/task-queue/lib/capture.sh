@@ -53,8 +53,12 @@ tq_looks_design() {
   # (B) an AMBIGUOUS visual/appearance INTENT *and* a UI NOUN must both be present.
   # "design"/"move"/"style" alone could be architecture, so a UI noun is required —
   # this is what keeps "redesign the API/schema" from tripping the preview.
+  # NB: the gerund "looking" is deliberately absent — it overwhelmingly means
+  # examination ("looking at/into/for the … list"), not an appearance intent; only
+  # "looks?" (as in "make it look modern") carries the visual sense. Keeping "looking"
+  # made "looking at what's available in the task list" mis-classify as a design change.
   printf '%s' "$low" | grep -Eq \
-    '(^|[^a-z])((re-?)?design|(re-?)?lay[ -]?out|reposition|rearrange|re-?order|re-?align|realign|resize|move|cent(er|re)|style|theme|skin|looks?|looking|appearance|responsive|cleaner|prettier|sleeker|modern|polished|spacing|align(ment)?|visuals?|aesthetics?)([^a-z]|$)' || return 1
+    '(^|[^a-z])((re-?)?design|(re-?)?lay[ -]?out|reposition|rearrange|re-?order|re-?align|realign|resize|move|cent(er|re)|style|theme|skin|looks?|appearance|responsive|cleaner|prettier|sleeker|modern|polished|spacing|align(ment)?|visuals?|aesthetics?)([^a-z]|$)' || return 1
   printf '%s' "$low" | grep -Eq \
     '(^|[^a-z])(buttons?|pages?|home[- ]?pages?|landing[- ]?pages?|web[- ]?pages?|screens?|home[- ]?screens?|splash|views?|forms?|modals?|dialogs?|navs?|navbars?|navigation|sidebars?|menus?|headers?|footers?|heroe?s?|banners?|cards?|dashboards?|landing|panels?|tabs?|toolbars?|components?|widgets?|icons?|logos?|popups?|drop[- ]?downs?|tooltips?|badges?|avatars?|carousels?|accordions?|grids?|sections?|tables?|lists?|profiles?|settings|onboarding|checkouts?|paywalls?|drawers?|galler(y|ies)|feeds?|chips?|toasts?|snackbars?|spinners?|loaders?|skeletons?|empty states?)([^a-z]|$)' || return 1
   return 0

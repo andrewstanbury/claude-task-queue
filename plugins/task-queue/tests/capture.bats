@@ -322,9 +322,13 @@ run_capture() {
   done
   # architecture/API "design" + functional edits must NOT fire (precision) — the
   # noun gate must hold even for the strong verb "redesign".
+  # The gerund "looking" means EXAMINATION, not appearance — it must not trip the
+  # gate even alongside a UI-ish noun ("list"), or plain analysis prompts get gated.
   for p in "design the database schema" "design the public API surface" "add a logout button" \
            "fix the slow report page" "move the auth module to a new package" \
            "redesign the API" "redesign how we handle error retries" \
+           "looking at what's available in the task list" \
+           "looking into the list of open tasks" \
            "format the JSON output" "update the user table"; do
     run bash -c "$src"' tq_looks_design "$2" || echo N' bash "$ROOT" "$p"
     [ "$output" = "N" ]
