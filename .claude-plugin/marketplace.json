@@ -11,7 +11,7 @@
       "name": "task-queue",
       "source": "./plugins/task-queue",
       "description": "Turns your requests into a live to-do list you can watch Claude work through, and remembers unfinished work between sessions. Step away and it keeps going on its own — handling the routine work and setting the big decisions aside for you to review when you're back. One command ships finished work as a pull request.",
-      "version": "0.42.2"
+      "version": "0.42.3"
     },
     {
       "name": "tidy",
