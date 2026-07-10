@@ -207,6 +207,47 @@ teardown() {
   rm -rf "$CLAUDE_HUD_TASKS_DIR"
 }
 
+@test "hud_worklist counts non-parked open work (deduped) + names the in_progress one" {
+  export CLAUDE_HUD_TASKS_DIR="$(mktemp -d)"
+  mkdir -p "$CLAUDE_HUD_TASKS_DIR/sW"
+  jq -n '{id:"1",subject:"Wire the hud slot",status:"in_progress"}' > "$CLAUDE_HUD_TASKS_DIR/sW/1.json"
+  jq -n '{id:"2",subject:"Write the test",status:"pending"}'        > "$CLAUDE_HUD_TASKS_DIR/sW/2.json"
+  jq -n '{id:"3",subject:"❓ parked decision",status:"pending"}'     > "$CLAUDE_HUD_TASKS_DIR/sW/3.json"
+  jq -n '{id:"4",subject:"⏳ blocked on you",status:"in_progress"}'  > "$CLAUDE_HUD_TASKS_DIR/sW/4.json"
+  jq -n '{id:"5",subject:"Write the test",status:"pending"}'        > "$CLAUDE_HUD_TASKS_DIR/sW/5.json"
+  run bash -c "$SRC"' hud_worklist sW' bash "$ROOT"
+  [ "${lines[0]}" = "2" ]                     # 2 non-parked (❓/⏳ excluded), "Write the test" deduped
+  [ "${lines[1]}" = "Wire the hud slot" ]     # the current in_progress one
+  run bash -c "$SRC"' hud_worklist none' bash "$ROOT"
+  [ "${lines[0]}" = "0" ]
+  rm -rf "$CLAUDE_HUD_TASKS_DIR"
+}
+
+@test "status line shows ☐N + ▸ current task, and ❓/⏳ stay disjoint from the count" {
+  export CLAUDE_HUD_TASKS_DIR="$(mktemp -d)"
+  mkdir -p "$CLAUDE_HUD_TASKS_DIR/sX"
+  jq -n '{id:"1",subject:"Refactor the parser",status:"in_progress"}' > "$CLAUDE_HUD_TASKS_DIR/sX/1.json"
+  jq -n '{id:"2",subject:"Add a test",status:"pending"}'              > "$CLAUDE_HUD_TASKS_DIR/sX/2.json"
+  jq -n '{id:"3",subject:"❓ decide later",status:"pending"}'          > "$CLAUDE_HUD_TASKS_DIR/sX/3.json"
+  json="$(jq -nc --arg s sX --arg c "$REPO" '{model:{display_name:"Opus"},session_id:$s,cwd:$c,terminal_width:200}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *"☐ 2"* ]]                  # 2 work items — the ❓ is NOT counted here
+  [[ "$output" == *"▸ Refactor the parser"* ]]
+  [[ "$output" == *"❓1"* ]]                   # the ❓ keeps its own badge
+  rm -rf "$CLAUDE_HUD_TASKS_DIR"
+}
+
+@test "status line: ▸ current task sheds on a narrow terminal, ☐N stays" {
+  export CLAUDE_HUD_TASKS_DIR="$(mktemp -d)"
+  mkdir -p "$CLAUDE_HUD_TASKS_DIR/sN"
+  jq -n '{id:"1",subject:"Refactor the parser",status:"in_progress"}' > "$CLAUDE_HUD_TASKS_DIR/sN/1.json"
+  json="$(jq -nc --arg s sN --arg c "$REPO" '{model:{display_name:"Opus"},session_id:$s,cwd:$c,terminal_width:80}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *"☐ 1"* ]]
+  [[ "$output" != *"▸ Refactor the parser"* ]]
+  rm -rf "$CLAUDE_HUD_TASKS_DIR"
+}
+
 @test "hud_review_pending reflects task-queue's return-review gate marker (per repo)" {
   export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
   run bash -c "$SRC"' hud_review_pending "/some/repo"' bash "$ROOT"; [ "$output" = "0" ]
