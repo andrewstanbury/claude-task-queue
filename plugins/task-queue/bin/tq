@@ -48,8 +48,9 @@ usage() {
   cat >&2 <<'EOF'
 tq — fallback task queue (used when the native task tools are unavailable)
   tq add "<subject>" [more...]   queue one or more tasks (pending)
-  tq doing <id>                  mark a task in progress
-  tq done  <id>                  mark a task completed
+  tq doing <id> ["<breadcrumb>"] mark a task in progress (opt. crash-resume note)
+  tq note  <id> "<breadcrumb>"   update the in-progress breadcrumb (what's done / next)
+  tq done  <id>                  mark a task completed (keeps its breadcrumb)
   tq list                        show the current queue
 Park an item by leading its subject with ❓ (a decision) or ⏳ (owner-blocked) —
 the same convention every reader already understands.
@@ -69,9 +70,11 @@ next_id() {
   printf '%d' $((max + 1))
 }
 
-set_status() {   # id status
-  local tmp="$DIR/.$1.tmp"
-  jq --arg st "$2" '.status=$st' "$DIR/$1.json" > "$tmp" && mv "$tmp" "$DIR/$1.json"
+update_task() {   # id status desc  — an empty status or desc leaves that field unchanged
+  local f="$DIR/$1.json" tmp="$DIR/.$1.tmp"
+  jq --arg st "$2" --arg d "$3" \
+    '(if $st != "" then .status = $st else . end)
+     | (if $d != "" then .description = $d else . end)' "$f" > "$tmp" && mv "$tmp" "$f"
 }
 
 cmd="${1:-list}"; shift || true
@@ -88,11 +91,20 @@ case "$cmd" in
       id=$((id + 1))
     done
     ;;
-  doing|done)
+  doing)
+    { [ "$#" -ge 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }
+    update_task "$1" in_progress "${2:-}"       # optional 2nd arg = the crash-resume breadcrumb
+    echo "#$1 → in_progress"
+    ;;
+  done)
     { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }
-    [ "$cmd" = doing ] && st=in_progress || st=completed
-    set_status "$1" "$st"
-    echo "#$1 → $st"
+    update_task "$1" completed ""               # leaves the description intact
+    echo "#$1 → completed"
+    ;;
+  note)
+    { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }
+    update_task "$1" "" "$2"                     # progress breadcrumb: what's done / what's next
+    echo "#$1 note set"
     ;;
   list)
     lines=""

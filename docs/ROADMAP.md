@@ -208,8 +208,11 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   invariant** — a deliberate, owner-approved trade-off to keep the queue, cross-session resume, and
   autopilot working on the models the owner actually uses, rather than depend on a capability a vendor
   flag can revoke without notice. Kept a reversible FALLBACK, not a rip-and-replace: if the flag lifts,
-  native resumes and `tq` goes idle. Shipped in slices — the `tq` writer + self-routing policy first;
-  resume-bridge and autopilot-drain dual-source follow.)*
+  native resumes and `tq` goes idle. Because `tq` writes the NATIVE store (same path/format), the
+  resume bridge and autopilot-drain read it with **zero extra code** — all three (hud visibility,
+  cross-session resume, Stop-hook drain) verified end-to-end over `tq`'s output, so the planned
+  slices 2–3 collapsed into the one ship. `tq note`/`tq doing <id> "<breadcrumb>"` close the
+  crash-resume-breadcrumb parity gap. Remaining nicety, not built: nothing outstanding.)*
 - **Run in auto.** The user's `~/.claude/settings.json` sets
   `permissions.defaultMode: "auto"` (auto-approve **with background safety checks**)
   plus a hard-block `deny` set (`rm -rf /` and `~`) and an `ask` set (force-push,
