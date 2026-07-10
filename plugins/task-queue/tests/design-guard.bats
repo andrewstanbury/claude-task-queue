@@ -62,12 +62,15 @@ away_flag() { printf '%s/%s' "$CLAUDE_TQ_AWAY_DIR" "$(printf '%s' "$REPO" | sed 
   [ -z "$output" ]
 }
 
-@test "guard stands down during an autopilot drain (away + owner absent)" {
+@test "guard PARKS during an autopilot drain (away + owner absent): denies the edit, tells the model to leave a ❓" {
+  # Can't preview while the owner is away (asking is blocked too), so instead of a stand-down
+  # that let an unpreviewed design change land, the guard denies the edit and routes it to a ❓.
   : > "$(design_flag)"
   : > "$(away_flag)"                          # autopilot on, no present marker → absent
   run guard
   [ "$status" -eq 0 ]
-  [ -z "$output" ]                            # design decisions are parked, not gated
+  [[ "$output" == *'"permissionDecision":"deny"'* ]]
+  [[ "$output" == *'❓ [parked]'* ]]          # routed to a parked DECISION, not silently built
 }
 
 @test "guard still DENIES when away is on but the owner is PRESENT (fresh prompt overrides the stand-down)" {

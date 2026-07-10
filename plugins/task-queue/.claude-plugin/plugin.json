@@ -1,6 +1,6 @@
 {
   "name": "task-queue",
-  "version": "0.44.2",
+  "version": "0.45.0",
   "description": "Makes Claude Code's native task list a live work queue via event-driven hooks. A SessionStart hook primes the model to treat the native list as the queue, re-surfaces earlier sessions' unfinished tasks, and hydrates from a committed roadmap. A per-prompt hook runs an interpret→decompose→queue review loop — leaning to a one-line pointer once the policy is recorded in CLAUDE.md, and escalating to a present-and-approve (with a wireframe design preview) on consequential or visual work. A Stop hook checks the delivered outcome against the request. Autopilot mode runs fully autonomous when the owner steps away: it auto-continues the queue, hard-blocks questions, and defers what the owner will want as a reviewable pile — ❓ [parked] DECISIONS they must make (which hold a return-review gate on the way back) and ⏳ [blocked] items waiting on a manual owner action (surfaced but not gated; the queue drains around them) — while deciding the routine, low-stakes rest itself. Per-feature slash commands (/task-queue:autopilot, agents, resume, ship-it, status) give deterministic control: resume picks up an earlier session (reinstate its tasks) and ship-it takes verified work from working tree to squash-merged-on-main. Plus optional agent fan-out. Read-only over ~/.claude/tasks (it writes only its own cache state).",
   "author": {
     "name": "Andrew Stanbury"

@@ -6,9 +6,10 @@
 # preview has been shown — the ask-guard clears the marker when an AskUserQuestion fires
 # (that IS the preview). So a visual change can't be built before the owner (non-technical,
 # verifies by SEEING) has seen and picked it — the "avoid rework" guarantee, made real
-# instead of advisory. Stands down during an autopilot autonomous drain (owner absent →
-# design decisions are parked, not gated). Silent when no design preview is pending, or
-# when disabled (CLAUDE_TQ_DESIGN_GATE=0).
+# instead of advisory. During an autopilot drain (owner absent) it can't preview either
+# (asking is blocked too), so it PARKS: denies the edit and tells the model to leave a
+# ❓ DECISION for return-review, rather than letting an unpreviewed design change silently
+# land. Silent when no design preview is pending, or when disabled (CLAUDE_TQ_DESIGN_GATE=0).
 #
 # Best-effort: any internal error degrades to "allow" — a companion must never break the
 # action it hooks. Wired by hooks/hooks.json as a PreToolUse matcher.
@@ -46,8 +47,14 @@ fi
 root="$(tq_root_for_cwd "$cwd")"
 
 tq_design_pending "$sid" || allow                        # no design preview pending → edit freely
-tq_is_away "$root" && ! tq_owner_present "$sid" && allow  # autopilot drain: park design, don't gate
 
-reason="🎨 Design-preview pending — this is a VISUAL change and the owner verifies by SEEING, not reading code. SHOW it FIRST: present a recommended layout + 2-3 alternatives as faithful WIREFRAME mockups in a blocking AskUserQuestion (heavy border ╔═╗ for a container, ▒ for an input field, █ for the primary element), recommended option first; the owner picks, THEN you build it. Editing is blocked until you've shown the preview. (Owner: CLAUDE_TQ_DESIGN_GATE=0 disables this gate.)"
+# Deny either way — the reason splits on presence. Owner ABSENT during an autopilot drain:
+# we can't show the preview (asking is blocked too), so PARK the visual change as a ❓ DECISION
+# instead of building it unreviewed. Owner PRESENT (or autopilot off): show the wireframe now.
+if tq_is_away "$root" && ! tq_owner_present "$sid"; then
+  reason="🎨🚶 Autopilot is ON and the owner is away — this is a VISUAL change they verify by SEEING, and it can't be previewed while they're gone. Do NOT build it now. PARK it as a '❓ [parked] <what to design + your recommended layout>' task and move to other queue work — it holds the return-review gate so they pick the design before it's built. Don't retry this edit."
+else
+  reason="🎨 Design-preview pending — this is a VISUAL change and the owner verifies by SEEING, not reading code. SHOW it FIRST: present a recommended layout + 2-3 alternatives as faithful WIREFRAME mockups in a blocking AskUserQuestion (heavy border ╔═╗ for a container, ▒ for an input field, █ for the primary element), recommended option first; the owner picks, THEN you build it. Editing is blocked until you've shown the preview. (Owner: CLAUDE_TQ_DESIGN_GATE=0 disables this gate.)"
+fi
 jq -cn --arg r "$reason" \
   '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'

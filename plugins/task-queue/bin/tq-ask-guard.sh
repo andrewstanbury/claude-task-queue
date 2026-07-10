@@ -58,6 +58,6 @@ root="$(tq_root_for_cwd "$cwd")"
 if ! tq_is_away "$root"; then tq_design_clear "$sid"; allow; fi   # autopilot off → asking is fine
 if tq_owner_present "$sid"; then tq_design_clear "$sid"; allow; fi # owner just prompted → present for THIS turn
 
-reason="🚶 Away-mode is ON — owner can't answer, so this is blocked. Don't ask. $(tq_park_rule) Parked items are the owner's review pile on return."
+reason="🚶 Autopilot is ON — owner away. Don't ask or retry; PARK this for their return instead. $(tq_park_rule) Parked items are the owner's review pile on return — nothing is lost."
 jq -cn --arg r "$reason" \
   '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'
