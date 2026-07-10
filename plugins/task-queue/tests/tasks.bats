@@ -47,6 +47,9 @@ run_resume() {
             '{session_id:$sid, cwd:$cwd, source:"startup"}')"
   printf '%s' "$json" | "$RESUME" | jq -r '.hookSpecificOutput.additionalContext'
 }
+# Portable mtime setter: BSD `touch` (stock macOS) rejects GNU's `touch -d 'N days ago'`;
+# perl utime sets the epoch identically on both.
+set_mtime() { perl -e 'utime $ARGV[0], $ARGV[0], $ARGV[1]' "$1" "$2"; }   # set_mtime EPOCH FILE
 
 # ---- policy (always injected) ----------------------------------------------
 
@@ -289,7 +292,7 @@ resume_with_source() {
 @test "resume skips sessions untouched past the age cutoff" {
   make_session "s1" "/home/x/alpha"
   make_task s1 1 pending "Ancient task"
-  touch -d "60 days ago" "$CLAUDE_TQ_TASKS_DIR/s1/1.json"
+  set_mtime "$(( $(date +%s) - 60*86400 ))" "$CLAUDE_TQ_TASKS_DIR/s1/1.json"
   run run_resume "s2" "/home/x/alpha"
   [ "$status" -eq 0 ]
   [[ "$output" != *"carry over"* ]]

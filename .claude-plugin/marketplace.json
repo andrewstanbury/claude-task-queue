@@ -23,7 +23,7 @@
       "name": "charter",
       "source": "./plugins/charter",
       "description": "Helps Claude understand your project before it starts changing things. It points out missing documentation, spots the files that keep breaking (from your git history), and checks finished work against the decisions you've written down — so changes stay true to how you want the project built.",
-      "version": "0.23.0"
+      "version": "0.24.0"
     },
     {
       "name": "hud",

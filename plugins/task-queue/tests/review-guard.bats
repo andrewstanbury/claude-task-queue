@@ -40,6 +40,9 @@ make_task() {
 review_flag() { printf '%s/review-%s' "$CLAUDE_TQ_AWAY_DIR" "$(printf '%s' "$REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"; }
 at()    { bash -c 'cd "$1" && shift && bash "$@"' _ "$REPO" "$@"; }
 guard() { bash -c 'printf "{\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$REPO" "$GUARD"; }
+# Portable mtime setter: BSD `touch` (stock macOS) rejects GNU's `touch -d 'N days ago'`;
+# perl utime sets the epoch identically on both.
+set_mtime() { perl -e 'utime $ARGV[0], $ARGV[0], $ARGV[1]' "$1" "$2"; }   # set_mtime EPOCH FILE
 
 @test "away off with a parked ❓ arms the review gate" {
   make_session sA; make_task sA 1 pending "❓ [parked] pick a color"
@@ -79,7 +82,7 @@ guard() { bash -c 'printf "{\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$REPO" "$GUARD
   # repo (the ❓ lives in the dead session's folder, unreachable by TaskUpdate). The
   # staleness cutoff must let that abandoned pile age out so editing isn't locked forever.
   make_session sA; make_task sA 1 pending "❓ [parked] pick a color"
-  touch -d '90 days ago' "$CLAUDE_TQ_TASKS_DIR/sA/1.json"   # long past the age cutoff
+  set_mtime "$(( $(date +%s) - 90*86400 ))" "$CLAUDE_TQ_TASKS_DIR/sA/1.json"   # long past the age cutoff
   : > "$(review_flag)"                     # marker armed on the old `autopilot off`
   run guard
   [ "$status" -eq 0 ]
