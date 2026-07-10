@@ -85,8 +85,10 @@ case "$cmd" in
     id="$(next_id)"
     for subj in "$@"; do
       [ -n "$subj" ] || continue
+      # atomic write (tmp + mv) so a per-second reader never sees a half-written file
       jq -n --arg id "$id" --arg s "$subj" \
-        '{id:$id, subject:$s, status:"pending", blocks:[], blockedBy:[]}' > "$DIR/$id.json"
+        '{id:$id, subject:$s, status:"pending", blocks:[], blockedBy:[]}' > "$DIR/.$id.tmp" \
+        && mv "$DIR/.$id.tmp" "$DIR/$id.json"
       echo "added #$id  $subj"
       id=$((id + 1))
     done
