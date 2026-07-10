@@ -87,7 +87,7 @@ hud status-line key (left → right; the feature-status slot is always shown, th
                (green = on, grey = off; on a no-color terminal the word on/off is spelled out)
   <model>      the model in use (shown without a label to save space)
   ✓/✗/⚠ tests  last test run — passed / failed / timed out
-  ☐ N ▸ task  N open tasks in the live queue (non-parked work) · ▸ names the one in progress
+  📋 N ▸ task  N open tasks in the live queue (non-parked work) · ▸ names the one in progress
   ❓N          N parked decisions / open questions awaiting your call this session
   ⏳N          N items blocked on a manual action from you (device / external / owner-only step)
   🔒          review gate armed — editing is paused until you clear the ❓ decisions above

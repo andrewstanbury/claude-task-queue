@@ -223,7 +223,7 @@ teardown() {
   rm -rf "$CLAUDE_HUD_TASKS_DIR"
 }
 
-@test "status line shows ☐N + ▸ current task, and ❓/⏳ stay disjoint from the count" {
+@test "status line shows 📋N + ▸ current task, and ❓/⏳ stay disjoint from the count" {
   export CLAUDE_HUD_TASKS_DIR="$(mktemp -d)"
   mkdir -p "$CLAUDE_HUD_TASKS_DIR/sX"
   jq -n '{id:"1",subject:"Refactor the parser",status:"in_progress"}' > "$CLAUDE_HUD_TASKS_DIR/sX/1.json"
@@ -231,19 +231,19 @@ teardown() {
   jq -n '{id:"3",subject:"❓ decide later",status:"pending"}'          > "$CLAUDE_HUD_TASKS_DIR/sX/3.json"
   json="$(jq -nc --arg s sX --arg c "$REPO" '{model:{display_name:"Opus"},session_id:$s,cwd:$c,terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
-  [[ "$output" == *"☐ 2"* ]]                  # 2 work items — the ❓ is NOT counted here
+  [[ "$output" == *"📋 2"* ]]                  # 2 work items — the ❓ is NOT counted here
   [[ "$output" == *"▸ Refactor the parser"* ]]
   [[ "$output" == *"❓1"* ]]                   # the ❓ keeps its own badge
   rm -rf "$CLAUDE_HUD_TASKS_DIR"
 }
 
-@test "status line: ▸ current task sheds on a narrow terminal, ☐N stays" {
+@test "status line: ▸ current task sheds on a narrow terminal, 📋N stays" {
   export CLAUDE_HUD_TASKS_DIR="$(mktemp -d)"
   mkdir -p "$CLAUDE_HUD_TASKS_DIR/sN"
   jq -n '{id:"1",subject:"Refactor the parser",status:"in_progress"}' > "$CLAUDE_HUD_TASKS_DIR/sN/1.json"
   json="$(jq -nc --arg s sN --arg c "$REPO" '{model:{display_name:"Opus"},session_id:$s,cwd:$c,terminal_width:80}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
-  [[ "$output" == *"☐ 1"* ]]
+  [[ "$output" == *"📋 1"* ]]
   [[ "$output" != *"▸ Refactor the parser"* ]]
   rm -rf "$CLAUDE_HUD_TASKS_DIR"
 }
