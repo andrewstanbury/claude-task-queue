@@ -161,8 +161,8 @@ plugins/<name>/
   must leave net surface **flat or smaller**: reuse before create, delete what the
   change makes redundant. Without it, even individually-clean changes grow the
   project monotonically into debt. What touch-time bounding skips (cross-module,
-  rarely-touched debt) is caught by tidy's **automatic** deliberate prune (at
-  SessionStart, over a debt threshold it injects the weight report + a run-a-prune
+  rarely-touched debt) is caught by tidy's **automatic** deliberate prune (post-turn,
+  from the Stop hook, over a debt threshold it injects the weight report + a run-a-prune
   instruction), not incremental nibbling.
 - **Non-technical-owner posture (the target projects' owners can't read code).**
   *Autonomy on the reversible, consent on the consequential* — resolve safe/reversible
