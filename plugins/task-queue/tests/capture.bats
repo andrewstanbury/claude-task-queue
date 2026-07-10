@@ -45,7 +45,7 @@ make_subject_task() {
 }
 # Arm the return-review marker for REPO exactly as tq-away.sh off does (path convention
 # from tq_review_file: away_dir/review-<root with / → ->).
-review_marker() { printf '%s/review-%s' "$CLAUDE_TQ_AWAY_DIR" "$(printf '%s' "$REPO" | sed 's:/:-:g')"; }
+review_marker() { printf '%s/review-%s' "$CLAUDE_TQ_AWAY_DIR" "$(printf '%s' "$REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"; }
 arm_review() { : > "$(review_marker)"; }
 
 intent_file() { printf '%s/intent-%s' "$CLAUDE_TQ_STATE_DIR" "${1:-sess}"; }
@@ -251,7 +251,7 @@ run_capture() {
 
 @test "intent: solo + owner present (fresh prompt) records; lights-out (window=0) does not" {
   export CLAUDE_TQ_AWAY_DIR="$CLAUDE_TQ_STATE_DIR/away"; mkdir -p "$CLAUDE_TQ_AWAY_DIR"
-  : > "$CLAUDE_TQ_AWAY_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
+  : > "$CLAUDE_TQ_AWAY_DIR/$(printf '%s' "$REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
   # a prompt is proof the owner is at the keyboard → the interactive loop records intent
   run run_capture "$MULTI"
   [ -f "$(intent_file)" ]

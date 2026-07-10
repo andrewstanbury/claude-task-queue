@@ -69,6 +69,20 @@ pfile="$cdir/prune-$key"           # debt-surfaced-this-episode flag (Stop debt 
 cyfile="$cdir/cycles-$key"         # last-surfaced import-cycle set (content hash)
 qfile="$cdir/quality-$key"         # quality-floor block counter
 
+# Bounded-counter helpers for the four block-gates below (quality floor, coverage
+# ratchet, regression gate, test floor). Each gate reads a per-session counter, gives
+# up after CLAUDE_TIDY_VERIFY_MAX tries, else increments and blocks. Centralizing the
+# read+sanitize and the write keeps that "can never loop" arithmetic in ONE place
+# instead of four hand-copies that could drift. The give-up / block MESSAGES stay in
+# each gate (they differ), so only the mechanical counter bits are shared.
+tidy_gate_count() {                  # sanitized current count for counter-file $1 (0 if absent/garbage)
+  local n=0
+  [ -f "$1" ] && n="$(cat "$1" 2>/dev/null || printf 0)"
+  n="${n//[^0-9]/}"; [ -n "$n" ] || n=0
+  printf '%s' "$n"
+}
+tidy_gate_bump() { { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$(($2 + 1))" > "$1"; } 2>/dev/null || true; }
+
 # Post-work architecture + debt surface (fires AFTER the turn's work, not before
 # the user's intent). On a dirty tree that verified clean it surfaces, NON-blocking
 # and in one message: (a) any import CYCLE involving a file changed this turn
@@ -128,15 +142,13 @@ run_quality_floor() {
       jq -cn --arg m "⚠️ Quality gate '$label' timed out ($cmd) — couldn't verify; run it manually if needed." '{systemMessage: $m}'
       exit 0
     fi
-    qmax="${CLAUDE_TIDY_VERIFY_MAX:-3}"; qcount=0
-    [ -f "$qfile" ] && qcount="$(cat "$qfile" 2>/dev/null || printf 0)"
-    qcount="${qcount//[^0-9]/}"; [ -n "$qcount" ] || qcount=0
+    qmax="${CLAUDE_TIDY_VERIFY_MAX:-3}"; qcount="$(tidy_gate_count "$qfile")"
     if [ "$qcount" -ge "$qmax" ]; then
       rm -f "$qfile" 2>/dev/null || true
       jq -cn --arg m "⚠️ Quality gate '$label' still failing after $qcount attempts ($cmd) — needs attention before it's trusted." '{systemMessage: $m}'
       exit 0
     fi
-    { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$((qcount + 1))" > "$qfile"; } 2>/dev/null || true
+    tidy_gate_bump "$qfile" "$qcount"
     jq -cn --arg r "The project's '$label' quality gate is failing after your change — nothing is done until it passes. Run \`$cmd\`, read the output, and fix what your change introduced (leave unrelated pre-existing issues alone):"$'\n\n'"$qout" \
       '{decision: "block", reason: $r}'
     exit 0
@@ -154,16 +166,14 @@ run_quality_floor() {
 if [ "${CLAUDE_TIDY_COVERAGE_RATCHET:-0}" = "1" ]; then
   untested="$(tidy_untested_changed "$root" 2>/dev/null | head -n 20)"
   if [ -n "$untested" ]; then
-    gmax="${CLAUDE_TIDY_VERIFY_MAX:-3}"; gcount=0
-    [ -f "$gfile" ] && gcount="$(cat "$gfile" 2>/dev/null || printf 0)"
-    gcount="${gcount//[^0-9]/}"; [ -n "$gcount" ] || gcount=0
+    gmax="${CLAUDE_TIDY_VERIFY_MAX:-3}"; gcount="$(tidy_gate_count "$gfile")"
     if [ "$gcount" -ge "$gmax" ]; then
       rm -f "$gfile" 2>/dev/null || true             # gave it enough tries → allow
       jq -cn --arg m "⚠️ Coverage ratchet: still untested after $gcount prompts — characterize these when you can: $(printf '%s' "$untested" | tr '\n' ' ')" \
         '{systemMessage: $m}'
       exit 0
     fi
-    { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$((gcount + 1))" > "$gfile"; } 2>/dev/null || true
+    tidy_gate_bump "$gfile" "$gcount"
     jq -cn --arg r "Coverage ratchet: these changed source files have no test — characterize them (pin current behavior with a test) before finishing, so the project accrues a spec:"$'\n\n'"$untested" \
       '{decision: "block", reason: $r}'
     exit 0
@@ -181,16 +191,14 @@ fi
 if [ "${CLAUDE_TIDY_REGRESSION_GATE:-0}" = "1" ] && [ "${CLAUDE_TIDY_COVERAGE_RATCHET:-0}" != "1" ]; then
   hotun="$(tidy_untested_hotspots "$root" 2>/dev/null | head -n 20)"
   if [ -n "$hotun" ]; then
-    rmax="${CLAUDE_TIDY_VERIFY_MAX:-3}"; rcount=0
-    [ -f "$rgfile" ] && rcount="$(cat "$rgfile" 2>/dev/null || printf 0)"
-    rcount="${rcount//[^0-9]/}"; [ -n "$rcount" ] || rcount=0
+    rmax="${CLAUDE_TIDY_VERIFY_MAX:-3}"; rcount="$(tidy_gate_count "$rgfile")"
     if [ "$rcount" -ge "$rmax" ]; then
       rm -f "$rgfile" 2>/dev/null || true             # gave it enough tries → allow
       jq -cn --arg m "⚠️ Regression gate: still uncharacterized after $rcount prompts — these repeatedly-fixed files need a regression test when you can: $(printf '%s' "$hotun" | tr '\n' ' ')" \
         '{systemMessage: $m}'
       exit 0
     fi
-    { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$((rcount + 1))" > "$rgfile"; } 2>/dev/null || true
+    tidy_gate_bump "$rgfile" "$rcount"
     jq -cn --arg r "These changed files have been REPEATEDLY FIXED before (scar tissue, from git history) and still have NO test — a fix here can silently regress, which is exactly how they became debt magnets. Pin the current/fixed behavior with a regression test before finishing, so the file stops churning (this is the outcome-memory loop closing: detect repeat-fixes → force a test on the next touch):"$'\n\n'"$hotun" \
       '{decision: "block", reason: $r}'
     exit 0
@@ -238,9 +246,7 @@ if [ "$rc" -eq 124 ]; then                            # timed out — can't veri
 fi
 
 max="${CLAUDE_TIDY_VERIFY_MAX:-3}"
-count=0
-[ -f "$cfile" ] && count="$(cat "$cfile" 2>/dev/null || printf 0)"
-count="${count//[^0-9]/}"; [ -n "$count" ] || count=0
+count="$(tidy_gate_count "$cfile")"
 
 if [ "$count" -ge "$max" ]; then
   rm -f "$cfile" 2>/dev/null || true                  # gave it enough tries
@@ -250,7 +256,7 @@ if [ "$count" -ge "$max" ]; then
   exit 0
 fi
 
-{ mkdir -p "$cdir" 2>/dev/null && printf '%s' "$((count + 1))" > "$cfile"; } 2>/dev/null || true
+tidy_gate_bump "$cfile" "$count"
 tidy_set_result fail
 jq -cn --arg r "The project's tests are failing after your change — nothing is done until they're green. Diagnose, don't guess: (1) reproduce — confirm the failing signal (\`$cmd\`); (2) form 2-3 falsifiable hypotheses for the cause and what each predicts — don't anchor on the first idea; (3) if you add debug logging to test one, tag it (e.g. [DEBUG-x9f2]) so removing it after is a single grep; (4) fix the root cause and add a regression test that pins the bug; (5) remove the tagged instrumentation. If this is a recurring trap (not a one-off), record the lesson in the project's recorded decisions — what changed, what broke, what to do instead — so the next change avoids it (outcome memory):"$'\n\n'"$out" \
   '{decision: "block", reason: $r}'

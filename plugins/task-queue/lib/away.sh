@@ -13,7 +13,7 @@ set -uo pipefail
 # Per-repo flag (same scheme as agent). No global env default: a machine-wide
 # "never ask me" is a footgun, so away is always a deliberate, visible, per-repo toggle.
 tq_away_dir()  { printf '%s' "${CLAUDE_TQ_AWAY_DIR:-$HOME/.claude/state/task-queue/away}"; }
-tq_away_file() { printf '%s/%s' "$(tq_away_dir)" "$(printf '%s' "$1" | sed 's:/:-:g')"; }
+tq_away_file() { printf '%s/%s' "$(tq_away_dir)" "$(tq_enc_root "$1")"; }
 tq_is_away()   { [ -n "${1:-}" ] && [ -f "$(tq_away_file "$1")" ]; }
 
 # --- owner-present marker: autopilot ≠ absent --------------------------------
@@ -83,24 +83,39 @@ tq_away_since() {
 # owner-action items are informational (surfaced, not gated) so editing isn't frozen
 # on a manual step. Same per-repo flag scheme as away; lives in the away dir.
 # (`review-` prefix never collides with the away flags, which encode an absolute path
-# and so always start with `-`, nor the `present-<sid>` markers.)
-tq_review_file()    { printf '%s/review-%s' "$(tq_away_dir)" "$(printf '%s' "${1:-}" | sed 's:/:-:g')"; }
+# via tq_enc_root and so start with `%2F`, nor the `present-<sid>` markers.)
+tq_review_file()    { printf '%s/review-%s' "$(tq_away_dir)" "$(tq_enc_root "${1:-}")"; }
 tq_review_set()     { [ -n "${1:-}" ] || return 0; mkdir -p "$(tq_away_dir)" 2>/dev/null || true; : > "$(tq_review_file "$1")" 2>/dev/null || true; }
 tq_review_clear()   { [ -n "${1:-}" ] || return 0; rm -f "$(tq_review_file "$1")" 2>/dev/null || true; }
 tq_review_pending() { [ -n "${1:-}" ] && [ -f "$(tq_review_file "$1")" ]; }
 
-# Does this repo still have any open parked ❓ DECISION across its sessions? Returns 0
-# (yes) on the FIRST match — the guard only needs presence, not a count — else 1. ⏳
-# [blocked] owner-action items are deliberately NOT counted here: they don't hold the
-# return-review gate. Depends on lib/tasks.sh (tq_tasks_dir/tq_session_root), sourced alongside.
+# Does this repo still have any open parked ❓ DECISION across its RECENTLY-ACTIVE
+# sessions? Returns 0 (yes) on the FIRST match — the guard only needs presence, not a
+# count — else 1. ⏳ [blocked] owner-action items are deliberately NOT counted here:
+# they don't hold the return-review gate. Sessions untouched since the age cutoff are
+# SKIPPED (same staleness rule as the resume bridge, CLAUDE_TQ_RESUME_MAX_AGE_DAYS):
+# without it, a session that armed the review marker on `autopilot off` and then
+# crashed/quit with an unresolved ❓ would hold the edit gate FOREVER, in every future
+# session for this repo, with nothing the live session can resolve (the ❓ lives in the
+# dead session's folder, unreachable by TaskUpdate). The cutoff lets an abandoned pile
+# age out so editing can't be locked repo-wide indefinitely. Depends on lib/tasks.sh
+# (tq_tasks_dir/tq_session_root/tq_mtime), sourced alongside.
 tq_repo_has_parked() {
-  local cur_root="${1:-}" tdir sdir sid f
+  local cur_root="${1:-}" tdir sdir sid f newest m now cutoff days
   [ -n "$cur_root" ] || return 1
   tdir="$(tq_tasks_dir)"; [ -d "$tdir" ] || return 1
+  days="${CLAUDE_TQ_RESUME_MAX_AGE_DAYS:-14}"
+  now="$(date +%s 2>/dev/null || echo 0)"; cutoff=$(( now - days * 86400 ))
   for sdir in "$tdir"/*/; do
     [ -d "$sdir" ] || continue
     sid="$(basename "$sdir")"
     [ "$(tq_session_root "$sid" 2>/dev/null || true)" = "$cur_root" ] || continue
+    newest=0
+    for f in "$sdir"*.json; do
+      [ -f "$f" ] || continue
+      m="$(tq_mtime "$f")"; [ "$m" -gt "$newest" ] && newest="$m"
+    done
+    [ "$newest" -ge "$cutoff" ] || continue          # abandoned pile → stop holding the gate
     for f in "$sdir"*.json; do
       [ -f "$f" ] || continue
       jq -e '(.status=="pending" or .status=="in_progress") and '"$TQ_JQ_PARKED" \

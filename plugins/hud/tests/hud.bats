@@ -18,7 +18,7 @@ teardown() {
 @test "hud_agent reflects task-queue's per-repo agent-mode flag" {
   export CLAUDE_HUD_AGENT_DIR="$(mktemp -d)"
   run bash -c "$SRC"' hud_agent "/some/repo"' bash "$ROOT"; [ "$output" = "0" ]
-  touch "$CLAUDE_HUD_AGENT_DIR/-some-repo"
+  touch "$CLAUDE_HUD_AGENT_DIR/%2Fsome%2Frepo"    # tq_enc_root encoding: / → %2F
   run bash -c "$SRC"' hud_agent "/some/repo"' bash "$ROOT"; [ "$output" = "1" ]
   rm -rf "$CLAUDE_HUD_AGENT_DIR"
 }
@@ -26,7 +26,7 @@ teardown() {
 @test "hud_away reflects task-queue's per-repo away-mode flag" {
   export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
   run bash -c "$SRC"' hud_away "/some/repo"' bash "$ROOT"; [ "$output" = "0" ]
-  touch "$CLAUDE_HUD_AWAY_DIR/-some-repo"
+  touch "$CLAUDE_HUD_AWAY_DIR/%2Fsome%2Frepo"    # tq_enc_root encoding: / → %2F
   run bash -c "$SRC"' hud_away "/some/repo"' bash "$ROOT"; [ "$output" = "1" ]
   rm -rf "$CLAUDE_HUD_AWAY_DIR"
 }
@@ -60,10 +60,9 @@ teardown() {
     '{model:{display_name:"Opus 4.8"}, session_id:"sess", cwd:$c, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"✈️ autopilot"* ]]              # feature status always shown, icon-led
-  [[ "$output" == *"🤖 agents"* ]]
-  [[ "$output" == *"autopilot off"* ]]             # no-color terminal spells out on/off
   [[ "$output" == *"Opus 4.8"* ]]
+  [[ "$output" != *"autopilot"* ]]                  # Hybrid: no words on the toggles…
+  [[ "$output" != *"agents"* ]]                     # …and both off by default → no ✈️/🤖 at all
   [[ "$output" != *"ctx"* ]]                        # ctx slot removed
   [ "$(printf '%s\n' "$output" | wc -l)" -eq 1 ]   # single line
 }
@@ -83,15 +82,16 @@ teardown() {
   [[ "$output" != *$'\033['* ]]
 }
 
-@test "render: autopilot on when the away flag is set, off otherwise" {
+@test "render: ✈️ shows when the away flag is set, absent otherwise (presence = on)" {
   payload="$(jq -nc --arg c "$REPO" \
     '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"autopilot off"* ]]
+  [[ "$output" != *"✈️"* ]]                        # off → no plane at all
   export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
-  touch "$CLAUDE_HUD_AWAY_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
+  touch "$CLAUDE_HUD_AWAY_DIR/$(printf '%s' "$REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"autopilot on"* ]]
+  [[ "$output" == *"✈️"* ]]                        # on → plane shown, no "autopilot" word
+  [[ "$output" != *"autopilot"* ]]
   rm -rf "$CLAUDE_HUD_AWAY_DIR"
 }
 
@@ -101,7 +101,8 @@ teardown() {
     '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c,
       context_window:{used_percentage:5}, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"✓ tests"* ]]
+  [[ "$output" == *"✓"* ]]                          # Hybrid: bare tick, no "tests" word
+  [[ "$output" != *"tests"* ]]
   rm -rf "$CLAUDE_HUD_VERIFY_DIR"
 }
 
@@ -110,8 +111,17 @@ teardown() {
   payload="$(jq -nc --arg c "$REPO" \
     '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, context_window:{used_percentage:5}, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"✗ tests"* ]]
+  [[ "$output" == *"✗"* ]]                          # bare cross, no "tests" word
   rm -rf "$CLAUDE_HUD_VERIFY_DIR"
+}
+
+@test "render: repo-name anchor sits just left of the branch on a wide terminal" {
+  git -C "$REPO" config user.email t@t; git -C "$REPO" config user.name t
+  echo x > "$REPO/f"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m init
+  payload="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
+  [[ "$output" == *"proj"* ]]                       # basename of REPO (…/proj)
+  [[ "$output" == *"proj"*"⎇"* ]]                   # and it sits left of the branch marker
 }
 
 @test "render: no ctx slot (removed in favor of always-on feature status)" {
@@ -125,16 +135,17 @@ teardown() {
 @test "render: feature status honors the global-default env (agents on, no flag)" {
   payload="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_TQ_AGENT_MODE=on "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"agents on"* ]]               # env default flips the slot on with no per-repo flag
+  [[ "$output" == *"🤖"* ]]                       # env default flips the icon on with no per-repo flag
+  [[ "$output" != *"agents"* ]]                   # no word
 }
 
 @test "render: narrow terminal collapses feature status to only the ON ones" {
   export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
-  touch "$CLAUDE_HUD_AWAY_DIR/$(printf '%s' "$REPO" | sed 's:/:-:g')"
+  touch "$CLAUDE_HUD_AWAY_DIR/$(printf '%s' "$REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
   payload="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, terminal_width:60}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"autopilot on"* ]]        # ON stays even on narrow
-  [[ "$output" != *"agents off"* ]]          # OFF collapses on narrow
+  [[ "$output" == *"✈️"* ]]                   # ON shows (presence = on, narrow or wide)
+  [[ "$output" != *"🤖"* ]]                   # agents off → absent
   rm -rf "$CLAUDE_HUD_AWAY_DIR"
 }
 
@@ -188,7 +199,7 @@ teardown() {
 @test "hud_review_pending reflects task-queue's return-review gate marker (per repo)" {
   export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
   run bash -c "$SRC"' hud_review_pending "/some/repo"' bash "$ROOT"; [ "$output" = "0" ]
-  touch "$CLAUDE_HUD_AWAY_DIR/review--some-repo"    # tq_review_file encoding: sed s:/:-:g
+  touch "$CLAUDE_HUD_AWAY_DIR/review-%2Fsome%2Frepo"    # tq_review_file encoding: / → %2F
   run bash -c "$SRC"' hud_review_pending "/some/repo"' bash "$ROOT"; [ "$output" = "1" ]
   run bash -c "$SRC"' hud_review_pending ""' bash "$ROOT"; [ "$output" = "0" ]
   rm -rf "$CLAUDE_HUD_AWAY_DIR"
@@ -205,7 +216,7 @@ teardown() {
 
 @test "status line shows 🔒 when the return-review gate is armed for the repo" {
   export CLAUDE_HUD_AWAY_DIR="$(mktemp -d)"
-  local root enc; root="$(git -C "$REPO" rev-parse --show-toplevel)"; enc="$(printf '%s' "$root" | sed 's:/:-:g')"
+  local root enc; root="$(git -C "$REPO" rev-parse --show-toplevel)"; enc="$(printf '%s' "$root" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
   json="$(jq -nc --arg s sL --arg c "$REPO" '{model:{display_name:"Opus"},session_id:$s,cwd:$c}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
   [[ "$output" != *"🔒"* ]]                          # not armed → hidden

@@ -37,7 +37,7 @@ make_task() {
     '{id:$id, subject:$subj, status:$s, blocks:[], blockedBy:[]}' \
     > "$CLAUDE_TQ_TASKS_DIR/$1/$2.json"
 }
-review_flag() { printf '%s/review-%s' "$CLAUDE_TQ_AWAY_DIR" "$(printf '%s' "$REPO" | sed 's:/:-:g')"; }
+review_flag() { printf '%s/review-%s' "$CLAUDE_TQ_AWAY_DIR" "$(printf '%s' "$REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"; }
 at()    { bash -c 'cd "$1" && shift && bash "$@"' _ "$REPO" "$@"; }
 guard() { bash -c 'printf "{\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$REPO" "$GUARD"; }
 
@@ -71,6 +71,20 @@ guard() { bash -c 'printf "{\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$REPO" "$GUARD
   [ "$status" -eq 0 ]
   [ -z "$output" ]                 # silent allow
   [ ! -f "$(review_flag)" ]        # marker retired
+}
+
+@test "an ABANDONED parked pile ages out — the gate self-heals (no permanent repo-wide edit lock)" {
+  # Regression: a session that armed the marker on `autopilot off` and then crashed/quit
+  # with an unresolved ❓ used to hold the gate FOREVER for every future session in this
+  # repo (the ❓ lives in the dead session's folder, unreachable by TaskUpdate). The
+  # staleness cutoff must let that abandoned pile age out so editing isn't locked forever.
+  make_session sA; make_task sA 1 pending "❓ [parked] pick a color"
+  touch -d '90 days ago' "$CLAUDE_TQ_TASKS_DIR/sA/1.json"   # long past the age cutoff
+  : > "$(review_flag)"                     # marker armed on the old `autopilot off`
+  run guard
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]                         # ALLOWED, not denied — the lock released
+  [ ! -f "$(review_flag)" ]                # and the stale gate self-healed
 }
 
 @test "guard is silent when no review is pending" {

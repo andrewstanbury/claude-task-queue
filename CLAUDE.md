@@ -62,53 +62,32 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   **document proportionally** (token efficiency is the payoff, not a separate chase).
   An `in_progress` task carries a one-line progress breadcrumb in its description
   (what's done / what's next) so a crash resumes it mid-task, not from the top.
-- **Autopilot mode** (`/task-queue:autopilot` toggles it — merges the old *solo/away* + *pause*) —
-  when the owner steps away, run fully autonomous. This is **enforced, not advised**:
-  the Stop hook AUTO-CONTINUES the queue while any non-deferred task is still open (so the
-  session can't idle waiting for an absent owner), `AskUserQuestion` is **hard-blocked**
-  by a PreToolUse guard, and the approval checkpoint is skipped. **A prompt is presence,
-  though** — autopilot ≠ absent: a fresh prompt stamps an owner-present marker (per
-  session, `CLAUDE_TQ_PRESENT_WINDOW`, cleared when the Stop hook enters autonomous
-  drain), and while it's fresh the guard lets asks through and the capture loop stays
-  interactive for that one owner-driven turn, so typing to an autopilot session is never
-  trapped in "can't ask you, keep parking". The autonomous drain that follows still
-  parks. Set the window to `0` for lights-out autopilot (even your own prompts stay
-  autonomous). Self-verify (you have a
-  shell), do all reversible work, and **DEFER what the owner will want**, tagged by kind
-  (the two ways to defer): a **`❓ [parked]` DECISION** they must make — an important
-  direction or design/structural choice, a new dependency or seam, a data-model/interface
+- **Autopilot mode** (`/task-queue:autopilot` — merges the old *solo/away* + *pause*) —
+  when the owner steps away, run fully autonomous. **Enforced, not advised:** the Stop
+  hook auto-continues the queue while non-deferred work remains, `AskUserQuestion` is
+  hard-blocked, and the approval checkpoint is skipped — *but a fresh prompt is presence*,
+  so typing to an autopilot session stays interactive for that one turn (the autonomous
+  drain after still parks). Self-verify (you have a shell), do all reversible work, and
+  **DEFER what the owner will want, tagged by kind**: a **`❓ [parked]` DECISION** — a
+  direction / design / structural choice, a new dependency or seam, a data-model/interface
   change, a genuinely ambiguous high-blast-radius fork, or approving anything
-  irreversible/externally-binding — or a **`⏳ [blocked]` OWNER-ACTION** where the work
-  waits on a manual step only they can take (a device, an external/paid service, an
-  owner-only test, a check you physically cannot run). Only `❓` decisions hold the
-  return-review gate; `⏳` items are surfaced (digest + hud `⏳N`) and the queue drains
-  *around* them, resurfacing when the blocker clears — so the owner returns to a reviewable
-  pile. **A human PLAYTEST is the one exception — never parked:** finish the work, mark it
-  done with a "playtest pending" note, and keep draining; never stall the queue for a
-  game's feel/visuals you can't run yourself. **Decide the routine, low-stakes, cheap-to-undo calls yourself** (recommended
-  option, recorded) and keep moving; the test is what a wrong call would COST to undo,
-  not mere uncertainty. And **never stall on the absent owner**: if a decision blocks all
-  progress and genuinely can't be parked, take your recommended (safest, most reversible)
-  default, record it, and leave a `❓` note to override — defaulting beats idling. The
-  auto-continue is bounded by a per-prompt counter
-  (`CLAUDE_TQ_AWAY_MAX_CONTINUE`, default 15) so a stuck model can't spin. `off` prints a
-  digest of what completed, the `❓` decisions, and the `⏳` owner-blocked items, and ARMS
-  a return-review gate: edits are blocked (tq-review-guard PreToolUse) until you've reviewed
-  each parked `❓` — as a blocking AskUserQuestion, recommended option first — and cleared
-  the `❓` pile, so you see autopilot's deferred decisions before any more code lands
-  (`⏳` items are relayed, not gated) (`CLAUDE_TQ_REVIEW_GATE=0`
-  disables; re-enabling autopilot drops the gate). A staleness nudge fires if it's left on.
-- **Per-feature commands** — each mode is a typeable slash command (discoverable via
-  Claude Code's `/` menu): `/task-queue:autopilot`,
-  `/task-queue:agents` (each toggles + announces the new state), `/task-queue:resume`
-  (pick up where an earlier session left off — reinstate its open tasks),
-  `/task-queue:ship-it` (verify → PR → squash-merge completed work to main)
-  and `/task-queue:status` (what's on + open work). They replaced
-  the single `/tq` hub. You never *need* them — plain language drives every mode ("keep
-  going while I'm gone" → autopilot on) — they're the power-user surface. Agents also
-  honors a global default env (`CLAUDE_TQ_AGENT_MODE=on`) so the owner can enable it
-  across every repo from settings.json without a per-repo toggle; an explicit per-repo
-  `off` still wins (a tombstone). The shipped default stays **off** (opt-in).
+  irreversible/externally-binding — or a **`⏳ [blocked]` OWNER-ACTION**, a manual step only
+  they can take (a device, an external/paid service, an owner-only test). Only `❓` holds
+  the return-review gate; `⏳` items are surfaced (hud `⏳N`) and the queue drains *around*
+  them. **A human PLAYTEST is the one thing never parked** — finish, mark done with a
+  "playtest pending" note, keep draining. **Decide the routine, cheap-to-undo calls
+  yourself** (recommended option, recorded); the test is what a wrong call would COST to
+  undo. And **never stall on the absent owner** — if an unparkable decision blocks all
+  progress, take your safest-reversible default, record it, leave a `❓` to override. `off`
+  prints a digest and ARMS a return-review gate (edits blocked until the `❓` pile is
+  reviewed + cleared). *Full enforcement map + env knobs (`CLAUDE_TQ_PRESENT_WINDOW`,
+  `_AWAY_MAX_CONTINUE`, `_REVIEW_GATE`) → [AGENTS.md](./AGENTS.md), [docs/CONFIG.md](./docs/CONFIG.md).*
+- **Per-feature commands** (discoverable via the `/` menu; you never *need* them — plain
+  language drives every mode, e.g. "keep going while I'm gone" → autopilot on):
+  `/task-queue:autopilot`, `/task-queue:agents` (toggle + announce), `/task-queue:resume`,
+  `/task-queue:review`, `/task-queue:ship-it`, `/task-queue:status`. Agents also honors a
+  global default (`CLAUDE_TQ_AGENT_MODE=on`); a per-repo `off` tombstone still wins. Shipped
+  default **off** (opt-in). Details in [AGENTS.md](./AGENTS.md).
 
 Project docs: **[AGENTS.md](./AGENTS.md)**, **[docs/ROADMAP.md](./docs/ROADMAP.md)**,
 **[docs/MAP.md](./docs/MAP.md)**.

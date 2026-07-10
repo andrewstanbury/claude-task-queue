@@ -10,13 +10,13 @@ this file first** — it's the single source of truth for how the repo is built.
 A small **marketplace of self-contained Claude Code companion plugins**:
 
 - **`plugins/task-queue/`** — makes Claude Code's native task list a live work
-  queue: a SessionStart policy + cross-session resume bridge + a per-repo **solo
-  mode** + a UserPromptSubmit review loop that **splits the loop from the interrupt**
+  queue: a SessionStart policy + cross-session resume bridge + a per-repo **autopilot**
+  + a UserPromptSubmit review loop that **splits the loop from the interrupt**
   (fires on every prompt: interpret → decompose → `TaskCreate` → work in auto by
   default, with sign-off via AskUserQuestion delegated to the model and surfaced only
   on real signal; the heavy present-and-approve + critique fires only on the
   deterministic consequential/design signal). The full procedure rides the SessionStart
-  policy. **Solo mode** (owner stepped away — merges the old away + pause) runs fully
+  policy. **Autopilot** (owner stepped away — merges the old away + pause) runs fully
   autonomous: the Stop hook auto-continues the queue, a PreToolUse guard blocks
   AskUserQuestion, the review loop is suppressed, and anything needing the owner is
   parked as `❓`. **Read-only** over `~/.claude/tasks` (except its own state flags).
@@ -33,9 +33,11 @@ A small **marketplace of self-contained Claude Code companion plugins**:
 Each plugin has a `CONTRACT.md` (the **undocumented Claude Code internals it
 depends on** — read it before changing any hook input/output); its `plugin.json`
 `description` says what it does. The system's direction lives in
-[docs/ROADMAP.md](./docs/ROADMAP.md); **git history is the changelog** (no
-per-plugin READMEs or CHANGELOGs, no human-facing docs). These Claude-facing docs
-(this file, each CONTRACT, the ROADMAP, the MAP) are the manual.
+[docs/ROADMAP.md](./docs/ROADMAP.md); **git history is the detailed changelog** (a
+root `CHANGELOG.md` carries the human-readable highlights, and each plugin plus the
+repo root has a short `README.md` for install/discoverability — a repo-visitor
+audience, not per-change owner prose). These Claude-facing docs (this file, each
+CONTRACT, the ROADMAP, the MAP) — not the READMEs — are the maintainer manual.
 
 ## Enforcement map — what's guaranteed vs nudged
 
@@ -54,9 +56,9 @@ Be honest about which is which:
 | Behavior | Kind | Mechanism · kill-switch |
 |---|---|---|
 | Intent→outcome gate (change matches the ask) | ENFORCED | tq-verify Stop-block · `CLAUDE_TQ_INTENT_GATE=0` |
-| Solo auto-continues the queue | ENFORCED | tq-verify Stop-block · `CLAUDE_TQ_AWAY_CONTINUE=0` |
-| Solo blocks AskUserQuestion | ENFORCED | tq-ask-guard PreToolUse-deny · `CLAUDE_TQ_AWAY_ASK_GUARD=0` |
-| Solo suppresses the approval loop | ENFORCED | tq-capture (deterministic) |
+| Autopilot auto-continues the queue | ENFORCED | tq-verify Stop-block · `CLAUDE_TQ_AWAY_CONTINUE=0` |
+| Autopilot blocks AskUserQuestion | ENFORCED | tq-ask-guard PreToolUse-deny · `CLAUDE_TQ_AWAY_ASK_GUARD=0` |
+| Autopilot suppresses the approval loop | ENFORCED | tq-capture (deterministic) |
 | Return-review (clear the parked pile before new edits) | ENFORCED | tq-review-guard PreToolUse-deny · `CLAUDE_TQ_REVIEW_GATE=0` |
 | Design-preview shown before a visual change is built | ENFORCED | tq-design-guard PreToolUse-deny · `CLAUDE_TQ_DESIGN_GATE=0` |
 | Verification floor (tests green before done) | ENFORCED | tidy-verify Stop-block · `CLAUDE_TIDY_CHECKS=0` |
@@ -68,7 +70,7 @@ Be honest about which is which:
 | Run-in-auto, advance without draining | NUDGED | injection |
 | Design-preview wireframe FIDELITY (faithful mockup) | NUDGED | capture injection — the gate forces a preview; its quality is nudged |
 | Agent fan-out — name independent ready tasks | NUDGED (queue-aware) | tq-capture injection — the hook selects the disjoint tasks; the model spawns (no hook can spawn agents) |
-| Park-as-`❓` under solo | NUDGED (but cornered) | injection — the enforced ask-block + auto-continue leave parking as the only exit |
+| Park-as-`❓` under autopilot | NUDGED (but cornered) | injection — the enforced ask-block + auto-continue leave parking as the only exit |
 
 **On markers:** hud's `🛡✗` already covers the one honest runtime signal — an ENFORCED
 floor that's been disabled. NUDGED behaviors have no on/off to surface, so a "was this
@@ -122,7 +124,8 @@ until they agree). Changing a **mirror-by-copy** idiom → nothing enforces it, 
 .github/workflows/ci.yml          # runs ./check.sh on push (the backstop)
 check.sh                          # single source of truth for "what we check"
 .editorconfig
-AGENTS.md  CLAUDE.md  LICENSE   # AGENTS.md = the maintainer SSOT (Claude-context only; no human-facing docs)
+AGENTS.md  CLAUDE.md  LICENSE   # AGENTS.md = the maintainer SSOT (Claude-context)
+README.md  CHANGELOG.md         # human-facing discoverability layer (repo visitors, not the owner)
 docs/ROADMAP.md  docs/MAP.md
 plugins/<name>/
   .claude-plugin/plugin.json      # version MUST equal the marketplace entry
@@ -130,6 +133,7 @@ plugins/<name>/
   bin/*.sh                        # thin entrypoints: parse stdin, emit JSON
   lib/*.sh                        # the logic
   tests/*.bats                    # hermetic; fake state via CLAUDE_*_DIR overrides
+  README.md                       # short per-plugin discoverability blurb
   CONTRACT.md
 ```
 
@@ -226,11 +230,13 @@ so green locally means green in CI (modulo locally-skipped tools).
 - Don't add a cross-plugin shared lib or a build step (install boundary).
 - Don't add anything that runs per prompt.
 - Don't re-introduce the heavyweight features the project deliberately dropped
-  (a bespoke task store, Haiku auto-decompose, autopilot, a plugin-side
-  destructive-action gate, human-facing docs). The project's whole arc was
+  (a bespoke task store, Haiku auto-decompose, a plugin-side
+  destructive-action gate, per-change owner-workflow prose). The project's whole arc was
   *removing* these because they cost tokens, duplicated native Claude Code
   behavior, or couldn't be owned reliably by a plugin (git history has the
-  details). The dropped destructive-action gate is now covered **natively**
+  details). The lean per-plugin/root READMEs + root `CHANGELOG.md` are the sanctioned
+  exception — a repo-visitor discoverability layer, not owner-workflow docs. The
+  dropped destructive-action gate is now covered **natively**
   (settings.json `auto` mode + `deny`/`ask` sets); charter keeps only the
   plain-language consent *posture*, no hook — see docs/ROADMAP.md ("Run in auto"
   + "Decided against") for the specifics.

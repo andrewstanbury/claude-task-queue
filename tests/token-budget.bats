@@ -60,6 +60,22 @@ marked_repo() {
   within "task-queue lean"    1280 "$(printf '%s' "$ss" | "$R/plugins/task-queue/bin/tq-resume.sh" | ctx)"
 }
 
+@test "token budget: SessionStart with autopilot + agents ON (state banners) stays bounded" {
+  # The mode-ON SessionStart banners (🚶 autopilot park-rule via signals.sh + 🤖 agent)
+  # are the LARGEST SessionStart injection but were previously UNBUDGETED — the steady-
+  # state case above never turns a mode on, so an edit to the away/agent banner had no CI
+  # ceiling. Cap the full tq-resume output on the mode-on path. Baseline 3292 chars
+  # (2026-07-10, autopilot+agents on, marked repo); budget ~30% over per this file's rule.
+  local repo="$WORK/on"; marked_repo "$repo"
+  local root; root="$(git -C "$repo" rev-parse --show-toplevel)"
+  export CLAUDE_TQ_AWAY_DIR="$WORK/on-away"; mkdir -p "$CLAUDE_TQ_AWAY_DIR"
+  : > "$CLAUDE_TQ_AWAY_DIR/$(printf '%s' "$root" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"     # autopilot on
+  export CLAUDE_TQ_AGENT_DIR="$WORK/on-agent"; mkdir -p "$CLAUDE_TQ_AGENT_DIR"
+  : > "$CLAUDE_TQ_AGENT_DIR/$(printf '%s' "$root" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"     # agents on
+  local ss; ss="$(jq -nc --arg c "$repo" '{cwd:$c, source:"startup"}')"
+  within "task-queue autopilot+agents" 4200 "$(printf '%s' "$ss" | "$R/plugins/task-queue/bin/tq-resume.sh" | ctx)"
+}
+
 @test "token budget: per-prompt injections" {
   local repo="$WORK/p"; mkdir -p "$repo"; git -C "$repo" init -q
   cap() { jq -nc --arg p "$1" --arg s s --arg c "$repo" '{prompt:$p, session_id:$s, cwd:$c}' \
@@ -80,7 +96,7 @@ marked_repo() {
   # treated as absent, so the loop stays suppressed here (a fresh prompt would otherwise
   # be "present" and re-enable the interactive loop — measured on its own line below).
   export CLAUDE_TQ_AWAY_DIR="$WORK/away"; mkdir -p "$CLAUDE_TQ_AWAY_DIR"
-  : > "$CLAUDE_TQ_AWAY_DIR/$(printf '%s' "$repo" | sed 's:/:-:g')"
+  : > "$CLAUDE_TQ_AWAY_DIR/$(printf '%s' "$repo" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
   within "open-Q reminder"     280  "$(CLAUDE_TQ_PRESENT_WINDOW=0 cap 'thanks')"
   # away + owner PRESENT (fresh prompt this turn): the interactive loop fires with a
   # present-note prefix that overrides the standing "never ask" banner. Fires only on
@@ -121,7 +137,7 @@ marked_repo() {
   within "intent block"  850 "$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-verify.sh" | rsn)"
   # away/solo auto-continue block (pay-per-event Stop): away flag on + open queue work.
   export CLAUDE_TQ_AWAY_DIR="$WORK/away"; mkdir -p "$CLAUDE_TQ_AWAY_DIR"
-  : > "$CLAUDE_TQ_AWAY_DIR/$(printf '%s' "$g" | sed 's:/:-:g')"
+  : > "$CLAUDE_TQ_AWAY_DIR/$(printf '%s' "$g" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
   mkdir -p "$CLAUDE_TQ_TASKS_DIR/zz"
   jq -n '{id:"1",subject:"wire the checkout flow",status:"pending"}' > "$CLAUDE_TQ_TASKS_DIR/zz/1.json"
   # ratchet 960→1280: tq_park_rule gained a "human playtest is the one check you don't park —
@@ -135,10 +151,10 @@ marked_repo() {
   within "ask-guard deny" 1200 "$AG"   # ratchet 780→1050 (playtest carve-out), 1050→1200 (two deferral markers ❓/⏳) in tq_park_rule
   # review-guard deny (pay-per-event PreToolUse): armed marker + a parked ❓ for this repo.
   export CLAUDE_TQ_PROJECTS_DIR="$WORK/rg-proj"
-  RG_ENC="$(printf '%s' "$g" | sed 's:/:-:g')"
+  RG_ENC="$(printf '%s' "$g" | sed 's:/:-:g')"                          # projects-dir folder = Claude Code's own /→- encoding
   mkdir -p "$CLAUDE_TQ_PROJECTS_DIR/$RG_ENC"; printf '{"cwd":"%s"}\n' "$g" > "$CLAUDE_TQ_PROJECTS_DIR/$RG_ENC/zz.jsonl"
   jq -n '{id:"2",subject:"❓ [parked] pick the storage backend",status:"pending"}' > "$CLAUDE_TQ_TASKS_DIR/zz/2.json"
-  : > "$CLAUDE_TQ_AWAY_DIR/review-$RG_ENC"
+  : > "$CLAUDE_TQ_AWAY_DIR/review-$(printf '%s' "$g" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"   # review flag = tq_enc_root (injective)
   local RG; RG="$(printf '%s' "$S" | "$R/plugins/task-queue/bin/tq-review-guard.sh" | jq -r '.hookSpecificOutput.permissionDecisionReason // ""')"
   within "review-guard deny" 520 "$RG"
   # design-guard deny (pay-per-event PreToolUse): a pending design preview, owner present.

@@ -46,8 +46,15 @@ fi
 [ -n "$cwd" ] || cwd="$PWD"
 root="$(tq_root_for_cwd "$cwd")"
 
-# An AskUserQuestion that proceeds IS the design preview, so it satisfies any pending
-# design-preview gate (tq-design-guard) — clear the marker before letting the ask through.
+# An AskUserQuestion that proceeds is TREATED AS the design preview, so it satisfies any
+# pending design-preview gate (tq-design-guard) — clear the marker before letting the ask
+# through. KNOWN LIMITATION: this can't tell the wireframe preview from an unrelated ask in
+# the same design turn (e.g. "which page did you mean?"), so an early unrelated ask clears
+# 🎨 and later edits proceed without the preview ever being shown. We accept that over the
+# alternative (sniffing the ask's content for box-drawing to decide) because a false
+# NON-clear would wrongly BLOCK legitimate edits — a worse failure than a rare skipped
+# preview. The design nudge still instructs "show the wireframe first"; this only removes
+# the mechanical gate.
 if ! tq_is_away "$root"; then tq_design_clear "$sid"; allow; fi   # autopilot off → asking is fine
 if tq_owner_present "$sid"; then tq_design_clear "$sid"; allow; fi # owner just prompted → present for THIS turn
 
