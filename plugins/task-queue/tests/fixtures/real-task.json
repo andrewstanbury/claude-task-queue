@@ -1,8 +1,0 @@
-{
-  "id": "7",
-  "subject": "Wire the auth middleware",
-  "description": "Add JWT verification to the API router.",
-  "status": "pending",
-  "blocks": [],
-  "blockedBy": ["3"]
-}

@@ -4,32 +4,14 @@
     "name": "Andrew Stanbury"
   },
   "metadata": {
-    "description": "Four Claude Code plugins that keep your projects organized, safe, and easy to work in — automatically, with almost no setup."
+    "description": "A disciplined AI pair-programming companion for Claude Code: one steering document plus a tiny enforced core, so Claude queues work, decides with brutal-honest recommendations against a requirements ledger, and keeps your code clean — automatically, with almost no setup."
   },
   "plugins": [
     {
-      "name": "task-queue",
-      "source": "./plugins/task-queue",
-      "description": "Turns your requests into a live to-do list you can watch Claude work through, and remembers unfinished work between sessions. Keeps that list working even on the newest models, where Claude's built-in task tracking is switched off. Step away and it keeps going on its own — handling the routine work and setting the big decisions aside for you to review when you're back. One command ships finished work as a pull request.",
-      "version": "0.47.0"
-    },
-    {
-      "name": "tidy",
-      "source": "./plugins/tidy",
-      "description": "Keeps your code clean and safe while you work: it auto-formats the file you just edited, shows what else your change might affect, blocks secrets before they're written, and flags cleanup as debt builds up. Ask it for a full-project cleanup any time. You run your own tests; nothing is forced on you.",
-      "version": "0.43.0"
-    },
-    {
-      "name": "charter",
-      "source": "./plugins/charter",
-      "description": "Helps Claude understand your project before it starts changing things. It points out missing documentation, spots the files that keep breaking (from your git history), and checks finished work against the decisions you've written down — so changes stay true to how you want the project built.",
-      "version": "0.24.0"
-    },
-    {
-      "name": "hud",
-      "source": "./plugins/hud",
-      "description": "One clean status line that shows everything at a glance: how many tasks are open and which one you're on, whether the safety checks are on, which project and branch you're in, and anything waiting on your decision. Updates live and costs nothing in tokens.",
-      "version": "0.23.0"
+      "name": "companion",
+      "source": "./plugins/companion",
+      "description": "How Claude works on your project, in one place. A steering document (put in context once per session) defines how Claude turns your requests into a live task queue, decides with brutally honest multiple-choice recommendations that name what each option would change, runs autonomously when you step away, and keeps code clean as it changes it. A tiny enforced core backs it: a secret-scan that blocks committed credentials, cross-session task resume, and a task-queue fallback for the newest models where Claude's built-in task tracking is switched off.",
+      "version": "1.0.0"
     }
   ]
 }

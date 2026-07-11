@@ -1,0 +1,5 @@
+{
+  "name": "companion",
+  "version": "1.0.0",
+  "description": "A disciplined AI pair-programming companion: one steering document (STEERING.md — how Claude queues work, decides with brutal-honest recommendations against a requirements ledger, and keeps the code clean) delivered once per session, plus a tiny enforced core — a PreToolUse secret-scan that blocks committed credentials, cross-session task resume, and a `tq` queue fallback for models with the native task tools gated off. Replaces the earlier four-plugin system: the steering prose that was scattered across ~15 hooks now lives in one readable file, and only the behavior that must execute or block remains as code."
+}

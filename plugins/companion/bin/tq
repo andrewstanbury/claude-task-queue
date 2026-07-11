@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# tq — fallback task-queue CLI, for models whose native task tools are gated off
+# (tengu_vellum_ash: Opus 4.8 / Sonnet 5 / Fable 5). Writes the SAME native-format JSON to
+# the SAME per-session store every reader keys off, so the queue, resume, and report all
+# work identically. The model self-routes: native TaskCreate when it has it, `tq` when not.
+# Best-effort + never destructive. Self-contained (no lib). Store: CLAUDE_COMPANION_TASKS_DIR.
+set -uo pipefail
+command -v jq >/dev/null 2>&1 || { echo "tq: jq required" >&2; exit 1; }
+
+SID="${CLAUDE_COMPANION_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"
+[ -n "$SID" ] || { echo "tq: no session id (CLAUDE_CODE_SESSION_ID unset)" >&2; exit 1; }
+DIR="${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/tasks}/$SID"
+
+usage() { cat >&2 <<'EOF'
+tq — fallback task queue (native task tools gated off)
+  tq add "<subject>" [more...]   queue pending task(s)
+  tq doing <id> ["<breadcrumb>"] mark in progress (opt. crash-resume note)
+  tq note  <id> "<breadcrumb>"   update the in-progress breadcrumb
+  tq done  <id>                  mark completed + print the report
+  tq list                        terse one-line-each queue
+  tq report                      full grouped status report (fires on each `done`)
+Lead a subject with ❓ (a parked decision) or ⏳ (owner-blocked) to defer it.
+EOF
+}
+
+next_id() { local f n max=0; for f in "$DIR"/*.json; do [ -f "$f" ] || continue
+  n="$(basename "$f" .json)"; case "$n" in ''|*[!0-9]*) continue;; esac; [ "$n" -gt "$max" ] && max="$n"; done; printf '%d' $((max+1)); }
+set_task() { local f="$DIR/$1.json" t="$DIR/.$1.tmp"; jq --arg s "$2" --arg d "$3" \
+  '(if $s!="" then .status=$s else . end)|(if $d!="" then .description=$d else . end)' "$f" >"$t" && mv "$t" "$f"; }
+
+report() {
+  local files=("$DIR"/*.json); [ -e "${files[0]}" ] || { printf '📋 Task queue — (empty)\n'; return 0; }
+  jq -rs '
+    def pk: ((.subject//"")|sub("^\\s+";"")|startswith("❓")); def bl: ((.subject//"")|sub("^\\s+";"")|startswith("⏳"));
+    def s72: ((.subject//"")|if length>72 then .[0:71]+"…" else . end); def fmt($g): "  "+$g+" #"+(.id|tostring)+"  "+s72;
+    (map(select(.status=="in_progress"))|sort_by(.id|tonumber)) as $ip
+    |(map(select(.status=="pending" and (pk|not) and (bl|not)))|sort_by(.id|tonumber)) as $op
+    |(map(select(.status=="pending" and pk))|sort_by(.id|tonumber)) as $p
+    |(map(select(.status=="pending" and bl))|sort_by(.id|tonumber)) as $b
+    |(map(select(.status=="completed"))|sort_by(.id|tonumber)) as $d
+    |([ (if($ip|length)>0 then "\($ip|length) in progress" else empty end),
+        (if($op|length)>0 then "\($op|length) open" else empty end),
+        (if($p|length)>0 then "\($p|length) parked" else empty end),
+        (if($b|length)>0 then "\($b|length) blocked" else empty end),
+        (if($d|length)>0 then "\($d|length) done" else empty end)]|join(" · ")) as $h
+    |("📋 Task queue"+(if $h=="" then "" else "  ·  "+$h end)),
+     ($ip[]|fmt("▸")),($op[]|fmt("◻")),($p[]|fmt("◻")),($b[]|fmt("◻")),($d[]|fmt("✔"))
+  ' "${files[@]}" 2>/dev/null || printf '📋 Task queue — (unreadable)\n'
+}
+
+cmd="${1:-list}"; shift || true
+case "$cmd" in
+  add) [ "$#" -gt 0 ] || { usage; exit 1; }; mkdir -p "$DIR" || exit 1; id="$(next_id)"
+    for s in "$@"; do [ -n "$s" ] || continue
+      jq -n --arg id "$id" --arg s "$s" '{id:$id,subject:$s,status:"pending",blocks:[],blockedBy:[]}' >"$DIR/.$id.tmp" && mv "$DIR/.$id.tmp" "$DIR/$id.json"
+      echo "added #$id  $s"; id=$((id+1)); done ;;
+  doing) { [ "$#" -ge 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" in_progress "${2:-}"; echo "#$1 → in_progress" ;;
+  done) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" completed ""; echo "#$1 → completed"; echo; report ;;
+  note) { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }; set_task "$1" "" "$2"; echo "#$1 note set" ;;
+  report) report ;;
+  list) l=""; if [ -d "$DIR" ]; then for f in "$DIR"/*.json; do [ -f "$f" ] || continue; l+="$(jq -r '"\(.id)\t\(.status)\t\(.subject)"' "$f" 2>/dev/null)"$'\n'; done; fi
+    if printf '%s' "$l" | grep -q '[^[:space:]]'; then printf '%s' "$l" | sort -n | awk -F'\t' 'NF>=3{printf "  #%s  [%s]  %s\n",$1,$2,$3}'; else echo "(queue empty)"; fi ;;
+  -h|--help|help) usage ;;
+  *) echo "tq: unknown command '$cmd'" >&2; usage; exit 1 ;;
+esac

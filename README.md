@@ -1,68 +1,56 @@
-# Claude Code companion plugins
+# Claude Code companion
 
-Four self-contained [Claude Code](https://claude.com/claude-code) plugins that keep a
-project clean, low-debt, and token-efficient — automatically, through hooks. They're built
-to run hands-off: the native task list is the one place you steer.
+One [Claude Code](https://claude.com/claude-code) plugin that makes Claude a disciplined
+pair: it turns your requests into a live task queue, decides with **brutally honest,
+multiple-choice recommendations** that name what each option would change, keeps code clean
+as it changes it, and works on its own when you step away — while a small enforced core stops
+committed secrets and remembers unfinished work between sessions.
 
-| Plugin | Ver | Role |
-|---|---|---|
-| **task-queue** | 0.47.0 | Orchestrate — native task list as a live queue (with a `tq` write-fallback when the native tools are gated off for a model): per-prompt review loop, enforced design-preview + parked-review gates, two deferral markers (❓ decisions / ⏳ owner-blocked), lean autopilot drain (park-rule sent once, not per continuation), queue-aware agent fan-out, one-command ship |
-| **tidy** | 0.43.0 | Change safely — format/lint on touch, blast-radius, pre-write secret scan, post-work debt/cycle surface, opt-in regression gate, auto-prune + on-demand `/tidy:audit` (now with a performance hot-path pass; you run your own tests, never forced) |
-| **charter** | 0.24.0 | Know the project — doc & decisions gate, alignment floor, scar-tissue memory, language-agnostic convention detection |
-| **hud** | 0.23.0 | Show — one read-only status line (health beacon (static, event-driven — no idle refresh timer), 🎨/🔒 edit gates, always-on 📋 open-task count (📋 0 when empty) + ▸ current, ❓ decisions + ⏳ owner-blocked, then the feature cluster: always-on 🛡 safety shield + ✈️/🤖 modes as bare icons, tokens, project + branch) |
+It's built around one idea: **steering is a document, enforcement is code, and the two should
+never be confused.** Almost everything the companion "does" is one steering document Claude
+reads once per session. The only things that are code are the things that must actually
+*execute or block*.
 
-Each plugin is independently installable · Bash + `jq` · zero build.
+| Part | What it is |
+|---|---|
+| **Steering** ([STEERING.md](plugins/companion/STEERING.md)) | The working agreement: how Claude queues work, challenges the ask, recommends against a **requirements ledger** (🔒 locked / 🔓 open), keeps changes clean, and runs autonomously when you're away. Put in context once per session. |
+| **Secret gate** | Before any write, blocks a file that would commit a credential — the one thing native permissions can't scan. A leaked key is irreversible. |
+| **Resume** | Re-surfaces this repo's unfinished tasks when you start a new session. |
+| **`tq`** | A task-queue fallback for the newest models (Opus 4.8 / Sonnet 5 / Fable 5), where Claude's built-in task tracking is switched off. Same queue, still resumable; prints a report each time a task completes. |
+
+Bash + `jq`, zero build, one install.
 
 ## Requirements
 
-- **`jq`** and **Bash** (macOS's built-in 3.2 works — no Homebrew bash needed). Without `jq`, every plugin degrades to a silent no-op rather than breaking your session.
-- **`git`** — for the repo-aware features (blast radius, scar tissue, ship-it). Non-git folders are handled gracefully.
-- **`gh`** (GitHub CLI, authenticated) — only for `/task-queue:ship-it`. Without it, ship-it still commits and pushes your branch, then prints a PR link to open manually.
+- **`jq`** and **Bash** (macOS's built-in 3.2 works). Without `jq`, the hooks degrade to a
+  silent no-op rather than breaking your session.
+- **`git`** — for cross-session resume and repo-aware behavior. Non-git folders are fine.
 
 ## Install
 
 ```
 /plugin marketplace add andrewstanbury/claude-task-queue
-/plugin install task-queue@andrewstanbury tidy@andrewstanbury charter@andrewstanbury hud@andrewstanbury
+/plugin install companion@andrewstanbury
 ```
 
-Or run `/plugin` and pick them from the **Discover** tab.
+Or run `/plugin` and pick it from the **Discover** tab.
 
 ## What installing does
 
-These plugins work through hooks, so they take effect as soon as they're enabled — there's
-no separate config step. Concretely:
+The companion works through hooks, so it takes effect as soon as it's enabled — no config step.
 
-- **Each session start:** a short brief primes Claude (treat the task list as a queue, know
-  the project). Once per session, then it goes quiet.
-- **task-queue:** interprets each prompt into queued tasks and works them in order.
-- **tidy:** formats the file you just edited — **formatting only, never behavior changes** —
-  and, when a turn ends, runs your project's *existing* tests / quality gates before letting
-  it finish. It writes to your working tree (the formatter's output) but applies no other edits.
-- **charter:** flags missing Claude-facing docs and files the repo has historically had to
-  fix a lot. It never writes project files itself.
-- **hud:** after `/hud:setup`, shows a one-line status. Zero model-token cost.
+- **Each session start:** the working agreement (STEERING.md) is put in context once, and any
+  unfinished tasks from an earlier session in this repo are surfaced.
+- **Before a write:** a file that looks like it contains a hardcoded credential is blocked
+  (override with `CLAUDE_COMPANION_SECSCAN=0`).
+- **Everything else** — the queue discipline, the recommendation posture, clean-as-you-go — is
+  Claude following the steering document, not a hook forcing anything.
 
-The **autonomous** behaviors — blocking questions, auto-continuing the queue while you're
-away — only turn on when you explicitly enable **autopilot** for a repo. Nothing hazardous
-arms on install.
+The **autonomous** behavior (working the queue while you're away, parking decisions for you)
+only runs when you tell Claude to — in plain language ("keep going while I'm gone"). Nothing
+hazardous arms on install.
 
 ## Turning it off
 
-- **Remove a plugin:** `/plugin uninstall <name>@andrewstanbury` (or manage it from `/plugin`).
-- **Keep it installed but silence one behavior:** every hook has an environment off-switch.
-  A few common ones — full list in **[docs/CONFIG.md](docs/CONFIG.md)**:
-  - `CLAUDE_TQ_CAPTURE_DISABLED=1` — stop task-queue's per-prompt queue nudge.
-  - `CLAUDE_TIDY_CHECKS=0` — stop tidy's end-of-turn test/quality run.
-  - `CLAUDE_TIDY_SIZE_CHECK=0` — stop the file-size prune nudge.
-  - `CLAUDE_CHARTER_ALIGN_GATE=0` — stop charter's decisions-alignment check.
-
-## Per-plugin details
-
-[task-queue](plugins/task-queue/README.md) ·
-[tidy](plugins/tidy/README.md) ·
-[charter](plugins/charter/README.md) ·
-[hud](plugins/hud/README.md)
-
-Full configuration reference: **[docs/CONFIG.md](docs/CONFIG.md)** ·
-Changelog: **[CHANGELOG.md](CHANGELOG.md)**
+- **Remove it:** `/plugin uninstall companion@andrewstanbury`.
+- **Silence the secret gate but keep the plugin:** `CLAUDE_COMPANION_SECSCAN=0`.
