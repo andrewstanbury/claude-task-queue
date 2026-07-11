@@ -15,6 +15,7 @@ reads once per session. The only things that are code are the things that must a
 |---|---|
 | **Steering** ([STEERING.md](plugins/companion/STEERING.md)) | The working agreement: how Claude queues work, challenges the ask, recommends against a **requirements ledger** (🔒 locked / 🔓 open), keeps changes clean, and runs autonomously when you're away. Put in context once per session. |
 | **Secret gate** | Before any write, blocks a file that would commit a credential — the one thing native permissions can't scan. A leaked key is irreversible. |
+| **Clean-as-you-touch** | After you edit a file, it's auto-formatted (your project's own formatter), its blast radius (who depends on it) is surfaced, and it's flagged if it's grown too large. `/companion:audit` does the same across the whole project on demand. |
 | **Resume** | Re-surfaces this repo's unfinished tasks when you start a new session. |
 | **`tq`** | The task queue — self-owned, so it works everywhere (including the newest models where Claude's built-in task tracking is switched off) and doesn't depend on Claude Code internals. It reprints the queue on every change, so the CLI always shows what's in progress and next. |
 | **Status line** | One glance line: secret gate · model · ⇡ input ⇣ output tokens · open-task count · project · branch. Wire it once with `/companion:setup`. |

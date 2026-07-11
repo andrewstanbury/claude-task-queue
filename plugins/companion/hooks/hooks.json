@@ -5,6 +5,9 @@
     ],
     "PreToolUse": [
       { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/secret-guard.sh\"" } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/touch.sh\"" } ] }
     ]
   }
 }

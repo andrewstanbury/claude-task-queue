@@ -8,7 +8,7 @@
 
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"
+  GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"; TOUCH="$ROOT/bin/touch.sh"
   export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"   # the companion's OWN store, not ~/.claude/tasks
   export CLAUDE_COMPANION_SESSION_ID="s1"
 }
@@ -107,4 +107,30 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR"; }
 @test "status line: 🛡✗ when the secret gate is disabled" {
   run bash -c 'printf "{}" | CLAUDE_COMPANION_SECSCAN=0 NO_COLOR=1 "$1"' _ "$SL"
   [[ "$output" == *"🛡✗"* ]]
+}
+
+# ---- clean-as-you-touch (PostToolUse: format + blast radius + size) ----
+
+@test "touch: surfaces blast radius (dependents) and over-budget size" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  printf 'def helper(): pass\n' > "$repo/helper.py"
+  printf 'from helper import helper\nhelper()\n' > "$repo/main.py"
+  git -C "$repo" add -A; git -C "$repo" -c user.email=t@t -c user.name=t commit -q -m init
+  local i; for i in $(seq 1 305); do echo "# $i" >> "$repo/helper.py"; done
+  run bash -c 'jq -nc --arg p "$1" "{tool_input:{file_path:\$p}}" | CLAUDE_COMPANION_SIZE_BUDGET=300 "$2" | jq -r .hookSpecificOutput.additionalContext' _ "$repo/helper.py" "$TOUCH"
+  [[ "$output" == *"blast radius"* ]]
+  [[ "$output" == *"main.py"* ]]            # the dependent
+  [[ "$output" == *"> 300"* ]]              # size flag
+}
+
+@test "touch: silent on a small file with no dependents, and when disabled" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  printf 'print(1)\n' > "$repo/lonely.py"
+  git -C "$repo" add -A; git -C "$repo" -c user.email=t@t -c user.name=t commit -q -m init
+  run bash -c 'jq -nc --arg p "$1" "{tool_input:{file_path:\$p}}" | "$2"' _ "$repo/lonely.py" "$TOUCH"
+  [ -z "$output" ]                          # nothing to say
+  # disabled → silent even when there would be findings
+  local i; for i in $(seq 1 305); do echo "# $i" >> "$repo/lonely.py"; done
+  run bash -c 'jq -nc --arg p "$1" "{tool_input:{file_path:\$p}}" | CLAUDE_COMPANION_TOUCH=0 "$2"' _ "$repo/lonely.py" "$TOUCH"
+  [ -z "$output" ]
 }

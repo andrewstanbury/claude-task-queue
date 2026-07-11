@@ -2,6 +2,17 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 1.1.0 — 2026-07-11
+
+- **Clean-as-you-touch** (`bin/touch.sh`, PostToolUse): after you edit a file, format it with
+  the project's own formatter, surface its blast radius (dependents), and flag it if it's over
+  the size budget. Non-blocking; `CLAUDE_COMPANION_TOUCH=0` disables, `CLAUDE_COMPANION_SIZE_BUDGET`
+  tunes size. A conscious partial-reversal of the rebuild's austerity (ledger R25).
+- **`/companion:audit`** — on-demand whole-project sweep (size / debt / blast-radius hotspots),
+  queues the fixes via `tq`.
+- The task queue is now fully self-owned (its own store, not native tasks), reprints on every
+  state change, and a minimal status line returned. (Rolled up from the same day.)
+
 ## companion 1.0.0 — 2026-07-11
 
 **Ground-up rebuild.** The four plugins (`task-queue`, `tidy`, `charter`, `hud`) were

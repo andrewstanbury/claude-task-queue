@@ -19,6 +19,8 @@ it governs how you work here too.**
 - **Enforced core** (must execute or block) → `plugins/companion/bin/`:
   - `secret-guard.sh` — PreToolUse: blocks a write that would commit a credential (`exit 2`).
     The one real content-gate; a leaked key is irreversible.
+  - `touch.sh` — PostToolUse: clean-as-you-touch — format the edited file, surface its blast
+    radius, flag over-budget size (R25). Plus `/companion:audit` for a whole-project sweep.
   - `session-start.sh` — SessionStart: injects STEERING + re-surfaces this repo's open tasks
     from an earlier session (scoped by the store's `.root` stamp; no cross-repo bleed).
   - `tq` — **THE task queue.** The companion owns its store (`~/.claude/companion/tasks`) and

@@ -56,11 +56,15 @@ CLAUDE.md  AGENTS.md  README.md    # this file = maintainer SSOT; README = disco
 docs/REQUIREMENTS.md  docs/ROADMAP.md  docs/MAP.md
 plugins/companion/
   .claude-plugin/plugin.json       # version == the marketplace entry
-  hooks/hooks.json                 # wires SessionStart + PreToolUse
+  hooks/hooks.json                 # wires SessionStart + PreToolUse + PostToolUse
   STEERING.md                      # the steering layer (prose)
-  bin/{session-start,secret-guard}.sh  bin/tq
+  bin/session-start.sh secret-guard.sh touch.sh statusline.sh tq
+  commands/{setup,audit}.md        # /companion:setup (status line), /companion:audit
   tests/companion.bats             # tests the ENFORCED CORE only
 ```
+
+(`touch.sh` is a legit hook, not "prose-only": it *executes* — formats the edited file — with
+blast-radius/size as attached nudges. That's the line: it does something, so it's code.)
 
 ## Conventions
 

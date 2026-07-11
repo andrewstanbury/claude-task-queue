@@ -8,6 +8,8 @@ Claude Code settings env). Defaults are safe.
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `CLAUDE_COMPANION_SECSCAN` | `1` | The pre-write secret gate. `0` disables the block (a write with a credential-looking literal is allowed through). |
+| `CLAUDE_COMPANION_TOUCH` | `1` | The clean-as-you-touch pass (format the edited file + blast-radius + size). `0` disables it. |
+| `CLAUDE_COMPANION_SIZE_BUDGET` | `300` | Lines over which the clean-as-you-touch pass flags a file as oversized (also the default `/companion:audit` threshold). |
 | `CLAUDE_COMPANION_TASKS_DIR` | `~/.claude/companion/tasks` | The companion's **own** task store (deliberately not `~/.claude/tasks` — the companion doesn't use native tasks). What `tq` writes and `session-start` / the status line read. |
 | `CLAUDE_COMPANION_SESSION_ID` | *(from `CLAUDE_CODE_SESSION_ID`)* | Overrides the session id `tq` writes under. For tests. |
 
