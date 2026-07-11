@@ -49,10 +49,21 @@ teardown() {
   run bash -c "$SRC"' hud_human_tokens abc' bash "$ROOT";     [ -z "$output" ]
 }
 
-@test "hud_dirty counts uncommitted files, empty on a clean tree" {
-  run bash -c "$SRC"' hud_dirty "$2"' bash "$ROOT" "$REPO"; [ -z "$output" ]   # clean
+# hud_git prints "<branch>\t<dirty>\t<ahead>\t<behind>" from a single git read; dirty is
+# field 2 (empty on a clean tree, a count otherwise). Fields split on tab.
+gitf() { run bash -c "$SRC"' hud_git "$2"' bash "$ROOT" "$REPO"; }
+@test "hud_git: dirty field counts uncommitted files, empty on a clean tree" {
+  gitf; branch="$(printf '%s' "$output" | cut -f1)"; dirty="$(printf '%s' "$output" | cut -f2)"
+  [ -n "$branch" ]; [ -z "$dirty" ]                                # in a repo, clean tree
   printf 'x\n' > "$REPO/new.txt"
-  run bash -c "$SRC"' hud_dirty "$2"' bash "$ROOT" "$REPO"; [ "$output" = "1" ]
+  gitf; [ "$(printf '%s' "$output" | cut -f2)" = "1" ]            # one untracked entry
+}
+
+@test "hud_git: empty outside a git repo" {
+  local nd; nd="$(mktemp -d)"
+  run bash -c "$SRC"' hud_git "$2"' bash "$ROOT" "$nd"
+  [ -z "$output" ]
+  rm -rf "$nd"
 }
 
 @test "renders a single line with the key slots (feature status, model)" {
@@ -169,9 +180,18 @@ teardown() {
   [ "$status" -eq 0 ]
   jq -e '.existingKey == true' "$s"                       # preserved
   jq -e '.statusLine.type == "command"' "$s"
-  jq -e '.statusLine.refreshInterval == 2' "$s"          # drives the animated beacon; 2s halves idle CPU (battery-first default)
+  jq -e '.statusLine | has("refreshInterval") | not' "$s"  # event-driven only — no idle timer (static beacon)
   [[ "$(jq -r '.statusLine.command' "$s")" == *"ls -dt"*"| head -1"* ]]   # self-resolving (newest mtime wins), not version-pinned
   [[ "$(jq -r '.statusLine.command' "$s")" != *"/0.1.0/"* ]]
+  rm -rf "$(dirname "$s")"
+}
+
+@test "install: an upgrade strips a refreshInterval a prior install wrote" {
+  local s; s="$(mktemp -d)/settings.json"
+  printf '{"statusLine":{"type":"command","command":"old","refreshInterval":2}}\n' > "$s"
+  run bash -c 'CLAUDE_SETTINGS="$1" "$2/bin/hud-install.sh"' _ "$s" "$ROOT"
+  [ "$status" -eq 0 ]
+  jq -e '.statusLine | has("refreshInterval") | not' "$s"   # the idle timer is removed on upgrade
   rm -rf "$(dirname "$s")"
 }
 
@@ -298,9 +318,10 @@ teardown() {
   rm -rf "$CLAUDE_HUD_AWAY_DIR"
 }
 
-@test "hud_ahead_behind: empty without an upstream, '<ahead> <behind>' with one" {
-  run bash -c "$SRC"' hud_ahead_behind "$2"' bash "$ROOT" "$REPO"   # no upstream yet
-  [ -z "$output" ]
+@test "hud_git: ahead/behind fields empty without an upstream, set with one" {
+  run bash -c "$SRC"' hud_git "$2"' bash "$ROOT" "$REPO"           # no upstream yet
+  [ -z "$(printf '%s' "$output" | cut -f3)" ]                      # ahead empty
+  [ -z "$(printf '%s' "$output" | cut -f4)" ]                      # behind empty
   # Build a bare "remote", track it, then commit locally so HEAD is ahead by 2.
   local up; up="$(mktemp -d)/up.git"; git init -q --bare "$up"
   git -C "$REPO" config user.email t@t; git -C "$REPO" config user.name t
@@ -310,8 +331,9 @@ teardown() {
   git -C "$REPO" branch -q --set-upstream-to=origin/main
   git -C "$REPO" commit -q --allow-empty -m a
   git -C "$REPO" commit -q --allow-empty -m b
-  run bash -c "$SRC"' hud_ahead_behind "$2"' bash "$ROOT" "$REPO"
-  [ "$output" = "2 0" ]                                             # 2 ahead, 0 behind
+  run bash -c "$SRC"' hud_git "$2"' bash "$ROOT" "$REPO"
+  [ "$(printf '%s' "$output" | cut -f3)" = "2" ]                   # 2 ahead
+  [ "$(printf '%s' "$output" | cut -f4)" = "0" ]                   # 0 behind
   rm -rf "$(dirname "$up")"
 }
 
@@ -348,22 +370,19 @@ teardown() {
   [[ "$output" != *"⇡"* ]]
 }
 
-@test "health beacon: braille-orbit frame animates with color AND with no-color; static ● only on TERM=dumb" {
+@test "health beacon: a STATIC ● (no animation), rendered under color, no-color, and TERM=dumb" {
   json="$(jq -nc --arg c "$REPO" '{model:{display_name:"Opus"},session_id:"s",cwd:$c,terminal_width:200}')"
   braille='⠋|⠙|⠹|⠸|⠼|⠴|⠦|⠧|⠇|⠏'
-  # color on → a braille frame, never the static dot
-  run bash -c 'printf "%s" "$1" | TERM=xterm NO_COLOR= "$2"' _ "$json" "$STATUS"
-  [[ "$output" != *"●"* ]]
-  printf '%s' "$output" | grep -qE "$braille"
-  # NO_COLOR (capable terminal) → STILL animates: a braille frame, no static dot. The
-  # braille shapes read without color, so no-color no longer means a frozen beacon.
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 TERM=xterm "$2"' _ "$json" "$STATUS"
-  [[ "$output" != *"●"* ]]
-  printf '%s' "$output" | grep -qE "$braille"
-  # TERM=dumb → static ● (can't rely on braille rendering there)
-  run bash -c 'printf "%s" "$1" | TERM=dumb "$2"' _ "$json" "$STATUS"
-  [[ "$output" == *"●"* ]]
-  ! printf '%s' "$output" | grep -qE "$braille"
+  # The animated spinner was dropped (it forced an idle refresh timer that spun fans); the
+  # beacon is now a plain ● in every terminal mode, tinted by health when color is on.
+  for env in 'TERM=xterm NO_COLOR=' 'NO_COLOR=1 TERM=xterm' 'TERM=dumb'; do
+    run bash -c "printf '%s' \"\$1\" | $env \"\$2\"" _ "$json" "$STATUS"
+    [[ "$output" == *"●"* ]]                          # static dot present
+    ! printf '%s' "$output" | grep -qE "$braille"     # never an animation frame
+  done
+  # color on → the dot carries a health tint (green here); NO_COLOR → no ANSI at all
+  run bash -c 'printf "%s" "$1" | env -u NO_COLOR TERM=xterm "$2"' _ "$json" "$STATUS"
+  [[ "$output" == *$'\033[32m'*"●"* ]]
 }
 
 @test "hud_floors_disabled: empty when all on, names each floor set to 0" {

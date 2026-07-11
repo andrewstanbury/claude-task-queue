@@ -28,7 +28,7 @@ hud_tasks_dir()  { printf '%s' "${CLAUDE_HUD_TASKS_DIR:-${CLAUDE_TQ_TASKS_DIR:-$
 # never collide. MUST stay byte-identical to tq_enc_root; drift-guard.bats asserts it. Only
 # the root-keyed flags (away/agent/review) use this; sid-keyed markers (design/verify) can't
 # collide (a session id has no '/') and stay '/'→'-'.
-hud_enc_root() { printf '%s' "${1:-}" | sed -e 's:%:%25:g' -e 's:/:%2F:g'; }
+hud_enc_root() { local r="${1:-}"; r="${r//%/%25}"; printf '%s' "${r//\//%2F}"; }
 
 # Which safety floors are currently DISABLED — prints the friendly names of the
 # anti-rework gates the owner (or Claude) has switched off via a CLAUDE_*=0 env var
@@ -70,7 +70,7 @@ hud_review_pending() {
 hud_design_pending() {
   local sid="$1"
   [ -n "$sid" ] || { printf '0'; return 0; }
-  [ -f "$(hud_away_dir)/design-$(printf '%s' "$sid" | sed 's:/:-:g')" ] && printf '1' || printf '0'
+  [ -f "$(hud_away_dir)/design-${sid//\//-}" ] && printf '1' || printf '0'
 }
 
 # The on-demand symbol key (`/hud:legend`). The status line is a non-technical
@@ -203,39 +203,32 @@ hud_away() {
 hud_verify() {
   local sid="$1" f
   [ -n "$sid" ] || return 0
-  f="$(hud_verify_dir)/result-$(printf '%s' "$sid" | sed 's:/:-:g')"
+  f="$(hud_verify_dir)/result-${sid//\//-}"
   [ -f "$f" ] && { cat "$f" 2>/dev/null || true; }
 }
 
-# How many uncommitted files in the working tree (porcelain count), or "" outside
-# a git repo. The branch slot already shells to git, so this is cheap context for
-# "you have unsaved work" while vibe-coding.
-hud_dirty() {
-  local cwd="$1" n
-  git -C "$cwd" rev-parse >/dev/null 2>&1 || return 0
-  n="$(git -C "$cwd" status --porcelain 2>/dev/null | grep -c .)"
-  [ "$n" -gt 0 ] && printf '%s' "$n"
-}
-
-# Commits HEAD is ahead / behind its upstream — i.e. unpushed work (ahead) and
-# unpulled work (behind). Prints "<ahead> <behind>" or empty when there's no
-# upstream (nothing to compare). One cheap rev-list over the symmetric range; the
-# branch slot already shells to git, so this is the "you have unpushed commits"
-# companion to the dirty-file count's "you have uncommitted changes".
-hud_ahead_behind() {
-  local cwd="$1" out behind ahead
-  git -C "$cwd" rev-parse '@{upstream}' >/dev/null 2>&1 || return 0
-  out="$(git -C "$cwd" rev-list --count --left-right '@{upstream}...HEAD' 2>/dev/null)" || return 0
-  [ -n "$out" ] || return 0
-  # rev-list --left-right prints "<behind>\t<ahead>" (left = upstream-only commits).
-  read -r behind ahead <<< "$out"
-  printf '%s %s' "${ahead:-0}" "${behind:-0}"
-}
-
-# Current git branch for a dir (short SHA when detached), or empty.
-hud_branch() {
-  local cwd="$1" b
-  b="$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-  [ "$b" = "HEAD" ] && b="@$(git -C "$cwd" rev-parse --short HEAD 2>/dev/null || true)"
-  printf '%s' "$b"
+# The whole branch slot in ONE git read: prints "<branch>\t<dirty>\t<ahead>\t<behind>",
+# empty outside a repo. This replaces four separate per-render git forks — branch
+# (rev-parse --abbrev-ref), dirty (status --porcelain), and the ahead/behind pair
+# (rev-parse @{upstream} + rev-list) — with a single `git status --porcelain=v2 --branch`,
+# whose header lines already carry branch.head + branch.ab, and whose entry lines ARE the
+# dirty set. On the per-render hot path that's the biggest fork saving after dropping the
+# animated beacon. Fields: dirty = count of changed/untracked entries (empty when clean,
+# matching the old grep -c); ahead/behind come from `# branch.ab +A -B` (empty with no
+# upstream); a detached HEAD prints @<short-sha> from branch.oid, as hud_branch used to.
+hud_git() {
+  local cwd="$1" line branch="" dirty=0 ahead="" behind="" oid="" a b
+  while IFS= read -r line; do
+    case "$line" in
+      '# branch.head '*) branch="${line#\# branch.head }" ;;
+      '# branch.oid '*)  oid="${line#\# branch.oid }" ;;
+      '# branch.ab '*)   read -r a b <<< "${line#\# branch.ab }"; ahead="${a#+}"; behind="${b#-}" ;;
+      '#'*) : ;;                       # other headers (upstream) — ignore
+      ?*)   dirty=$((dirty + 1)) ;;    # any non-header line is one changed/untracked entry
+    esac
+  done < <(git -C "$cwd" status --porcelain=v2 --branch 2>/dev/null)
+  [ -n "$branch" ] || return 0         # not a repo / git failed → empty slot
+  [ "$branch" = "(detached)" ] && branch="@${oid:0:7}"
+  [ "$dirty" -eq 0 ] && dirty=""
+  printf '%s\t%s\t%s\t%s' "$branch" "$dirty" "$ahead" "$behind"
 }

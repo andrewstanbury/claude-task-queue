@@ -86,6 +86,33 @@ run_capture() {
   [[ "$output" == *"don't manufacture pushback"* ]]
 }
 
+@test "auto-seed: an empty queue gets one seed task on a work prompt (bar is never empty)" {
+  run_capture "add the login form and wire it" seedsess >/dev/null
+  # exactly one seed, capturing the prompt as a native-format pending task the readers use
+  [ -f "$CLAUDE_TQ_TASKS_DIR/seedsess/1.json" ]
+  [ ! -f "$CLAUDE_TQ_TASKS_DIR/seedsess/2.json" ]
+  run jq -r '.subject + "|" + .status' "$CLAUDE_TQ_TASKS_DIR/seedsess/1.json"
+  [ "$output" = "add the login form and wire it|pending" ]
+}
+
+@test "auto-seed: a NON-empty queue is left alone (no duplicate seed)" {
+  make_task ns 1 pending                                   # queue already has open work
+  run_capture "add something else" ns >/dev/null
+  [ ! -f "$CLAUDE_TQ_TASKS_DIR/ns/2.json" ]                # model owns the queue; no seed added
+}
+
+@test "auto-seed: a long prompt is truncated into a one-line subject" {
+  run_capture "$(printf 'line one\nline two %s' "$(head -c 200 /dev/zero | tr '\0' x)")" longsess >/dev/null
+  run jq -r '.subject' "$CLAUDE_TQ_TASKS_DIR/longsess/1.json"
+  [ "${#output}" -le 72 ]                                  # capped
+  [[ "$output" != *$'\n'* ]]                               # single line (newlines folded)
+}
+
+@test "auto-seed: disabled with CLAUDE_TQ_AUTOSEED=0" {
+  CLAUDE_TQ_AUTOSEED=0 run_capture "add the login form" offseed >/dev/null
+  [ ! -d "$CLAUDE_TQ_TASKS_DIR/offseed" ] || [ ! -f "$CLAUDE_TQ_TASKS_DIR/offseed/1.json" ]
+}
+
 @test "documented repo: default path collapses to the terse CLAUDE.md pointer" {
   printf 'guide <!-- claude-companion -->\n' > "$REPO/CLAUDE.md"   # policy lives in the manual
   run run_capture "$MULTI"

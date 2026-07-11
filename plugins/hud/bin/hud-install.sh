@@ -19,15 +19,14 @@ cmd="bash -c 'exec \"\$(ls -dt ~/.claude/plugins/cache/andrewstanbury/hud/*/bin/
 mkdir -p "$(dirname "$settings")" 2>/dev/null || true
 [ -s "$settings" ] || printf '{}\n' > "$settings"
 
-# refreshInterval=2 (seconds): hud's beacon is an animated spinner, so it needs a timer to
-# advance. Each wake re-runs the whole command (~110ms of bash+jq+git that repeats forever
-# on idle), and the ONLY thing needing sub-refresh cadence is the beacon — everything else
-# also repaints on each message. So 2s (not 1s) roughly HALVES the idle CPU/battery cost for
-# a barely-slower spinner: a battery-first default. Bump to 1 for a smoother beacon.
-# (jq numbers are unquoted → a real number.)
+# NO refreshInterval: the beacon is a static ●, so nothing needs a sub-message timer, and
+# Claude Code already repaints the status line event-driven (each message / after compact).
+# Setting an interval only re-ran the whole bash+jq+git command on a clock — ~1800 idle
+# wakeups/hour that spun handheld fans for no benefit. Omitting the key = event-driven only.
+# Also strip any interval a PRIOR install wrote, so an upgrade actually removes it.
 tmp="$(mktemp)"
 if jq --arg c "$cmd" \
-     '.statusLine = {type: "command", command: $c, refreshInterval: 2}' \
+     '.statusLine = {type: "command", command: $c}' \
      "$settings" > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
   mv "$tmp" "$settings"
   printf 'hud: status line wired into %s (version-resilient — survives hud updates).\n' "$settings"

@@ -16,6 +16,17 @@ Launch-hardening pass (no version bumps yet):
 
 ## task-queue
 
+### 0.46.0
+- Auto-seed the live queue so the status line can't sit at a false `📋 0`. The queue
+  is only useful if it reflects that you asked for work, but on models with the native
+  task tools gated off it depended on the model shelling out to `tq` — which it did
+  inconsistently, leaving the bar empty on a real request. The `UserPromptSubmit` hook
+  now writes ONE pending task capturing the prompt when the queue is empty, THROUGH
+  `bin/tq` (the single writer — invariant preserved), stdout silenced so it can't
+  corrupt the hook output. Fires only on an empty queue, so it's a safety net, not a
+  second writer racing the model (which refines/splits the seed). Zero added injected
+  tokens; disable with `CLAUDE_TQ_AUTOSEED=0`.
+
 ### 0.42.3
 - Agent-mode no longer risks hiding the native queue. The SessionStart banner used
   to say "DEFAULT to fanning work out to subagents", which could let a whole prompt
@@ -110,6 +121,19 @@ Launch-hardening pass (no version bumps yet):
   detection for the web-QA nudge.
 
 ## hud
+
+### 0.22.0
+- Health beacon is now a STATIC ● and the status line refreshes EVENT-DRIVEN only.
+  The beacon used to be an animated braille spinner, which forced a per-second (later
+  per-2s) `refreshInterval` — and on a handheld (Steam Deck) waking jq+git ~1800×/hour
+  on idle defeated the CPU's race-to-idle and kept fans spinning. The animation was pure
+  decoration, so it was dropped; Claude Code already repaints the line on each message,
+  so every slot stays fresh at ~zero idle cost. `hud-install.sh` no longer writes
+  `refreshInterval` (and strips one a prior install wrote).
+- Per-render cost cut ~25 subprocesses → ~12 (git 6 → 2): the branch/dirty/ahead-behind
+  reads are consolidated into a single `git status --porcelain=v2 --branch` (`hud_git`),
+  and `sed`/`dirname`/`basename` forks in the hot path folded into pure bash. `hud_enc_root`
+  stays byte-compatible with task-queue's encoder (drift-guard still asserts agreement).
 
 ### 0.20.7
 - Project-name anchor renders at normal (bright) weight — not dim, not bold — so it's clearly
