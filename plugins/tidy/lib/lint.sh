@@ -8,9 +8,8 @@
 # Scope boundary: edit-time linting is only for tools that are genuinely FAST and
 # FILE-SCOPED (ruff, shellcheck). Slow whole-project type-checkers (clippy, mypy,
 # pyright) aren't run on the edit path, and tidy does NOT reach for them on its
-# own — they run only if the PROJECT declares one as its own check (its test
-# command / a package.json quality script), which the Stop verification floor then
-# executes. The fastest loop that can catch a class of problem owns it.
+# own — the owner runs whole-project tests/type-checks manually (tidy has no
+# end-of-turn test run). The fastest loop that can catch a class of problem owns it.
 
 set -uo pipefail
 

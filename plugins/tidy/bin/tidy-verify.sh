@@ -1,14 +1,22 @@
 #!/usr/bin/env bash
-# Stop hook — the verification floor. When Claude finishes, if the working tree
-# has changes and the project has a discoverable test command, run it; if it
-# FAILS, block the stop and feed the failure back so Claude fixes it — nothing is
-# "done" until the suite is green. This is the safety net a non-technical owner
-# can't produce themselves.
+# Stop hook — post-work debt surface + opt-in test gates.
 #
-# Bounded so it can never loop forever: at most CLAUDE_TIDY_VERIFY_MAX (default 3)
-# forced fix cycles per session, then it lets the stop through with a visible
-# warning. Disable entirely with CLAUDE_TIDY_CHECKS=0. Best-effort: any internal
-# error degrades to "allow the stop".
+# The end-of-turn verification floor (run the project's tests/quality gates and
+# block until green) was REMOVED at the owner's request — tests are run manually,
+# so the Stop hook no longer runs the suite (that was the "hangs on every stop"
+# cost). What remains is cheap and non-blocking by default:
+#
+#   • post-work debt surface (always on, dirty tree only): import CYCLES touching a
+#     file changed this turn (clean-architecture — always a problem) and a throttled
+#     deliberate-PRUNE nudge when over-budget files cross the threshold. One message,
+#     never blocks.
+#   • two OPT-IN, off-by-default test gates that block until a changed file is
+#     characterized — the coverage ratchet (every changed source file) and the
+#     narrow regression gate (a changed file that is both a scar-tissue hotspot and
+#     untested). These check for a test's EXISTENCE; they never run the suite.
+#
+# Disable the whole hook with CLAUDE_TIDY_CHECKS=0. Best-effort: any internal error
+# degrades to "allow the stop".
 
 set -uo pipefail
 
@@ -28,8 +36,6 @@ done
 PLUGIN_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 # shellcheck source=../lib/tidy.sh
 . "$PLUGIN_DIR/lib/tidy.sh"
-# shellcheck source=../lib/checks.sh
-. "$PLUGIN_DIR/lib/checks.sh"
 # shellcheck source=../lib/coverage.sh
 . "$PLUGIN_DIR/lib/coverage.sh"
 # shellcheck source=../lib/arch.sh
@@ -51,30 +57,24 @@ fi
 # Resolve the repo root (git top, else walk, else cwd).
 root="$(tidy_root_for_cwd "$cwd")"
 
-# Only verify when there's something to verify: a dirty working tree. A clean
-# repo (or a pure-conversation turn) means no changes → nothing to run.
+# Only act when there's something to look at: a dirty working tree. A clean repo (or a
+# pure-conversation turn) means no changes → nothing to surface.
 if git -C "$root" rev-parse >/dev/null 2>&1; then
   [ -z "$(git -C "$root" status --porcelain 2>/dev/null)" ] && allow
 fi
 
-# Per-session state: the attempt counters and the last-green tree fingerprint.
+# Per-session state: the opt-in gate counters and the debt-surface dedup/throttle files.
 cdir="$(tidy_log_dir)/verify"
 key="$(printf '%s' "${sid:-nosession}" | sed 's:/:-:g')"
-cfile="$cdir/$key"
-hfile="$cdir/hash-$key"
-rfile="$cdir/result-$key"          # last verification outcome, for hud's tests slot
 gfile="$cdir/covgate-$key"         # coverage-ratchet block counter
 rgfile="$cdir/regress-$key"        # regression-gate block counter
 pfile="$cdir/prune-$key"           # debt-surfaced-this-episode flag (Stop debt nudge)
 cyfile="$cdir/cycles-$key"         # last-surfaced import-cycle set (content hash)
-qfile="$cdir/quality-$key"         # quality-floor block counter
 
-# Bounded-counter helpers for the four block-gates below (quality floor, coverage
-# ratchet, regression gate, test floor). Each gate reads a per-session counter, gives
-# up after CLAUDE_TIDY_VERIFY_MAX tries, else increments and blocks. Centralizing the
-# read+sanitize and the write keeps that "can never loop" arithmetic in ONE place
-# instead of four hand-copies that could drift. The give-up / block MESSAGES stay in
-# each gate (they differ), so only the mechanical counter bits are shared.
+# Bounded-counter helpers for the two opt-in block-gates below (coverage ratchet,
+# regression gate). Each gate reads a per-session counter, gives up after
+# CLAUDE_TIDY_VERIFY_MAX tries, else increments and blocks. Centralizing the
+# read+sanitize and the write keeps that "can never loop" arithmetic in ONE place.
 tidy_gate_count() {                  # sanitized current count for counter-file $1 (0 if absent/garbage)
   local n=0
   [ -f "$1" ] && n="$(cat "$1" 2>/dev/null || printf 0)"
@@ -83,12 +83,11 @@ tidy_gate_count() {                  # sanitized current count for counter-file 
 }
 tidy_gate_bump() { { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$(($2 + 1))" > "$1"; } 2>/dev/null || true; }
 
-# Post-work architecture + debt surface (fires AFTER the turn's work, not before
-# the user's intent). On a dirty tree that verified clean it surfaces, NON-blocking
-# and in one message: (a) any import CYCLE involving a file changed this turn
-# (clean-architecture — always a problem), content-deduped so an unchanged cycle
-# set stays quiet; and (b) a subtractive PRUNE pass when over-budget files cross
-# the threshold, throttled once per debt episode ($pfile).
+# Post-work architecture + debt surface (fires AFTER the turn's work). On a dirty tree
+# it surfaces, NON-blocking and in one message: (a) any import CYCLE involving a file
+# changed this turn (clean-architecture — always a problem), content-deduped so an
+# unchanged cycle set stays quiet; and (b) a subtractive PRUNE pass when over-budget
+# files cross the threshold, throttled once per debt episode ($pfile).
 surface_debt_then_allow() {
   local msg="" cyc chash over n threshold budget report dmsg
   # (a) clean-architecture: import cycles touching this change (zero owner config).
@@ -121,48 +120,10 @@ surface_debt_then_allow() {
   exit 0
 }
 
-# Quality floor: enforce the project's OWN declared quality gates (typecheck, a11y/
-# perf, dependency-rule architecture — discovered by tidy_quality_commands) the same
-# way as the test command — detect-and-run, block until green, bounded. Reaching the
-# green test branch (which stores the throttle hash) therefore means quality AND
-# tests both passed. Heavy audits (Lighthouse/CWV) stay in the project's CI; this
-# only runs the gates the project already wired into package.json. On the first
-# failing gate it blocks (bounded by $qfile, like the test floor: a give-up
-# systemMessage after the cap, a timeout note that won't loop). Returns when all
-# gates pass / none exist. Disable with CLAUDE_TIDY_QUALITY_FLOOR=0.
-run_quality_floor() {
-  local gates label cmd qout qrc qmax qcount
-  gates="$(tidy_quality_commands "$root" 2>/dev/null || true)"
-  [ -n "$gates" ] || return 0
-  while IFS=$'\t' read -r label cmd; do
-    [ -n "$cmd" ] || continue
-    qout="$(tidy_run_checks "$root" "$cmd" 2>/dev/null)"; qrc=$?
-    [ "$qrc" -eq 0 ] && continue
-    if [ "$qrc" -eq 124 ]; then
-      jq -cn --arg m "⚠️ Quality gate '$label' timed out ($cmd) — couldn't verify; run it manually if needed." '{systemMessage: $m}'
-      exit 0
-    fi
-    qmax="${CLAUDE_TIDY_VERIFY_MAX:-3}"; qcount="$(tidy_gate_count "$qfile")"
-    if [ "$qcount" -ge "$qmax" ]; then
-      rm -f "$qfile" 2>/dev/null || true
-      jq -cn --arg m "⚠️ Quality gate '$label' still failing after $qcount attempts ($cmd) — needs attention before it's trusted." '{systemMessage: $m}'
-      exit 0
-    fi
-    tidy_gate_bump "$qfile" "$qcount"
-    jq -cn --arg r "The project's '$label' quality gate is failing after your change — nothing is done until it passes. Run \`$cmd\`, read the output, and fix what your change introduced (leave unrelated pre-existing issues alone):"$'\n\n'"$qout" \
-      '{decision: "block", reason: $r}'
-    exit 0
-  done <<< "$gates"
-  rm -f "$qfile" 2>/dev/null || true                  # all gates green → reset counter
-  return 0
-}
-
 # Coverage ratchet (opt-in, strict): block the stop until every changed source
 # file has a test, so an under-tested project can't keep growing untested surface.
-# Off by default — the touch-time nudge is the always-on version. Runs before the
-# test-command check so it works even on a project with no runnable suite yet.
-# BOUNDED, like the test path: after CLAUDE_TIDY_VERIFY_MAX blocks it gives up
-# (warns, allows) so it can never loop forever — honoring this file's invariant.
+# Off by default — the touch-time nudge is the always-on version. BOUNDED: after
+# CLAUDE_TIDY_VERIFY_MAX blocks it gives up (warns, allows) so it can never loop.
 if [ "${CLAUDE_TIDY_COVERAGE_RATCHET:-0}" = "1" ]; then
   untested="$(tidy_untested_changed "$root" 2>/dev/null | head -n 20)"
   if [ -n "$untested" ]; then
@@ -185,9 +146,8 @@ fi
 # (repeatedly fixed — charter's outcome-memory signal) AND untested is the highest
 # regression risk in the tree — a fix here can silently come back. When enabled, block
 # until it's characterized, closing the loop charter's scar-tissue *detection* opens.
-# OFF by default — tests are the OWNER'S call (support TDD, don't force it): opt in with
-# CLAUDE_TIDY_REGRESSION_GATE=1 for the safety net on proven debt-magnets. Bounded like
-# the test floor (can't loop); skipped when the broad ratchet is already forcing.
+# OFF by default — tests are the OWNER'S call. Bounded like the ratchet (can't loop);
+# skipped when the broad ratchet is already forcing.
 if [ "${CLAUDE_TIDY_REGRESSION_GATE:-0}" = "1" ] && [ "${CLAUDE_TIDY_COVERAGE_RATCHET:-0}" != "1" ]; then
   hotun="$(tidy_untested_hotspots "$root" 2>/dev/null | head -n 20)"
   if [ -n "$hotun" ]; then
@@ -206,57 +166,6 @@ if [ "${CLAUDE_TIDY_REGRESSION_GATE:-0}" = "1" ] && [ "${CLAUDE_TIDY_COVERAGE_RA
   rm -f "$rgfile" 2>/dev/null || true                 # no untested hotspot → reset
 fi
 
-cmd="$(tidy_test_command "$root" 2>/dev/null || true)"
-
-# Record the last outcome (pass|fail|timeout) so the status line can show it.
-# Best-effort; never affects the stop decision.
-tidy_set_result() { { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$1" > "$rfile"; } 2>/dev/null || true; }
-
-# Throttle: if the tree is byte-for-byte what it was at the last GREEN verify,
-# nothing changed since — skip the (possibly slow) quality + test run. (A failed/
-# timeout verify clears the fingerprint, so we never skip past red tests/gates.)
-cur="$(tidy_tree_hash "$root" 2>/dev/null || true)"
-if [ -n "$cur" ] && [ -f "$hfile" ] && [ "$(cat "$hfile" 2>/dev/null || true)" = "$cur" ]; then
-  allow
-fi
-
-# Enforce the project's own declared quality gates first (typecheck/a11y/dep-rules).
-# Blocks on a failing gate; returns when they pass / none exist.
-run_quality_floor
-
-[ -n "$cmd" ] || surface_debt_then_allow              # no test command → still surface debt/cycles
-
-out="$(tidy_run_checks "$root" "$cmd" 2>/dev/null)"; rc=$?
-
-if [ "$rc" -eq 0 ]; then
-  rm -f "$cfile" 2>/dev/null || true                  # green → reset counter
-  if [ -n "$cur" ]; then { mkdir -p "$cdir" 2>/dev/null && printf '%s' "$cur" > "$hfile"; } 2>/dev/null || true; fi
-  tidy_set_result pass
-  surface_debt_then_allow
-fi
-
-rm -f "$hfile" 2>/dev/null || true                    # not green → drop the stale pass-fingerprint
-
-if [ "$rc" -eq 124 ]; then                            # timed out — can't verify; don't loop on it
-  rm -f "$cfile" 2>/dev/null || true
-  tidy_set_result timeout
-  jq -cn --arg m "⚠️ Tests timed out (> ${CLAUDE_TIDY_VERIFY_TIMEOUT:-180}s, \`$cmd\`) — couldn't verify this change; run them manually if needed." \
-    '{systemMessage: $m}'
-  exit 0
-fi
-
-max="${CLAUDE_TIDY_VERIFY_MAX:-3}"
-count="$(tidy_gate_count "$cfile")"
-
-if [ "$count" -ge "$max" ]; then
-  rm -f "$cfile" 2>/dev/null || true                  # gave it enough tries
-  tidy_set_result fail
-  jq -cn --arg m "⚠️ Tests are still failing after $count fix attempts ($cmd) — this needs attention before the change is trusted." \
-    '{systemMessage: $m}'
-  exit 0
-fi
-
-tidy_gate_bump "$cfile" "$count"
-tidy_set_result fail
-jq -cn --arg r "The project's tests are failing after your change — nothing is done until they're green. Diagnose, don't guess: (1) reproduce — confirm the failing signal (\`$cmd\`); (2) form 2-3 falsifiable hypotheses for the cause and what each predicts — don't anchor on the first idea; (3) if you add debug logging to test one, tag it (e.g. [DEBUG-x9f2]) so removing it after is a single grep; (4) fix the root cause and add a regression test that pins the bug; (5) remove the tagged instrumentation. If this is a recurring trap (not a one-off), record the lesson in the project's recorded decisions — what changed, what broke, what to do instead — so the next change avoids it (outcome memory):"$'\n\n'"$out" \
-  '{decision: "block", reason: $r}'
+# No verification floor anymore (tests are run manually) — the Stop hook's remaining
+# default job is the non-blocking post-work debt/cycle surface.
+surface_debt_then_allow

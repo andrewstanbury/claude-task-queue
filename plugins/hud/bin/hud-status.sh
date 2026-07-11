@@ -5,8 +5,8 @@
 # writes — it only reads and prints, so it can't interfere with anything.
 #
 # Three zones joined by a dim │ divider; empty slots (and empty zones) collapse:
-#   [ ● health · 🛡 safety(✗N off) · ✓/✗ tests · 🎨 design-gate · 🔒 review-gate · ❓ decisions · ⏳ owner-blocked ]
-#   [ ✈️ autopilot · 🤖 agents  (green on, grey off) ]
+#   [ ● health · 🎨 design-gate · 🔒 review-gate · ❓ decisions · ⏳ owner-blocked ]
+#   [ 🛡 safety(✗N off) · ✈️ autopilot · 🤖 agents ]
 #   [ model · tok ⇡in ⇣out · ⎇ branch (+ dirty * · ↑ahead ↓behind) ]
 # Decode any symbol on demand with /hud:legend.
 #
@@ -99,7 +99,6 @@ SHORT_MODEL="$(printf '%s' "$MODEL" | sed -E 's/^claude-//; s/-[0-9]{8}([^0-9]|$
 
 AGENT="$(hud_agent "$ROOT")"
 AWAY="$(hud_away "$ROOT")"
-VERIFY="$(hud_verify "$SID")"
 REVIEW="$(hud_review_pending "$ROOT")"   # 🔒 return-review gate armed (edits blocked)
 DESIGN="$(hud_design_pending "$SID")"    # 🎨 design preview pending (edits blocked)
 # Branch + dirty-count + ahead/behind in ONE git read (hud_git), replacing four per-render
@@ -110,14 +109,13 @@ BRANCH="${GITF%%$'\t'*}"; GITF="${GITF#*$'\t'}"
 DIRTY="${GITF%%$'\t'*}";  GITF="${GITF#*$'\t'}"
 AHEAD="${GITF%%$'\t'*}";  BEHIND="${GITF##*$'\t'}"
 
-# 1) Health beacon — a STATIC ● tinted by overall health: red = tests failing, yellow =
-# autopilot (an attention state), green otherwise. It used to animate (braille orbit, one
-# frame/second), but that forced a per-second refresh timer whose idle cost spun handheld
-# fans; the animation was decoration, so the dot is now static and the line refreshes
-# event-driven (see the header note + hud-install.sh, which no longer sets refreshInterval).
+# 1) Health beacon — a STATIC ● tinted by overall health: yellow = autopilot (an attention
+# state), green otherwise. It used to animate (braille orbit, one frame/second), but that
+# forced a per-second refresh timer whose idle cost spun handheld fans; the animation was
+# decoration, so the dot is now static and the line refreshes event-driven (see the header
+# note + hud-install.sh, which no longer sets refreshInterval).
 BCOL="$G"
 [ "$AWAY" = "1" ] && BCOL="$Y"
-[ "$VERIFY" = "fail" ] && BCOL="$R"
 BEACON="●"
 
 # The line is three ZONES joined by a dim divider (│): [health & alerts] │ [feature
@@ -127,32 +125,11 @@ BEACON="●"
 DIVSEP=" $GREY│$X "
 join_slots() { local out="" s; for s in "$@"; do [ -n "$s" ] && out="${out:+$out }$s"; done; printf '%s' "$out"; }
 
-# Zone 1 — health & alerts: the beacon, the tests outcome, any disabled safety floors,
-# the two active EDIT-GATES (🎨 design-preview pending · 🔒 return-review armed — each
-# blocks edits, so like the safety marker they never shed on a narrow terminal), the ❓
-# count (parked decisions the owner reviews) and the ⏳ count (items blocked on a manual
-# owner action).
+# Zone 1 — health & alerts: the beacon, the two active EDIT-GATES (🎨 design-preview
+# pending · 🔒 return-review armed — each blocks edits, so like the safety marker they
+# never shed on a narrow terminal), the ❓ count (parked decisions the owner reviews) and
+# the ⏳ count (items blocked on a manual owner action).
 Z1=("$BCOL$B$BEACON$X")
-# Safety shield — ALWAYS shown, right after the beacon: green 🛡 when every floor is on,
-# red 🛡✗N when N are off. A permanent positive shield (chosen for a non-technical owner
-# who verifies by SEEING) actively signals "protected" rather than leaving it to the
-# absence-means-safe convention; the ✗N suffix distinguishes the alarm state even with
-# color off. Never sheds on a narrow terminal — safety is the one thing that always shows.
-DISABLED="$(hud_floors_disabled 2>/dev/null || true)"
-if [ -n "$DISABLED" ]; then
-  NOFF="$(printf '%s' "$DISABLED" | wc -w | tr -d ' ')"
-  Z1+=("$R$B🛡✗$NOFF$X")     # a disabled guard makes the green dot misleading
-else
-  Z1+=("$G$B🛡$X")           # all floors on
-fi
-# Tests outcome — a self-colored emoji (✅ pass / ❌ fail / ⚠️ timeout), no "tests" word and
-# no ANSI wrap: the emoji carries its own color, so it stays legible even on a no-color
-# terminal (where the old ✓/✗ went monochrome). Hidden entirely when never run.
-case "$VERIFY" in
-  pass)    Z1+=("✅") ;;
-  fail)    Z1+=("❌") ;;
-  timeout) Z1+=("⚠️") ;;
-esac
 # Edit-GATES keep a one-word tag while armed (🎨 design · 🔒 review): unlike the toggles,
 # a bare lock that's silently BLOCKING your edits is a "why can't I save?" trap — the word
 # earns its space exactly where the icon is both cryptic and consequential.
@@ -182,14 +159,28 @@ OPENQ="$(hud_open_questions "$SID" 2>/dev/null || printf 0)"
 BLOCKED="$(hud_blocked "$SID" 2>/dev/null || printf 0)"
 [ "${BLOCKED:-0}" -gt 0 ] 2>/dev/null && Z1+=("$Y$B⏳$BLOCKED$X")
 
-# Zone 2 — feature modes as bare ICONS, PRESENCE = on (✈️ autopilot · 🤖 agents). The word
-# was redundant next to a self-evident icon, and presence-as-signal removes the color-off
-# ambiguity a greyed "off" icon would have: the icon appears only when the mode is ON, and
-# is simply absent otherwise (the whole zone collapses when both are off — the shipped
-# default). Discoverability of what the icons mean lives in /hud:legend.
-FEAT=""
-[ "$AWAY"  = "1" ] && FEAT="✈️"
-[ "$AGENT" = "1" ] && FEAT="${FEAT:+$FEAT }🤖"
+# Zone 2 — the safety shield LEADS, then feature modes as bare ICONS, PRESENCE = on
+# (✈️ autopilot · 🤖 agents). The word was redundant next to a self-evident icon, and
+# presence-as-signal removes the color-off ambiguity a greyed "off" icon would have: a
+# mode icon appears only when ON and is simply absent otherwise. The shield anchors the
+# zone so it never fully collapses — safety is the one thing that ALWAYS shows (grouped
+# here with the modes by owner request; the toggles read as one status cluster).
+# Discoverability of what the icons mean lives in /hud:legend.
+#
+# Safety shield — ALWAYS shown: green 🛡 when every floor is on, red 🛡✗N when N are off.
+# A permanent positive shield (chosen for a non-technical owner who verifies by SEEING)
+# actively signals "protected" rather than leaving it to the absence-means-safe
+# convention; the ✗N suffix distinguishes the alarm state even with color off. Never
+# sheds on a narrow terminal — this zone isn't gated on width.
+DISABLED="$(hud_floors_disabled 2>/dev/null || true)"
+if [ -n "$DISABLED" ]; then
+  NOFF="$(printf '%s' "$DISABLED" | wc -w | tr -d ' ')"
+  FEAT="$R$B🛡✗$NOFF$X"       # a disabled guard makes the green dot misleading
+else
+  FEAT="$G$B🛡$X"             # all floors on
+fi
+[ "$AWAY"  = "1" ] && FEAT="$FEAT ✈️"
+[ "$AGENT" = "1" ] && FEAT="$FEAT 🤖"
 
 # Zone 3 — context: model · token throughput (⇡ input in the current context incl.
 # cache · ⇣ the last response; gated on input>0 so it's silent before the first API

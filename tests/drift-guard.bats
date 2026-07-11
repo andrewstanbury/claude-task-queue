@@ -186,29 +186,6 @@ assert_decisions_agree() {   # charter vs task-queue
   [ "$hud_root" = "$tq_root" ]     # and the two resolvers converge — the whole point
 }
 
-@test "verify-result: hud_verify reads the marker tidy-verify.sh actually writes" {
-  # hud's ✓/✗ tests slot mirrors the result-<sid> marker tidy-verify.sh writes, across the
-  # install boundary. The other edit-gate mirrors are drift-guarded by driving the real
-  # writer; this one wasn't — a fake marker was written and read back, so a rename of the
-  # prefix / dir / key encoding in tidy would slip through green. Drive the REAL hook end
-  # to end (dirty repo + a passing test command) and assert hud reads its output via the
-  # shared CLAUDE_TIDY_LOG_DIR chain (CLAUDE_HUD_VERIFY_DIR left unset on purpose).
-  . "$R/plugins/hud/lib/hud.sh"
-  local d; d="$(mktemp -d)"
-  export CLAUDE_TIDY_LOG_DIR="$d/tidy"
-  unset CLAUDE_HUD_VERIFY_DIR
-  local repo="$d/repo"; mkdir -p "$repo"
-  git -C "$repo" init -q; git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
-  echo x > "$repo/f"; git -C "$repo" add -A; git -C "$repo" commit -q -m init
-  echo y > "$repo/f"                                   # dirty tree → the verify floor runs
-  export CLAUDE_TIDY_TEST_CMD=true                     # discoverable command that passes
-  [ -z "$(hud_verify sVR)" ]                           # nothing recorded yet
-  printf '{"cwd":"%s","session_id":"sVR"}' "$repo" | bash "$R/plugins/tidy/bin/tidy-verify.sh" || true
-  [ "$(hud_verify sVR)" = "pass" ]                     # hud reads the REAL marker the hook wrote
-  unset CLAUDE_TIDY_LOG_DIR CLAUDE_TIDY_TEST_CMD
-  rm -rf "$d"
-}
-
 @test "submodule root: hud and tq_root_for_cwd resolve a submodule to its OWN toplevel, not .git/modules" {
   # A submodule's git-common-dir is <super>/.git/modules/<name>; its parent lands inside
   # .git and is SHARED across sibling submodules — so without the guard, every submodule of

@@ -53,10 +53,6 @@ heaviest cross-plugin doc-detection mirrors. Remaining reads:
   and colors the health beacon yellow. Override: `CLAUDE_HUD_AWAY_DIR`.
 - **Agent-mode:** task-queue's flag at `~/.claude/state/task-queue/agent/<encoded-root>`.
   Override: `CLAUDE_HUD_AGENT_DIR`.
-- **Tests (verification floor):** tidy-verify's last-outcome marker at
-  `~/.claude/state/tidy/verify/result-<session-id>` (`pass`/`fail`/`timeout`) —
-  rendered as `✓/✗/⚠ tests` and feeding the beacon color. Override:
-  `CLAUDE_HUD_VERIFY_DIR`.
 - **Dirty tree:** `git status --porcelain` count for the cwd, shown as `*N` next
   to the branch.
 - **Unpushed/unpulled:** `git rev-list --count --left-right @{upstream}...HEAD`

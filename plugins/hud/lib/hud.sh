@@ -19,7 +19,6 @@ set -uo pipefail
 # chain (it sets only the CLAUDE_TQ_* var and asserts hud still sees the flag).
 hud_agent_dir()  { printf '%s' "${CLAUDE_HUD_AGENT_DIR:-${CLAUDE_TQ_AGENT_DIR:-$HOME/.claude/state/task-queue/agent}}"; }
 hud_away_dir()   { printf '%s' "${CLAUDE_HUD_AWAY_DIR:-${CLAUDE_TQ_AWAY_DIR:-$HOME/.claude/state/task-queue/away}}"; }
-hud_verify_dir() { printf '%s' "${CLAUDE_HUD_VERIFY_DIR:-${CLAUDE_TIDY_LOG_DIR:-$HOME/.claude/state/tidy}/verify}"; }
 hud_tasks_dir()  { printf '%s' "${CLAUDE_HUD_TASKS_DIR:-${CLAUDE_TQ_TASKS_DIR:-$HOME/.claude/tasks}}"; }
 
 # Injective encoding of a repo ROOT into one filename component — a read-only MIRROR of
@@ -42,8 +41,6 @@ hud_enc_root() { local r="${1:-}"; r="${r//%/%25}"; printf '%s' "${r//\//%2F}"; 
 hud_floors_disabled() {
   local out=""
   [ "${CLAUDE_TIDY_SECSCAN:-1}" = "0" ]         && out="$out secret-scan"
-  [ "${CLAUDE_TIDY_CHECKS:-1}" = "0" ]          && out="$out tests"
-  [ "${CLAUDE_TIDY_QUALITY_FLOOR:-1}" = "0" ]   && out="$out quality"
   [ "${CLAUDE_CHARTER_ALIGN_GATE:-1}" = "0" ]   && out="$out alignment"
   [ "${CLAUDE_TQ_INTENT_GATE:-1}" = "0" ]       && out="$out intent-check"
   printf '%s' "${out# }"
@@ -81,12 +78,11 @@ hud_legend() {
   cat <<'EOF'
 hud status-line key (left → right; the feature-status slot is always shown, the rest hide when empty):
 
-  ⠋ (spinning) health beacon — dots orbit the cell · green: ok · yellow: autopilot on · red: tests failing
+  ● health beacon — green: ok · yellow: autopilot on
   ✈️ autopilot  on = I keep working on my own while you're away; off = normal review loop
   🤖 agents     on = big jobs split across parallel helpers; off = I work inline
                (green = on, grey = off; on a no-color terminal the word on/off is spelled out)
   <model>      the model in use (shown without a label to save space)
-  ✓/✗/⚠ tests  last test run — passed / failed / timed out
   📋 N ▸ task  N open tasks in the live queue (non-parked work) · ▸ names the one in progress
   ❓N          N parked decisions / open questions awaiting your call this session
   ⏳N          N items blocked on a manual action from you (device / external / owner-only step)
@@ -194,17 +190,6 @@ hud_away() {
   [ -n "$root" ] || { printf '0'; return 0; }
   flag="$(hud_away_dir)/$(hud_enc_root "$root")"
   [ -f "$flag" ] && printf '1' || printf '0'
-}
-
-# The verification floor's last outcome for this session: "pass" | "fail" |
-# "timeout" | "" (never run / unknown). Read-only mirror of the marker
-# tidy-verify.sh writes — the single highest-value signal for a non-technical
-# owner ("are the tests passing?").
-hud_verify() {
-  local sid="$1" f
-  [ -n "$sid" ] || return 0
-  f="$(hud_verify_dir)/result-${sid//\//-}"
-  [ -f "$f" ] && { cat "$f" 2>/dev/null || true; }
 }
 
 # The whole branch slot in ONE git read: prints "<branch>\t<dirty>\t<ahead>\t<behind>",

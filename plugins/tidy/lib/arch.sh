@@ -8,7 +8,7 @@
 # files, dynamic imports) and false-alarm, the opposite of "boring & reversible",
 # and false alarms train rubber-stamping. Silent when madge isn't present, outside
 # a git repo, or with no cycles. Go/Rust import cycles are compiler errors the
-# verification floor already catches, so they're out of scope here. Surfaced
+# build already catches, so they're out of scope here. Surfaced
 # NON-blocking and content-deduped per session. Disable: CLAUDE_TIDY_CYCLE_CHECK=0.
 
 # Resolve a runnable madge: project-local bin first, then PATH. Empty if absent.

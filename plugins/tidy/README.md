@@ -12,10 +12,10 @@ suite — so you don't inherit a mess or a broken tree.
 - **Blocks secrets before they're written** — the `PreToolUse` hook (`tidy-presecret.sh`)
   scans content about to be written and denies the write if it looks like a hardcoded
   credential.
-- **Runs a verification floor at end-of-turn** — the `Stop` hook (`tidy-verify.sh`) runs
-  your project's *existing* tests / quality command when the tree has changes; if they
-  fail, it blocks the stop and feeds the failure back so Claude fixes it. It runs YOUR
-  tests — it never writes new ones.
+- **Surfaces post-work debt at end-of-turn** — the `Stop` hook (`tidy-verify.sh`) does
+  NOT run your tests (you run those manually). On a dirty tree it makes one non-blocking
+  pass: import cycles touching your change, and a prune nudge when files cross the size
+  budget. It never blocks your work.
 - **Surfaces blast radius** — when you touch a file, it points out the dependents that
   ride on your change (`lib/blast.sh`).
 - **Sets a clean-as-you-go standard once per session** — the `SessionStart` hook
@@ -32,18 +32,16 @@ suite — so you don't inherit a mess or a broken tree.
 ## What it does to your repo
 
 It **writes the formatter's output to files you edit** — formatting only, no behavior
-changes and no other edits. It runs (but does not modify) your existing test / quality
-commands at end-of-turn. Everything else — blast radius, size budget, audit — is
-read-only reporting.
+changes and no other edits. It does NOT run your tests — everything else (post-work
+debt surface, blast radius, size budget, audit) is read-only reporting.
 
 ## Turning it off / tuning
 
 - **Remove it:** `/plugin uninstall tidy@andrewstanbury`.
 - **Keep it, silence one behavior** (full list in [../../docs/CONFIG.md](../../docs/CONFIG.md)):
-  - `CLAUDE_TIDY_CHECKS=0` — stop the end-of-turn test/quality run.
+  - `CLAUDE_TIDY_CHECKS=0` — stop the end-of-turn debt/cycle surface (the whole Stop hook).
   - `CLAUDE_TIDY_SIZE_CHECK=0` — stop the file-size prune nudge.
   - `CLAUDE_TIDY_SECSCAN=0` — stop the pre-write secret scan.
-  - `CLAUDE_TIDY_TEST_CMD="..."` — tell it exactly which test command to run.
 
 ## Requirements
 
