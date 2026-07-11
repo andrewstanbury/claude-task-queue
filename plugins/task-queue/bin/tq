@@ -50,8 +50,9 @@ tq — fallback task queue (used when the native task tools are unavailable)
   tq add "<subject>" [more...]   queue one or more tasks (pending)
   tq doing <id> ["<breadcrumb>"] mark a task in progress (opt. crash-resume note)
   tq note  <id> "<breadcrumb>"   update the in-progress breadcrumb (what's done / next)
-  tq done  <id>                  mark a task completed (keeps its breadcrumb)
-  tq list                        show the current queue
+  tq done  <id>                  mark a task completed (keeps its breadcrumb) + print the report
+  tq list                        show the current queue (terse, one line each)
+  tq report                      the full queue as a grouped status report (fires on each `done` too)
 Park an item by leading its subject with ❓ (a decision) or ⏳ (owner-blocked) —
 the same convention every reader already understands.
 EOF
@@ -75,6 +76,41 @@ update_task() {   # id status desc  — an empty status or desc leaves that fiel
   jq --arg st "$2" --arg d "$3" \
     '(if $st != "" then .status = $st else . end)
      | (if $d != "" then .description = $d else . end)' "$f" > "$tmp" && mv "$tmp" "$f"
+}
+
+# render_report — the full queue as a human-legible CLI report: a count header then
+# every task grouped by state (▸ in progress · ◻ open/parked/blocked · ✔ done). This
+# is what replaces hud's old 📋-count status-line slot: the status line is a persistent
+# glance surface, but a scrollable LIST of every task + status wants a report, and a
+# report only earns its space when something CHANGED — so it fires on `tq done` (each
+# completion) and on demand (`tq report`), NOT on a timer (a periodic reprint reintroduces
+# the exact idle-cost/tune-out the hud beacon was made static to kill). Deferred items
+# keep their own ❓/⏳ glyph inside the subject, so a plain ◻ marker never double-labels.
+render_report() {
+  local files=("$DIR"/*.json)
+  [ -e "${files[0]}" ] || { printf '📋 Task queue — (empty)\n'; return 0; }
+  jq -rs '
+    def pk: ((.subject // "") | sub("^\\s+";"") | startswith("❓"));
+    def bl: ((.subject // "") | sub("^\\s+";"") | startswith("⏳"));
+    def sub72: ((.subject // "") | if length > 72 then .[0:71] + "…" else . end);
+    def fmt($g): "  " + $g + " #" + (.id|tostring) + "  " + sub72;
+    ( map(select(.status=="in_progress")) | sort_by(.id|tonumber) ) as $ip |
+    ( map(select(.status=="pending" and (pk|not) and (bl|not))) | sort_by(.id|tonumber) ) as $op |
+    ( map(select(.status=="pending" and pk)) | sort_by(.id|tonumber) ) as $pkd |
+    ( map(select(.status=="pending" and bl)) | sort_by(.id|tonumber) ) as $bkd |
+    ( map(select(.status=="completed")) | sort_by(.id|tonumber) ) as $dn |
+    ( [ (if ($ip|length)>0  then "\($ip|length) in progress" else empty end),
+        (if ($op|length)>0  then "\($op|length) open"        else empty end),
+        (if ($pkd|length)>0 then "\($pkd|length) parked"     else empty end),
+        (if ($bkd|length)>0 then "\($bkd|length) blocked"    else empty end),
+        (if ($dn|length)>0  then "\($dn|length) done"        else empty end) ] | join(" · ") ) as $hdr |
+    ( "📋 Task queue" + (if $hdr=="" then "" else "  ·  " + $hdr end) ),
+    ( $ip[]  | fmt("▸") ),
+    ( $op[]  | fmt("◻") ),
+    ( $pkd[] | fmt("◻") ),
+    ( $bkd[] | fmt("◻") ),
+    ( $dn[]  | fmt("✔") )
+  ' "${files[@]}" 2>/dev/null || printf '📋 Task queue — (unreadable)\n'
 }
 
 cmd="${1:-list}"; shift || true
@@ -102,6 +138,11 @@ case "$cmd" in
     { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }
     update_task "$1" completed ""               # leaves the description intact
     echo "#$1 → completed"
+    echo                                        # a completion is the report's trigger — show the whole queue now
+    render_report
+    ;;
+  report)
+    render_report
     ;;
   note)
     { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }

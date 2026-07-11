@@ -178,123 +178,34 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   cost) for the non-technical owner the symbol-only line was illegible to. The flag names
   are drift-guarded against the siblings that own them.
 
-## Durable design decisions
+## Durable decisions → the ledger
 
-- **Native-first.** Where Claude Code does it natively, use the native mechanism and
-  don't reimplement: the native **task list** (the queue), native **permissions /
-  `auto` mode** (safe autonomy + destructive-action gating), native **statusLine**
-  (hud), native **AskUserQuestion** (the present-before-queue interaction), native
-  **subagents** (agent-mode fan-out). Hooks earn their keep only where they *execute*
-  on an event or read state a session can't see.
-  *(2026-07-10 — native-first now carries a fallback. Anthropic's `tengu_vellum_ash` flag
-  disables the native task tools for the newest models (Opus 4.8 / Sonnet 5 / Fable 5), so
-  `bin/tq` lets the model write the queue itself in the SAME native format/location every reader
-  keys off, self-routing back to native the moment the tool returns. This **retires the old
-  "task-queue is read-only over `~/.claude/tasks`" invariant** — a deliberate, reversible
-  trade-off: if the flag lifts, native resumes and `tq` goes idle.)*
-- **Run in auto.** The user's `~/.claude/settings.json` sets
-  `permissions.defaultMode: "auto"` (auto-approve **with background safety checks**)
-  plus a hard-block `deny` set (`rm -rf /` and `~`) and an `ask` set (force-push,
-  `reset --hard`). This is the safe-autonomy posture the owner asked for.
-- **Proportionality over maximalism** — every practice scaled to complexity/risk.
-- **Verification + simplicity over methodology labels** — tests as a safety net (the
-  floor), SOLID's essence, DDD's ubiquitous language, **YAGNI**, boring & reversible.
-  The decision: encode these as **concrete generation-time rules** — no-seam +
-  deletion-test (CLAUDE.md working standards #1) and unit-cohesion + complexity-altitude
-  (the tidy SessionStart standard) — **not** as methodology labels, since a "SOLID
-  checker" isn't mechanically viable. The test-fail block's **diagnose loop**
-  composes with the regression gate.
-- **Non-technical-owner posture** — autonomy on the reversible, plain-language
-  consent on the consequential (the line is reversibility + cost + data-safety).
-  Verification must be **observable** (demo it working; the owner verifies by seeing,
-  not by reading tests or docs).
-- **Subtractive force + quiet hooks** — bootstrap-once (policy in CLAUDE.md, marked
-  `claude-companion`) then re-anchor in one line; state (carry-over, drift) is never
-  suppressed, only policy prose.
-- **Clean ≠ correct** — route charter's decisions/roadmap into the loop so new work
-  is weighed against recorded direction before it lands.
-- **Critique posture: selective, substantive-gated, bidirectional, self-challengeable**
-  (2026-06-19) — the review loop EVALUATES before executing (steelman → challenge →
-  recommend-against when warranted), challenging **both** the project's recorded
-  constraints *and* the owner's own accumulated requirements/bias when they contradict
-  or force a poor/over-engineered design. The critique posture rides every prompt but is
-  SELECTIVE — the standing posture lives in the SessionStart policy (stated once per session),
-  and the heavy inline critique re-fires per-prompt only on the deterministic
-  consequential/design signal or the model's judgement; the default path carries a lean
-  selective cue and delegates the challenge/recommend-against to the model, not a regex, so the
-  per-prompt token weight of the full critique never rides trivial prompts.
-  Claims only what's feasible (contradiction +
-  named-anti-pattern detection; **not** general "bias" — no reference frame). Shipped
-  in task-queue's existing UserPromptSubmit injection (no new hook/plugin).
-  **Deferred** until the gap proves real (a YAGNI call): bidirectional charter
-  alignment (challenge a standing decision, not just protect it) and an on-demand
-  `/charter:challenge` audit. The mandate stays **challengeable** — "always question my
-  requirements" must not become the one requirement never questioned.
+The durable design decisions and the "decided against" list now live in
+[docs/REQUIREMENTS.md](./REQUIREMENTS.md) as status-tagged entries (per **R2** — challenge
+or reverse one *there*, not here):
 
-## Decided against
-
-- **Consolidating the 4 plugins into 1** (2026-05-31; **reaffirmed 2026-06-16**) —
-  after the redesign's deletions the duplication is small; consolidation is deferred
-  ("delete first, then judge"). Revisit only if it bites.
-- **A charter doc-inventory state file** (2026-06-01) — the install boundary forces a
-  fallback detector anyway, so it's net-additive. Chose the CI drift-guard test.
-- **A hard, plugin-owned destructive-action *gate*** — a plugin can't own a reliable
-  block. **Superseded 2026-06-16:** the gating is now **native** (`permissions.deny`/
-  `ask` + `auto`-mode safety checks), which *is* harness-enforced — this also retired
-  charter's fragile 2026-06-01 PreToolUse consent regex (it false-fired on `rm -rf`
-  substrings in unrelated commands and only reminded; charter keeps the plain-language
-  consent *posture*). **Narrow exception (2026-06-21):** tidy's PreToolUse **secret floor** does
-  block a write — the one place a plugin gate earns its keep, because native
-  permissions scan bash *commands*/code *style* but nothing scans file *content* an
-  agent writes for committed credentials, and a leaked key is irreversible. Kept
-  high-precision (prefix-anchored) so false blocks stay near-zero. This is the single
-  concept imported from a separate governance system (claude-governance's T3
-  obligations); its audit log, tier vocabulary, approver chains, and CI floor stay
-  out (org-compliance machinery, not this system's single-owner bet).
-- **Native plan mode for the present-before-work step** (2026-06-16) — rejected in
-  favour of the task-queue's interpret→present→approve loop: plan mode is read-only
-  and all-or-nothing per session, whereas the owner wants to run in auto and review
-  only the *queue interpretation*. The loop is that, owned by task-queue.
-- **One single CLAUDE.md as the only doc** (2026-06-16) — would conflict with
-  charter's separate-file detection (it would nag "missing map/roadmap" every
-  session). Chose **a few lean Claude-context files** (CLAUDE.md + map + decisions +
-  per-plugin CONTRACTs); charter's model is unchanged.
+- **R10–R17** — native-first (+ the `tq` fallback for gated task tools), run-in-auto,
+  proportionality, verification-over-methodology-labels, non-technical-owner posture,
+  subtractive-force + quiet hooks, clean≠correct, and the critique posture.
+- **R18–R21** — the decided-against set: a charter doc-inventory state file, a hard
+  plugin-owned destructive-action gate (gating is native; tidy's secret floor is the one
+  exception), native plan mode, and a single-CLAUDE.md-as-only-doc.
+- **R22 (⚰️ retired)** — "consolidating the 4 plugins into 1" was superseded 2026-07-11 by
+  **R4** (shared source + build step, keeping four installables).
 
 ## Anti-rework floors (the prevention taxonomy)
 
-A taxonomy of rework causes, each closed by a **bounded, disable-able,
-detect-not-decide Stop-time floor** (the hook supplies facts; the model judges):
+A taxonomy of rework causes, each closed by a **bounded, disable-able, detect-not-decide
+Stop-time floor** (the hook supplies facts; the model judges). The durable decisions behind
+this table are **R23** in the ledger (outcome-memory-is-charter's, alignment-at-both-ends,
+requirement-conflict-is-a-surfaced-trade-off, cheap-pre-filters, loop-proof); blow-by-blow
+in git, detail in each CONTRACT.
 
 | Open loop (cause of future rework) | Closed by | Disable |
 |---|---|---|
 | Regression of a repeatedly-fixed file | tidy regression gate (← charter scar tissue) | opt-in; `CLAUDE_TIDY_REGRESSION_GATE=1` to enable |
 | Silent reversal of a recorded decision | charter alignment floor | `CLAUDE_CHARTER_ALIGN_GATE=0` |
 | Built ≠ what the owner asked | task-queue intent→outcome gate | `CLAUDE_TQ_INTENT_GATE=0` |
-
-Durable decisions behind the table (blow-by-blow in git; detail in each CONTRACT):
-
-- **Outcome memory is charter's, prevention is the verifiers'.** charter *detects*
-  scar tissue — `charter_hotspots` flags files by the **rework ratio** (fix/revert ÷
-  total touching a file ≥ 0.34, ≥ 2 reworks, existing files), the *disease* not raw
-  churn, surfaced at SessionStart; tidy's regression gate then *prevents* recurrence
-  (a changed file that's both a hotspot and untested must be pinned before "done").
-- **Alignment is verified at both ends** — intent-time (the review loop weighs new
-  work against recorded direction) and outcome-time (charter's align gate on the diff;
-  task-queue's intent gate on the captured ask vs. the diffstat).
-- **A requirement conflict is a surfaced trade-off, never a silent resolution**
-  (2026-07-01) — the intent-time clause used to read "don't reverse a recorded
-  decision" (old-always-wins, which quietly anchors new designs to legacy). It now
-  reads "neither the old nor the new wins silently": a contradiction is flagged, and
-  where the review loop presents options the conflicting one **names the recorded
-  requirement it would retire**, so the owner can't pick a contradiction blind —
-  retiring a requirement stays an explicit, recorded choice in either direction.
-- **Cheap pre-filters keep the gates quiet** — escalate only on decision-bearing
-  surfaces (deps/config/migrations), fenced-token overlap, or the hotspot subset.
-  Precision over recall: a false block is noise.
-- **Loop-proof + small-footprint** — each gate bounds itself (per-tree/per-ask consume
-  or a per-session cap) and writes cache-only state, never the project.
-- **YAGNI held** — the broader "a *tested* hotspot's fix should add a new case" tier
-  was deliberately not built (over-nags). Further work is demand-driven.
 
 ## What's next
 

@@ -77,20 +77,28 @@ tq_design_set()     { [ -n "${1:-}" ] || return 0; mkdir -p "$(tq_away_dir)" 2>/
 tq_design_clear()   { [ -n "${1:-}" ] || return 0; rm -f "$(tq_design_file "$1")" 2>/dev/null || true; }
 tq_design_pending() { [ -n "${1:-}" ] && [ -f "$(tq_design_file "$1")" ]; }
 
-# Build the " First weigh it against <decisions/backlog> ..." alignment clause for
-# the repo at $cwd, or empty if the project records no direction. Shared by the
+# Build the " First weigh it against <ledger/decisions/backlog> ..." alignment clause
+# for the repo at $cwd, or empty if the project records no direction. Shared by the
 # capture nudge and the consequential review-gate so neither duplicates it — the
-# orchestration arm of charter's decisions anchor (clean ≠ correct). Depends on
-# project.sh (tq_root_for_cwd / tq_decisions_path / tq_roadmap_path), sourced by
-# the caller. Costs only local file checks (no model cost).
+# orchestration arm of charter's decisions anchor (clean ≠ correct). The requirements
+# ledger (when present) leads, since it carries the 🔒/🔓 status the recommendation
+# posture keys off (R5). Depends on project.sh (tq_requirements_path / tq_decisions_path
+# / tq_roadmap_path) + tasks.sh (tq_root_for_cwd), sourced by the caller. Costs only
+# local file checks (no model cost).
 tq_alignment_clause() {
-  local cwd="$1" root dpath rpath anchor=""
+  local cwd="$1" root qpath dpath rpath anchor=""
   [ -n "$cwd" ] || cwd="$PWD"
   root="$(tq_root_for_cwd "$cwd")"
+  qpath="$(tq_requirements_path "$root" 2>/dev/null || true)"
   dpath="$(tq_decisions_path "$root" 2>/dev/null || true)"
   rpath="$(tq_roadmap_path "$root" 2>/dev/null || true)"
-  [ -n "$dpath" ] && anchor="recorded decisions ($dpath)"
+  # The ledger is ALSO the lowest-priority match in tq_decisions_path, so when it's the
+  # only decisions record dpath == qpath — drop the duplicate so it's named once (as the
+  # ledger, with its status wording), not twice.
+  [ -n "$qpath" ] && [ "$dpath" = "$qpath" ] && dpath=""
+  [ -n "$qpath" ] && anchor="the requirements ledger ($qpath — 🔒 locked vs 🔓 open)"
+  [ -n "$dpath" ] && { [ -n "$anchor" ] && anchor="$anchor, recorded decisions ($dpath)" || anchor="recorded decisions ($dpath)"; }
   [ -n "$rpath" ] && { [ -n "$anchor" ] && anchor="$anchor and the backlog ($rpath)" || anchor="the backlog ($rpath)"; }
   [ -n "$anchor" ] || return 0
-  printf " First weigh it against %s — flag any drift or contradiction (neither the old nor the new wins silently) before you capture." "$anchor"
+  printf " First weigh it against %s — name any requirement or existing architecture it would change (and any it would retire) and flag drift or contradiction (neither the old nor the new wins silently) before you capture." "$anchor"
 }

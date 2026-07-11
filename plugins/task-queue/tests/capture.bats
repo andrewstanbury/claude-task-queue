@@ -174,6 +174,22 @@ run_capture() {
   [[ "$output" != *"recorded decisions"* ]]
 }
 
+@test "alignment clause leads with the requirements ledger (🔒/🔓) and asks what each option changes" {
+  printf '# REQUIREMENTS\n| R1 | 🔒 | product | x |\n' > "$REPO/REQUIREMENTS.md"
+  printf '# Decisions\n' > "$REPO/DECISIONS.md"
+  run run_capture "run the data migration for the legacy auth records"   # consequential → alignment clause fires
+  [[ "$output" == *"the requirements ledger (REQUIREMENTS.md — 🔒 locked vs 🔓 open)"* ]]
+  [[ "$output" == *"recorded decisions (DECISIONS.md)"* ]]         # ledger LEADS, decisions follow
+  [[ "$output" == *"name any requirement or existing architecture it would change"* ]]
+}
+
+@test "alignment clause: no ledger → falls back to decisions/backlog, no ledger phrase" {
+  printf '# Decisions\n' > "$REPO/DECISIONS.md"
+  run run_capture "run the data migration for the legacy auth records"
+  [[ "$output" == *"recorded decisions (DECISIONS.md)"* ]]
+  [[ "$output" != *"requirements ledger"* ]]                       # absent → degrades silently
+}
+
 @test "consequential prompt gets the loop with extra CONSEQUENTIAL scrutiny" {
   run run_capture "delete the user accounts table"
   [[ "$output" == *"CONSEQUENTIAL"* ]]

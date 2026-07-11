@@ -197,23 +197,10 @@ gitf() { run bash -c "$SRC"' hud_git "$2"' bash "$ROOT" "$REPO"; }
   rm -rf "$CLAUDE_HUD_TASKS_DIR"
 }
 
-@test "hud_worklist counts non-parked open work (deduped) + names the in_progress one" {
-  export CLAUDE_HUD_TASKS_DIR="$(mktemp -d)"
-  mkdir -p "$CLAUDE_HUD_TASKS_DIR/sW"
-  jq -n '{id:"1",subject:"Wire the hud slot",status:"in_progress"}' > "$CLAUDE_HUD_TASKS_DIR/sW/1.json"
-  jq -n '{id:"2",subject:"Write the test",status:"pending"}'        > "$CLAUDE_HUD_TASKS_DIR/sW/2.json"
-  jq -n '{id:"3",subject:"❓ parked decision",status:"pending"}'     > "$CLAUDE_HUD_TASKS_DIR/sW/3.json"
-  jq -n '{id:"4",subject:"⏳ blocked on you",status:"in_progress"}'  > "$CLAUDE_HUD_TASKS_DIR/sW/4.json"
-  jq -n '{id:"5",subject:"Write the test",status:"pending"}'        > "$CLAUDE_HUD_TASKS_DIR/sW/5.json"
-  run bash -c "$SRC"' hud_worklist sW' bash "$ROOT"
-  [ "${lines[0]}" = "2" ]                     # 2 non-parked (❓/⏳ excluded), "Write the test" deduped
-  [ "${lines[1]}" = "Wire the hud slot" ]     # the current in_progress one
-  run bash -c "$SRC"' hud_worklist none' bash "$ROOT"
-  [ "${lines[0]}" = "0" ]
-  rm -rf "$CLAUDE_HUD_TASKS_DIR"
-}
-
-@test "status line shows 📋N + ▸ current task, and ❓/⏳ stay disjoint from the count" {
+@test "status line no longer renders the task surface (📋 count / ▸ breadcrumb → tq report)" {
+  # The open-work count + in_progress breadcrumb were removed: the task LIST is a
+  # scrollable report now (task-queue's `tq report`, on each completion), not a
+  # status-line glance. Guard that the slot stays gone — but the ❓ owner-alert stays.
   export CLAUDE_HUD_TASKS_DIR="$(mktemp -d)"
   mkdir -p "$CLAUDE_HUD_TASKS_DIR/sX"
   jq -n '{id:"1",subject:"Refactor the parser",status:"in_progress"}' > "$CLAUDE_HUD_TASKS_DIR/sX/1.json"
@@ -221,29 +208,9 @@ gitf() { run bash -c "$SRC"' hud_git "$2"' bash "$ROOT" "$REPO"; }
   jq -n '{id:"3",subject:"❓ decide later",status:"pending"}'          > "$CLAUDE_HUD_TASKS_DIR/sX/3.json"
   json="$(jq -nc --arg s sX --arg c "$REPO" '{model:{display_name:"Opus"},session_id:$s,cwd:$c,terminal_width:200}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
-  [[ "$output" == *"📋 2"* ]]                  # 2 work items — the ❓ is NOT counted here
-  [[ "$output" == *"▸ Refactor the parser"* ]]
-  [[ "$output" == *"❓1"* ]]                   # the ❓ keeps its own badge
-  rm -rf "$CLAUDE_HUD_TASKS_DIR"
-}
-
-@test "status line always shows 📋 0 on an empty queue (no ▸ breadcrumb)" {
-  export CLAUDE_HUD_TASKS_DIR="$(mktemp -d)"    # no session dir → empty queue
-  json="$(jq -nc --arg s sEmpty --arg c "$REPO" '{model:{display_name:"Opus"},session_id:$s,cwd:$c,terminal_width:200}')"
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
-  [[ "$output" == *"📋 0"* ]]                   # always visible so the owner sees the queue is live
-  [[ "$output" != *"▸"* ]]                      # no in_progress task → no breadcrumb
-  rm -rf "$CLAUDE_HUD_TASKS_DIR"
-}
-
-@test "status line: ▸ current task sheds on a narrow terminal, 📋N stays" {
-  export CLAUDE_HUD_TASKS_DIR="$(mktemp -d)"
-  mkdir -p "$CLAUDE_HUD_TASKS_DIR/sN"
-  jq -n '{id:"1",subject:"Refactor the parser",status:"in_progress"}' > "$CLAUDE_HUD_TASKS_DIR/sN/1.json"
-  json="$(jq -nc --arg s sN --arg c "$REPO" '{model:{display_name:"Opus"},session_id:$s,cwd:$c,terminal_width:80}')"
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
-  [[ "$output" == *"📋 1"* ]]
-  [[ "$output" != *"▸ Refactor the parser"* ]]
+  [[ "$output" != *"📋"* ]]                    # the task-list slot is gone
+  [[ "$output" != *"▸ Refactor the parser"* ]] # ...and so is the in_progress breadcrumb
+  [[ "$output" == *"❓1"* ]]                    # but the ❓ owner-alert stays
   rm -rf "$CLAUDE_HUD_TASKS_DIR"
 }
 

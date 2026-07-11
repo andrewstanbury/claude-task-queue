@@ -78,6 +78,13 @@ charter_decisions_path() {
       return 0
     fi
   done
+  # A REQUIREMENTS ledger is a recorded-decisions record too — lowest priority so a
+  # dedicated DECISIONS.md/ADR wins, but a project whose durable choices live only in the
+  # ledger (like this one) still gets an alignment floor. Mirrored in task-queue's
+  # tq_decisions_path (drift-guard asserts they agree).
+  for f in REQUIREMENTS.md docs/REQUIREMENTS.md; do
+    [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
+  done
 }
 
 charter_decisions_status() {

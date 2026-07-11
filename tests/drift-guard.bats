@@ -55,7 +55,13 @@ assert_decisions_agree() {   # charter vs task-queue
   mkdir -p "$REPO/docs/adr"
   : > "$REPO/docs/adr/0001-x.md"; assert_decisions_agree; rm -rf "$REPO/docs/adr"
   mkdir -p "$REPO/docs/decisions"
-  : > "$REPO/docs/decisions/0001-y.md"; assert_decisions_agree
+  : > "$REPO/docs/decisions/0001-y.md"; assert_decisions_agree; rm -rf "$REPO/docs/decisions"
+  # the requirements ledger is the lowest-priority decisions match in BOTH detectors
+  : > "$REPO/REQUIREMENTS.md";   assert_decisions_agree
+  # ...and a dedicated DECISIONS.md still wins over the ledger, in both
+  : > "$REPO/DECISIONS.md"
+  local c t; c="$(charter_decisions_path "$REPO" || true)"; t="$(tq_decisions_path "$REPO" || true)"
+  [ "$c" = "DECISIONS.md" ] && [ "$t" = "DECISIONS.md" ]
 }
 
 @test "hotspots detection: tidy_hotspots is byte-identical to charter_hotspots" {
@@ -89,23 +95,9 @@ assert_decisions_agree() {   # charter vs task-queue
   rm -rf "$CLAUDE_TQ_TASKS_DIR"
 }
 
-@test "worklist: hud_worklist count agrees with task-queue's tq_open_worklist (❓/⏳ excluded)" {
-  . "$R/plugins/task-queue/lib/tasks.sh"
-  . "$R/plugins/hud/lib/hud.sh"
-  export CLAUDE_TQ_TASKS_DIR="$(mktemp -d)"
-  mkdir -p "$CLAUDE_TQ_TASKS_DIR/sV"
-  jq -n '{id:"1",subject:"build the thing",status:"in_progress"}' > "$CLAUDE_TQ_TASKS_DIR/sV/1.json"
-  jq -n '{id:"2",subject:"test the thing",status:"pending"}'      > "$CLAUDE_TQ_TASKS_DIR/sV/2.json"
-  jq -n '{id:"3",subject:"❓ parked",status:"pending"}'            > "$CLAUDE_TQ_TASKS_DIR/sV/3.json"
-  jq -n '{id:"4",subject:"⏳ blocked",status:"in_progress"}'       > "$CLAUDE_TQ_TASKS_DIR/sV/4.json"
-  jq -n '{id:"5",subject:"shipped",status:"completed"}'           > "$CLAUDE_TQ_TASKS_DIR/sV/5.json"
-  local hud_n tq_n
-  hud_n="$(hud_worklist sV | sed -n '1p')"
-  tq_n="$(tq_open_worklist sV | grep -c .)"
-  [ "$hud_n" = "$tq_n" ]
-  [ "$hud_n" = "2" ]                        # ❓ / ⏳ / completed all excluded — only real work counts
-  rm -rf "$CLAUDE_TQ_TASKS_DIR"
-}
+# (The hud_worklist ⇄ tq_open_worklist mirror test was removed with hud's 📋-count slot —
+# the task list is a `tq report` now, not a status-line mirror. tq_open_worklist is still
+# exercised in task-queue's own away/drain tests, where it's now the sole consumer.)
 
 # The two deferral markers must stay DISJOINT: ❓ [parked] decisions (hold the gate) vs
 # ⏳ [blocked] owner-action items (surfaced, not gated). A ⏳ item must never leak into the

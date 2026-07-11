@@ -83,7 +83,6 @@ hud status-line key (left → right; the feature-status slot is always shown, th
   🤖 agents     on = big jobs split across parallel helpers; off = I work inline
                (green = on, grey = off; on a no-color terminal the word on/off is spelled out)
   <model>      the model in use (shown without a label to save space)
-  📋 N ▸ task  N open tasks in the live queue (non-parked work) · ▸ names the one in progress
   ❓N          N parked decisions / open questions awaiting your call this session
   ⏳N          N items blocked on a manual action from you (device / external / owner-only step)
   🔒          review gate armed — editing is paused until you clear the ❓ decisions above
@@ -129,29 +128,10 @@ hud_blocked() {
           | (.subject // "") | select(. != "")] | unique | length' "${files[@]}" 2>/dev/null || printf '0'
 }
 
-# Open, non-parked WORK in this session's live queue — the read-only mirror of
-# task-queue's tq_open_worklist: pending/in_progress tasks that are NOT deferred
-# (neither a ❓ [parked] decision nor a ⏳ [blocked] owner-action — those have their
-# own badges, so excluding them keeps the three buckets disjoint instead of one total
-# counted three ways). ONE scan of the session's files — the per-second render can't
-# afford more — printing TWO lines: (1) the count, deduped by subject; (2) the subject
-# of the CURRENT in_progress task (first found), empty when nothing is running. The
-# native Task tools populate the store, so a model with them gated off has an empty
-# store and this collapses to "0" (the slot then disappears). Prints "0" + a blank line
-# for no session / no store.
-hud_worklist() {
-  local sid="$1" tdir files
-  [ -n "$sid" ] || { printf '0\n\n'; return 0; }
-  tdir="$(hud_tasks_dir)/$sid"
-  files=("$tdir"/*.json); [ -e "${files[0]}" ] || { printf '0\n\n'; return 0; }
-  # ONE jq slurp (per-second render path): $n = distinct non-deferred open subjects,
-  # $cur = the current in_progress one (first in file order), empty when none.
-  jq -rs '[.[] | select((.status=="pending" or .status=="in_progress")
-              and (((.subject // "") | sub("^\\s+";"") | (startswith("❓") or startswith("⏳"))) | not))] as $w
-          | ([$w[] | (.subject // "") | select(. != "")] | unique | length) as $n
-          | ([$w[] | select(.status=="in_progress") | (.subject // "") | select(. != "")] | .[0] // "") as $cur
-          | "\($n)\n\($cur)"' "${files[@]}" 2>/dev/null || printf '0\n\n'
-}
+# (hud_worklist was removed with the 📋-count status-line slot — the task LIST is a
+# scrollable report now, not a glance signal. task-queue's `tq report` prints it on each
+# completion; the status line keeps only the ❓/⏳ owner-alert counters above. tq_open_worklist
+# still lives in task-queue, where the autopilot Stop-drain reads it.)
 
 # Humanize a token count for the status line: <1000 verbatim, thousands as N.Nk,
 # millions as N.NM (integer-only — no bc, so it's safe in a per-render path). Empty

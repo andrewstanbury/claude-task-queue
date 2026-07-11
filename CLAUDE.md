@@ -2,25 +2,26 @@
 
 Maintainer guide: **[AGENTS.md](./AGENTS.md)** — read it first.
 
-Hard invariants (do not violate):
+Hard invariants (do not violate) — canonical status + rationale live in the ledger
+([docs/REQUIREMENTS.md](./docs/REQUIREMENTS.md), tagged below); reverse one *there*, not here:
 
-- **Each plugin is self-contained** — no cross-plugin shared lib, no build step.
-  Claude Code installs each plugin's subdir alone, so it can only use files under
-  its own `${CLAUDE_PLUGIN_ROOT}`. The small duplication between plugins is intentional.
-- **Hooks are best-effort and must never break the action that triggered them**
+- **Each plugin is self-contained** (**R6**) — Claude Code installs each plugin's subdir
+  alone, so it can only use files under its own `${CLAUDE_PLUGIN_ROOT}`. *Today: no shared
+  lib, no build step (the small duplication is intentional). **R4** retires that half —
+  shared source vendored into each plugin at build time — once the build step lands; not yet.*
+- **Hooks are best-effort and must never break the action that triggered them** (**R7**)
   (`set -uo pipefail`, swallow errors, exit 0 when silent).
-- **`task-queue` reads `~/.claude/tasks`; its ONE write is the `tq` fallback CLI**
-  (`bin/tq`), used by the model to keep the queue alive when Claude Code's native task
-  tools are gated off for a model (the `tengu_vellum_ash` flag — Opus 4.8 / Sonnet 5 /
+- **`task-queue` reads `~/.claude/tasks`; its ONE write is the `tq` fallback CLI** (**R8**,
+  native-first **R10**) (`bin/tq`), used by the model to keep the queue alive when Claude Code's
+  native task tools are gated off for a model (the `tengu_vellum_ash` flag — Opus 4.8 / Sonnet 5 /
   Fable 5). It writes the SAME native format to the SAME per-session store, so every
   reader is unchanged; the model self-routes (native when it has it, `tq` when it
-  doesn't) so the two never write at once. *This deliberately retires the old "read-only
-  over `~/.claude/tasks`" invariant — see [docs/ROADMAP.md](./docs/ROADMAP.md).* **`tidy`
+  doesn't) so the two never write at once. **`tidy`
   only auto-applies behavior-preserving fixes** (formatting), surfacing everything else.
-- **Zero per-prompt cost**; keep files cohesive (CI fails scripts over 300 lines).
+- **Zero per-prompt cost** (**R3**); keep files cohesive (CI fails scripts over 300 lines).
   Per-hook **token budgets** are CI-enforced (`tests/token-budget.bats`) — growing
   one is a deliberate ratchet, bumped in the same change.
-- **Rules stay generic (wide audience)** — NO hardcoded language/framework/ecosystem
+- **Rules stay generic (wide audience)** (**R9**) — NO hardcoded language/framework/ecosystem
   allowlists. Such a list rots and silently biases the suite to one audience. Instead:
   delegate *recognition* to the model (it already knows every framework); hardcode only
   *invocation* a hook genuinely can't avoid (e.g. the actual formatter command), and
@@ -55,9 +56,10 @@ the SessionStart hooks re-anchor briefly instead of repeating in full. The
   PRESENT a recommended approach + 2-3 alternatives (like the design-preview) and let
   the owner pick — this ranked shape is the default for any surfaced fork, but only
   enumerate genuinely viable options; a clear low-stakes winner you just decide and
-  record; a better option that retires a prior
-  requirement is proposed as a *visible* trade-off (name what it retires), never a
-  silent override.
+  record; when you present options, name the requirement(s) or existing architecture
+  each would **change** — anchored on the requirements ledger
+  ([docs/REQUIREMENTS.md](./docs/REQUIREMENTS.md), 🔒 locked vs 🔓 open) — and call out
+  any it would retire or reverse: a *visible* trade-off, never a silent override.
 - **3 · Subtract as you add** — net surface flat or smaller; reuse before create;
   ratchet, never sweep. **4 · Deliberate prune** fires automatically when debt
   crosses a threshold (over-budget files), routed through the task-queue loop.

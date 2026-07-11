@@ -64,4 +64,30 @@ tq_decisions_path() {
       return 0
     fi
   done
+  # A REQUIREMENTS ledger counts as a decisions record (lowest priority — a dedicated
+  # DECISIONS.md/ADR wins). Mirrors charter_decisions_path; drift-guard asserts they agree.
+  # tq_requirements_path detects the SAME file with the ledger's 🔒/🔓 status wording — the
+  # alignment clause dedupes so it isn't listed twice.
+  for f in REQUIREMENTS.md docs/REQUIREMENTS.md; do
+    [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
+  done
+}
+
+# A repo's committed REQUIREMENTS LEDGER (REQUIREMENTS.md or docs/REQUIREMENTS.md), if
+# any — the status-tagged record of durable requirements (🔒 locked / 🔓 open-to-challenge
+# / ⚰️ retired). It's the recommendation posture's PRIMARY anchor: when present, the model
+# cites which requirement each recommended option touches and flags any it would change
+# (R5); when absent, it falls back to the decisions record above. Generic (a REQUIREMENTS
+# ledger is a common project file — no per-repo assumption); degrades to silence when the
+# repo has none. Prints a relative path or nothing. Override via CLAUDE_TQ_REQUIREMENTS_FILE.
+tq_requirements_path() {
+  local root="$1" f
+  [ -n "$root" ] || return 0
+  if [ -n "${CLAUDE_TQ_REQUIREMENTS_FILE:-}" ]; then
+    [ -f "$root/$CLAUDE_TQ_REQUIREMENTS_FILE" ] && printf '%s' "$CLAUDE_TQ_REQUIREMENTS_FILE"
+    return 0
+  fi
+  for f in REQUIREMENTS.md docs/REQUIREMENTS.md; do
+    [ -f "$root/$f" ] && { printf '%s' "$f"; return 0; }
+  done
 }

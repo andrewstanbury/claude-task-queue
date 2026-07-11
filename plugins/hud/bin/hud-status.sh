@@ -135,25 +135,11 @@ Z1=("$BCOL$B$BEACON$X")
 # earns its space exactly where the icon is both cryptic and consequential.
 [ "$DESIGN" = "1" ] && Z1+=("$Y$B🎨 design$X")   # design preview pending — edits gated until shown
 [ "$REVIEW" = "1" ] && Z1+=("$Y$B🔒 review$X")   # return-review armed — edits gated until the ❓ pile clears (sits next to ❓)
-# Open, non-parked WORK in this session (📋 N) plus the CURRENT in_progress task
-# (▸ subject, wide terminals only — it sheds first when space is tight). Cyan, NOT the
-# yellow of ❓/⏳: open work is normal state, not an attention alarm. Disjoint from the
-# ❓/⏳ badges that follow, so the three read as separate buckets (work · decisions ·
-# blocked). ALWAYS shown — 📋 0 on an empty queue — so the owner SEES the queue is live
-# (same "verify by seeing" rationale as the always-on 🛡 shield), including when a model
-# has the native Task tools gated off and the store stays empty. Only the ▸ breadcrumb
-# is conditional (needs an in_progress task) and sheds on a narrow terminal.
-WORK="$(hud_worklist "$SID" 2>/dev/null || printf '0\n\n')"
-WORK_N="$(printf '%s\n' "$WORK" | sed -n '1p')"
-case "$WORK_N" in ''|*[!0-9]*) WORK_N=0 ;; esac
-Z1+=("$C$B📋 $WORK_N$X")
-if [ "$NARROW" -eq 0 ] && [ "$WORK_N" -gt 0 ]; then
-  WORK_CUR="$(printf '%s\n' "$WORK" | sed -n '2p')"
-  if [ -n "$WORK_CUR" ]; then
-    [ "${#WORK_CUR}" -gt 24 ] && WORK_CUR="${WORK_CUR:0:23}…"
-    Z1+=("$C▸ $WORK_CUR$X")
-  fi
-fi
+# The open-work count + current-task breadcrumb (the old 📋 N ▸ slot) was REMOVED: the
+# full task LIST + status is a scrollable report now, not a status-line glance — task-queue's
+# `tq report` prints it on each completion (and on demand). The status line keeps only the
+# two owner ALERTS below (❓ decisions · ⏳ owner-blocked): things needing your attention,
+# which a persistent glance surface is genuinely the best place for.
 OPENQ="$(hud_open_questions "$SID" 2>/dev/null || printf 0)"
 [ "${OPENQ:-0}" -gt 0 ] 2>/dev/null && Z1+=("$Y$B❓$OPENQ$X")
 BLOCKED="$(hud_blocked "$SID" 2>/dev/null || printf 0)"

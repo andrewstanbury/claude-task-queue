@@ -91,6 +91,40 @@ teardown() { rm -rf "$CLAUDE_TQ_TASKS_DIR"; }
   [[ "$output" == *"beta"* ]]
 }
 
+# --- report: the CLI task report (replaces hud's old 📋 status-line slot) -------
+
+@test "tq report: groups tasks by state with a count header" {
+  "$TQ" add "real work" "❓ a decision" "⏳ owner action" >/dev/null
+  "$TQ" add "shipped" >/dev/null
+  "$TQ" doing 1 >/dev/null
+  "$TQ" done 4 >/dev/null
+  run "$TQ" report
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"📋 Task queue"* ]]
+  [[ "$output" == *"1 in progress"* ]]      # #1 doing
+  [[ "$output" == *"1 parked"* ]]           # #2 ❓
+  [[ "$output" == *"1 blocked"* ]]          # #3 ⏳
+  [[ "$output" == *"1 done"* ]]             # #4 completed
+  [[ "$output" == *"▸ #1"* ]]               # in_progress glyph
+  [[ "$output" == *"✔ #4"* ]]               # completed glyph
+}
+
+@test "tq report: empty queue says so, exits clean" {
+  run "$TQ" report
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"empty"* ]]
+}
+
+@test "tq done: prints the report (completion is the trigger)" {
+  "$TQ" add "one" "two" >/dev/null
+  run "$TQ" done 1
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"#1 → completed"* ]]     # the confirmation line
+  [[ "$output" == *"📋 Task queue"* ]]       # ...followed by the full report
+  [[ "$output" == *"✔ #1"* ]]
+  [[ "$output" == *"◻ #2"* ]]               # the still-open one
+}
+
 # --- integration: EXISTING readers accept tq's output with no changes ----------
 
 @test "integration: tq_open_worklist reads tq's tasks (❓/⏳/completed excluded)" {
