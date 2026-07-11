@@ -12,6 +12,9 @@ Claude Code settings env). Defaults are safe.
 | `CLAUDE_COMPANION_SIZE_BUDGET` | `300` | Lines over which the clean-as-you-touch pass flags a file as oversized (also the default `/companion:audit` threshold). |
 | `CLAUDE_COMPANION_TASKS_DIR` | `~/.claude/companion/tasks` | The companion's **own** task store (deliberately not `~/.claude/tasks` — the companion doesn't use native tasks). What `tq` writes and `session-start` / the status line read. |
 | `CLAUDE_COMPANION_SESSION_ID` | *(from `CLAUDE_CODE_SESSION_ID`)* | Overrides the session id `tq` writes under. For tests. |
+| `CLAUDE_COMPANION_STATE_DIR` | `~/.claude/companion` | Root for the companion's non-task state — currently the per-repo autopilot flags (`autopilot/`). |
+| `CLAUDE_COMPANION_AUTOPILOT_CONTINUE` | `1` | The Stop-hook auto-continue while autopilot is on. `0` stops it auto-draining (autopilot then relies on the steering doc alone). |
+| `CLAUDE_COMPANION_AUTOPILOT_MAX` | `8` | No-progress cap: consecutive end-of-turn stops with no task completed before autopilot yields (so a stuck model can't spin forever). |
 
 ## State
 

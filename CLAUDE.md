@@ -26,8 +26,11 @@ it governs how you work here too.**
   - `tq` — **THE task queue.** The companion owns its store (`~/.claude/companion/tasks`) and
     deliberately does **not** use Claude Code's native task tools (R8/R10). `tq report` reprints
     the queue on every `add`/`doing`/`done`.
-  - `statusline.sh` — a `statusLine` command (not a hook): 🛡 secret gate · model · ⇡in ⇣out ·
-    📋 open tasks · project · branch. Wire it with `/companion:setup`.
+  - `statusline.sh` — a `statusLine` command (not a hook): 🛡 secret gate · ✈️ autopilot ·
+    model · ⇡in ⇣out · 📋 open tasks · project · branch. Wire it with `/companion:setup`.
+  - **Autopilot** (R26) — `/companion:autopilot on\|off` sets a persisted per-repo flag;
+    while on it's *enforced*: `stop-autopilot.sh` (Stop) auto-continues the drain and
+    `ask-guard.sh` (PreToolUse) blocks asking. `lib/autopilot.sh` holds the shared flag helpers.
 
 Keep the split honest: don't add advisory prose as a hook, and don't add a hook for anything
 a document can say.

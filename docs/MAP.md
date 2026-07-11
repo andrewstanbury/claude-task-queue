@@ -26,7 +26,11 @@ four plugins into one; this reflects the current tree.
 | `commands/audit.md` | `/companion:audit` — on-demand whole-project sweep (size / debt / blast-radius hotspots), queues fixes via `tq`. |
 | `bin/tq` | **THE task queue** — the companion owns its store (`~/.claude/companion/tasks`, NOT native tasks). `add`/`doing`/`note`/`done`/`list`/`report`; the report reprints on every `add`/`doing`/`done`. |
 | `bin/statusline.sh` | The status line (a `statusLine` command, not a hook): 🛡 secret gate · model · ⇡in ⇣out tokens · 📋 open tasks · project · branch. Read-only, zero model cost. Wire with `/companion:setup`. |
-| `commands/setup.md` | `/companion:setup` — wires the status line into settings.json. |
-| `hooks/hooks.json` | Wires the two hooks (SessionStart, PreToolUse). |
+| `bin/autopilot.sh` | Toggle the persisted per-repo autopilot flag (`on`/`off`/`status`). |
+| `bin/stop-autopilot.sh` | Stop hook: while autopilot is on and non-deferred work remains, auto-continue the drain (no-progress capped); yields when only ❓/⏳ remain. `CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0` disables. |
+| `bin/ask-guard.sh` | PreToolUse[AskUserQuestion] hook: deny asking while autopilot is on (decide-if-reversible or park as ❓). |
+| `lib/autopilot.sh` | Shared autopilot-flag helpers (encoding/paths) — sourced by the four scripts that read the flag, so the encoding can't drift. |
+| `commands/setup.md` · `commands/autopilot.md` | `/companion:setup` (status line) · `/companion:autopilot` (toggle). |
+| `hooks/hooks.json` | Wires SessionStart · PreToolUse[Write\|Edit + AskUserQuestion] · PostToolUse[Write\|Edit] · Stop. |
 | `.claude-plugin/plugin.json` | Manifest + version. |
 | `tests/companion.bats` | Tests the **enforced core only** — the secret gate, `tq`, session-start/resume, and the status line. (The steering layer is prose; it isn't unit-testable, and pretending it was is what the old system got wrong.) |

@@ -2,6 +2,16 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 1.2.0 — 2026-07-11
+
+- **Autopilot is enforced + persisted** (ledger R26). `/companion:autopilot on|off` sets a
+  per-repo flag that survives restarts; while on, the Stop hook auto-continues the queue (until
+  only parked ❓/⏳ remain, no-progress capped) and a PreToolUse guard blocks `AskUserQuestion`.
+  The status line shows ✈️. Env: `CLAUDE_COMPANION_AUTOPILOT_CONTINUE`, `_MAX`, `_STATE_DIR`.
+- **Design-preview restored** to the steering doc: the full wireframe convention
+  (`╔═╗` container, `▒` input, `█` primary, recommended-first) — steering-only, no gate.
+- (These closed the two advisory-only gaps from the post-rebuild capability review.)
+
 ## companion 1.1.0 — 2026-07-11
 
 - **Clean-as-you-touch** (`bin/touch.sh`, PostToolUse): after you edit a file, format it with

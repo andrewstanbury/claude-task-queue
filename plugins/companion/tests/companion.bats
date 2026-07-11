@@ -9,10 +9,12 @@
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"; TOUCH="$ROOT/bin/touch.sh"
+  AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"
   export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"   # the companion's OWN store, not ~/.claude/tasks
+  export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"   # autopilot flags live here
   export CLAUDE_COMPANION_SESSION_ID="s1"
 }
-teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR"; }
+teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR"; }
 
 # ---- secret gate (the one enforced content block) ----
 
@@ -121,6 +123,48 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR"; }
   [[ "$output" == *"blast radius"* ]]
   [[ "$output" == *"main.py"* ]]            # the dependent
   [[ "$output" == *"> 300"* ]]              # size flag
+}
+
+@test "autopilot: toggle persists, and is enforced (ask-guard deny + Stop auto-continue)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  [ "$(cd "$repo" && "$AP" status)" = "off" ]
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  [ "$(cd "$repo" && "$AP" status)" = "on" ]                       # persisted flag
+
+  # ask-guard DENIES AskUserQuestion while on
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.permissionDecision // \"allow\""' _ "$repo" "$ASK"
+  [ "$output" = "deny" ]
+
+  # Stop auto-continues while non-deferred work remains
+  local sid=apT; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  jq -n '{id:"1",subject:"do it",status:"pending"}'   > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  jq -n '{id:"2",subject:"❓ decide",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3" | jq -r ".decision // \"allow\""' _ "$repo" "$sid" "$STOP"
+  [ "$output" = "block" ]                                          # keeps draining
+
+  # only ❓ deferred left → Stop allows (genuinely done)
+  jq -n '{id:"1",subject:"do it",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
+  [ -z "$output" ]
+
+  # off → ask-guard allows again
+  ( cd "$repo" && "$AP" off ) >/dev/null
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c}" | "$2"' _ "$repo" "$ASK"
+  [ -z "$output" ]
+}
+
+@test "autopilot: Stop yields after the no-progress cap (can't spin forever)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  local sid=apC; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  jq -n '{id:"1",subject:"stuck",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  # With MAX=3 and no task ever completing: stops 1-2 still block, the 3rd no-progress stop yields.
+  local i r; for i in 1 2; do
+    r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_MAX=3 "$STOP" | jq -r '.decision // "allow"')"
+    [ "$r" = "block" ]                                             # no completion, but under the cap
+  done
+  r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_MAX=3 "$STOP")"
+  [ -z "$r" ]                                                      # 3rd no-progress stop → yield
 }
 
 @test "touch: silent on a small file with no dependents, and when disabled" {

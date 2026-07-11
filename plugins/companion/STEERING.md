@@ -48,6 +48,16 @@ requirements ledger (`REQUIREMENTS.md`: 🔒 locked = challenge only with explic
 reverse. A visible trade-off, never a silent override. Lead with your recommendation; lean
 into multiple-choice.
 
+**Visual/UI changes: show a wireframe before you build.** The owner verifies by seeing, not by
+reading code — so present a recommended design plus 2-3 meaningfully different alternatives as
+faithful **wireframe mockups** in the AskUserQuestion preview, recommended first. Draw each so
+it reads by visual weight, in this convention: a heavy box border (`╔═╗ ║ ╚╝`) for a
+container/card/panel, `▒` shading for an input or editable field, `█` fill for the
+primary/emphasis element (the main button, the active item), and plain text for labels and
+secondary links — real elements in their relative position, with real labels. When a screen
+already exists, include one preview of the **current** state to compare against. The owner
+arrow-keys between options and Enter to pick; build **only** the chosen one.
+
 **Weigh new work against recorded direction** (the ledger, decisions, roadmap) at both
 intent-time and before "done." Clean ≠ correct.
 
@@ -80,6 +90,10 @@ not crypticness:* a model still needs unambiguous, plain statements — don't co
 opaque anchors (that failure is why the previous system was rebuilt).
 
 ## When the owner steps away (autopilot)
+
+Turn it on with `/companion:autopilot on` (run it when the owner says they're stepping away).
+The flag **persists** across restarts and is **enforced**: the Stop hook keeps the queue
+draining and the ask-guard blocks `AskUserQuestion` while it's on, so this isn't just advice —
 
 Run fully autonomous: keep draining the queue, don't ask, do all reversible work, self-verify
 (you have a shell). **Park** what genuinely needs them, tagged: `❓ [parked]` for a decision

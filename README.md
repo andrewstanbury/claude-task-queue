@@ -18,7 +18,8 @@ reads once per session. The only things that are code are the things that must a
 | **Clean-as-you-touch** | After you edit a file, it's auto-formatted (your project's own formatter), its blast radius (who depends on it) is surfaced, and it's flagged if it's grown too large. `/companion:audit` does the same across the whole project on demand. |
 | **Resume** | Re-surfaces this repo's unfinished tasks when you start a new session. |
 | **`tq`** | The task queue — self-owned, so it works everywhere (including the newest models where Claude's built-in task tracking is switched off) and doesn't depend on Claude Code internals. It reprints the queue on every change, so the CLI always shows what's in progress and next. |
-| **Status line** | One glance line: secret gate · model · ⇡ input ⇣ output tokens · open-task count · project · branch. Wire it once with `/companion:setup`. |
+| **Autopilot** | `/companion:autopilot on` when you step away — Claude keeps working the queue on its own and parks decisions for your return. Enforced (it won't stop or ask while on) and persists across restarts. |
+| **Status line** | One glance line: secret gate · ✈️ autopilot · model · ⇡ input ⇣ output tokens · open-task count · project · branch. Wire it once with `/companion:setup`. |
 
 Bash + `jq`, zero build, one install.
 

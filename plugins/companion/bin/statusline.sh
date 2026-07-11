@@ -10,6 +10,9 @@ if [ -n "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ]; then G=""; Y=""; C=""; R=
 else G=$'\033[32m'; Y=$'\033[33m'; C=$'\033[36m'; R=$'\033[31m'; B=$'\033[1m'; D=$'\033[2m'; X=$'\033[0m'; fi
 
 command -v jq >/dev/null 2>&1 || exit 0
+SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; done
+# shellcheck source=../lib/autopilot.sh
+. "$(cd "$(dirname "$SELF")/../lib" && pwd)/autopilot.sh"
 in=""; [ -t 0 ] || in="$(cat 2>/dev/null || true)"; [ -n "$in" ] || in="{}"
 read -r MODEL SID CWD ITOK OTOK < <(printf '%s' "$in" | jq -r '
   [ (.model.display_name // .model.id // "?"),
@@ -42,8 +45,11 @@ while IFS= read -r l; do case "$l" in '# branch.head '*) BRANCH="${l#\# branch.h
 done < <(git -C "$CWD" status --porcelain=v2 --branch 2>/dev/null)
 PROJ="$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null)"; PROJ="${PROJ##*/}"; [ -n "$PROJ" ] || PROJ="${CWD##*/}"
 
-# assemble: 🛡 · model · ⇡in ⇣out · 📋N · project · ⎇branch *changes
-out="$SHIELD ${C}$MODEL$X"
+# ✈️ autopilot when it's armed for this repo (an attention state).
+AP=""; companion_autopilot_on "$(companion_root "$CWD")" && AP=" ${Y}✈️${X}"
+
+# assemble: 🛡 [✈️] · model · ⇡in ⇣out · 📋N · project · ⎇branch *changes
+out="$SHIELD$AP ${C}$MODEL$X"
 [ "${ITOK:-0}" -gt 0 ] 2>/dev/null && out="$out ${D}⇡$(hum "$ITOK") ⇣$(hum "$OTOK")$X"
 out="$out ${C}${B}📋 $NTASK$X"
 [ -n "$PROJ" ] && out="$out $PROJ"
