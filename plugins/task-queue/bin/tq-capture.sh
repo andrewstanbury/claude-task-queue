@@ -170,6 +170,22 @@ if [ "$paused" -eq 0 ]; then
     { mkdir -p "$(tq_state_dir)" 2>/dev/null && printf '%s' "$prompt" > "$(tq_intent_file "$sid")"; } 2>/dev/null || true
   fi
 
+  # AUTO-SEED the live queue (reliability fallback). The status line is only useful if
+  # it reflects that you asked for work — but on models with the native task tools gated
+  # off (Opus 4.8 / Sonnet 5 / Fable 5) the queue depends on the MODEL shelling out to
+  # `tq`, which it does inconsistently, leaving the bar at 📋 0 on a real request. So when
+  # a work prompt arrives and the queue is EMPTY, write ONE pending task capturing the
+  # prompt — THROUGH bin/tq, the single writer (invariant preserved), stdout silenced so
+  # it can't corrupt this hook's JSON. Fires only on an empty queue → a safety net, not a
+  # second writer racing the model (which then refines/splits this seed per the reanchor).
+  # Skipped while the return-review gate is armed (new work stays queued until ❓ clears).
+  # Best-effort; disable with CLAUDE_TQ_AUTOSEED=0.
+  if [ "${CLAUDE_TQ_AUTOSEED:-1}" != "0" ] && [ -z "$reviewnudge" ] && ! tq_has_open_tasks "$sid"; then
+    seed="$(printf '%s' "$prompt" | tr '\n' ' ' | sed 's/  */ /g')"
+    [ "${#seed}" -gt 72 ] && seed="${seed:0:71}…"
+    CLAUDE_TQ_SESSION_ID="$sid" "$PLUGIN_DIR/bin/tq" add "$seed" >/dev/null 2>&1 || true
+  fi
+
   # Two instructions. The hook injects one; the model runs it in-loop — the
   # interaction (AskUserQuestion) and the queuing (TaskCreate) are the model's.
   #

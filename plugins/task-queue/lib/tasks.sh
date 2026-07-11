@@ -115,6 +115,23 @@ tq_ready_tasks() {
   done | awk 'NF && !seen[$0]++'
 }
 
+# Does this session's store hold ANY open (pending/in_progress) task, of any kind —
+# work, ❓ parked, or ⏳ blocked? Prints nothing; returns 0 (true) / 1 (false). The
+# auto-seed fallback (tq-capture) uses this to fire ONLY on a genuinely empty queue, so
+# a seed is a SAFETY NET for an unpopulated queue, never a second writer racing the
+# model's own tasks. First open file short-circuits — cheap even on a large store.
+tq_has_open_tasks() {
+  local sid="$1" tdir f
+  [ -n "$sid" ] || return 1
+  tdir="$(tq_tasks_dir)/$sid"
+  [ -d "$tdir" ] || return 1
+  for f in "$tdir"/*.json; do
+    [ -f "$f" ] || continue
+    jq -e 'select(.status=="pending" or .status=="in_progress")' "$f" >/dev/null 2>&1 && return 0
+  done
+  return 1
+}
+
 # (The standalone pause mode was folded into solo — see lib/away.sh. `solo`, run when
 # the owner steps away, suppresses the approval loop the way pause used to, so there is
 # no separate pause flag any more.)

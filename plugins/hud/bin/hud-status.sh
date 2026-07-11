@@ -16,14 +16,15 @@
 # start), and last-tidy (ephemeral) — surfacing those again was duplication, and
 # the docs mirror was the heaviest cross-plugin maintenance burden.
 #
-# The beacon is an ANIMATED braille-orbit spinner (green = clean/green, yellow = solo
-# mode, red = tests failing), advancing one frame per real second. That needs a timer,
-# so hud-install.sh sets refreshInterval=1 in the statusLine config; Claude Code re-runs
-# this command every second (plus its event-driven refreshes on each message / after
-# compact), which both animates the beacon AND keeps every other slot fresh. The cost is
-# waking jq+git once a second on idle — a deliberate battery trade the owner opted into
-# for a live status line. The spinner animates with color ON or OFF (braille reads by
-# shape); only a TERM=dumb terminal falls back to a static ●.
+# The beacon is a STATIC ● tinted by health (green = clean/green, yellow = solo mode,
+# red = tests failing). It used to be an animated braille spinner advancing one frame per
+# second — but that FORCED a per-second (later per-2s) refreshInterval, and on a handheld
+# (Steam Deck) waking jq+git ~1800×/hour on idle defeated the CPU's race-to-idle and kept
+# fans spinning. The animation was pure decoration, so it was dropped: the status line now
+# refreshes EVENT-DRIVEN only (Claude Code repaints it on each message / after compact),
+# which keeps every slot fresh at ~zero idle cost. hud-install.sh no longer sets
+# refreshInterval. Everything below is written to be cheap per render (one git read, no
+# animation timer) since a render can still fire on every message.
 #
 # Wire it (settings.json):
 #   { "statusLine": { "type": "command", "command": "bash <THIS_PATH>" } }
@@ -35,16 +36,15 @@ set -uo pipefail
 SELF="${BASH_SOURCE[0]}"
 while [ -L "$SELF" ]; do
   link="$(readlink "$SELF")"
-  case "$link" in /*) SELF="$link" ;; *) SELF="$(dirname "$SELF")/$link" ;; esac
+  case "$link" in /*) SELF="$link" ;; *) SELF="${SELF%/*}/$link" ;; esac   # ${%/*} = dirname, no fork
 done
-THIS_DIR="$(cd "$(dirname "$SELF")" && pwd)"
+THIS_DIR="$(cd "${SELF%/*}" && pwd)"
 PLUGIN_DIR="$(cd "$THIS_DIR/.." && pwd)"
 # shellcheck source=../lib/hud.sh
 . "$PLUGIN_DIR/lib/hud.sh"
 
-# DUMB tracks a terminal that can't render the braille spinner (TERM=dumb) — kept SEPARATE
-# from no-color, because NO_COLOR only drops the ANSI hues; a no-color terminal still draws
-# braille shapes fine, so the beacon can animate there (the frames read by shape, not color).
+# A TERM=dumb terminal can't handle ANSI, so drop color there — same effect as NO_COLOR.
+# (The beacon is a plain ● now, which renders anywhere, so this only governs the palette.)
 DUMB=""; [ "${TERM:-}" = "dumb" ] && DUMB=1
 if [ -n "${NO_COLOR:-}" ] || [ -n "$DUMB" ]; then
   Y=""; G=""; C=""; R=""; B=""; D=""; GREY=""; X=""
@@ -102,30 +102,23 @@ AWAY="$(hud_away "$ROOT")"
 VERIFY="$(hud_verify "$SID")"
 REVIEW="$(hud_review_pending "$ROOT")"   # 🔒 return-review gate armed (edits blocked)
 DESIGN="$(hud_design_pending "$SID")"    # 🎨 design preview pending (edits blocked)
-BRANCH="$(hud_branch "$CWD")"
-# Dirty-count + ahead/behind are only shown next to the branch (wide terminals, in
-# a repo). Skip their git calls otherwise — they run every render.
-DIRTY=""; AB=""
-if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
-  DIRTY="$(hud_dirty "$CWD")"
-  AB="$(hud_ahead_behind "$CWD")"
-fi
+# Branch + dirty-count + ahead/behind in ONE git read (hud_git), replacing four per-render
+# git forks. Split the tab-separated fields by hand rather than `read` — tab is whitespace,
+# so `IFS=$'\t' read` COLLAPSES the empty dirty field (a clean tree) and shifts the columns.
+GITF="$(hud_git "$CWD")"
+BRANCH="${GITF%%$'\t'*}"; GITF="${GITF#*$'\t'}"
+DIRTY="${GITF%%$'\t'*}";  GITF="${GITF#*$'\t'}"
+AHEAD="${GITF%%$'\t'*}";  BEHIND="${GITF##*$'\t'}"
 
-# 1) Health beacon — an ANIMATED braille-orbit spinner (dots sweeping around the cell),
-# advancing one frame per real second (selected by the clock; the statusLine config sets
-# refreshInterval=1 to repaint it — see hud-install.sh). When color is on it's tinted by
-# overall health: red = tests failing, yellow = autopilot (an attention state), green
-# otherwise. It ANIMATES even with color OFF — the braille shapes read without hue — so
-# only a TERM=dumb terminal (which may not render braille) falls back to a static ●.
+# 1) Health beacon — a STATIC ● tinted by overall health: red = tests failing, yellow =
+# autopilot (an attention state), green otherwise. It used to animate (braille orbit, one
+# frame/second), but that forced a per-second refresh timer whose idle cost spun handheld
+# fans; the animation was decoration, so the dot is now static and the line refreshes
+# event-driven (see the header note + hud-install.sh, which no longer sets refreshInterval).
 BCOL="$G"
 [ "$AWAY" = "1" ] && BCOL="$Y"
 [ "$VERIFY" = "fail" ] && BCOL="$R"
-BEACON_FRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)   # dots rotating clockwise around the border
-if [ -z "$DUMB" ]; then
-  BEACON="${BEACON_FRAMES[$(( $(date +%s 2>/dev/null || echo 0) % ${#BEACON_FRAMES[@]} ))]}"
-else
-  BEACON="●"
-fi
+BEACON="●"
 
 # The line is three ZONES joined by a dim divider (│): [health & alerts] │ [feature
 # modes] │ [context]. Within a zone slots are single-space separated so the group
@@ -216,7 +209,7 @@ if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
   # multi-repo owner with several panes open. It's the basename of the already-computed
   # ROOT (no extra git call), truncated so a long name can't crowd the signals, and it
   # rides in the wide-only branch block so it's the first context to shed on a narrow term.
-  RNAME="$(basename "$ROOT" 2>/dev/null || true)"
+  RNAME="${ROOT##*/}"                       # basename, no fork
   [ "${#RNAME}" -gt 14 ] && RNAME="${RNAME:0:13}…"
   # Normal (bright) weight — NOT dim, NOT bold: the project reads clearly and stands apart
   # from the dim token counts and the cyan branch without the heaviness of bold. A glanceable
@@ -224,11 +217,8 @@ if [ "$NARROW" -eq 0 ] && [ -n "$BRANCH" ]; then
   [ -n "$RNAME" ] && Z3+=("$RNAME")
   bseg="$C$B⎇ $BRANCH$X"
   [ -n "$DIRTY" ] && bseg="$bseg $Y$B*$DIRTY$X"
-  if [ -n "$AB" ]; then
-    AHEAD="${AB%% *}"; BEHIND="${AB##* }"
-    [ "${AHEAD:-0}" -gt 0 ] 2>/dev/null && bseg="$bseg $C$B↑$AHEAD$X"
-    [ "${BEHIND:-0}" -gt 0 ] 2>/dev/null && bseg="$bseg $Y$B↓$BEHIND$X"
-  fi
+  [ "${AHEAD:-0}" -gt 0 ] 2>/dev/null && bseg="$bseg $C$B↑$AHEAD$X"
+  [ "${BEHIND:-0}" -gt 0 ] 2>/dev/null && bseg="$bseg $Y$B↓$BEHIND$X"
   Z3+=("$bseg")
 fi
 
