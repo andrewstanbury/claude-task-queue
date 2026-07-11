@@ -1,24 +1,27 @@
 #!/usr/bin/env bash
-# tq — fallback task-queue CLI, for models whose native task tools are gated off
-# (tengu_vellum_ash: Opus 4.8 / Sonnet 5 / Fable 5). Writes the SAME native-format JSON to
-# the SAME per-session store every reader keys off, so the queue, resume, and report all
-# work identically. The model self-routes: native TaskCreate when it has it, `tq` when not.
-# Best-effort + never destructive. Self-contained (no lib). Store: CLAUDE_COMPANION_TASKS_DIR.
+# tq — THE task queue. The companion deliberately does NOT use Claude Code's native task
+# tools (they're gated off on the newest models and we want the queue self-owned and stable);
+# `tq` is the whole queue, writing a JSON-per-task store the companion owns. The model drives
+# it: `tq add/doing/note/done/list/report`. Best-effort + never destructive; self-contained.
+# Store: CLAUDE_COMPANION_TASKS_DIR (its OWN dir, not ~/.claude/tasks). Each session dir is
+# stamped with its repo root (`.root`) so resume can scope to a repo without reading any
+# native session transcript.
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || { echo "tq: jq required" >&2; exit 1; }
 
 SID="${CLAUDE_COMPANION_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"
 [ -n "$SID" ] || { echo "tq: no session id (CLAUDE_CODE_SESSION_ID unset)" >&2; exit 1; }
-DIR="${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/tasks}/$SID"
+STORE="${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}"
+DIR="$STORE/$SID"
 
 usage() { cat >&2 <<'EOF'
 tq — fallback task queue (native task tools gated off)
-  tq add "<subject>" [more...]   queue pending task(s)
-  tq doing <id> ["<breadcrumb>"] mark in progress (opt. crash-resume note)
+  tq add "<subject>" [more...]   queue pending task(s) + print the report
+  tq doing <id> ["<breadcrumb>"] mark in progress (opt. crash-resume note) + report
   tq note  <id> "<breadcrumb>"   update the in-progress breadcrumb
   tq done  <id>                  mark completed + print the report
   tq list                        terse one-line-each queue
-  tq report                      full grouped status report (fires on each `done`)
+  tq report                      full grouped status report (also fires on add/doing/done)
 Lead a subject with ❓ (a parked decision) or ⏳ (owner-blocked) to defer it.
 EOF
 }
@@ -50,11 +53,16 @@ report() {
 
 cmd="${1:-list}"; shift || true
 case "$cmd" in
-  add) [ "$#" -gt 0 ] || { usage; exit 1; }; mkdir -p "$DIR" || exit 1; id="$(next_id)"
+  add) [ "$#" -gt 0 ] || { usage; exit 1; }; mkdir -p "$DIR" || exit 1
+    # Stamp this session's store with its repo root (once), so resume can scope to a repo
+    # without reading any native session transcript. tq runs in the repo the model is working.
+    [ -f "$DIR/.root" ] || { r="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"; printf '%s' "$r" > "$DIR/.root" 2>/dev/null || true; }
+    id="$(next_id)"
     for s in "$@"; do [ -n "$s" ] || continue
       jq -n --arg id "$id" --arg s "$s" '{id:$id,subject:$s,status:"pending",blocks:[],blockedBy:[]}' >"$DIR/.$id.tmp" && mv "$DIR/.$id.tmp" "$DIR/$id.json"
-      echo "added #$id  $s"; id=$((id+1)); done ;;
-  doing) { [ "$#" -ge 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" in_progress "${2:-}"; echo "#$1 → in_progress" ;;
+      echo "added #$id  $s"; id=$((id+1)); done
+    echo; report ;;
+  doing) { [ "$#" -ge 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" in_progress "${2:-}"; echo "#$1 → in_progress"; echo; report ;;
   done) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" completed ""; echo "#$1 → completed"; echo; report ;;
   note) { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }; set_task "$1" "" "$2"; echo "#$1 note set" ;;
   report) report ;;

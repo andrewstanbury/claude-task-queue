@@ -20,10 +20,12 @@ it governs how you work here too.**
   - `secret-guard.sh` — PreToolUse: blocks a write that would commit a credential (`exit 2`).
     The one real content-gate; a leaked key is irreversible.
   - `session-start.sh` — SessionStart: injects STEERING + re-surfaces this repo's open tasks
-    from an earlier session (cross-session resume). Repo-scoped (no cross-project bleed).
-  - `tq` — the task-queue fallback CLI for models whose native task tools are gated off
-    (`tengu_vellum_ash`: Opus 4.8 / Sonnet 5 / Fable 5). Writes the native store; `tq report`
-    prints the queue on each `done`.
+    from an earlier session (scoped by the store's `.root` stamp; no cross-repo bleed).
+  - `tq` — **THE task queue.** The companion owns its store (`~/.claude/companion/tasks`) and
+    deliberately does **not** use Claude Code's native task tools (R8/R10). `tq report` reprints
+    the queue on every `add`/`doing`/`done`.
+  - `statusline.sh` — a `statusLine` command (not a hook): 🛡 secret gate · model · ⇡in ⇣out ·
+    📋 open tasks · project · branch. Wire it with `/companion:setup`.
 
 Keep the split honest: don't add advisory prose as a hook, and don't add a hook for anything
 a document can say.

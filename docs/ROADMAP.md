@@ -39,10 +39,10 @@ steering model doesn't incur, and it drove prose into cryptic anchors. Efficienc
 - **Steering** (`plugins/companion/STEERING.md`) — all the prose: queue discipline, the
   brutal-honest recommendation posture against the ledger, clean-as-you-go, autopilot. Read
   once per session. Advisory by nature; it lives in one file, not scattered across hooks.
-- **Enforced core** (`plugins/companion/bin/`) — the only behavior that must execute or block:
-  the secret gate (`secret-guard.sh`), cross-session resume + steering injection
-  (`session-start.sh`), and the `tq` queue fallback for models with the native task tools
-  gated off.
+- **Enforced core** (`plugins/companion/bin/`) — the behavior that must execute, block, or
+  render: the secret gate (`secret-guard.sh`), cross-session resume + steering injection
+  (`session-start.sh`), the `tq` queue (the companion owns its store — it does **not** use
+  native tasks; R8/R10), and a minimal status line (`statusline.sh`).
 
 Bash + `jq`, zero build. The `file → responsibility` index is [docs/MAP.md](./MAP.md).
 

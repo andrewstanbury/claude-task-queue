@@ -20,9 +20,11 @@ four plugins into one; this reflects the current tree.
 | File | Responsibility |
 |---|---|
 | `STEERING.md` | **The steering layer** — the working agreement (queue discipline · challenge-the-ask + recommendation posture against the ledger · clean-as-you-go · autopilot). Prose the model reads once per session; not code, not a hook. |
-| `bin/session-start.sh` | SessionStart hook: inject STEERING once + re-surface this repo's open tasks from an earlier session (repo-scoped resume — no cross-project bleed). |
+| `bin/session-start.sh` | SessionStart hook: inject STEERING once + re-surface this repo's open tasks from an earlier session (scoped by each session store's `.root` stamp — no native transcript, no cross-repo bleed). |
 | `bin/secret-guard.sh` | PreToolUse[Write\|Edit] hook: the one **enforced** content-gate — block a write that would commit a credential (`exit 2`). `CLAUDE_COMPANION_SECSCAN=0` disables. |
-| `bin/tq` | Task-queue fallback CLI for models with the native task tools gated off — writes the native store; `add`/`doing`/`note`/`done`/`list`/`report`. |
+| `bin/tq` | **THE task queue** — the companion owns its store (`~/.claude/companion/tasks`, NOT native tasks). `add`/`doing`/`note`/`done`/`list`/`report`; the report reprints on every `add`/`doing`/`done`. |
+| `bin/statusline.sh` | The status line (a `statusLine` command, not a hook): 🛡 secret gate · model · ⇡in ⇣out tokens · 📋 open tasks · project · branch. Read-only, zero model cost. Wire with `/companion:setup`. |
+| `commands/setup.md` | `/companion:setup` — wires the status line into settings.json. |
 | `hooks/hooks.json` | Wires the two hooks (SessionStart, PreToolUse). |
 | `.claude-plugin/plugin.json` | Manifest + version. |
-| `tests/companion.bats` | Tests the **enforced core only** — the secret gate, `tq`, and session-start/resume. (The steering layer is prose; it isn't unit-testable, and pretending it was is what the old system got wrong.) |
+| `tests/companion.bats` | Tests the **enforced core only** — the secret gate, `tq`, session-start/resume, and the status line. (The steering layer is prose; it isn't unit-testable, and pretending it was is what the old system got wrong.) |

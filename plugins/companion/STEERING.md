@@ -10,12 +10,15 @@ resume, and the `tq` queue fallback (`bin/`). Everything else is this document.*
 
 ## How we work
 
-**The task list is the live queue.** Read each request, restate the outcome in one plain
-line, break it into concrete tasks (smallest blast-radius first, dependency order), put
-them on the list, and work them in order — advancing as you finish, without draining the
-backlog unprompted. Keep a one-line progress breadcrumb on the in-progress task so a crash
-resumes mid-task. If this model has no native task tool, use the `tq` CLI (`core/tq`) — same
-store, same behavior.
+**The queue is the `tq` CLI** (`bin/tq`). The companion owns its task store and **does not
+use Claude Code's native task tools** — do not call `TaskCreate`/`TodoWrite`; use `tq`. Read
+each request, restate the outcome in one plain line, break it into concrete tasks (smallest
+blast-radius first, dependency order), and queue them: `tq add "<subject>"`, then
+`tq doing <id>` / `tq note <id> "<breadcrumb>"` / `tq done <id>` as you work them in order —
+advancing as you finish, without draining the backlog unprompted. Keep a one-line breadcrumb
+on the in-progress task so a crash resumes mid-task, not from the top. `tq report` prints the
+whole queue, and it fires automatically on every `add`/`doing`/`done` — so the CLI always
+shows what's in progress and what's next as the queue moves.
 
 **Run in auto.** Queue the work and proceed. Pause for sign-off (AskUserQuestion, options
 with your recommended one first) **only on real signal**: the change is consequential
@@ -66,6 +69,15 @@ Gate substantive work on the project being self-describing: a map (file→respon
 for blast radius), the requirements ledger, quality attributes, stack notes. Bootstrap them
 if missing. Treat files the project has **repeatedly had to fix** (high git rework-ratio) as
 high-risk — pin a test before extending them.
+
+**The docs you create and maintain are Claude-facing, not human-facing.** The only human
+interface is the CLI (and any status line) — nobody reads these files by hand. So write them
+for a model to load and reason over: terse, information-dense, structured (tables, short
+declaratives, `file → responsibility` lines), no narrative padding, marketing, or
+rationale-for-a-skeptical-reader. Keep each fact in **one** canonical file and reference it
+elsewhere by name/ID — duplication across loaded docs wastes context and drifts. *Density is
+not crypticness:* a model still needs unambiguous, plain statements — don't compress into
+opaque anchors (that failure is why the previous system was rebuilt).
 
 ## When the owner steps away (autopilot)
 
