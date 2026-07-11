@@ -1,190 +1,25 @@
 # Changelog
 
-All notable changes to the four plugins in this repo. Each plugin versions
-independently; the entries below are grouped per plugin. Format loosely follows
-[Keep a Changelog](https://keepachangelog.com/).
+Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
-## Unreleased
+## companion 1.0.0 — 2026-07-11
 
-Launch-hardening pass (no version bumps yet):
+**Ground-up rebuild.** The four plugins (`task-queue`, `tidy`, `charter`, `hud`) were
+replaced by one plugin, **`companion`**, built on a single principle: *steering is a
+document, enforcement is code, never confuse the two.*
 
-- macOS portability fixes across the hook scripts.
-- Full user-facing configuration reference at [docs/CONFIG.md](docs/CONFIG.md).
-- Per-plugin READMEs.
-- Secret scan extended to cover `NotebookEdit` writes.
-- Stop-hook timeout so a slow verify can't stall turn completion.
+- **Steering** — all the prose that shapes how Claude works (task queue, the brutal-honest
+  recommendation posture against the requirements ledger, clean-as-you-go, autopilot) now
+  lives in one file, `plugins/companion/STEERING.md`, put in context once per session.
+- **Enforced core** — the only behavior that must execute or block, kept as code: a pre-write
+  secret gate (`secret-guard.sh`), cross-session task resume (`session-start.sh`), and the
+  `tq` queue fallback for models with the native task tools gated off.
+- **Retired**: the per-hook token-budget NFR, the cross-plugin drift-guard and mirrored
+  detectors, the status line (`hud`), and every advisory Stop/PreToolUse prose-hook.
+- ~12,500 lines → a few hundred. Rationale and reshaped requirements: `docs/REQUIREMENTS.md`
+  (R24).
 
-## task-queue
+## Before 1.0.0
 
-### 0.46.0
-- Auto-seed the live queue so the status line can't sit at a false `📋 0`. The queue
-  is only useful if it reflects that you asked for work, but on models with the native
-  task tools gated off it depended on the model shelling out to `tq` — which it did
-  inconsistently, leaving the bar empty on a real request. The `UserPromptSubmit` hook
-  now writes ONE pending task capturing the prompt when the queue is empty, THROUGH
-  `bin/tq` (the single writer — invariant preserved), stdout silenced so it can't
-  corrupt the hook output. Fires only on an empty queue, so it's a safety net, not a
-  second writer racing the model (which refines/splits the seed). Zero added injected
-  tokens; disable with `CLAUDE_TQ_AUTOSEED=0`.
-
-### 0.42.3
-- Agent-mode no longer risks hiding the native queue. The SessionStart banner used
-  to say "DEFAULT to fanning work out to subagents", which could let a whole prompt
-  be delegated to a subagent that tracked its work in its own context — leaving the
-  main session's native task list (the plugin's core feature) empty. It now asserts a
-  queue-first invariant: the native list in THIS session is always the live queue, and
-  agent-mode only adds subagents to do the work *under* an already-queued task.
-- Test isolation: `tests/token-budget.bats` now unsets `CLAUDE_TQ_AGENT_MODE` /
-  `CLAUDE_TQ_CHECKPOINT_MODE` in setup, so the steady-state baseline measures the true
-  no-mode injection instead of spuriously busting its budget when the runner has the
-  global mode default on.
-
-### 0.42.2
-- Fixed a return-review-gate lock: a crashed autopilot session's unresolved `❓`
-  could block editing repo-wide forever — the parked-pile check now ages out
-  abandoned sessions (same cutoff as the resume bridge).
-- `tq_root_for_cwd` resolves a git submodule to its own working root instead of a
-  shared `.git/modules` path (sibling submodules no longer collide to one flag key).
-- Per-repo flag files now use an injective encoding (`/`→`%2F`), so two repos whose
-  paths differ only by `-` vs `/` no longer share autopilot/agent/review state. NOTE:
-  a one-time reset — flags set before this upgrade read as off until re-toggled.
-- Extracted the resume bridge to `lib/resume.sh` so the per-prompt hot path doesn't
-  parse it and `lib/tasks.sh` stays under the size budget.
-- `tq-capture` runs best-effort (`set +e`) like the other per-prompt hooks.
-
-### 0.42.0
-- `⏳` owner-blocked marker (drains the queue around owner-action items); leaner
-  autopilot drain; `/task-queue:ship` renamed to `/task-queue:ship-it`.
-
-### 0.40.0
-- Tests are fully opt-in (never forced); autopilot never stalls for a human playtest.
-
-### 0.39.0
-- Removed crash-recovery; enforced the parked-review + design-preview gates;
-  queue-aware agent fan-out.
-
-### 0.38.0
-- A prompt is presence — autopilot ≠ absent (owner-present marker unblocks asks).
-
-### 0.37.x
-- Toggle commands honor explicit `on`/`off` (bare = on); trimmed toggles;
-  no-stall autopilot.
-
-### 0.35.x
-- `/task-queue:ship` + `/task-queue:resume`; autopilot parks important decisions
-  rather than guessing; per-prompt `❓` reminder cap; token/dedup cleanups.
-
-### 0.34.0
-- `/task-queue:resume`; autopilot decides-not-parks the routine calls.
-
-### Earlier
-- Per-feature slash commands replacing the single `/tq` hub; enforced autopilot
-  (auto-continue + ask-block); away-mode, mid-task resume; every prompt routed
-  through the review loop; requirement conflicts surfaced as visible trade-offs.
-
-## tidy
-
-### 0.42.2
-- `/tidy:audit` now includes a model-driven **performance pass**: it recognises the project's
-  hot/realtime paths generically (no engine/framework allowlist) and flags likely per-frame /
-  hot-loop regressions (allocations in loops, O(n) per frame, blocking I/O in the loop, …) with
-  concrete fixes. Honest about the limit — it can't measure fps/frame-time/thermals, so it
-  routes perf-sensitive changes to a before/after profile (incl. a thermal/fan check on
-  handheld targets) rather than asserting numbers.
-
-### 0.42.1
-- Verification-floor bounded counters (quality / coverage / regression / test) share
-  `tidy_gate_count`/`tidy_gate_bump` helpers so the "can never loop" arithmetic lives
-  in one place instead of four hand-copies.
-
-### 0.42.0
-- `/tidy:audit` — on-demand whole-project audit that auto-queues cleanup.
-
-### 0.41.0
-- Tests fully opt-in (never forced).
-
-### Earlier
-- Auto-format on touch (project's own formatter); blast-radius surfacing;
-  import-cycle check; file-size budget with deliberate-prune routing.
-
-## charter
-
-### 0.23.0
-- Language-agnostic convention detection; generic-rules invariant made explicit
-  (no hardcoded language/framework allowlists).
-
-### 0.22.0
-- Docs optimized for Claude; charter token trim.
-
-### Earlier
-- React Native convention detection, disambiguated from web; structural web-app
-  detection for the web-QA nudge.
-
-## hud
-
-### 0.22.0
-- Health beacon is now a STATIC ● and the status line refreshes EVENT-DRIVEN only.
-  The beacon used to be an animated braille spinner, which forced a per-second (later
-  per-2s) `refreshInterval` — and on a handheld (Steam Deck) waking jq+git ~1800×/hour
-  on idle defeated the CPU's race-to-idle and kept fans spinning. The animation was pure
-  decoration, so it was dropped; Claude Code already repaints the line on each message,
-  so every slot stays fresh at ~zero idle cost. `hud-install.sh` no longer writes
-  `refreshInterval` (and strips one a prior install wrote).
-- Per-render cost cut ~25 subprocesses → ~12 (git 6 → 2): the branch/dirty/ahead-behind
-  reads are consolidated into a single `git status --porcelain=v2 --branch` (`hud_git`),
-  and `sed`/`dirname`/`basename` forks in the hot path folded into pure bash. `hud_enc_root`
-  stays byte-compatible with task-queue's encoder (drift-guard still asserts agreement).
-
-### 0.20.7
-- Project-name anchor renders at normal (bright) weight — not dim, not bold — so it's clearly
-  visible without the heaviness of bold.
-
-### 0.20.6
-- Project-name anchor is now shown brighter than dim so it stands apart from the dim token
-  counts and the cyan branch at a glance.
-
-### 0.20.5
-- Feature-zone spacing: the wide toggle emoji (`✈️`/`🤖`) now hug the trailing `│` divider
-  (tight, no leading space) so a font that under-fills the emoji's 2-cell slot no longer
-  looks double-spaced before the bar — `│ 🤖 │` reads even.
-
-### 0.20.4
-- The health-beacon spinner now animates on a no-color terminal too — the braille frames
-  read by shape, so `NO_COLOR` no longer freezes the beacon. Only a `TERM=dumb` terminal
-  (which may not render braille) falls back to the static `●`.
-
-### 0.20.3
-- Tests outcome shows a self-colored emoji (`✅` pass / `❌` fail / `⚠️` timeout) instead
-  of a text `✓`/`✗`, so it stays colorful even on a no-color terminal.
-
-### 0.20.2
-- Cleaner status line: feature toggles are now bare icons (`✈️` autopilot, `🤖` agents)
-  shown only when on, tests show a bare check, and the edit-gates keep a short word only
-  while armed (`🎨 design`, `🔒 review`). The `🛡` safety shield stays.
-- Added a project-name anchor just left of the branch (truncated; wide terminals only)
-  so multi-repo users can tell panes apart at a glance.
-- Submodule-aware root resolution (matches task-queue) so a submodule's status line
-  keys to its own root, not a shared `.git/modules` path; mirrors task-queue's new
-  injective flag encoding.
-- `❓`/`⏳` counters strip leading whitespace before matching, agreeing with
-  task-queue's marker predicates (an indented subject no longer miscounts).
-
-### 0.20.0
-- Always-on `🛡` safety shield (green when every floor is on, `🛡✗N` when any are
-  off) — a positive "you're protected" signal, not just an exception warning.
-- Two edit-gate indicators: `🔒` when the return-review gate is armed and `🎨`
-  while a design-preview is pending. (task-queue relocates the design marker into
-  the shared state dir so the status line can read it read-only.)
-
-### 0.19.0
-- `⏳N` owner-blocked count in the status line.
-
-### 0.18.0
-- Status-line alignment with the opt-in test changes.
-
-### 0.16.0 – 0.17.0
-- Trimmed toggles; animated autopilot beacon; enforced-gate indicators.
-
-### Earlier
-- Icon-led feature slot (✈️ autopilot · 🧷 checkpoint · 🤖 agents); token-throughput
-  slot; `🛡✗` disabled-floor marker + `/hud:legend`; Claude-muted terminal palette.
+The four-plugin history (task-queue / tidy / charter / hud, versioned independently through
+mid-2026) is in `git log` — the commit messages carry the same detail this file used to.
