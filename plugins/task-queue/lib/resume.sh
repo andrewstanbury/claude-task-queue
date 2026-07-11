@@ -90,7 +90,7 @@ tq_resume_context() {
         if (tmt[j] > tmt[i]) { x=tmt[i];tmt[i]=tmt[j];tmt[j]=x; y=tsub[i];tsub[i]=tsub[j];tsub[j]=y }
       shown = (tn > max ? max : tn)
       more  = tn - shown
-      printf "%d open task%s carry over from an earlier session in this project — your native list starts empty each session, so this is the crash/restart safety net. If the user is continuing this work, REINSTATE them now with TaskCreate as your first action (restore any in-progress ones to in_progress and resume from the progress breadcrumb in each one'"'"'s description) before anything else; if they have clearly moved on, ignore this note.\n", n, (n==1?"":"s")
+      printf "%d open task%s carry over from an earlier session in this project — your native list starts empty each session, so this is the crash/restart safety net. If the user is continuing this work, REINSTATE them now (with TaskCreate — or `tq add`/`tq doing` if this model has the native task tools gated off) as your first action (restore any in-progress ones to in_progress and resume from the progress breadcrumb in each one'"'"'s description) before anything else; if they have clearly moved on, ignore this note.\n", n, (n==1?"":"s")
       for (i=0;i<dn;i++)    printf "  ▸ %s\n", dsub[i]   # ▸ = in progress (matches the hud current-task marker; NOT ⏳, which means owner-blocked)
       for (i=0;i<shown;i++) printf "  ◻ %s\n", tsub[i]
       if (more > 0) printf "  …and %d more todo%s.\n", more, (more==1?"":"s")

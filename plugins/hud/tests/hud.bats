@@ -31,16 +31,6 @@ teardown() {
   rm -rf "$CLAUDE_HUD_AWAY_DIR"
 }
 
-@test "hud_verify reads the verification floor's last outcome" {
-  export CLAUDE_HUD_VERIFY_DIR="$(mktemp -d)"
-  run bash -c "$SRC"' hud_verify "sessabc"' bash "$ROOT"; [ -z "$output" ]
-  printf 'pass' > "$CLAUDE_HUD_VERIFY_DIR/result-sessabc"
-  run bash -c "$SRC"' hud_verify "sessabc"' bash "$ROOT"; [ "$output" = "pass" ]
-  printf 'fail' > "$CLAUDE_HUD_VERIFY_DIR/result-sessabc"
-  run bash -c "$SRC"' hud_verify "sessabc"' bash "$ROOT"; [ "$output" = "fail" ]
-  rm -rf "$CLAUDE_HUD_VERIFY_DIR"
-}
-
 @test "hud_human_tokens: verbatim <1k, N.Nk thousands, N.NM millions, empty on junk" {
   run bash -c "$SRC"' hud_human_tokens 850' bash "$ROOT";     [ "$output" = "850" ]
   run bash -c "$SRC"' hud_human_tokens 12530' bash "$ROOT";   [ "$output" = "12.5k" ]
@@ -104,26 +94,6 @@ gitf() { run bash -c "$SRC"' hud_git "$2"' bash "$ROOT" "$REPO"; }
   [[ "$output" == *"✈️"* ]]                        # on → plane shown, no "autopilot" word
   [[ "$output" != *"autopilot"* ]]
   rm -rf "$CLAUDE_HUD_AWAY_DIR"
-}
-
-@test "render: ✓ tests when the verification floor last passed" {
-  export CLAUDE_HUD_VERIFY_DIR="$(mktemp -d)"; printf 'pass' > "$CLAUDE_HUD_VERIFY_DIR/result-sess"
-  payload="$(jq -nc --arg c "$REPO" \
-    '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c,
-      context_window:{used_percentage:5}, terminal_width:200}')"
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"✅"* ]]                          # self-colored pass emoji, no "tests" word
-  [[ "$output" != *"tests"* ]]
-  rm -rf "$CLAUDE_HUD_VERIFY_DIR"
-}
-
-@test "render: ✗ tests when the verification floor last failed" {
-  export CLAUDE_HUD_VERIFY_DIR="$(mktemp -d)"; printf 'fail' > "$CLAUDE_HUD_VERIFY_DIR/result-sess"
-  payload="$(jq -nc --arg c "$REPO" \
-    '{model:{display_name:"Opus"}, session_id:"sess", cwd:$c, context_window:{used_percentage:5}, terminal_width:200}')"
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$STATUS"
-  [[ "$output" == *"❌"* ]]                          # self-colored fail emoji, no "tests" word
-  rm -rf "$CLAUDE_HUD_VERIFY_DIR"
 }
 
 @test "render: repo-name anchor sits just left of the branch on a wide terminal" {
@@ -387,8 +357,8 @@ gitf() { run bash -c "$SRC"' hud_git "$2"' bash "$ROOT" "$REPO"; }
 
 @test "hud_floors_disabled: empty when all on, names each floor set to 0" {
   run bash -c "$SRC"' hud_floors_disabled' bash "$ROOT"; [ -z "$output" ]
-  run bash -c "$SRC"' CLAUDE_TIDY_CHECKS=0 hud_floors_disabled' bash "$ROOT"
-  [ "$output" = "tests" ]
+  run bash -c "$SRC"' CLAUDE_TIDY_SECSCAN=0 hud_floors_disabled' bash "$ROOT"
+  [ "$output" = "secret-scan" ]
   run bash -c "$SRC"' CLAUDE_TIDY_SECSCAN=0 CLAUDE_TQ_INTENT_GATE=0 hud_floors_disabled' bash "$ROOT"
   [ "$output" = "secret-scan intent-check" ]   # owner-ordered, space-separated, no leading space
 }
@@ -398,7 +368,7 @@ gitf() { run bash -c "$SRC"' hud_git "$2"' bash "$ROOT" "$REPO"; }
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$json" "$STATUS"
   [[ "$output" == *"🛡"* ]]                                    # all on → shield present (positive)
   [[ "$output" != *"🛡✗"* ]]                                   # ...and it's the healthy shield, not the alarm
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_TIDY_CHECKS=0 CLAUDE_CHARTER_ALIGN_GATE=0 "$2"' _ "$json" "$STATUS"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_TIDY_SECSCAN=0 CLAUDE_CHARTER_ALIGN_GATE=0 "$2"' _ "$json" "$STATUS"
   [[ "$output" == *"🛡✗2"* ]]                                  # two off → count of 2
 }
 
@@ -421,7 +391,7 @@ gitf() { run bash -c "$SRC"' hud_git "$2"' bash "$ROOT" "$REPO"; }
   [[ "$output" == *"hud status-line key"* ]]
   [[ "$output" == *"🛡✗"* ]]
   [[ "$output" == *"open questions"* ]]
-  run bash -c 'NO_COLOR=1 CLAUDE_TIDY_QUALITY_FLOOR=0 "$1" --legend' _ "$STATUS"
+  run bash -c 'NO_COLOR=1 CLAUDE_TIDY_SECSCAN=0 "$1" --legend' _ "$STATUS"
   [[ "$output" == *"Currently disabled"* ]]
-  [[ "$output" == *"quality"* ]]
+  [[ "$output" == *"secret-scan"* ]]
 }

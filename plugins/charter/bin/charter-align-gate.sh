@@ -8,7 +8,7 @@
 # a recorded decision unnoticed is an expensive rework/audit trigger; this is the
 # OUTCOME-time complement to the review loop's INTENT-time alignment.
 #
-# Bounded like tidy's verification floor: at most CLAUDE_CHARTER_ALIGN_MAX
+# Bounded: at most CLAUDE_CHARTER_ALIGN_MAX
 # (default 2) blocks per session, and never twice for the same tree, so it can
 # never loop. Disable with CLAUDE_CHARTER_ALIGN_GATE=0. Best-effort: any internal
 # error degrades to "allow the stop" (a companion must never break the action).

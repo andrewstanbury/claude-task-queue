@@ -61,7 +61,6 @@ Be honest about which is which:
 | Autopilot suppresses the approval loop | ENFORCED | tq-capture (deterministic) |
 | Return-review (clear the parked pile before new edits) | ENFORCED | tq-review-guard PreToolUse-deny · `CLAUDE_TQ_REVIEW_GATE=0` |
 | Design-preview shown before a visual change is built | ENFORCED | tq-design-guard PreToolUse-deny · `CLAUDE_TQ_DESIGN_GATE=0` |
-| Verification floor (tests green before done) | ENFORCED | tidy-verify Stop-block · `CLAUDE_TIDY_CHECKS=0` |
 | Secret pre-write scan | ENFORCED | tidy-presecret PreToolUse-block · `CLAUDE_TIDY_SECSCAN=0` |
 | Alignment gate (vs recorded decisions) | ENFORCED | charter-align-gate Stop-block · `CLAUDE_CHARTER_ALIGN_GATE=0` |
 | Token budgets | ENFORCED | CI (`tests/token-budget.bats`) |

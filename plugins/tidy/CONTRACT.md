@@ -106,8 +106,8 @@ default 300) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
 - **GDScript (Godot):** `gdformat` formats `.gd` in place (behavior-preserving),
   `gdlint` surfaces findings — both from the `gdtoolkit` pip package, detect-and-run
   (absent → silent). Same exit-code contract for the lint pass. These are the **fast, file-scoped** linters; slow whole-project tools
-  (clippy, project-wide mypy) are intentionally left to the verification floor
-  (§4) — the fastest loop that can catch a problem owns it. Disable a stack by
+  (clippy, project-wide mypy) are intentionally left to the project's own tooling
+  (tidy runs no whole-project checks — you run tests manually). Disable a stack by
   not having its tool installed; `CLAUDE_TIDY_LINT_TIMEOUT` bounds each run.
 - The plugin **does not install tools**; it detects them and honors the project's
   own config (e.g. `.golangci.yml`, `eslint.config.js`, `.stylelintrc`,
@@ -126,42 +126,29 @@ default 300) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   guarded (min name length, generic-name skip, capped sample). Disable all with
   `CLAUDE_TIDY_BLAST=0`.
 
-### 4. `Stop` hook payload (stdin) — the verification floor
+### 4. `Stop` hook payload (stdin) — post-work debt surface + opt-in gates
 
-- **Fields read:** `cwd` (→ repo root) and `session_id` (keys the bounded
-  attempt counter). `stop_hook_active` is the loop signal; our own per-session
-  counter (capped at `CLAUDE_TIDY_VERIFY_MAX`, default 3) is the hard bound.
-- **Behaviour:** if the working tree is dirty *and* a test command is
-  discoverable (`tidy_test_command`: explicit `CLAUDE_TIDY_TEST_CMD`, else
-  `package.json` test script / `go test` / `cargo test` / `pytest` / `make test`, or a conventional root script (`check.sh` / `test.sh` / `scripts/test`)
-  — only when the runner is installed), run it. On failure → emit
-  `{ "decision": "block", "reason": "<failure>" }` (fed to the model, not the
-  user) up to the cap, then allow the stop with a `systemMessage`. On pass / no
-  command / clean tree / `CLAUDE_TIDY_CHECKS=0` → allow silently.
-- **If it changes:** the verification floor silently stops; everything else is
-  unaffected.
+The end-of-turn **verification floor was removed** — tidy no longer runs the
+project's tests on Stop (you run those manually). What the Stop hook does now:
+
+- **Fields read:** `cwd` (→ repo root) and `session_id` (keys the bounded attempt
+  counter for the opt-in gates below). `stop_hook_active` is the loop signal.
+- **Behaviour:** on a dirty tree it makes one **non-blocking** post-work pass —
+  import cycles touching the change + a debt-prune nudge past the size-budget
+  threshold (see below) — emitted as a `systemMessage`. On a clean tree / nothing to
+  surface / `CLAUDE_TIDY_CHECKS=0` → allow silently. The two OPT-IN gates below are
+  the only paths that emit `decision: block`.
+- **If it changes:** the debt surface silently stops; everything else is unaffected.
 - **Coverage ratchet (opt-in, same Stop hook):** with
-  `CLAUDE_TIDY_COVERAGE_RATCHET=1`, before the test run it lists changed source
+  `CLAUDE_TIDY_COVERAGE_RATCHET=1`, on a dirty tree it lists changed source
   files lacking a test (`tidy_untested_changed`) and, if any, blocks with a
-  `decision: block` asking to characterize them. **Bounded** like the test path:
+  `decision: block` asking to characterize them. **Bounded:**
   after `CLAUDE_TIDY_VERIFY_MAX` (default 3) blocks it gives up with a
-  `systemMessage` and allows the stop — it can never loop forever. Runs even when
-  no test command exists (legacy projects). Off by default — the touch-time nudge
-  is the always-on version. Note: it scopes to the **whole dirty tree** (changed
-  vs HEAD), not just files touched this session, so pre-existing uncommitted
-  untested files also trip it — another reason it's opt-in.
-
-- **Quality floor (always-on, same Stop hook):** before the test run, it enforces
-  the project's OWN declared quality gates beyond its test command — `tidy_quality_commands`
-  discovers package.json scripts named `typecheck`/`type-check`/`tsc`, `a11y`/`lighthouse`/
-  `lhci`, `depcruise`/`dependency-cruiser`/`arch`/`boundaries` (run via the lockfile's
-  package manager) — and blocks until each passes, **bounded** like the test floor
-  (`$qfile` counter → give-up `systemMessage` after `CLAUDE_TIDY_VERIFY_MAX`; timeouts
-  don't loop). Detect-and-run only: it installs/invents nothing and runs nothing the
-  project didn't wire up; heavy Lighthouse/CWV audits stay in CI. `CLAUDE_TIDY_QUALITY_CMD`
-  overrides with a single synthetic gate; `CLAUDE_TIDY_QUALITY_FLOOR=0` disables. It
-  runs after the throttle, so a stored green hash means quality **and** tests passed.
-- **Regression gate (OPT-IN, same Stop hook):** when enabled, before the test run it
+  `systemMessage` and allows the stop — it can never loop forever. Off by default —
+  the touch-time nudge is the always-on version. Note: it scopes to the **whole dirty
+  tree** (changed vs HEAD), not just files touched this session, so pre-existing
+  uncommitted untested files also trip it — another reason it's opt-in.
+- **Regression gate (OPT-IN, same Stop hook):** when enabled, it
   blocks when a changed file is BOTH a **scar-tissue hotspot** (repeatedly fixed — by the
   git rework ratio) AND **untested** (`tidy_untested_hotspots` = `tidy_untested_changed`
   ∩ `tidy_hotspots`). This is the coverage ratchet *scoped to the files that have earned
@@ -170,8 +157,8 @@ default 300) and `CLAUDE_TIDY_SIZE_CHECK=0` to disable the size nudges entirely.
   it goes quiet the moment a test lands. **Reads git history:** `git log -n 300 --no-merges --pretty=format:':C:%s'
   --name-only`, classifying a commit as rework when its subject word-matches
   `fix|bugfix|hotfix|bug|revert|undo|rollback|regression|rework` and flagging a file
-  at rework-ratio ≥ 0.34 with ≥ 2 reworks (existing files only). **Bounded** like the
-  test path (`CLAUDE_TIDY_VERIFY_MAX` blocks → `systemMessage`, never loops). Disable
+  at rework-ratio ≥ 0.34 with ≥ 2 reworks (existing files only). **Bounded**
+  (`CLAUDE_TIDY_VERIFY_MAX` blocks → `systemMessage`, never loops).
   Enable with `CLAUDE_TIDY_REGRESSION_GATE=1`; stands down when the broad ratchet is forcing.
   **Limit:** existence-based like the ratchet — a hotspot that already has *any* test
   passes, even if the test doesn't cover the new change.
@@ -197,9 +184,8 @@ make the opt-in **gate** the default without weighing this.
 
 The deliberate prune fires **automatically** from `bin/tidy-verify.sh` (Stop),
 **after** the turn's work, gated on a debt threshold. It runs only when the tree is
-dirty *and* the verification floor passed clean, so it never derails the user's
-intent (the old SessionStart trigger fired before intent was known and re-injected a
-big report every session):
+dirty, so it never derails the user's intent (the old SessionStart trigger fired
+before intent was known and re-injected a big report every session):
 
 - It checks how many files are over the size budget. **At/above**
   `CLAUDE_TIDY_PRUNE_THRESHOLD` (default 3) it runs `bin/tidy-distill.sh` and emits

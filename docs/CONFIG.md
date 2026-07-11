@@ -38,12 +38,8 @@ default and only takes effect when you set it.
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `CLAUDE_TIDY_SECSCAN` | `1` | Pre-write secret scan (also covers notebook edits). |
-| `CLAUDE_TIDY_CHECKS` | `1` | Post-edit test verification. |
-| `CLAUDE_TIDY_QUALITY_FLOOR` | `1` | Quality-floor (lint/type) check. |
-| `CLAUDE_TIDY_QUALITY_CMD` | *(unset → auto-detect)* | Override the quality/lint command. |
-| `CLAUDE_TIDY_TEST_CMD` | *(unset → auto-detect)* | Override the test command. |
-| `CLAUDE_TIDY_VERIFY_MAX` | `3` | Max verify re-loops per turn. |
-| `CLAUDE_TIDY_VERIFY_TIMEOUT` | `180` | Seconds before the test run is treated as "couldn't verify". |
+| `CLAUDE_TIDY_CHECKS` | `1` | Enable the Stop hook (post-work debt/cycle surface + opt-in test gates); `0` disables it. Tests are run manually — there is no end-of-turn test run. |
+| `CLAUDE_TIDY_VERIFY_MAX` | `3` | Max block re-loops for the opt-in coverage/regression gates. |
 | `CLAUDE_TIDY_LINT_TIMEOUT` | `30` | Seconds before the lint/format step is abandoned. |
 | `CLAUDE_TIDY_SIZE_BUDGET` | `300` | Per-file line budget; over-budget files are flagged. |
 | `CLAUDE_TIDY_SIZE_CHECK` | `1` | File-size budget check. |

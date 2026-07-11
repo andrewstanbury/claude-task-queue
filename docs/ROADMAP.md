@@ -32,10 +32,10 @@ they grow.** The forces that contain debt lead; the intent loop and payoff follo
 - **1 · Contain blast radius** — know what a change ripples into (code +
   architectural) and cover it; one owner per concern; watch total coupling. **YAGNI:
   the burden of proof is on *adding* a dep/abstraction/layer.**
-- **2 · Verify + stay aligned** — confirm intent in plain language; characterize
-  before you change (no tests → pin current behaviour first); suite green before
-  done (the verification floor); weigh work against recorded decisions (clean ≠
-  correct); honor the owner's *outcome*, not their proposed implementation.
+- **2 · Verify + stay aligned** — confirm intent in plain language; verify the
+  change observably (types/build/run; tests are opt-in — run them yourself when they
+  earn the safety net); weigh work against recorded decisions (clean ≠ correct);
+  honor the owner's *outcome*, not their proposed implementation.
 - **3 · Subtract as you add** — a new requirement leaves net surface flat or
   smaller; reuse before create, delete what a change makes redundant.
 - **4 · Periodic deliberate prune** — for the cross-module debt touch-time bounding
@@ -56,7 +56,7 @@ can't silently regress.
 | Plugin | Responsibility |
 |---|---|
 | **task-queue** | **Orchestrate** — the interpret→present→approve review loop, capture, order, cross-session resume, autopilot (gates the loop + enforced autonomy), the Stop-time intent→outcome gate (loop close) |
-| **tidy** | **Change safely & cleanly** — format/lint on touch, blast-radius, verification floor, automatic prune |
+| **tidy** | **Change safely & cleanly** — format/lint on touch, blast-radius, post-work debt surface, automatic prune |
 | **charter** | **Know the project + own the owner loop** — doc gate, map, decisions anchor (+ Stop-time alignment floor), conventions, outcome memory, intent→demo→consent posture |
 | **hud** | **Show** — a consolidated read-only status line (the owner's at-a-glance trust signal) |
 
@@ -118,18 +118,14 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   **block before it reaches disk**; tidy's one deliberate hard-stop, everything else
   fails open (`CLAUDE_TIDY_SECSCAN=0` disables). On touch: format + lint
   (Go/web/Python/shell, fast file-scoped tools) + blast-radius + coverage/size nudges.
-  On Stop: the **verification floor**
-  (run the project's tests, block until green, bounded); the **quality floor**
-  (before the tests, run the project's OWN declared typecheck/a11y/dep-rule gates —
-  detect-and-run package.json scripts, install/invent nothing, heavy Lighthouse/CWV
-  audits stay in CI — block until green, bounded; `CLAUDE_TIDY_QUALITY_FLOOR=0` to
-  disable); the **import-cycle check** (madge, post-green, surface cycles touching the
+  On Stop (the end-of-turn verification floor was REMOVED — tests are run manually):
+  the **import-cycle check** (madge, surface cycles touching the
   change); the **regression gate**
   (block when a changed file is BOTH a scar-tissue hotspot — repeatedly fixed, by
   the same rework-ratio detector charter uses, mirrored + drift-guarded — AND still
   untested, so a fix to a proven debt-magnet gets pinned before it can silently
   regress; OFF by default (opt-in) and narrow, quiet once a test lands, enable with
-  `CLAUDE_TIDY_REGRESSION_GATE=1`); and — only after a clean verify on a dirty tree — the **deliberate
+  `CLAUDE_TIDY_REGRESSION_GATE=1`); and — on a dirty tree — the **deliberate
   prune** when over-budget files cross a
   threshold (`CLAUDE_TIDY_PRUNE_THRESHOLD`, default 3): a weight report
   (`tidy-distill.sh`) + an instruction to prune now, as a **non-blocking
@@ -172,8 +168,8 @@ code — see AGENTS.md), Bash + `jq`, zero build, locality over decomposition.
   non-technical owner in plain language. An HTTP auth challenge counts as reachable;
   only a fresh start probes (not compact/resume); self-disables when no servers are
   declared; never blocks; `CLAUDE_CHARTER_MCP_PROBE=0` disables it.
-- **hud** — a static health beacon + autopilot + agent + the verification floor's ✓/✗
-  tests + **🛡✗N disabled-floor marker** + context-window fill % + token throughput
+- **hud** — a static health beacon + autopilot + agent + **🛡 safety shield / 🛡✗N
+  disabled-floor marker** + context-window fill % + token throughput
   (⇡input ⇣output, current-context) + branch & dirty + model. Read-only, zero token
   cost. The owner's primary trust signal, so it stays **honest + legible**: `🛡✗N`
   surfaces when any anti-rework floor is off via a `CLAUDE_*=0` env var (always shown,
@@ -271,7 +267,6 @@ detect-not-decide Stop-time floor** (the hook supplies facts; the model judges):
 
 | Open loop (cause of future rework) | Closed by | Disable |
 |---|---|---|
-| Tests red at "done" | tidy verification floor | `CLAUDE_TIDY_CHECKS=0` |
 | Regression of a repeatedly-fixed file | tidy regression gate (← charter scar tissue) | opt-in; `CLAUDE_TIDY_REGRESSION_GATE=1` to enable |
 | Silent reversal of a recorded decision | charter alignment floor | `CLAUDE_CHARTER_ALIGN_GATE=0` |
 | Built ≠ what the owner asked | task-queue intent→outcome gate | `CLAUDE_TQ_INTENT_GATE=0` |
