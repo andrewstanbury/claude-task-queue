@@ -15,8 +15,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    # macOS coverage is advisory until validated on real hardware; promote to required once green
-    continue-on-error: ${{ matrix.os == 'macos-latest' }}
+    # Both lanes are required. macOS was promoted from advisory on 2026-07-12 once green — the
+    # bash-3.2 emoji-var crash and the jq broken-pipe flake (see the tests) were fixed first.
     steps:
       - uses: actions/checkout@v5
 
