@@ -2,7 +2,11 @@
 # tq — THE task queue. The companion deliberately does NOT use Claude Code's native task
 # tools (they're gated off on the newest models and we want the queue self-owned and stable);
 # `tq` is the whole queue, writing a JSON-per-task store the companion owns. The model drives
-# it: `tq add/doing/note/done/list/report`. Best-effort + never destructive; self-contained.
+# it: `tq add/doing/note/done-when/done/cancel/list/report`. Best-effort + never destructive
+# (nothing is deleted — `cancel` sets a status; the file stays for audit); self-contained.
+# **Single-writer by design:** one model drives `tq` serially, so id allocation (`next_id`) is
+# not locked — concurrent `add`s could in principle collide on an id, but that isn't a real
+# usage pattern; don't add locking for it.
 # Store: CLAUDE_COMPANION_TASKS_DIR (its OWN dir, not ~/.claude/tasks). Each session dir is
 # stamped with its repo root (`.root`) so resume can scope to a repo without reading any
 # native session transcript.

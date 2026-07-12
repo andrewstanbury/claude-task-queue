@@ -40,9 +40,11 @@ steering model doesn't incur, and it drove prose into cryptic anchors. Efficienc
   brutal-honest recommendation posture against the ledger, clean-as-you-go, autopilot. Read
   once per session. Advisory by nature; it lives in one file, not scattered across hooks.
 - **Enforced core** (`plugins/companion/bin/`) — the behavior that must execute, block, or
-  render: the secret gate (`secret-guard.sh`), cross-session resume + steering injection
-  (`session-start.sh`), the `tq` queue (the companion owns its store — it does **not** use
-  native tasks; R8/R10), and a minimal status line (`statusline.sh`).
+  render (the dividing rule is **R28**): the secret gate (`secret-guard.sh`), the format-only
+  clean-as-you-touch pass (`touch.sh`; R25), cross-session resume + steering injection + the
+  post-compaction re-anchor (`session-start.sh`), persisted + enforced autopilot (`autopilot.sh`
+  · `ask-guard.sh` · `stop-autopilot.sh`; R26), the `tq` queue (the companion owns its store — it
+  does **not** use native tasks; R8/R10), and the status line (`statusline.sh`).
 
 Bash + `jq`, zero build. The `file → responsibility` index is [docs/MAP.md](./MAP.md).
 
@@ -50,9 +52,15 @@ Bash + `jq`, zero build. The `file → responsibility` index is [docs/MAP.md](./
 
 Durable requirements and decisions live in [docs/REQUIREMENTS.md](./REQUIREMENTS.md) as
 status-tagged entries (🔒 locked / 🔓 open / ⚰️ retired) — challenge or reverse one *there*,
-never silently. **R1–R23** carry the design decisions (native-first, run-in-auto,
-non-technical-owner posture, the critique/recommendation posture, the decided-against set);
-**R24** records the rebuild and what it reshaped (R3, R4, R6, R22).
+never silently. The arc: **R1–R23** carry the original design decisions (native-first,
+run-in-auto, non-technical-owner posture, the critique/recommendation posture, the
+decided-against set); **R24** records the ground-up rebuild; **R25–R26** pulled clean-as-you-touch
+and autopilot back to *enforced*; **R27** briefly added edit-gates and **R28** retired them,
+formalizing the execute-or-block rule; **R29** added `/companion:advise` (a self-critique ritual);
+**R30–R31** refined the plugin for the agent (task `done-when`, compaction re-anchor, STEERING
+checklists, activity beacon, CI fuzz, autopilot-conditional playtests); **R32** ran `advise` on
+the plugin *itself* and walked back the same-day over-reach — retiring `pre-compact`, trimming the
+compaction re-inject, folding `audit` into `advise`, and fixing a real status-line bug.
 
 ## What's next
 

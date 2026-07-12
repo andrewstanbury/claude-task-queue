@@ -2,6 +2,13 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 2.0.1 — 2026-07-12
+
+- **Docs reconcile** (no behavior change) — `AGENTS.md` and `docs/ROADMAP.md` had drifted (last
+  reconciled at 1.3.0): refreshed the enforced-core lists (touch.sh format-only + autopilot), the
+  command set (`audit`→`advise`), the test-file split (`companion-{core,hud,fuzz}.bats`), and the
+  decision arc through R32. Documented `tq`'s single-writer assumption in its header.
+
 ## companion 2.0.0 — 2026-07-12
 
 Self-critique pass: `/companion:advise` run on the plugin itself (an independent 4-lens critic
