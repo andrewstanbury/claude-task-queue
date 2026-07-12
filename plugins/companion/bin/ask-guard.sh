@@ -15,4 +15,4 @@ root="$(companion_root "$cwd")"
 companion_autopilot_on "$root" || exit 0
 
 jq -cn '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny",
-  permissionDecisionReason: "Autopilot is ON — the owner is away, so do not ask. Decide it yourself if it is reversible and low-cost (record the call), otherwise PARK it: `tq add \"❓ [parked] <the decision>\"` (or `⏳ [blocked] <owner-only action>`) and move on to the next task. The parked items are presented when the owner returns."}}'
+  permissionDecisionReason: "Autopilot is ON — the owner is away, so do not ask. Decide it yourself ONLY if it is a reversible, taste-neutral mechanic (record the call). A visual/design/direction/wording choice belongs to the owner — PARK it even if it is reversible (do NOT pick for them): `tq add \"❓ [parked] <the choice + your options + your recommendation>\"` (or `⏳ [blocked] <owner-only action>`), then move on. Parked items are presented when the owner returns."}}'

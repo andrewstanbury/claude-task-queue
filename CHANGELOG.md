@@ -2,6 +2,17 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 2.1.0 — 2026-07-12
+
+- **Status-line task icon** — the open-task count is now `📋 N` (was `◻N`), with a space after the
+  icon (and after `❓`/`⏳`). The emoji renders consistently where `◻` could show as a tofu box.
+  (The per-item bullet in the `tq` report + resume stays `◻`.)
+- **Autopilot parks design choices** (ledger R33) — a visual/design/direction/wording choice is the
+  owner's call even when reversible, so under autopilot it's parked (`❓`, with options +
+  recommendation) and surfaced on return rather than auto-decided. Refines R26: reversibility was
+  the only auto-decide axis; ownership of taste was the missing one. STEERING + the ask-guard
+  message, no new hook.
+
 ## companion 2.0.1 — 2026-07-12
 
 - **Docs reconcile** (no behavior change) — `AGENTS.md` and `docs/ROADMAP.md` had drifted (last

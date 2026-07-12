@@ -32,7 +32,7 @@ it governs how you work here too.**
     the queue on every `add`/`doing`/`done`.
   - `statusline.sh` — a `statusLine` command (not a hook): ⠋ beacon (animates only on activity —
     autopilot draining or a task in-progress; static ● when idle, R30·d9) · 🛡 secret gate · model ·
-    ✈️ autopilot · ⇡in ⇣out · ◻ open · ❓ parked · ⏳ blocked tasks · project · branch (+ ↑ahead
+    ✈️ autopilot · ⇡in ⇣out · 📋 open · ❓ parked · ⏳ blocked tasks · project · branch (+ ↑ahead
     ↓behind). Wire it with `/companion:setup` (sets `refreshInterval:1` for the beacon).
   - **Autopilot** (R26) — `/companion:autopilot on\|off` sets a persisted per-repo flag;
     while on it's *enforced*: `stop-autopilot.sh` (Stop) auto-continues the drain and

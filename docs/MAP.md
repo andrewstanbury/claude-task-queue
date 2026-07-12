@@ -29,7 +29,7 @@ four plugins into one; this reflects the current tree.
 | `bin/resume.sh` | Manual resume (`/companion:resume`) — list this repo's open tasks from earlier sessions on demand (the SessionStart twin). |
 | `commands/ship-it.md` | `/companion:ship-it` — verify → **state the case** (risks / what-changes / R-IDs; devil's-advocate sub-agent for consequential changes, R30·d6) → commit → push → PR/merge to the default branch. |
 | `commands/resume.md` | `/companion:resume` — re-surface + reinstate earlier open tasks. |
-| `bin/statusline.sh` | The status line (a `statusLine` command, not a hook): ⠋ animated beacon · 🛡 secret gate · model · ✈️ autopilot · ⇡in ⇣out tokens · ◻ open · ❓ parked · ⏳ blocked tasks · project · branch (+ ↑ahead ↓behind). Read-only, no model cost; the beacon animates at `refreshInterval:1` (waking jq+git once/sec on idle). Wire with `/companion:setup`. |
+| `bin/statusline.sh` | The status line (a `statusLine` command, not a hook): ⠋ animated beacon · 🛡 secret gate · model · ✈️ autopilot · ⇡in ⇣out tokens · 📋 open · ❓ parked · ⏳ blocked tasks · project · branch (+ ↑ahead ↓behind). Read-only, no model cost; the beacon animates at `refreshInterval:1` (waking jq+git once/sec on idle). Wire with `/companion:setup`. |
 | `bin/autopilot.sh` | Toggle the persisted per-repo autopilot flag (`on`/`off`/`status`). |
 | `bin/stop-autopilot.sh` | Stop hook: while autopilot is on and non-deferred work remains, auto-continue the drain (no-progress capped); yields when only ❓/⏳ remain. `CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0` disables. |
 | `bin/ask-guard.sh` | PreToolUse[AskUserQuestion] hook: deny asking while autopilot is on (decide-if-reversible or park as ❓). Silent when autopilot is off. |

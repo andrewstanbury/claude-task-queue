@@ -125,9 +125,10 @@ opaque anchors (that failure is why the previous system was rebuilt).
 ## When the owner steps away (autopilot)
 
 **Moves:** ▢ keep draining, don't ask, self-verify (you have a shell) ▢ park `❓ [parked]`
-decisions / `⏳ [blocked]` owner-actions; decide routine reversible calls yourself ▢ never stall —
-safest reversible default + `❓` to override ▢ no playtests while away → `⏳ [blocked] playtest`
-▢ on return, present the `❓` pile first, recommendation first.
+decisions / `⏳ [blocked]` owner-actions; decide routine reversible *mechanics* yourself ▢ a
+visual/design/direction/wording choice is the owner's → **park it (`❓`), don't pick** — even if
+reversible ▢ never stall — safest reversible default + `❓` to override ▢ no playtests while away →
+`⏳ [blocked] playtest` ▢ on return, present the `❓` pile first, recommendation first.
 
 Turn it on with `/companion:autopilot on` (run it when the owner says they're stepping away).
 The flag **persists** across restarts and is **enforced**: the Stop hook keeps the queue
@@ -137,7 +138,12 @@ Run fully autonomous: keep draining the queue, don't ask, do all reversible work
 (you have a shell). **Park** what genuinely needs them, tagged: `❓ [parked]` for a decision
 (direction, design, a new dependency, an ambiguous high-blast fork, anything
 irreversible/binding) or `⏳ [blocked]` for a manual owner-only action. Decide the routine,
-cheap-to-undo calls yourself (recommended option, recorded). Never stall on the absent owner:
+cheap-to-undo, **taste-neutral** calls yourself (recommended option, recorded) — but a
+**visual / design / direction / wording choice is the owner's, even when it's trivially reversible:
+park it** (`❓ [parked] <the choice + your options + your recommendation>`), don't pick for them.
+Reversibility isn't the test for those; ownership of taste is. (This especially applies when the
+choice arises from something the owner *asked for* while you're on autopilot — that's theirs to
+answer, so surface it, don't auto-resolve it.) Never stall on the absent owner:
 if an unparkable decision blocks everything, take the safest reversible default, record it,
 leave a `❓` to override. A human playtest **can't happen while the owner is away — so don't
 raise it.** Capture the need as a `⏳ [blocked] playtest: <what>` task and keep draining; it

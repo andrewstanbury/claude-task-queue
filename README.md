@@ -20,7 +20,7 @@ reads once per session. The only things that are code are the things that must a
 | **Ship** | `/companion:ship-it` — verify your gate, commit, push, and open/merge a PR. |
 | **`tq`** | The task queue — self-owned, so it works everywhere (including the newest models where Claude's built-in task tracking is switched off) and doesn't depend on Claude Code internals. It reprints the queue on every change, so the CLI always shows what's in progress and next. |
 | **Autopilot** | `/companion:autopilot on` when you step away — Claude keeps working the queue on its own and parks decisions for your return. Enforced (it won't stop or ask while on) and persists across restarts. |
-| **Status line** | One glance line: ⠋ beacon · 🛡 secret gate · model · ✈️ autopilot · ⇡⇣ tokens · ◻/❓/⏳ tasks · project · ⎇ branch · ↑↓ ahead/behind. Wire it once with `/companion:setup` (legend below). |
+| **Status line** | One glance line: ⠋ beacon · 🛡 secret gate · model · ✈️ autopilot · ⇡⇣ tokens · 📋/❓/⏳ tasks · project · ⎇ branch · ↑↓ ahead/behind. Wire it once with `/companion:setup` (legend below). |
 
 Bash + `jq`, zero build, one install.
 
@@ -37,7 +37,7 @@ Bash + `jq`, zero build, one install.
 ## Status line legend
 
 `⠋` health beacon (spins while working) · `🛡` secret gate on (`🛡✗` off) · `✈️` autopilot on ·
-`⇡`/`⇣` input/output tokens · `◻` open · `❓` parked · `⏳` blocked tasks · project · `⎇` branch ·
+`⇡`/`⇣` input/output tokens · `📋` open · `❓` parked · `⏳` blocked tasks · project · `⎇` branch ·
 `*N` uncommitted · `↑`/`↓` commits ahead/behind upstream. *(`⇡⇣` are tokens; `↑↓` are git — two
 arrow pairs, different meanings.)*
 

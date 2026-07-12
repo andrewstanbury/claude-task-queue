@@ -30,7 +30,7 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"opus-4-8"* ]]      # model, claude- prefix + date stripped
   [[ "$output" == *"⇡45.2k"* ]]        # up tokens
   [[ "$output" == *"⇣1.3k"* ]]         # down tokens
-  [[ "$output" == *"◻2"* ]]            # 2 open (completed excluded)
+  [[ "$output" == *"📋 2"* ]]            # 2 open (completed excluded)
   [[ "$output" == *"⎇"* ]]             # branch
 }
 
@@ -50,9 +50,9 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sSplit",cwd:$c}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"◻2"* ]]            # 2 plain-open (parked/blocked excluded)
-  [[ "$output" == *"❓1"* ]]            # 1 parked
-  [[ "$output" == *"⏳1"* ]]            # 1 blocked
+  [[ "$output" == *"📋 2"* ]]            # 2 plain-open (parked/blocked excluded)
+  [[ "$output" == *"❓ 1"* ]]            # 1 parked
+  [[ "$output" == *"⏳ 1"* ]]            # 1 blocked
   [[ "$output" == *"↑1"* ]]            # 1 commit ahead of upstream
   [[ "$output" != *"↓"* ]]             # not behind
 }
@@ -72,7 +72,7 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus 4.8"},session_id:"sSpace",cwd:$c}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"◻1"* ]]             # session id parsed whole → store found → 1 open task
+  [[ "$output" == *"📋 1"* ]]             # session id parsed whole → store found → 1 open task
   [[ "$output" == *"Opus 4.8"* ]]       # model name kept whole
   [[ "$output" == *"⎇"* ]]              # cwd parsed whole → git branch resolves
 }

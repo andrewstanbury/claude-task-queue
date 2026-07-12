@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # statusline — a minimal read-only status line: the companion's one glance surface.
 # Shows: ⠋ animated health beacon · │ 🛡 secret gate │ (🛡✗ if disabled) · model · ✈️ autopilot ·
-# ⇡ input ⇣ output tokens · ◻ open · ❓ parked · ⏳ blocked tasks · project · branch (+ *N changes,
+# ⇡ input ⇣ output tokens · 📋 open · ❓ parked · ⏳ blocked tasks · project · branch (+ *N changes,
 # ↑ahead ↓behind). No hooks, no writes,
 # no model cost — it only reads the JSON Claude Code pipes on stdin plus the companion's own task
 # store and git. The beacon advances one braille frame per real second, so wire it with
@@ -31,7 +31,7 @@ hum() { local n="${1%%.*}"; case "$n" in ''|*[!0-9]*) printf '0'; return;; esac
   if [ "$n" -lt 1000 ]; then printf '%s' "$n"; elif [ "$n" -lt 1000000 ]; then printf '%s.%sk' "$((n/1000))" "$(((n%1000)/100))";
   else printf '%s.%sM' "$((n/1000000))" "$(((n%1000000)/100000))"; fi; }
 
-# Tasks in this session's companion store, split by state: ◻ open · ❓ parked · ⏳ blocked
+# Tasks in this session's companion store, split by state: 📋 open · ❓ parked · ⏳ blocked
 # (parked/blocked detected by the ❓/⏳ subject prefix — the same convention as the queue and
 # the return-review gate). One jq pass emits the three counts, tab-separated.
 NOPEN=0; NPARK=0; NBLOCK=0; NDOING=0
@@ -92,14 +92,14 @@ else
   BEACON="●"
 fi
 
-# assemble (│ = dim divider): ⠋ │ 🛡 │ model [✈️] · ⇡in ⇣out │ ◻open ❓parked ⏳blocked │ project ⎇branch *changes
+# assemble (│ = dim divider): ⠋ │ 🛡 │ model [✈️] · ⇡in ⇣out │ 📋 open ❓parked ⏳blocked │ project ⎇branch *changes
 DIV=" ${D}│${X} "
 out="${BCOL}${B}${BEACON}${X}${DIV}${SHIELD}${DIV}${C}${MODEL}${X}${AP}"
 [ "${ITOK:-0}" -gt 0 ] 2>/dev/null && out="$out ${D}⇡$(hum "$ITOK") ⇣$(hum "$OTOK")$X"
-# tasks: ◻ open always; ❓ parked · ⏳ blocked only when present (attention states).
-TASKS="${C}${B}◻$NOPEN${X}"
-[ "$NPARK"  -gt 0 ] && TASKS="$TASKS ${Y}${B}❓$NPARK${X}"
-[ "$NBLOCK" -gt 0 ] && TASKS="$TASKS ${Y}${B}⏳$NBLOCK${X}"
+# tasks: 📋 open always; ❓ parked · ⏳ blocked only when present (attention states).
+TASKS="${C}${B}📋 $NOPEN${X}"
+[ "$NPARK"  -gt 0 ] && TASKS="$TASKS ${Y}${B}❓ $NPARK${X}"
+[ "$NBLOCK" -gt 0 ] && TASKS="$TASKS ${Y}${B}⏳ $NBLOCK${X}"
 out="$out${DIV}$TASKS"
 [ -n "$PROJ" ] && out="$out $PROJ"
 if [ -n "$BRANCH" ]; then

@@ -14,6 +14,10 @@ ledger) and not in-flight work (that's the queue) — just "watch out for X here
   bats merges into `$output` → flaky `[ -z "$output" ]`. Add `2>/dev/null` to the producing jq.
 - **jq array-length precedence:** `[ [$o[]|select(..)]|length, … ]` mis-parses; use
   `[ ($s | map(select(..)) | length), … ]`.
+- **Apostrophe in a single-quoted jq program:** hook deny/context messages are `jq -cn '{…"…"…}'`
+  (single-quoted). A literal `'` in the message (e.g. `owner's`) terminates the quote → the program
+  breaks at runtime AND shellcheck trips (SC1036/SC2026). Reword to avoid apostrophes
+  (`the owner's call` → `belongs to the owner`).
 
 ## Tests (bats)
 - **git identity:** `git commit` in a test needs `-c user.email=t@t -c user.name=t` — CI's bare
