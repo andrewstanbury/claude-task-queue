@@ -26,11 +26,19 @@ it governs how you work here too.**
   - `tq` — **THE task queue.** The companion owns its store (`~/.claude/companion/tasks`) and
     deliberately does **not** use Claude Code's native task tools (R8/R10). `tq report` reprints
     the queue on every `add`/`doing`/`done`.
-  - `statusline.sh` — a `statusLine` command (not a hook): 🛡 secret gate · ✈️ autopilot ·
-    model · ⇡in ⇣out · 📋 open tasks · project · branch. Wire it with `/companion:setup`.
+  - `statusline.sh` — a `statusLine` command (not a hook): ⠋ animated beacon · 🛡 secret gate ·
+    🎨/🔒 R27 edit-gates when armed · model · ✈️ autopilot · ⇡in ⇣out · 📋 open tasks · project ·
+    branch. Wire it with `/companion:setup` (sets `refreshInterval:1` for the beacon).
   - **Autopilot** (R26) — `/companion:autopilot on\|off` sets a persisted per-repo flag;
     while on it's *enforced*: `stop-autopilot.sh` (Stop) auto-continues the drain and
     `ask-guard.sh` (PreToolUse) blocks asking. `lib/companion.sh` holds the shared helpers.
+  - **Gates** (R27) — two enforced blocks + one advisory reminder for three STEERING clauses.
+    `prompt.sh` (UserPromptSubmit) records the intent of record + arms a design-preview marker on
+    a visual prompt; `work-guard.sh` (PreToolUse[Write\|Edit]) **blocks** an edit until a visual
+    change's wireframe is shown and until parked ❓ decisions are presented on return (both clear
+    when the model presents — `ask-guard.sh` disarms); `intent-note.sh` (PostToolUse[Write\|Edit])
+    surfaces the recorded intent once per request, on the first edit, as **advisory** context (no
+    block). All stay silent under autopilot, disable with `CLAUDE_COMPANION_GATES=0`.
   - **Commands** — `/companion:setup` (status line), `/companion:audit` (project sweep),
     `/companion:autopilot`, `/companion:ship-it` (verify→commit→push→merge), `/companion:resume`
     (manual re-surface of earlier open tasks).

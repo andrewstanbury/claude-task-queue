@@ -13,6 +13,7 @@ root="$(companion_root "$PWD")"
 flag="$(companion_autopilot_flag "$root")"
 case "$cmd" in
   on)  mkdir -p "$(dirname "$flag")" 2>/dev/null && : > "$flag" \
+       && rm -f "$(companion_review_flag "$root")" 2>/dev/null \
        && echo "✈️  autopilot ON for $root — I'll keep draining the queue and PARK decisions (❓) / owner-actions (⏳) until you turn it off." ;;
   off) rm -f "$flag" 2>/dev/null; echo "autopilot OFF for $root — normal review loop resumes; review any parked ❓ items." ;;
   status) companion_autopilot_on "$root" && echo on || echo off ;;

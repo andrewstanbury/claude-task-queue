@@ -10,6 +10,7 @@ setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"; TOUCH="$ROOT/bin/touch.sh"
   AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
+  PROMPT="$ROOT/bin/prompt.sh"; WG="$ROOT/bin/work-guard.sh"; IN="$ROOT/bin/intent-note.sh"
   export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"   # the companion's OWN store, not ~/.claude/tasks
   export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"   # autopilot flags live here
   export CLAUDE_COMPANION_SESSION_ID="s1"
@@ -113,7 +114,9 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"claude-opus-4-8"},session_id:"sBar",cwd:$c,context_window:{total_input_tokens:45200,total_output_tokens:1300}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
   [ "$status" -eq 0 ]
+  [[ "$output" == *"●"* ]]             # health beacon (static ● with color off)
   [[ "$output" == *"🛡"* ]]            # secret gate on
+  [[ "$output" == *" 🛡 "* ]]          # shield has breathing room (│ 🛡 │), not jammed
   [[ "$output" == *"opus-4-8"* ]]      # model, claude- prefix + date stripped
   [[ "$output" == *"⇡45.2k"* ]]        # up tokens
   [[ "$output" == *"⇣1.3k"* ]]         # down tokens
@@ -124,6 +127,25 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
 @test "status line: 🛡✗ when the secret gate is disabled" {
   run bash -c 'printf "{}" | CLAUDE_COMPANION_SECSCAN=0 NO_COLOR=1 "$1"' _ "$SL"
   [[ "$output" == *"🛡✗"* ]]
+}
+
+@test "status line: shows 🎨/🔒 only when the R27 edit-gates are armed" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; git -C "$repo" commit -q --allow-empty -m init
+  local root; root="$(git -C "$repo" rev-parse --show-toplevel)"
+  local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sG",cwd:$c}')"
+  # idle → neither gate icon
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [[ "$output" != *"🎨"* ]]
+  [[ "$output" != *"🔒"* ]]
+  # design-preview armed → 🎨
+  : > "$CLAUDE_COMPANION_STATE_DIR/design-sG"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [[ "$output" == *"🎨"* ]]
+  # return-review armed (parked ❓, not yet presented) → 🔒
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sPk"; printf '%s' "$root" > "$CLAUDE_COMPANION_TASKS_DIR/sPk/.root"
+  jq -n '{id:"1",subject:"❓ [parked] x",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sPk/1.json"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [[ "$output" == *"🔒"* ]]
 }
 
 # ---- clean-as-you-touch (PostToolUse: format + blast radius + size) ----
@@ -180,6 +202,103 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   done
   r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_MAX=3 "$STOP")"
   [ -z "$r" ]                                                      # 3rd no-progress stop → yield
+}
+
+# ---- R27 gates: intent→outcome, design-preview, return-review ----
+
+@test "prompt.sh: a visual prompt arms the design flag + records intent; a code prompt records intent only" {
+  local sd="$CLAUDE_COMPANION_STATE_DIR"
+  run bash -c 'jq -nc --arg p "$1" "{prompt:\$p,cwd:\"/x\",session_id:\"s1\"}" | "$2"' _ "restyle the navbar" "$PROMPT"
+  [ "$status" -eq 0 ]
+  [ -f "$sd/design-s1" ]                         # visual → design-preview armed
+  [ "$(cat "$sd/intent-s1")" = "restyle the navbar" ]
+  # a non-visual prompt clears the design flag and still records intent
+  run bash -c 'jq -nc --arg p "$1" "{prompt:\$p,cwd:\"/x\",session_id:\"s1\"}" | "$2"' _ "fix the null deref in the parser" "$PROMPT"
+  [ ! -f "$sd/design-s1" ]
+  [ "$(cat "$sd/intent-s1")" = "fix the null deref in the parser" ]
+}
+
+@test "prompt.sh: slash/bang inputs are not work, and autopilot suppresses arming" {
+  local sd="$CLAUDE_COMPANION_STATE_DIR" repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  run bash -c 'jq -nc "{prompt:\"/companion:audit\",cwd:\"/x\",session_id:\"s1\"}" | "$1"' _ "$PROMPT"
+  [ ! -f "$sd/intent-s1" ]                       # a slash command isn't an intent of record
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  run bash -c 'jq -nc --arg c "$1" "{prompt:\"restyle the navbar\",cwd:\$c,session_id:\"s2\"}" | "$2"' _ "$repo" "$PROMPT"
+  [ ! -f "$sd/design-s2" ] && [ ! -f "$sd/intent-s2" ]   # away → no gate arming
+}
+
+@test "work-guard: design gate blocks an edit until a wireframe is shown, then allows" {
+  local sd="$CLAUDE_COMPANION_STATE_DIR" repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  : > "$sd/design-s1"                            # armed (as prompt.sh would on a visual prompt)
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\"}" | "$2" | jq -r ".hookSpecificOutput.permissionDecision // \"allow\""' _ "$repo" "$WG"
+  [ "$output" = "deny" ]
+  # presenting via AskUserQuestion (ask-guard, autopilot off) clears the flag
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\"}" | "$2"' _ "$repo" "$ASK"
+  [ ! -f "$sd/design-s1" ]
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\"}" | "$2"' _ "$repo" "$WG"
+  [ -z "$output" ]                               # no block → allow
+}
+
+@test "work-guard: return-review gate blocks until parked ❓ decisions are presented" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local root; root="$(git -C "$repo" rev-parse --show-toplevel)"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sP"; printf '%s' "$root" > "$CLAUDE_COMPANION_TASKS_DIR/sP/.root"
+  jq -n '{id:"1",subject:"❓ [parked] pick a backend",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sP/1.json"
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"sX\"}" | "$2" | jq -r ".hookSpecificOutput.permissionDecision // \"allow\""' _ "$repo" "$WG"
+  [ "$output" = "deny" ]
+  # presenting them (any AskUserQuestion while off) sets the review flag → gate clears
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"sX\"}" | "$2"' _ "$repo" "$ASK"
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"sX\"}" | "$2"' _ "$repo" "$WG"
+  [ -z "$output" ]                               # presented → allow
+  # turning autopilot on re-arms the return contract for the NEXT return
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  ( cd "$repo" && "$AP" off ) >/dev/null
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"sX\"}" | "$2" | jq -r ".hookSpecificOutput.permissionDecision // \"allow\""' _ "$repo" "$WG"
+  [ "$output" = "deny" ]
+}
+
+@test "work-guard: gates never fire under autopilot or when disabled" {
+  local sd="$CLAUDE_COMPANION_STATE_DIR" repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  : > "$sd/design-s1"
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\"}" | "$2"' _ "$repo" "$WG"
+  [ -z "$output" ]                              # away → work-first, no block
+  ( cd "$repo" && "$AP" off ) >/dev/null
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\"}" | CLAUDE_COMPANION_GATES=0 "$2"' _ "$repo" "$WG"
+  [ -z "$output" ]                              # disabled → allow
+}
+
+@test "intent-note: advisory reminder surfaces the intent once per request, on the first edit" {
+  local sd="$CLAUDE_COMPANION_STATE_DIR" repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  printf 'add a logout button' > "$sd/intent-s1"
+  # first edit → reminder injected as PostToolUse additionalContext (no block)
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\",tool_input:{file_path:\"/x/a.js\"}}" | "$2" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$IN"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"intent of record"* ]]
+  [[ "$output" == *"add a logout button"* ]]
+  [ -f "$sd/reminded-s1" ]                        # fired: marker set
+  # subsequent edits in the same request stay silent
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\",tool_input:{file_path:\"/x/b.js\"}}" | "$2"' _ "$repo" "$IN"
+  [ -z "$output" ]
+  # a new prompt clears the marker (prompt.sh) → the next request's first edit reminds again
+  run bash -c 'jq -nc --arg c "$1" "{prompt:\"rename the field\",cwd:\$c,session_id:\"s1\"}" | "$2"' _ "$repo" "$PROMPT"
+  [ ! -f "$sd/reminded-s1" ]
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\",tool_input:{file_path:\"/x/a.js\"}}" | "$2" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$IN"
+  [[ "$output" == *"rename the field"* ]]
+}
+
+@test "intent-note: silent under autopilot, when nothing recorded, and when disabled" {
+  local sd="$CLAUDE_COMPANION_STATE_DIR" repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  # nothing recorded → nothing to say
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"sNone\",tool_input:{file_path:\"/x/a.js\"}}" | "$2"' _ "$repo" "$IN"
+  [ -z "$output" ]
+  printf 'do a thing' > "$sd/intent-s1"
+  ( cd "$repo" && "$AP" on ) >/dev/null          # away → no recap for an absent owner
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\",tool_input:{file_path:\"/x/a.js\"}}" | "$2"' _ "$repo" "$IN"
+  [ -z "$output" ]
+  ( cd "$repo" && "$AP" off ) >/dev/null
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\",tool_input:{file_path:\"/x/a.js\"}}" | CLAUDE_COMPANION_GATES=0 "$2"' _ "$repo" "$IN"
+  [ -z "$output" ]
 }
 
 @test "touch: silent on a small file with no dependents, and when disabled" {

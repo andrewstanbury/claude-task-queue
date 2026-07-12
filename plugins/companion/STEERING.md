@@ -2,9 +2,11 @@
 
 *The **steering layer**: how Claude works on your project — queue, decide, keep clean.
 The companion's SessionStart hook puts this in context once per session (cached), so it
-governs the whole session without re-deriving it every turn. The only behavior that lives
-in **code** (not here) is what must **execute or block**: the secret gate, cross-session
-resume, and the `tq` queue fallback (`bin/`). Everything else is this document.*
+governs the whole session without re-deriving it every turn. What must **execute or block**
+lives in **code** (`bin/`), not here — the secret gate, clean-as-you-touch, cross-session
+resume, the `tq` queue, autopilot enforcement, and the R27 gates that harden a few clauses
+below (**⛓ enforced** = a real block; a plain advisory note = a non-blocking reminder).
+Everything else is this document.*
 
 ---
 
@@ -48,8 +50,10 @@ requirements ledger (`REQUIREMENTS.md`: 🔒 locked = challenge only with explic
 reverse. A visible trade-off, never a silent override. Lead with your recommendation; lean
 into multiple-choice.
 
-**Visual/UI changes: show a wireframe before you build.** The owner verifies by seeing, not by
-reading code — so present a recommended design plus 2-3 meaningfully different alternatives as
+**Visual/UI changes: show a wireframe before you build.** *(**⛓ enforced** — on a visual
+prompt an edit is blocked until you present; presenting via AskUserQuestion clears it.)* The
+owner verifies by seeing, not by reading code — so present a recommended design plus 2-3
+meaningfully different alternatives as
 faithful **wireframe mockups** in the AskUserQuestion preview, recommended first. Draw each so
 it reads by visual weight, in this convention: a heavy box border (`╔═╗ ║ ╚╝`) for a
 container/card/panel, `▒` shading for an input or editable field, `█` fill for the
@@ -59,7 +63,8 @@ already exists, include one preview of the **current** state to compare against.
 arrow-keys between options and Enter to pick; build **only** the chosen one.
 
 **Weigh new work against recorded direction** (the ledger, decisions, roadmap) at both
-intent-time and before "done." Clean ≠ correct.
+intent-time and before "done." Clean ≠ correct. *(A first-edit reminder surfaces your recorded
+request so the outcome check isn't skipped — advisory, not a block.)*
 
 ## How we keep it clean (as you change it, scoped to your change)
 
@@ -103,7 +108,8 @@ cheap-to-undo calls yourself (recommended option, recorded). Never stall on the 
 if an unparkable decision blocks everything, take the safest reversible default, record it,
 leave a `❓` to override. A human playtest is the one thing never parked — finish, note
 "playtest pending," keep going. When they return, present the `❓` pile first as blocking
-multiple-choice questions, recommendation first.
+multiple-choice questions, recommendation first. *(**⛓ enforced** — on return, editing is
+blocked until the parked `❓` decisions are presented.)*
 
 ## Posture
 
