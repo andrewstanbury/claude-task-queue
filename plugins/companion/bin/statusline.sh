@@ -34,21 +34,24 @@ hum() { local n="${1%%.*}"; case "$n" in ''|*[!0-9]*) printf '0'; return;; esac
 # Tasks in this session's companion store, split by state: ◻ open · ❓ parked · ⏳ blocked
 # (parked/blocked detected by the ❓/⏳ subject prefix — the same convention as the queue and
 # the return-review gate). One jq pass emits the three counts, tab-separated.
-NOPEN=0; NPARK=0; NBLOCK=0
+NOPEN=0; NPARK=0; NBLOCK=0; NDOING=0
 store="${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}/$SID"
 if [ -n "${SID:-}" ] && [ -d "$store" ]; then
   files=("$store"/*.json)
   if [ -e "${files[0]}" ]; then
-    read -r NOPEN NPARK NBLOCK < <(jq -rs '
-      [ .[] | select(.status=="pending" or .status=="in_progress") | (.subject//"") | sub("^\\s+";"") ] as $s
+    read -r NOPEN NPARK NBLOCK NDOING < <(jq -rs '
+      [ .[] | select(.status=="pending" or .status=="in_progress") ] as $o
+      | ($o | map((.subject//"") | sub("^\\s+";""))) as $s
       | [ ($s | map(select((startswith("❓") or startswith("⏳")) | not)) | length),
           ($s | map(select(startswith("❓"))) | length),
-          ($s | map(select(startswith("⏳"))) | length) ] | @tsv' "${files[@]}" 2>/dev/null)
+          ($s | map(select(startswith("⏳"))) | length),
+          ($o | map(select(.status=="in_progress")) | length) ] | @tsv' "${files[@]}" 2>/dev/null)
   fi
 fi
 case "$NOPEN"  in ''|*[!0-9]*) NOPEN=0;;  esac
 case "$NPARK"  in ''|*[!0-9]*) NPARK=0;;  esac
 case "$NBLOCK" in ''|*[!0-9]*) NBLOCK=0;; esac
+case "$NDOING" in ''|*[!0-9]*) NDOING=0;; esac
 
 # 🛡 secret gate (the one enforced guarantee) — green shield on, red ✗ when disabled.
 # Brace every var: on macOS's bash 3.2 an unbraced `$B` directly before the 🛡 glyph swallows the
@@ -75,12 +78,19 @@ case "$BEHIND" in ''|*[!0-9]*) BEHIND=0;; esac
 APON=0; companion_autopilot_on "$ROOT" && APON=1
 AP=""; [ "$APON" = 1 ] && AP=" ${Y}✈️${X}"
 
-# ⠋ animated health beacon — one braille-orbit frame per real second (selected by the clock, so
-# the statusLine config needs refreshInterval:1 to repaint it — /companion:setup wires that).
-# Green normally, yellow under autopilot. A no-color/dumb terminal can't spin a colored glyph, so
-# it falls back to a static ● (and needs no timer).
+# ⠋ health beacon — animates ONLY while there's work in motion (autopilot draining or a task
+# in-progress); otherwise a static ● (R30·d9 — no pointless idle spinning). One braille-orbit
+# frame per real second when active (needs refreshInterval:1 to repaint). Green normally, yellow
+# under autopilot. A no-color/dumb terminal can't spin a colored glyph, so it's always ● there.
+# (Note: refreshInterval still wakes the command each second — the animation stops when idle, the
+# per-second render doesn't; dropping refreshInterval entirely is the fully-static option.)
+ACTIVE=0; { [ "$APON" = 1 ] || [ "$NDOING" -gt 0 ]; } && ACTIVE=1
 BFRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏); BCOL="$G"; [ "$APON" = 1 ] && BCOL="$Y"
-if [ -n "$G" ]; then BEACON="${BFRAMES[$(( $(date +%s 2>/dev/null || echo 0) % ${#BFRAMES[@]} ))]}"; else BEACON="●"; fi
+if [ -n "$G" ] && [ "$ACTIVE" = 1 ]; then
+  BEACON="${BFRAMES[$(( $(date +%s 2>/dev/null || echo 0) % ${#BFRAMES[@]} ))]}"
+else
+  BEACON="●"
+fi
 
 # assemble (│ = dim divider): ⠋ │ 🛡 │ model [✈️] · ⇡in ⇣out │ ◻open ❓parked ⏳blocked │ project ⎇branch *changes
 DIV=" ${D}│${X} "

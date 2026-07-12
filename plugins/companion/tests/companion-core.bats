@@ -77,12 +77,15 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   # an unrelated repo's task must NOT leak
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sOther"; printf '/other/x' > "$CLAUDE_COMPANION_TASKS_DIR/sOther/.root"
   jq -n '{id:"1",subject:"NOT MINE",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sOther/1.json"
+  # this repo's LESSONS.md is surfaced (R30·d7)
+  mkdir -p "$repo/docs"; printf 'GOTCHA_MARKER: brace vars before emoji\n' > "$repo/docs/LESSONS.md"
 
   run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"new\"}" | "$2" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$SS"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Working agreement"* ]]   # STEERING injected
-  [[ "$output" == *"resume me"* ]]           # this repo's task
-  [[ "$output" != *"NOT MINE"* ]]            # no cross-repo bleed
+  [[ "$output" == *"Working agreement"* ]]     # STEERING injected
+  [[ "$output" == *"resume me"* ]]             # this repo's task
+  [[ "$output" != *"NOT MINE"* ]]              # no cross-repo bleed
+  [[ "$output" == *"GOTCHA_MARKER"* ]]         # this repo's LESSONS surfaced
 }
 
 @test "manual resume: lists THIS repo's open tasks on demand (and says so when none)" {

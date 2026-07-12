@@ -2,6 +2,20 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 1.7.0 — 2026-07-12
+
+- **Project `LESSONS.md`** (R30·d7) — a curated, model-maintained file of repo-specific gotchas
+  (portability/test/CI traps), injected each session by `session-start.sh` so a new session doesn't
+  re-learn them. Gotchas only; decisions stay in the ledger, work in the queue.
+- **Activity-only beacon** (R30·d9) — the status-line beacon now animates only while there's work
+  in motion (autopilot draining or a task in-progress) and shows a static ● when idle.
+- **Formatter respects the project's toolchain** (R30·d4) — `touch.sh` prefers the project's own
+  `pre-commit` on the touched file when configured, and honors black-vs-ruff from `pyproject`,
+  before falling back to the per-extension formatter.
+- **Playtests are autopilot-conditional** (ledger R31) — under autopilot the companion no longer
+  raises playtests (it captures a `⏳ [blocked] playtest` task instead, resurfaced on return);
+  with autopilot off it offers a quick playtest when the change has a human-observable surface.
+
 ## companion 1.6.0 — 2026-07-12
 
 - **`/companion:advise`** (ledger R29) — an independent, brutally-honest critique ritual. Takes a

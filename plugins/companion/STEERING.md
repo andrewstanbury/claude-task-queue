@@ -33,6 +33,10 @@ fires — you've read the request; a keyword can't.
 **Verify observably.** Confirm the change does what was asked by exercising it, not by
 asserting it — tests where they earn a safety net, else types/build/run. Existing checks
 green before "done." Then recap in one plain line what now works (demonstrate, don't assert).
+When you're working **with** the owner (autopilot off) and the change has a human-observable
+surface (a UI, a CLI flow, a visible behavior), **offer a quick playtest** — some things only a
+person can confirm. Under autopilot the owner is away, so **don't raise it** — capture it as a
+`⏳ [blocked] playtest` task instead (see the autopilot section).
 
 ## How we decide
 
@@ -86,6 +90,11 @@ for blast radius), the requirements ledger, quality attributes, stack notes. Boo
 if missing. Treat files the project has **repeatedly had to fix** (high git rework-ratio) as
 high-risk — pin a test before extending them.
 
+**Keep a `LESSONS.md` of repo-specific gotchas** (`docs/LESSONS.md`) — injected each session.
+When a trap bites (a portability quirk, a test that needs special setup, a fragile file), append
+one terse line so the next session doesn't re-learn it; prune lines that stop being true. It's
+gotchas, not decisions (those are the ledger) and not tasks (the queue).
+
 **The docs you create and maintain are Claude-facing, not human-facing.** The only human
 interface is the CLI (and any status line) — nobody reads these files by hand. So write them
 for a model to load and reason over: terse, information-dense, structured (tables, short
@@ -107,9 +116,11 @@ Run fully autonomous: keep draining the queue, don't ask, do all reversible work
 irreversible/binding) or `⏳ [blocked]` for a manual owner-only action. Decide the routine,
 cheap-to-undo calls yourself (recommended option, recorded). Never stall on the absent owner:
 if an unparkable decision blocks everything, take the safest reversible default, record it,
-leave a `❓` to override. A human playtest is the one thing never parked — finish, note
-"playtest pending," keep going. When they return, present the `❓` pile first as blocking
-multiple-choice questions, recommendation first — before you resume other work.
+leave a `❓` to override. A human playtest **can't happen while the owner is away — so don't
+raise it.** Capture the need as a `⏳ [blocked] playtest: <what>` task and keep draining; it
+resurfaces on return. (It's the one work-need that becomes a `⏳` rather than a mid-flight note.)
+When they return, present the `❓` pile first as blocking multiple-choice questions, recommendation
+first — before you resume other work; a `⏳ playtest` is offered there too, now that they're back.
 
 ## Posture
 

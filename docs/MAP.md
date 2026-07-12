@@ -20,9 +20,10 @@ four plugins into one; this reflects the current tree.
 | File | Responsibility |
 |---|---|
 | `STEERING.md` | **The steering layer** — the working agreement (queue discipline · challenge-the-ask + recommendation posture against the ledger · clean-as-you-go · autopilot). Prose the model reads once per session; not code, not a hook. |
-| `bin/session-start.sh` | SessionStart hook: inject STEERING once + re-surface this repo's open tasks from an earlier session (scoped by each session store's `.root` stamp — no native transcript, no cross-repo bleed). |
+| `bin/session-start.sh` | SessionStart hook: inject STEERING once + re-surface this repo's open tasks from an earlier session (scoped by each session store's `.root` stamp — no native transcript, no cross-repo bleed) + surface the repo's `docs/LESSONS.md` gotchas if present (R30·d7). |
 | `bin/secret-guard.sh` | PreToolUse[Write\|Edit] hook: the one **enforced** content-gate — block a write that would commit a credential (`exit 2`). `CLAUDE_COMPANION_SECSCAN=0` disables. |
-| `bin/touch.sh` | PostToolUse[Write\|Edit] hook: **clean-as-you-touch, format-only** — run the project's own formatter on the edited file (behavior-preserving execution). Non-blocking, emits nothing. Blast-radius + size are steering now (R28). `CLAUDE_COMPANION_TOUCH=0` disables. |
+| `bin/touch.sh` | PostToolUse[Write\|Edit] hook: **clean-as-you-touch, format-only** — prefer the project's own `pre-commit` on the file if configured, else the per-ext formatter (which reads the project's config; black-vs-ruff honored from pyproject) — R30·d4. Behavior-preserving, non-blocking, emits nothing. Blast-radius + size are steering (R28). `CLAUDE_COMPANION_TOUCH=0` disables. |
+| `docs/LESSONS.md` | This repo's accumulated **gotchas** (portability/test/CI traps) — model-maintained, injected each session by `session-start.sh` (R30·d7). Gotchas only; decisions live in the ledger, work in the queue. |
 | `commands/audit.md` | `/companion:audit` — on-demand whole-project sweep (size / debt / blast-radius hotspots), queues fixes via `tq`. |
 | `commands/advise.md` | `/companion:advise` (R29) — independent brutal-honest critique of a target (default: whole project) via a critic panel; presents deltas as recommendation-first `AskUserQuestion`s one at a time, then closes the loop into `tq` + an offered ledger entry. |
 | `bin/tq` | **THE task queue** — the companion owns its store (`~/.claude/companion/tasks`, NOT native tasks). `add`/`doing`/`note`/`done`/`list`/`report`; the report reprints on every `add`/`doing`/`done`. |

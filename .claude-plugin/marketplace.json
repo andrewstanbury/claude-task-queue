@@ -11,7 +11,7 @@
       "name": "companion",
       "source": "./plugins/companion",
       "description": "How Claude works on your project, in one place. A steering document (put in context once per session) defines how Claude turns your requests into a live task queue, decides with brutally honest multiple-choice recommendations that name what each option would change, runs autonomously when you step away, and keeps code clean as it changes it. A small enforced core backs it — only where a hook truly earns it: a secret-scan that blocks committed credentials, a clean-as-you-touch formatter pass on the file just edited, persisted autopilot, a self-owned task queue that works even where Claude's native task tools are switched off, cross-session resume, and an animated status line. Everything else (wireframe-first, outcome-checks, present-parked-first) is steering, not machinery.",
-      "version": "1.6.0"
+      "version": "1.7.0"
     }
   ]
 }

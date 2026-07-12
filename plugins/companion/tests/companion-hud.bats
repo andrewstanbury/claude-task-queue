@@ -61,3 +61,20 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   run bash -c 'printf "{}" | CLAUDE_COMPANION_SECSCAN=0 NO_COLOR=1 "$1"' _ "$SL"
   [[ "$output" == *"🛡✗"* ]]
 }
+
+@test "status line: beacon animates only on activity (static ● when idle, spins on in-progress)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  # idle: a pending task, no autopilot, nothing in-progress → static ● even with color on
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sIdle"
+  jq -n '{id:"1",subject:"later",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sIdle/1.json"
+  local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sIdle",cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | env -u NO_COLOR TERM=xterm "$2"' _ "$p" "$SL"
+  [[ "$output" == *"●"* ]]              # idle → static dot
+  # active: a task in-progress → the beacon spins (a braille frame, never the static ●)
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sBusy"
+  jq -n '{id:"1",subject:"working",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/sBusy/1.json"
+  p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sBusy",cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | env -u NO_COLOR TERM=xterm "$2"' _ "$p" "$SL"
+  [[ "$output" != *"●"* ]]              # in-progress → animated braille, no static dot
+}
