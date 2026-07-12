@@ -59,7 +59,7 @@ if have bats; then
   for d in plugins/*/tests tests; do
     [ -d "$d" ] || continue
     echo "  -- $d --"
-    bats "$d" || fail=1
+    bats --print-output-on-failure "$d" || fail=1
   done
 else
   echo "  FAIL — bats not installed (required to run tests)"; fail=1
