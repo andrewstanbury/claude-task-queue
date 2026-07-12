@@ -24,9 +24,10 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"BLOCKED"* ]]
 }
 
-@test "secret gate: blocks a generic secret literal (exit 2)" {
+@test "secret gate: a generic name=value literal WARNS but does not block (exit 0) — R32" {
   run bash -c 'jq -nc "{tool_input:{file_path:\"/x/c.py\",content:\"password = \\\"hunter2primetime\\\"\"}}" | "$1"' _ "$GUARD"
-  [ "$status" -eq 2 ]
+  [ "$status" -eq 0 ]                          # heuristic no longer breaks the edit
+  [[ "$output" == *"WARNING"* ]]              # but it does warn
 }
 
 @test "secret gate: allows a placeholder (exit 0)" {
@@ -60,6 +61,18 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"📋 Task queue"* ]]
   [[ "$output" == *"1 parked"* ]]
   [[ "$output" == *"✔ #1"* ]]
+}
+
+@test "tq: cancel retracts a task — cancelled, excluded from report counts, file kept (R32)" {
+  ( cd "$ROOT" && "$TQ" add "wrong task" "keep me" ) >/dev/null
+  run "$TQ" cancel 1
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"cancelled"* ]]
+  [ "$(jq -r .status "$CLAUDE_COMPANION_TASKS_DIR/s1/1.json")" = "cancelled" ]   # file kept for audit
+  run "$TQ" report
+  [[ "$output" != *"wrong task"* ]]        # retracted → not shown (no false ✔, no lingering ◻)
+  [[ "$output" == *"keep me"* ]]           # the sibling remains
+  [[ "$output" == *"1 open"* ]]            # cancelled excluded from the open count
 }
 
 @test "tq: no session id errors cleanly" {
@@ -100,12 +113,16 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"GOTCHA_MARKER"* ]]         # this repo's LESSONS surfaced
 }
 
-@test "session start: re-anchors on a context compaction (source=compact) — R30·d2" {
+@test "session start: re-anchors on a compaction with queue+pointer, NOT the full STEERING — R30·d2 / R32" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/xc"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/xc/.root"
+  jq -n '{id:"1",subject:"resume me",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/xc/1.json"
   run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"x\",source:\"compact\"}" | "$2" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$SS"
   [ "$status" -eq 0 ]
   [[ "$output" == *"compacted"* ]]             # compaction-aware lead
-  [[ "$output" == *"Working agreement"* ]]     # STEERING still re-injected
+  [[ "$output" == *"still applies"* ]]         # pointer to the session-start agreement
+  [[ "$output" == *"resume me"* ]]             # the live queue is re-injected
+  [[ "$output" != *"How we work"* ]]           # the full STEERING body is NOT re-pasted (token saving)
 }
 
 @test "manual resume: lists THIS repo's open tasks on demand (and says so when none)" {

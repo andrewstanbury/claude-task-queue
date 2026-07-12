@@ -17,7 +17,7 @@ SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; d
 # shellcheck source=../lib/companion.sh
 . "$(cd "$(dirname "$SELF")/../lib" && pwd)/companion.sh"
 in=""; [ -t 0 ] || in="$(cat 2>/dev/null || true)"; [ -n "$in" ] || in="{}"
-read -r MODEL SID CWD ITOK OTOK < <(printf '%s' "$in" | jq -r '
+IFS=$'\t' read -r MODEL SID CWD ITOK OTOK < <(printf '%s' "$in" | jq -r '
   [ (.model.display_name // .model.id // "?"),
     (.session_id // ""),
     (.workspace.current_dir // .cwd // ""),

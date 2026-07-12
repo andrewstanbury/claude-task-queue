@@ -20,12 +20,13 @@ it governs how you work here too.**
   - `secret-guard.sh` — PreToolUse: blocks a write that would commit a credential (`exit 2`).
     The one real content-gate; a leaked key is irreversible.
   - `touch.sh` — PostToolUse: clean-as-you-touch, **format-only** — run the project's own
-    formatter on the edited file (R25/R28; blast-radius + size are steering, not a hook). Plus
-    `/companion:audit` for a whole-project sweep.
+    formatter on the edited file (R25/R28; blast-radius + size are steering, not a hook). Whole-
+    project cleanliness sweeps are part of `/companion:advise` (R32).
   - `session-start.sh` — SessionStart: injects STEERING + re-surfaces this repo's open tasks
     from an earlier session (scoped by the store's `.root` stamp; no cross-repo bleed) + surfaces
     the repo's `docs/LESSONS.md` gotchas if present (R30·d7). Fires on `compact` too, so it
-    **re-anchors after a compaction** (R30·d2); `pre-compact.sh` freshens the queue just before.
+    **re-anchors after a compaction** (R30·d2) — re-injecting the queue + LESSONS (not the full
+    STEERING, R32).
   - `tq` — **THE task queue.** The companion owns its store (`~/.claude/companion/tasks`) and
     deliberately does **not** use Claude Code's native task tools (R8/R10). `tq report` reprints
     the queue on every `add`/`doing`/`done`.
@@ -39,10 +40,11 @@ it governs how you work here too.**
   - **The hook/steering line (R28)** — code only where it must *execute* (format) or *block*
     (secret gate) or *guarantee control-flow* (autopilot). Judgment (wireframe-first,
     weigh-against-direction, present-parked-first) and nudges (blast-radius, size, outcome-recap)
-    are **STEERING**, not hooks. (This retired R27's edit-gates + intent reminder.)
-  - **Commands** — `/companion:setup` (status line), `/companion:audit` (project sweep),
-    `/companion:autopilot`, `/companion:ship-it` (verify→commit→push→merge), `/companion:resume`
-    (manual re-surface of earlier open tasks), `/companion:advise` (R29 — independent brutal-honest
+    are **STEERING**, not hooks. (This retired R27's edit-gates + intent reminder.) Whole-project
+    cleanliness sweeps live in `/companion:advise` (which absorbed `/companion:audit`, R32).
+  - **Commands** — `/companion:setup` (status line), `/companion:autopilot`,
+    `/companion:ship-it` (verify→commit→push→merge), `/companion:resume`
+    (manual re-surface of earlier open tasks), `/companion:advise` (R29/R32 — independent brutal-honest
     critique of a target as recommendation-first options you pick one at a time, then queued).
 
 Keep the split honest: don't add advisory prose as a hook, and don't add a hook for anything

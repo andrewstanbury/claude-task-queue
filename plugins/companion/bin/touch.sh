@@ -15,17 +15,11 @@ ext="${f##*.}"
 has() { command -v "$1" >/dev/null 2>&1; }
 root="$(git -C "$(dirname "$f")" rev-parse --show-toplevel 2>/dev/null || true)"
 
-# Prefer the project's OWN toolchain when it declares one (R30·d4). A pre-commit setup runs exactly
-# the hooks the project configured, on just this file (--files) — its config decides what runs.
-# Best-effort. (Fast-path only: whole-project format scripts like `npm run format` / `make fmt` are
-# project-scoped, not per-file, so they belong in /companion:audit or CI, not this per-edit hook.)
-if [ -n "$root" ] && [ -f "$root/.pre-commit-config.yaml" ] && has pre-commit; then
-  ( cd "$root" && pre-commit run --files "$f" ) >/dev/null 2>&1
-  exit 0
-fi
-
-# Else the configured single-file formatter by extension — formatters read the project's OWN config
-# (.prettierrc / pyproject / rustfmt.toml …) from the tree, so this already honors it. The per-ext
+# The configured single-file formatter, by extension — formatters read the project's OWN config
+# (.prettierrc / pyproject / rustfmt.toml …) from the tree, so this already honors it, and each is a
+# bounded single-binary call. (R30·d4 also tried a `pre-commit run` fast-path; R32 dropped it — a
+# per-edit hook must be bounded, but pre-commit bootstraps envs on first run for minutes and runs
+# linters, not just formatters. Whole-project format scripts belong in CI, not per-edit.) The per-ext
 # command is *invocation* a hook can't avoid (allowed, R9), not a recognition allowlist. For Python,
 # respect black-vs-ruff when the project pinned one in pyproject.
 case "$ext" in

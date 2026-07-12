@@ -2,6 +2,29 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 2.0.0 — 2026-07-12
+
+Self-critique pass: `/companion:advise` run on the plugin itself (an independent 4-lens critic
+panel) found a real bug and that several 1.7–1.9 additions over-reached (ledger R32). All 9 fixes:
+
+- **BREAKING — `/companion:audit` retired**, merged into `/companion:advise` (which now also does
+  the whole-project cleanliness sweep; few findings → one-at-a-time, many → queued directly).
+- **Bug fix** — the status line mis-parsed a model name or project path containing a space (default
+  `IFS` split the tab-separated fields); now `IFS=$'\t'`, with a regression test.
+- **`touch.sh` drops the `pre-commit` fast-path** — it could hang an edit for minutes on first run
+  and ran linters, not just formatters; per-extension formatters (config-aware) remain.
+- **`pre-compact.sh` deleted** — it was an advisory nudge wearing a hook, contradicting R28; the
+  reliable compaction re-anchor (SessionStart) stays.
+- **Compaction re-anchor trimmed** — re-injects the queue + LESSONS + a pointer, not the full
+  ~2.4k-token STEERING (saves that per compaction).
+- **Status line `refreshInterval` 1 → 3s** — keeps the beacon while cutting the idle wake ~3×.
+- **Secret gate**: vendor-anchored key shapes still block (exit 2); the fuzzy `name=value`
+  heuristic now only *warns*, so it can't false-block a legitimate edit.
+- **`tq cancel <id>`** — retract a mis-queued task (cancelled; excluded from counts + resume, file
+  kept) instead of a false `done` or a lingering `open`.
+- **README** — a commands list (incl. `advise`), a status-line glyph legend, and a "turn on the
+  status line" callout.
+
 ## companion 1.9.0 — 2026-07-12
 
 Completes the R30 Claude-first refinements (Batch 3 of 3):

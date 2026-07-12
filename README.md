@@ -15,14 +15,31 @@ reads once per session. The only things that are code are the things that must a
 |---|---|
 | **Steering** ([STEERING.md](plugins/companion/STEERING.md)) | The working agreement: how Claude queues work, challenges the ask, recommends against a **requirements ledger** (🔒 locked / 🔓 open), keeps changes clean, and runs autonomously when you're away. Put in context once per session. |
 | **Secret gate** | Before any write, blocks a file that would commit a credential — the one thing native permissions can't scan. A leaked key is irreversible. |
-| **Clean-as-you-touch** | After you edit a file, it's auto-formatted (your project's own formatter), its blast radius (who depends on it) is surfaced, and it's flagged if it's grown too large. `/companion:audit` does the same across the whole project on demand. |
+| **Clean-as-you-touch** | After you edit a file, it's auto-formatted with your project's own formatter (a behavior-preserving pass). Deeper cleanliness — blast radius, size, debt hotspots — is a whole-project sweep in `/companion:advise`. |
 | **Resume** | Re-surfaces this repo's unfinished tasks when you start a new session — or on demand with `/companion:resume`. |
 | **Ship** | `/companion:ship-it` — verify your gate, commit, push, and open/merge a PR. |
 | **`tq`** | The task queue — self-owned, so it works everywhere (including the newest models where Claude's built-in task tracking is switched off) and doesn't depend on Claude Code internals. It reprints the queue on every change, so the CLI always shows what's in progress and next. |
 | **Autopilot** | `/companion:autopilot on` when you step away — Claude keeps working the queue on its own and parks decisions for your return. Enforced (it won't stop or ask while on) and persists across restarts. |
-| **Status line** | One glance line: secret gate · ✈️ autopilot · model · ⇡ input ⇣ output tokens · open-task count · project · branch. Wire it once with `/companion:setup`. |
+| **Status line** | One glance line: ⠋ beacon · 🛡 secret gate · model · ✈️ autopilot · ⇡⇣ tokens · ◻/❓/⏳ tasks · project · ⎇ branch · ↑↓ ahead/behind. Wire it once with `/companion:setup` (legend below). |
 
 Bash + `jq`, zero build, one install.
+
+## Commands
+
+- **`/companion:setup`** — wire the status line into your settings (one-time).
+- **`/companion:advise [target]`** — an independent, brutally-honest critique of a target
+  (default: the whole project), presented as recommendation-first choices, then queued. Doubles
+  as a cleanliness sweep (size · debt · blast-radius · perf).
+- **`/companion:autopilot on|off`** — work the queue autonomously while you're away.
+- **`/companion:resume`** — re-surface this repo's unfinished tasks on demand.
+- **`/companion:ship-it`** — verify → state the case → commit → push → PR/merge.
+
+## Status line legend
+
+`⠋` health beacon (spins while working) · `🛡` secret gate on (`🛡✗` off) · `✈️` autopilot on ·
+`⇡`/`⇣` input/output tokens · `◻` open · `❓` parked · `⏳` blocked tasks · project · `⎇` branch ·
+`*N` uncommitted · `↑`/`↓` commits ahead/behind upstream. *(`⇡⇣` are tokens; `↑↓` are git — two
+arrow pairs, different meanings.)*
 
 ## Requirements
 
@@ -39,9 +56,13 @@ Bash + `jq`, zero build, one install.
 
 Or run `/plugin` and pick it from the **Discover** tab.
 
+> **One thing to turn on:** the enforced core works the moment it's installed, but the *status
+> line* is the one opt-in — run **`/companion:setup`** once to wire it (nothing prompts you
+> otherwise).
+
 ## What installing does
 
-The companion works through hooks, so it takes effect as soon as it's enabled — no config step.
+The enforced core works as soon as it's enabled — the only opt-in is the status line (`/companion:setup`).
 
 - **Each session start:** the working agreement (STEERING.md) is put in context once, and any
   unfinished tasks from an earlier session in this repo are surfaced.

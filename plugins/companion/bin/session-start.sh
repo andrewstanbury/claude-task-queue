@@ -19,14 +19,16 @@ src="$(printf '%s' "$in" | jq -r '.source // empty' 2>/dev/null || true)"
 root="$(companion_root "$cwd")"
 
 # SessionStart fires on startup/resume AND after a context compaction (source=compact) — so this
-# hook IS the post-compaction re-anchor (R30·d2): STEERING + the live queue (with each task's
-# done-when) + LESSONS come back right when the model's working context was just summarized.
+# hook IS the post-compaction re-anchor (R30·d2). On compact it re-injects the live queue (each
+# task's done-when) + LESSONS — the real cross-compaction memory — but NOT the whole ~2.4k-token
+# STEERING (R32): the agreement from session start still applies and the summarizer largely
+# preserves it, so re-pasting static prose every compaction was the biggest repeatable token waste.
 if [ "$src" = "compact" ]; then
-  msg="Your context was just compacted. Re-anchor: the working agreement, your LIVE task queue (each task's done-when is its acceptance test), and this repo's lessons follow — resume from the queue, not from memory."$'\n\n'
+  msg="Your context was just compacted. Re-anchor from your LIVE task queue (each task's done-when is its acceptance test) and this repo's lessons below — resume from the queue, not from memory. The working agreement injected at session start still applies (not re-pasted here, to save tokens)."$'\n\n'
 else
   msg="Read the working agreement below — it governs how you queue, decide, and keep this repo clean for the whole session."$'\n\n'
+  [ -f "$PLUGIN_DIR/STEERING.md" ] && msg="$msg$(cat "$PLUGIN_DIR/STEERING.md")"
 fi
-[ -f "$PLUGIN_DIR/STEERING.md" ] && msg="$msg$(cat "$PLUGIN_DIR/STEERING.md")"
 carry="$(companion_open_tasks "$root")"
 [ -n "$carry" ] && msg="$msg"$'\n\n'"── Open tasks carried over from an earlier session (reinstate before new work) ──"$'\n'"$carry"
 

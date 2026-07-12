@@ -21,8 +21,12 @@ don't run it while autopilot is on.
 2. **Critique independently — a panel, not you.** The critique must come from contexts that did
    **not** build the thing; that independence is what makes it honest instead of self-justifying.
    Spawn a small panel of critic sub-agents, each a distinct lens — e.g. correctness/robustness ·
-   simplicity & YAGNI · user experience · cost/efficiency · a steelman-then-attack generalist.
-   Give each the target + goal; ask each for an honest assessment and a list of **deltas**
+   simplicity & YAGNI · user experience · cost/efficiency · a steelman-then-attack generalist. **For
+   a whole-project or "clean this up" target, also include the cleanliness lenses** (this command
+   absorbed the old `/companion:audit`, R32): oversized files (over the size budget), scar-tissue
+   (high git rework-ratio: `fix`/`revert` commits ÷ total, per file), blast-radius hotspots (files
+   with many dependents), and performance hot paths (realtime/hot-loop code — judgment, no engine
+   allowlist). Give each the target + goal; ask each for an honest assessment and a list of **deltas**
    (current → recommended), where each delta is a crisp problem, 2-4 concrete options, and a
    recommended option **with the one-line reason why**. If sub-agents aren't available, do it
    inline but adopt each lens explicitly in turn. **License every critic to conclude "this is
@@ -35,12 +39,16 @@ don't run it while autopilot is on.
    options and your single recommendation + one-line why. Flag any option that would touch or
    reverse a ledger requirement, citing the R-ID (locked 🔒 needs explicit sign-off).
 
-4. **Headline, then decide one at a time.** Give a short, brutally-honest summary — the
-   current-vs-recommended headline, including "mostly already right" if that is the truth. Then go
-   delta-by-delta: for each, state your recommendation and why in a line or two, then ask it as a
-   **single `AskUserQuestion`** — options recommended-first, `(Recommended)` on your pick, and each
-   option's description naming its trade-off / what it changes. One delta per question; number them
-   ("N of M"); carry the picks forward.
+4. **Headline, then decide — scale the interaction to the volume.** Give a short, brutally-honest
+   summary — the current-vs-recommended headline, including "mostly already right" if that is the
+   truth. Then:
+   - **Few, deliberate findings (a design critique):** go delta-by-delta — for each, state your
+     recommendation and why in a line or two, then ask it as a **single `AskUserQuestion`** (options
+     recommended-first, `(Recommended)` on your pick, each option naming its trade-off / what it
+     changes). One delta per question; number them ("N of M"); carry the picks forward.
+   - **Many findings (a whole-project cleanliness sweep):** don't interrogate one-by-one — present
+     the ranked list and **queue them directly** (next step) with a one-line summary, the way the
+     old `audit` did. Interrogating 20 lint findings one at a time is worse than a clean queue.
 
 5. **Close the loop.** Summarize the chosen options in a table. Then offer to (a) `tq add` each
    pick as a task (smallest blast-radius first; park anything ambiguous as `❓ [parked]`), and (b)

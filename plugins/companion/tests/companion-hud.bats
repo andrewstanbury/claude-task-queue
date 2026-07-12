@@ -62,6 +62,21 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"🛡✗"* ]]
 }
 
+@test "status line: a space in the model name / project path doesn't corrupt the parse (R32·1)" {
+  # spaced project path (routine on macOS) + spaced model name — both would mis-split under
+  # default IFS, breaking the session-id (→ task counts 0) and the cwd (→ branch/project).
+  local base repo; base="$(mktemp -d)"; repo="$base/My Project"; mkdir -p "$repo"
+  git -C "$repo" init -q; git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sSpace"
+  jq -n '{id:"1",subject:"a",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sSpace/1.json"
+  local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus 4.8"},session_id:"sSpace",cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"◻1"* ]]             # session id parsed whole → store found → 1 open task
+  [[ "$output" == *"Opus 4.8"* ]]       # model name kept whole
+  [[ "$output" == *"⎇"* ]]              # cwd parsed whole → git branch resolves
+}
+
 @test "status line: beacon animates only on activity (static ● when idle, spins on in-progress)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init

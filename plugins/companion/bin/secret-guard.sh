@@ -19,13 +19,15 @@ anchored='AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,}|xox[baprs]-[0-9A-Za-z-]{10
 generic='(api[_-]?key|secret|password|token)[[:space:]]*[:=][[:space:]]*['"'"'"][A-Za-z0-9_/+.-]{12,}['"'"'"]'
 placeholder='(your|example|placeholder|xxx+|<[a-z]|changeme|dummy|redacted|test[_-]?(key|token|secret))'
 
-hit=""
-printf '%s' "$content" | grep -qE "$anchored" && hit="1"
-if [ -z "$hit" ] && printf '%s' "$content" | grep -qiE "$generic" \
-   && ! printf '%s' "$content" | grep -qiE "$placeholder"; then hit="1"; fi
-
-if [ -n "$hit" ]; then
-  echo "BLOCKED: $path appears to contain a hardcoded credential. Move it to an env var or secret store — a committed key is irreversible. (CLAUDE_COMPANION_SECSCAN=0 overrides.)" >&2
+# Anchored vendor key shapes are near-zero false-positive → BLOCK (exit 2), the one sanctioned
+# edit-breaker. The generic NAME="value" heuristic is lower-confidence and would break legitimate
+# writes (`password_hint = "remember the dog"`, doc fixtures), so it only WARNS (R32) — blocking
+# must fire only on evidence that's virtually never a false positive.
+if printf '%s' "$content" | grep -qE "$anchored"; then
+  echo "BLOCKED: $path contains what looks like a real credential (a recognised key prefix). Move it to an env var or secret store — a committed key is irreversible. (CLAUDE_COMPANION_SECSCAN=0 overrides.)" >&2
   exit 2
+fi
+if printf '%s' "$content" | grep -qiE "$generic" && ! printf '%s' "$content" | grep -qiE "$placeholder"; then
+  echo "WARNING (not blocked): $path has a possible hardcoded secret (a name=value literal). If it's real, move it to an env var or secret store — the write proceeds regardless." >&2
 fi
 exit 0

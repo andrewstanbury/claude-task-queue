@@ -21,6 +21,7 @@ tq — fallback task queue (native task tools gated off)
   tq note  <id> "<breadcrumb>"   update the in-progress breadcrumb
   tq done-when <id> "<accept>"   set/replace a task's done-when (survives compaction)
   tq done  <id>                  mark completed + print the report
+  tq cancel <id>                 retract a mis-queued task (cancelled; kept for audit, uncounted)
   tq list                        terse one-line-each queue
   tq report                      full grouped status report (also fires on add/doing/done)
 Lead a subject with ❓ (a parked decision) or ⏳ (owner-blocked) to defer it.
@@ -72,6 +73,7 @@ case "$cmd" in
     echo; report ;;
   doing) { [ "$#" -ge 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" in_progress "${2:-}"; echo "#$1 → in_progress"; echo; report ;;
   done) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" completed ""; echo "#$1 → completed"; echo; report ;;
+  cancel) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" cancelled ""; echo "#$1 → cancelled (retracted; kept for audit, excluded from counts)"; echo; report ;;
   note) { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }; set_task "$1" "" "$2"; echo "#$1 note set" ;;
   done-when|dw) { [ "$#" -eq 2 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: usage: tq done-when <id> \"<acceptance>\"" >&2; exit 1; }
     f="$DIR/$1.json"; t="$DIR/.$1.tmp"; jq --arg d "$2" '.done_when=$d' "$f" >"$t" && mv "$t" "$f"; echo "#$1 done-when set"; echo; report ;;
