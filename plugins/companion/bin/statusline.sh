@@ -40,7 +40,9 @@ if [ -n "${SID:-}" ] && [ -d "$store" ]; then
 fi
 
 # 🛡 secret gate (the one enforced guarantee) — green shield on, red ✗ when disabled.
-if [ "${CLAUDE_COMPANION_SECSCAN:-1}" = "0" ]; then SHIELD="$R$B🛡✗$X"; else SHIELD="$G$B🛡$X"; fi
+# Brace every var: on macOS's bash 3.2 an unbraced `$B` directly before the 🛡 glyph swallows the
+# emoji's leading byte into the variable name, which `set -u` then rejects (a real macOS-CI crash).
+if [ "${CLAUDE_COMPANION_SECSCAN:-1}" = "0" ]; then SHIELD="${R}${B}🛡✗${X}"; else SHIELD="${G}${B}🛡${X}"; fi
 
 # repo root (git toplevel, else CWD) — one rev-parse, reused for project name + autopilot/gate flags.
 ROOT="$(companion_root "$CWD")"; PROJ="${ROOT##*/}"
