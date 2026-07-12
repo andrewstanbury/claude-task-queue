@@ -2,6 +2,20 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 1.9.0 — 2026-07-12
+
+Completes the R30 Claude-first refinements (Batch 3 of 3):
+
+- **Compaction re-anchor** (R30·d2) — `session-start.sh` fires on `source=compact`, so after the
+  context is summarized it re-injects STEERING + the live queue (with each task's done-when) +
+  LESSONS, with a compaction-aware lead. A new `pre-compact.sh` (PreCompact) nudges the model to
+  freshen the in-progress breadcrumb/done-when just before the summary.
+- **Challenge slot + devil's-advocate** (R30·d6) — `/companion:ship-it` now requires stating
+  risks / what-changes / R-IDs before committing, and spawns a devil's-advocate sub-agent (an
+  independent context prompted to attack the change) for consequential ships.
+- **Audit is a sub-agent panel** (R30·d5) — `/companion:audit` fans out one lens per sub-agent
+  (size / debt / blast-radius / perf), synthesizes, and queues — main context stays clean.
+
 ## companion 1.8.0 — 2026-07-12
 
 - **Tasks carry a `done-when`** (R30·d1) — `tq add … --done "<acceptance>"` (or `tq done-when <id>`);

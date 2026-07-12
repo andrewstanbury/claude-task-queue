@@ -100,6 +100,14 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"GOTCHA_MARKER"* ]]         # this repo's LESSONS surfaced
 }
 
+@test "session start: re-anchors on a context compaction (source=compact) — R30·d2" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"x\",source:\"compact\"}" | "$2" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$SS"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"compacted"* ]]             # compaction-aware lead
+  [[ "$output" == *"Working agreement"* ]]     # STEERING still re-injected
+}
+
 @test "manual resume: lists THIS repo's open tasks on demand (and says so when none)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sM"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/sM/.root"

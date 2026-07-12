@@ -17,7 +17,7 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   # Feed stdin from a FILE, not a bash -c argument — a 100KB arg blows the test's own ARG_MAX
   # (the hooks read stdin fine at any size; that's what we're proving).
   local f; f="$(mktemp)"
-  local hooks=(secret-guard ask-guard touch session-start stop-autopilot statusline)
+  local hooks=(secret-guard ask-guard touch session-start stop-autopilot statusline pre-compact)
   local inputs=("" "not json at all" "{" '{"tool_input":' "{}" '{"cwd":"/nope","tool_input":{"file_path":"/no/such"}}')
   local h input
   for h in "${hooks[@]}"; do

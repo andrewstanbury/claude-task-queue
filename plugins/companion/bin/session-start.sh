@@ -15,9 +15,17 @@ PLUGIN_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 
 in="$(cat 2>/dev/null || true)"
 cwd="$(printf '%s' "$in" | jq -r '.cwd // empty' 2>/dev/null || true)"; [ -n "$cwd" ] || cwd="$PWD"
+src="$(printf '%s' "$in" | jq -r '.source // empty' 2>/dev/null || true)"
 root="$(companion_root "$cwd")"
 
-msg="Read the working agreement below — it governs how you queue, decide, and keep this repo clean for the whole session."$'\n\n'
+# SessionStart fires on startup/resume AND after a context compaction (source=compact) — so this
+# hook IS the post-compaction re-anchor (R30·d2): STEERING + the live queue (with each task's
+# done-when) + LESSONS come back right when the model's working context was just summarized.
+if [ "$src" = "compact" ]; then
+  msg="Your context was just compacted. Re-anchor: the working agreement, your LIVE task queue (each task's done-when is its acceptance test), and this repo's lessons follow — resume from the queue, not from memory."$'\n\n'
+else
+  msg="Read the working agreement below — it governs how you queue, decide, and keep this repo clean for the whole session."$'\n\n'
+fi
 [ -f "$PLUGIN_DIR/STEERING.md" ] && msg="$msg$(cat "$PLUGIN_DIR/STEERING.md")"
 carry="$(companion_open_tasks "$root")"
 [ -n "$carry" ] && msg="$msg"$'\n\n'"── Open tasks carried over from an earlier session (reinstate before new work) ──"$'\n'"$carry"

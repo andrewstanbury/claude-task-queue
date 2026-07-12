@@ -24,7 +24,8 @@ it governs how you work here too.**
     `/companion:audit` for a whole-project sweep.
   - `session-start.sh` — SessionStart: injects STEERING + re-surfaces this repo's open tasks
     from an earlier session (scoped by the store's `.root` stamp; no cross-repo bleed) + surfaces
-    the repo's `docs/LESSONS.md` gotchas if present (R30·d7).
+    the repo's `docs/LESSONS.md` gotchas if present (R30·d7). Fires on `compact` too, so it
+    **re-anchors after a compaction** (R30·d2); `pre-compact.sh` freshens the queue just before.
   - `tq` — **THE task queue.** The companion owns its store (`~/.claude/companion/tasks`) and
     deliberately does **not** use Claude Code's native task tools (R8/R10). `tq report` reprints
     the queue on every `add`/`doing`/`done`.
