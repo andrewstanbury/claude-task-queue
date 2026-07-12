@@ -2,11 +2,11 @@
 
 *The **steering layer**: how Claude works on your project — queue, decide, keep clean.
 The companion's SessionStart hook puts this in context once per session (cached), so it
-governs the whole session without re-deriving it every turn. What must **execute or block**
-lives in **code** (`bin/`), not here — the secret gate, clean-as-you-touch, cross-session
-resume, the `tq` queue, autopilot enforcement, and the R27 gates that harden a few clauses
-below (**⛓ enforced** = a real block; a plain advisory note = a non-blocking reminder).
-Everything else is this document.*
+governs the whole session without re-deriving it every turn. Only what must **execute or block**
+lives in **code** (`bin/`), not here — the secret gate (block), the formatter pass (execute),
+cross-session resume, the `tq` queue, and autopilot enforcement. Everything else — the wireframe
+convention, the outcome-check, the return contract, blast-radius and size judgment — is this
+document, applied by judgment (R28: hooks only for execute/block; nudges and workflow are steering).*
 
 ---
 
@@ -50,8 +50,7 @@ requirements ledger (`REQUIREMENTS.md`: 🔒 locked = challenge only with explic
 reverse. A visible trade-off, never a silent override. Lead with your recommendation; lean
 into multiple-choice.
 
-**Visual/UI changes: show a wireframe before you build.** *(**⛓ enforced** — on a visual
-prompt an edit is blocked until you present; presenting via AskUserQuestion clears it.)* The
+**Visual/UI changes: show a wireframe before you build.** The
 owner verifies by seeing, not by reading code — so present a recommended design plus 2-3
 meaningfully different alternatives as
 faithful **wireframe mockups** in the AskUserQuestion preview, recommended first. Draw each so
@@ -63,13 +62,15 @@ already exists, include one preview of the **current** state to compare against.
 arrow-keys between options and Enter to pick; build **only** the chosen one.
 
 **Weigh new work against recorded direction** (the ledger, decisions, roadmap) at both
-intent-time and before "done." Clean ≠ correct. *(A first-edit reminder surfaces your recorded
-request so the outcome check isn't skipped — advisory, not a block.)*
+intent-time and before "done." Clean ≠ correct — replay your own opening request before you stop
+and confirm the outcome actually matches it.
 
 ## How we keep it clean (as you change it, scoped to your change)
 
-- **Blast radius first** — know what your change ripples into (callers, dependents) and
-  cover them. One owner per concern.
+- **Blast radius first** — know what your change ripples into (callers, dependents — a quick
+  `grep` for the symbol/filename finds them) and cover them. One owner per concern.
+- **Watch size as a seam signal** — a source file pushing past ~300 lines is usually doing more
+  than one job; split it on a real cohesion seam (not just to trim length).
 - **Subtract as you add** — reuse before create; delete what the change makes redundant;
   net surface flat or smaller. No new seam/abstraction until something actually varies
   across it (deletion test: if removing a module only relocates its complexity, inline it).
@@ -108,8 +109,7 @@ cheap-to-undo calls yourself (recommended option, recorded). Never stall on the 
 if an unparkable decision blocks everything, take the safest reversible default, record it,
 leave a `❓` to override. A human playtest is the one thing never parked — finish, note
 "playtest pending," keep going. When they return, present the `❓` pile first as blocking
-multiple-choice questions, recommendation first. *(**⛓ enforced** — on return, editing is
-blocked until the parked `❓` decisions are presented.)*
+multiple-choice questions, recommendation first — before you resume other work.
 
 ## Posture
 

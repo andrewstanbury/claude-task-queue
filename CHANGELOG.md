@@ -2,6 +2,29 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 1.5.0 — 2026-07-12
+
+- **Status bar redesign** — the single `📋 N` count split into `◻ open · ❓ parked · ⏳ blocked`,
+  plus git `↑ahead ↓behind`. The parked-task scan behind it is now a single `jq` pass (~18×
+  faster; it runs every second).
+- **Architecture realignment (ledger R28)** — the hook/steering boundary is now decided by a
+  component's *nature*: code only for what must **execute** (the formatter) or **block** (the
+  secret gate), plus autopilot's control-flow guarantee — **judgment and nudges are steering.**
+  This **retired the R27 edit-gates** (design-preview + return-review) and the intent→outcome
+  reminder; `touch.sh` is now **format-only** (blast-radius + size → steering, R25 reshaped).
+  Deleted `work-guard.sh`, `prompt.sh`, `intent-note.sh`; retired `CLAUDE_COMPANION_GATES` and
+  `CLAUDE_COMPANION_SIZE_BUDGET`.
+- Tests split into `companion-core.bats` / `companion-hud.bats`. CI hardening folded in from
+  1.4.x (git identity in tests, jq broken-pipe, macOS bash-3.2 status-line crash).
+
+## companion 1.4.0 — 2026-07-12
+
+- **Animated status line** — a braille-orbit health beacon (`refreshInterval:1`), `│ 🛡 │`
+  spacing fix, consolidated off the deprecated `hud` plugin onto `companion`. (Kept in 1.5.0.)
+- **R27 edit-gates** (design-preview + return-review blocks, intent→outcome reminder) + 🎨/🔒
+  status icons — **retired one day later in 1.5.0 (R28)** as the wrong side of the hook/steering
+  line. `author` field added; macOS + CI hardening (1.4.1–1.4.2).
+
 ## companion 1.3.0 — 2026-07-12
 
 - **`/companion:ship-it`** — verify the project's gate → commit → push → PR/merge to the

@@ -19,26 +19,24 @@ it governs how you work here too.**
 - **Enforced core** (must execute or block) → `plugins/companion/bin/`:
   - `secret-guard.sh` — PreToolUse: blocks a write that would commit a credential (`exit 2`).
     The one real content-gate; a leaked key is irreversible.
-  - `touch.sh` — PostToolUse: clean-as-you-touch — format the edited file, surface its blast
-    radius, flag over-budget size (R25). Plus `/companion:audit` for a whole-project sweep.
+  - `touch.sh` — PostToolUse: clean-as-you-touch, **format-only** — run the project's own
+    formatter on the edited file (R25/R28; blast-radius + size are steering, not a hook). Plus
+    `/companion:audit` for a whole-project sweep.
   - `session-start.sh` — SessionStart: injects STEERING + re-surfaces this repo's open tasks
     from an earlier session (scoped by the store's `.root` stamp; no cross-repo bleed).
   - `tq` — **THE task queue.** The companion owns its store (`~/.claude/companion/tasks`) and
     deliberately does **not** use Claude Code's native task tools (R8/R10). `tq report` reprints
     the queue on every `add`/`doing`/`done`.
   - `statusline.sh` — a `statusLine` command (not a hook): ⠋ animated beacon · 🛡 secret gate ·
-    🎨/🔒 R27 edit-gates when armed · model · ✈️ autopilot · ⇡in ⇣out · 📋 open tasks · project ·
-    branch. Wire it with `/companion:setup` (sets `refreshInterval:1` for the beacon).
+    model · ✈️ autopilot · ⇡in ⇣out · ◻ open · ❓ parked · ⏳ blocked tasks · project · branch
+    (+ ↑ahead ↓behind). Wire it with `/companion:setup` (sets `refreshInterval:1` for the beacon).
   - **Autopilot** (R26) — `/companion:autopilot on\|off` sets a persisted per-repo flag;
     while on it's *enforced*: `stop-autopilot.sh` (Stop) auto-continues the drain and
     `ask-guard.sh` (PreToolUse) blocks asking. `lib/companion.sh` holds the shared helpers.
-  - **Gates** (R27) — two enforced blocks + one advisory reminder for three STEERING clauses.
-    `prompt.sh` (UserPromptSubmit) records the intent of record + arms a design-preview marker on
-    a visual prompt; `work-guard.sh` (PreToolUse[Write\|Edit]) **blocks** an edit until a visual
-    change's wireframe is shown and until parked ❓ decisions are presented on return (both clear
-    when the model presents — `ask-guard.sh` disarms); `intent-note.sh` (PostToolUse[Write\|Edit])
-    surfaces the recorded intent once per request, on the first edit, as **advisory** context (no
-    block). All stay silent under autopilot, disable with `CLAUDE_COMPANION_GATES=0`.
+  - **The hook/steering line (R28)** — code only where it must *execute* (format) or *block*
+    (secret gate) or *guarantee control-flow* (autopilot). Judgment (wireframe-first,
+    weigh-against-direction, present-parked-first) and nudges (blast-radius, size, outcome-recap)
+    are **STEERING**, not hooks. (This retired R27's edit-gates + intent reminder.)
   - **Commands** — `/companion:setup` (status line), `/companion:audit` (project sweep),
     `/companion:autopilot`, `/companion:ship-it` (verify→commit→push→merge), `/companion:resume`
     (manual re-surface of earlier open tasks).

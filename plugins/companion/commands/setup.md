@@ -3,8 +3,9 @@ description: Wire the companion status line into your settings.json (one-time)
 ---
 
 Wire the companion's status line into the user's Claude Code settings so it renders in the
-CLI. The status line shows: ⠋ animated beacon · 🛡 secret gate · 🎨/🔒 R27 edit-gates when armed ·
-model · ✈️ autopilot · ⇡ input ⇣ output tokens · 📋 open tasks · project · branch (+ *changes).
+CLI. The status line shows: ⠋ animated beacon · 🛡 secret gate · model · ✈️ autopilot · ⇡ input
+⇣ output tokens · ◻ open · ❓ parked · ⏳ blocked tasks · project · branch (+ *changes · ↑ahead
+↓behind).
 
 Do this:
 

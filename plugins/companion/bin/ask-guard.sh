@@ -11,18 +11,8 @@ SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; d
 
 in="$(cat 2>/dev/null || true)"
 cwd="$(printf '%s' "$in" | jq -r '.cwd // empty' 2>/dev/null || true)"; [ -n "$cwd" ] || cwd="$PWD"
-sid="$(printf '%s' "$in" | jq -r '.session_id // empty' 2>/dev/null || true)"
 root="$(companion_root "$cwd")"
-
-# Autopilot OFF: an AskUserQuestion IS the model presenting — so it satisfies the R27 work-gates.
-# Clear the design-preview flag (the wireframe is being shown) and set the return-review flag
-# (the ❓ pile is being presented). work-guard then stops blocking Write|Edit. Best-effort.
-if ! companion_autopilot_on "$root"; then
-  rm -f "$(companion_design_flag "$sid")" 2>/dev/null || true
-  { mkdir -p "$(dirname "$(companion_review_flag "$root")")" 2>/dev/null \
-    && : > "$(companion_review_flag "$root")"; } 2>/dev/null || true
-  exit 0
-fi
+companion_autopilot_on "$root" || exit 0
 
 jq -cn '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny",
   permissionDecisionReason: "Autopilot is ON — the owner is away, so do not ask. Decide it yourself if it is reversible and low-cost (record the call), otherwise PARK it: `tq add \"❓ [parked] <the decision>\"` (or `⏳ [blocked] <owner-only action>`) and move on to the next task. The parked items are presented when the owner returns."}}'
