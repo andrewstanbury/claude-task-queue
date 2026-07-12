@@ -264,7 +264,10 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\"}" | "$2"' _ "$repo" "$WG"
   [ -z "$output" ]                              # away → work-first, no block
   ( cd "$repo" && "$AP" off ) >/dev/null
-  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\"}" | CLAUDE_COMPANION_GATES=0 "$2"' _ "$repo" "$WG"
+  # 2>/dev/null on the producer: the hook exits at its disable-guard before reading stdin, so jq
+  # (1.7+) races into a closed pipe and prints "writing output failed: Broken pipe" to stderr,
+  # which bats merges into $output — a real CI flake confirmed via --print-output-on-failure.
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\"}" 2>/dev/null | CLAUDE_COMPANION_GATES=0 "$2"' _ "$repo" "$WG"
   [ -z "$output" ]                              # disabled → allow
 }
 
@@ -297,8 +300,8 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\",tool_input:{file_path:\"/x/a.js\"}}" | "$2"' _ "$repo" "$IN"
   [ -z "$output" ]
   ( cd "$repo" && "$AP" off ) >/dev/null
-  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\",tool_input:{file_path:\"/x/a.js\"}}" | CLAUDE_COMPANION_GATES=0 "$2"' _ "$repo" "$IN"
-  [ -z "$output" ]
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s1\",tool_input:{file_path:\"/x/a.js\"}}" 2>/dev/null | CLAUDE_COMPANION_GATES=0 "$2"' _ "$repo" "$IN"
+  [ -z "$output" ]                              # 2>/dev/null: hook exits pre-stdin → silence jq's broken-pipe
 }
 
 @test "touch: silent on a small file with no dependents, and when disabled" {
@@ -309,6 +312,6 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [ -z "$output" ]                          # nothing to say
   # disabled → silent even when there would be findings
   local i; for i in $(seq 1 305); do echo "# $i" >> "$repo/lonely.py"; done
-  run bash -c 'jq -nc --arg p "$1" "{tool_input:{file_path:\$p}}" | CLAUDE_COMPANION_TOUCH=0 "$2"' _ "$repo/lonely.py" "$TOUCH"
-  [ -z "$output" ]
+  run bash -c 'jq -nc --arg p "$1" "{tool_input:{file_path:\$p}}" 2>/dev/null | CLAUDE_COMPANION_TOUCH=0 "$2"' _ "$repo/lonely.py" "$TOUCH"
+  [ -z "$output" ]                              # 2>/dev/null: hook exits pre-stdin → silence jq's broken-pipe
 }
