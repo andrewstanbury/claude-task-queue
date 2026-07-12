@@ -68,6 +68,18 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"session id"* ]]
 }
 
+@test "tq: done-when — --done on add, the done-when subcommand, and it renders in the report (R30·d1)" {
+  ( cd "$ROOT" && "$TQ" add "wire export" --done "downloads a .csv" ) >/dev/null
+  [ "$(jq -r .done_when "$CLAUDE_COMPANION_TASKS_DIR/s1/1.json")" = "downloads a .csv" ]
+  run "$TQ" report
+  [[ "$output" == *"◻ #1  wire export"* ]]
+  [[ "$output" == *"done when: downloads a .csv"* ]]     # rendered under the task
+  ( cd "$ROOT" && "$TQ" add "plain" ) >/dev/null          # no --done → empty, no done-when line
+  [ "$(jq -r .done_when "$CLAUDE_COMPANION_TASKS_DIR/s1/2.json")" = "" ]
+  "$TQ" done-when 2 "no errors on load" >/dev/null         # set it after the fact
+  [ "$(jq -r .done_when "$CLAUDE_COMPANION_TASKS_DIR/s1/2.json")" = "no errors on load" ]
+}
+
 # ---- session start (steering + root-scoped resume, no native transcript) ----
 
 @test "session start: injects STEERING and resumes THIS repo's tasks only (scoped by .root)" {

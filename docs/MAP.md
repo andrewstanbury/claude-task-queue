@@ -26,7 +26,7 @@ four plugins into one; this reflects the current tree.
 | `docs/LESSONS.md` | This repo's accumulated **gotchas** (portability/test/CI traps) — model-maintained, injected each session by `session-start.sh` (R30·d7). Gotchas only; decisions live in the ledger, work in the queue. |
 | `commands/audit.md` | `/companion:audit` — on-demand whole-project sweep (size / debt / blast-radius hotspots), queues fixes via `tq`. |
 | `commands/advise.md` | `/companion:advise` (R29) — independent brutal-honest critique of a target (default: whole project) via a critic panel; presents deltas as recommendation-first `AskUserQuestion`s one at a time, then closes the loop into `tq` + an offered ledger entry. |
-| `bin/tq` | **THE task queue** — the companion owns its store (`~/.claude/companion/tasks`, NOT native tasks). `add`/`doing`/`note`/`done`/`list`/`report`; the report reprints on every `add`/`doing`/`done`. |
+| `bin/tq` | **THE task queue** — the companion owns its store (`~/.claude/companion/tasks`, NOT native tasks). `add [--done "<acceptance>"]`/`doing`/`note`/`done-when`/`done`/`list`/`report`; a task's `done_when` (R30·d1) is its acceptance test, rendered in the report + resume so it survives a compaction. Report reprints on every state change. |
 | `bin/resume.sh` | Manual resume (`/companion:resume`) — list this repo's open tasks from earlier sessions on demand (the SessionStart twin). |
 | `commands/ship-it.md` | `/companion:ship-it` — verify → commit → push → PR/merge to the default branch. |
 | `commands/resume.md` | `/companion:resume` — re-surface + reinstate earlier open tasks. |
@@ -38,4 +38,4 @@ four plugins into one; this reflects the current tree.
 | `commands/setup.md` · `commands/autopilot.md` | `/companion:setup` (status line) · `/companion:autopilot` (toggle). |
 | `hooks/hooks.json` | Wires SessionStart · PreToolUse[Write\|Edit (secret-guard) + AskUserQuestion (ask-guard)] · PostToolUse[Write\|Edit (touch)] · Stop (stop-autopilot). |
 | `.claude-plugin/plugin.json` | Manifest + version. |
-| `tests/companion.bats` | Tests the **enforced core only** — the secret gate, `tq`, session-start/resume, and the status line. (The steering layer is prose; it isn't unit-testable, and pretending it was is what the old system got wrong.) |
+| `tests/companion-{core,hud,fuzz}.bats` | Test the **enforced core only** — `core` (secret gate · `tq` · session-start/resume · touch · autopilot), `hud` (status line), `fuzz` (every hook survives empty/garbage/huge/emoji stdin — R30·d8). The steering layer is prose; it isn't unit-testable, and pretending it was is what the old system got wrong. |

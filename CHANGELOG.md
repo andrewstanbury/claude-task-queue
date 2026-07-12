@@ -2,6 +2,17 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 1.8.0 — 2026-07-12
+
+- **Tasks carry a `done-when`** (R30·d1) — `tq add … --done "<acceptance>"` (or `tq done-when <id>`);
+  the acceptance test renders in the report + SessionStart resume, so a task re-read after a
+  context compaction re-derives the right next action instead of guessing at a bare subject.
+- **STEERING is checklist-first** (R30·d3) — each section opens with an imperative "Moves"
+  checklist; the prose rationale stays below it. Scannable for compliance, keeps the *why*.
+- **CI hardening** (R30·d8) — a hook-fuzz test (every hook survives empty / garbage / truncated /
+  huge / emoji stdin without crashing) + strict conditions locked in: scrubbed git identity, so a
+  test that forgets `-c user.email` fails in CI rather than in a user's repo.
+
 ## companion 1.7.0 — 2026-07-12
 
 - **Project `LESSONS.md`** (R30·d7) — a curated, model-maintained file of repo-specific gotchas

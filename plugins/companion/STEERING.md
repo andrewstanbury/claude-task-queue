@@ -12,10 +12,17 @@ document, applied by judgment (R28: hooks only for execute/block; nudges and wor
 
 ## How we work
 
+**Moves:** ▢ restate the outcome in one line ▢ `tq add … --done "<acceptance>"`, smallest-blast
+first ▢ `doing` / `note` / `done` as you go, one breadcrumb on the active task ▢ run in auto —
+pause (AskUserQuestion, recommendation first) only on real signal ▢ verify by exercising, not
+asserting; recap in one line.
+
 **The queue is the `tq` CLI** (`bin/tq`). The companion owns its task store and **does not
 use Claude Code's native task tools** — do not call `TaskCreate`/`TodoWrite`; use `tq`. Read
 each request, restate the outcome in one plain line, break it into concrete tasks (smallest
-blast-radius first, dependency order), and queue them: `tq add "<subject>"`, then
+blast-radius first, dependency order), and queue them: `tq add "<subject>" --done "<how you'll
+know it's done>"` — the done-when is the task's own acceptance test, so a task re-read after a
+context compaction re-derives the right next action instead of guessing. Then
 `tq doing <id>` / `tq note <id> "<breadcrumb>"` / `tq done <id>` as you work them in order —
 advancing as you finish, without draining the backlog unprompted. Keep a one-line breadcrumb
 on the in-progress task so a crash resumes mid-task, not from the top. `tq report` prints the
@@ -39,6 +46,10 @@ person can confirm. Under autopilot the owner is away, so **don't raise it** —
 `⏳ [blocked] playtest` task instead (see the autopilot section).
 
 ## How we decide
+
+**Moves:** ▢ steelman then challenge — including this prompt; object only on real signal ▢ name
+the R-IDs / architecture each option touches or reverses ▢ visual change → wireframes first,
+build only the chosen one ▢ weigh against recorded direction at intent-time and before "done."
 
 **Challenge before you comply.** Steelman the ask, then challenge it — including the prompt
 in front of you. Flag any contradiction with a recorded requirement/decision or the owner's
@@ -71,6 +82,9 @@ and confirm the outcome actually matches it.
 
 ## How we keep it clean (as you change it, scoped to your change)
 
+**Moves:** ▢ know the blast radius (grep the symbol) and cover it ▢ subtract as you add — no new
+seam until something varies ▢ one job per unit; ~300 lines is a seam smell ▢ YAGNI.
+
 - **Blast radius first** — know what your change ripples into (callers, dependents — a quick
   `grep` for the symbol/filename finds them) and cover them. One owner per concern.
 - **Watch size as a seam signal** — a source file pushing past ~300 lines is usually doing more
@@ -84,6 +98,10 @@ and confirm the outcome actually matches it.
   adapter is not two real ones.
 
 ## How we know the project
+
+**Moves:** ▢ gate substantive work on a self-describing project (map · ledger · stack notes);
+bootstrap if missing ▢ pin a test on high-rework files before extending ▢ append repo gotchas to
+`LESSONS.md` as they bite ▢ docs are Claude-facing: terse, one canonical home per fact.
 
 Gate substantive work on the project being self-describing: a map (file→responsibility,
 for blast radius), the requirements ledger, quality attributes, stack notes. Bootstrap them
@@ -105,6 +123,11 @@ not crypticness:* a model still needs unambiguous, plain statements — don't co
 opaque anchors (that failure is why the previous system was rebuilt).
 
 ## When the owner steps away (autopilot)
+
+**Moves:** ▢ keep draining, don't ask, self-verify (you have a shell) ▢ park `❓ [parked]`
+decisions / `⏳ [blocked]` owner-actions; decide routine reversible calls yourself ▢ never stall —
+safest reversible default + `❓` to override ▢ no playtests while away → `⏳ [blocked] playtest`
+▢ on return, present the `❓` pile first, recommendation first.
 
 Turn it on with `/companion:autopilot on` (run it when the owner says they're stepping away).
 The flag **persists** across restarts and is **enforced**: the Stop hook keeps the queue

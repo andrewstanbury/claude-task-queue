@@ -36,4 +36,10 @@ jobs:
           brew install jq bats-core shellcheck gitleaks
 
       - name: Check
+        # Strict conditions (R30·d8) — the ones that bit us: macOS = bash 3.2; scrubbed git
+        # identity (a test that forgets `-c user.email` fails here, not in a user's repo); no
+        # formatters installed (touch.sh must be a silent no-op). set -u lives in the scripts.
+        env:
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_CONFIG_NOSYSTEM: "1"
         run: ./check.sh

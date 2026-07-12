@@ -16,9 +16,10 @@ DIR="$STORE/$SID"
 
 usage() { cat >&2 <<'EOF'
 tq — fallback task queue (native task tools gated off)
-  tq add "<subject>" [more...]   queue pending task(s) + print the report
+  tq add "<subject>" [more...] [--done "<acceptance>"]   queue pending task(s) + report
   tq doing <id> ["<breadcrumb>"] mark in progress (opt. crash-resume note) + report
   tq note  <id> "<breadcrumb>"   update the in-progress breadcrumb
+  tq done-when <id> "<accept>"   set/replace a task's done-when (survives compaction)
   tq done  <id>                  mark completed + print the report
   tq list                        terse one-line-each queue
   tq report                      full grouped status report (also fires on add/doing/done)
@@ -35,7 +36,8 @@ report() {
   local files=("$DIR"/*.json); [ -e "${files[0]}" ] || { printf '📋 Task queue — (empty)\n'; return 0; }
   jq -rs '
     def pk: ((.subject//"")|sub("^\\s+";"")|startswith("❓")); def bl: ((.subject//"")|sub("^\\s+";"")|startswith("⏳"));
-    def s72: ((.subject//"")|if length>72 then .[0:71]+"…" else . end); def fmt($g): "  "+$g+" #"+(.id|tostring)+"  "+s72;
+    def s72: ((.subject//"")|if length>72 then .[0:71]+"…" else . end);
+    def fmt($g): ("  "+$g+" #"+(.id|tostring)+"  "+s72) + (if (.done_when//"")!="" then "\n       └ done when: "+(.done_when) else "" end);
     (map(select(.status=="in_progress"))|sort_by(.id|tonumber)) as $ip
     |(map(select(.status=="pending" and (pk|not) and (bl|not)))|sort_by(.id|tonumber)) as $op
     |(map(select(.status=="pending" and pk))|sort_by(.id|tonumber)) as $p
@@ -53,18 +55,26 @@ report() {
 
 cmd="${1:-list}"; shift || true
 case "$cmd" in
-  add) [ "$#" -gt 0 ] || { usage; exit 1; }; mkdir -p "$DIR" || exit 1
+  add) mkdir -p "$DIR" || exit 1
+    # --done "<acceptance>" (R30·d1) sets the done-when criterion for the task(s) added in this
+    # call; remaining args are subjects. A task that carries its own acceptance re-derives the
+    # right next action after a context compaction, not just "there's a thing called X".
+    dw=""; subs=()
+    while [ "$#" -gt 0 ]; do case "$1" in --done) shift; dw="${1:-}";; *) subs+=("$1");; esac; shift || true; done
+    [ "${#subs[@]}" -gt 0 ] || { usage; exit 1; }
     # Stamp this session's store with its repo root (once), so resume can scope to a repo
     # without reading any native session transcript. tq runs in the repo the model is working.
     [ -f "$DIR/.root" ] || { r="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"; printf '%s' "$r" > "$DIR/.root" 2>/dev/null || true; }
     id="$(next_id)"
-    for s in "$@"; do [ -n "$s" ] || continue
-      jq -n --arg id "$id" --arg s "$s" '{id:$id,subject:$s,status:"pending",blocks:[],blockedBy:[]}' >"$DIR/.$id.tmp" && mv "$DIR/.$id.tmp" "$DIR/$id.json"
-      echo "added #$id  $s"; id=$((id+1)); done
+    for s in "${subs[@]}"; do [ -n "$s" ] || continue
+      jq -n --arg id "$id" --arg s "$s" --arg dw "$dw" '{id:$id,subject:$s,status:"pending",done_when:$dw,blocks:[],blockedBy:[]}' >"$DIR/.$id.tmp" && mv "$DIR/.$id.tmp" "$DIR/$id.json"
+      echo "added #$id  $s${dw:+  (done when: $dw)}"; id=$((id+1)); done
     echo; report ;;
   doing) { [ "$#" -ge 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" in_progress "${2:-}"; echo "#$1 → in_progress"; echo; report ;;
   done) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" completed ""; echo "#$1 → completed"; echo; report ;;
   note) { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }; set_task "$1" "" "$2"; echo "#$1 note set" ;;
+  done-when|dw) { [ "$#" -eq 2 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: usage: tq done-when <id> \"<acceptance>\"" >&2; exit 1; }
+    f="$DIR/$1.json"; t="$DIR/.$1.tmp"; jq --arg d "$2" '.done_when=$d' "$f" >"$t" && mv "$t" "$f"; echo "#$1 done-when set"; echo; report ;;
   report) report ;;
   list) l=""; if [ -d "$DIR" ]; then for f in "$DIR"/*.json; do [ -f "$f" ] || continue; l+="$(jq -r '"\(.id)\t\(.status)\t\(.subject)"' "$f" 2>/dev/null)"$'\n'; done; fi
     if printf '%s' "$l" | grep -q '[^[:space:]]'; then printf '%s' "$l" | sort -n | awk -F'\t' 'NF>=3{printf "  #%s  [%s]  %s\n",$1,$2,$3}'; else echo "(queue empty)"; fi ;;
