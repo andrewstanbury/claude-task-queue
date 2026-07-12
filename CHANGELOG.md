@@ -2,6 +2,18 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 2.3.0 — 2026-07-12
+
+- **Autopilot reframed as "keep-going," not "owner-away"** (ledger R36) — it means keep draining the
+  queue without stopping; the owner may be present, queuing tasks and keeping it on deliberately.
+  Behaviors are unchanged (don't stop to ask, park decisions + design/taste choices, reversible-only)
+  — the "away / when they return" framing is gone from STEERING, the ask-guard, stop-autopilot, and
+  the docs. This dissolves the R33 present/absent tension: there's no presence to detect.
+- **Ship-mode won't commit a hardcoded secret** (R34 gap fix) — before an auto-commit checkpoint it
+  scans the staged diff for high-confidence key shapes and skips (unstages) if one is present
+  (`git add` isn't seen by the secret gate). The gate keeps its own inline copy of the regex so it
+  never gains a fail-open dependency.
+
 ## companion 2.2.0 — 2026-07-12
 
 - **Ship-mode** (ledger R34) — `/companion:autopilot ship on`: while autopilot is on, the Stop hook

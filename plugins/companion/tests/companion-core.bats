@@ -216,6 +216,19 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [ -n "$(git -C "$repo" status --porcelain)" ]             # work left uncommitted for the owner
 }
 
+@test "ship-mode: refuses to auto-commit a hardcoded credential (R34)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  ( cd "$repo" && "$AP" ship on ) >/dev/null; ( cd "$repo" && "$AP" on ) >/dev/null
+  local k="AKIA""ABCDEFGHIJKLMNOP"                          # split so THIS file isn't a secret
+  printf 'AWS = "%s"\n' "$k" > "$repo/creds.py"             # a real-shaped key in the work
+  local sid=secT; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  jq -n '{id:"1",subject:"x",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1 || true
+  ! git -C "$repo" log --all --oneline | grep -q 'autopilot: checkpoint'   # no checkpoint committed
+  [ -n "$(git -C "$repo" status --porcelain)" ]            # the work (with the key) left uncommitted
+}
+
 @test "autopilot: Stop yields after the no-progress cap (can't spin forever)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null

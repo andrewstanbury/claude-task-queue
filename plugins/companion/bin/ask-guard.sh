@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# PreToolUse[AskUserQuestion] — while autopilot is ON, DENY the question. The owner is away,
-# so asking would stall the drain; the model must decide-if-reversible or PARK the decision as
-# a `❓` task instead. This makes autopilot's "never ask" mechanical, not advisory. Silent
-# (allow) when autopilot is off. Best-effort: any error degrades to allow.
+# PreToolUse[AskUserQuestion] — while autopilot is ON, DENY the question. Autopilot means keep
+# going without stopping (R36); asking = stopping, so the model must decide-if-reversible-mechanic
+# or PARK the decision/design choice as a `❓` task instead. This makes autopilot's "don't stop to
+# ask" mechanical, not advisory. Silent (allow) when autopilot is off. Best-effort: degrades to allow.
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || exit 0
 SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; done
@@ -15,4 +15,4 @@ root="$(companion_root "$cwd")"
 companion_autopilot_on "$root" || exit 0
 
 jq -cn '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny",
-  permissionDecisionReason: "Autopilot is ON — the owner is away, so do not ask. Decide it yourself ONLY if it is a reversible, taste-neutral mechanic (record the call). A visual/design/direction/wording choice belongs to the owner — PARK it even if it is reversible (do NOT pick for them): `tq add \"❓ [parked] <the choice + your options + your recommendation>\"` (or `⏳ [blocked] <owner-only action>`), then move on. Parked items are presented when the owner returns."}}'
+  permissionDecisionReason: "Autopilot is ON — keep going, do not stop to ask (asking = stopping; the owner may be present and adding tasks). Decide it yourself ONLY if it is a reversible, taste-neutral mechanic (record the call). A visual/design/direction/wording choice belongs to the owner — PARK it even if it is reversible (do NOT pick for them): `tq add \"❓ [parked] <the choice + your options + your recommendation>\"` (or `⏳ [blocked] <owner-only action>`), then move on. The owner reviews parked items whenever they check in."}}'

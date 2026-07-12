@@ -18,9 +18,15 @@ companion_autopilot_on()   { [ -n "${1:-}" ] && [ -f "$(companion_autopilot_flag
 
 # Ship-mode (R34): while autopilot is ON, the Stop hook auto-COMMITS accumulated work to a
 # non-default branch (never main, never a push) so completed work is captured as reversible
-# checkpoints for the owner to review + `/companion:ship-it` on return.
+# checkpoints for the owner to review + `/companion:ship-it`.
 companion_ship_flag() { printf '%s/ship/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_ship_on()   { [ -n "${1:-}" ] && [ -f "$(companion_ship_flag "$1")" ]; }
+
+# The high-confidence, vendor-anchored credential shapes (~zero false positive). Ship-mode greps
+# a staged diff against this before committing, so it never bakes a real key into a checkpoint.
+# NOTE: `bin/secret-guard.sh` keeps its OWN inline copy on purpose (the enforced gate stays
+# self-contained — no `lib` dependency that could make it fail open). Keep the two in sync.
+companion_secret_re() { printf '%s' 'AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,}|xox[baprs]-[0-9A-Za-z-]{10,}|sk_live_[0-9A-Za-z]{16,}|AIza[0-9A-Za-z_-]{35}|-----BEGIN [A-Z ]*PRIVATE KEY-----'; }
 
 # The companion's own task store (not native tasks).
 companion_tasks_dir() { printf '%s' "${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}"; }

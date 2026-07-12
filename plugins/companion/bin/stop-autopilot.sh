@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stop hook — while autopilot is ON for this repo and non-deferred work remains in the queue,
-# AUTO-CONTINUE instead of handing control back to the absent owner. Self-terminates when only
+# AUTO-CONTINUE instead of stopping (keep-going mode, R36). Self-terminates when only
 # ❓/⏳ deferred items are left. A no-progress cap (consecutive stops with no task completed)
 # yields so a stuck model can't spin forever. Best-effort: any error degrades to "allow the
 # stop". Disable: CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0; cap: CLAUDE_COMPANION_AUTOPILOT_MAX (8).
@@ -32,6 +32,13 @@ if companion_ship_on "$root" && [ -n "$(git -C "$cwd" status --porcelain 2>/dev/
     cur="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
     case "$cur" in "$def"|main|master|HEAD|"") exit 0 ;; esac                 # NEVER commit to default
     git add -A 2>/dev/null || true
+    # Don't bake a real credential into a checkpoint (ship-mode's `git add` isn't seen by the
+    # secret gate, which only scans Write/Edit). If the staged diff has a high-confidence key shape,
+    # unstage and skip this commit — the owner deals with it. (R34; anchored shapes only, ~zero FP.)
+    if git diff --cached 2>/dev/null | grep -qE "$(companion_secret_re)"; then
+      git reset -q 2>/dev/null || true
+      exit 0
+    fi
     # Use the repo's own identity if configured; else a companion fallback (these throwaway
     # checkpoints get squashed under the owner's identity on /companion:ship-it). Without this the
     # commit fails wherever git identity isn't set (CI, a fresh machine) — silently capturing nothing.
@@ -65,4 +72,4 @@ if [ "$stall" -ge "$max" ]; then rm -f "$cfile" 2>/dev/null; allow; fi   # stuck
 { mkdir -p "$(dirname "$cfile")" 2>/dev/null && printf '%s %s' "$DONE" "$stall" > "$cfile"; } 2>/dev/null || true
 
 jq -cn --arg n "$NEXT" --arg c "$OPEN" '{decision:"block", reason:
-  ("✈️ Autopilot: \($c) task(s) still open — next: “\($n)”. The owner is away, so DO NOT stop and DO NOT ask. Take the next task, do it, verify your own work (you have a shell), `tq done` it, and continue. PARK what genuinely needs the owner — `❓ [parked]` for a decision, `⏳ [blocked]` for an owner-only action — and decide the routine, low-stakes rest yourself. Keep going until only ❓/⏳ items remain.")}'
+  ("✈️ Autopilot: \($c) task(s) still open — next: “\($n)”. Keep going (autopilot means do not stop): DO NOT stop and DO NOT ask. Take the next task, do it, verify your own work (you have a shell), `tq done` it, and continue. PARK what genuinely needs the owner — `❓ [parked]` for a decision or a visual/design/direction choice, `⏳ [blocked]` for an owner-only action — and decide the routine, low-stakes rest yourself. Keep going until only ❓/⏳ items remain.")}'

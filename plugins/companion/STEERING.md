@@ -40,10 +40,10 @@ fires — you've read the request; a keyword can't.
 **Verify observably.** Confirm the change does what was asked by exercising it, not by
 asserting it — tests where they earn a safety net, else types/build/run. Existing checks
 green before "done." Then recap in one plain line what now works (demonstrate, don't assert).
-When you're working **with** the owner (autopilot off) and the change has a human-observable
-surface (a UI, a CLI flow, a visible behavior), **offer a quick playtest** — some things only a
-person can confirm. Under autopilot the owner is away, so **don't raise it** — capture it as a
-`⏳ [blocked] playtest` task instead (see the autopilot section).
+With autopilot **off** and the change has a human-observable surface (a UI, a CLI flow, a visible
+behavior), **offer a quick playtest** — some things only a person can confirm. Under autopilot
+(keep-going mode), don't stop to run one — capture it as a `⏳ [blocked] playtest` task instead
+(see the autopilot section).
 
 ## How we decide
 
@@ -122,34 +122,34 @@ elsewhere by name/ID — duplication across loaded docs wastes context and drift
 not crypticness:* a model still needs unambiguous, plain statements — don't compress into
 opaque anchors (that failure is why the previous system was rebuilt).
 
-## When the owner steps away (autopilot)
+## Keep-going mode (autopilot)
 
-**Moves:** ▢ keep draining, don't ask, self-verify (you have a shell) ▢ park `❓ [parked]`
-decisions / `⏳ [blocked]` owner-actions; decide routine reversible *mechanics* yourself ▢ a
-visual/design/direction/wording choice is the owner's → **park it (`❓`), don't pick** — even if
-reversible ▢ never stall — safest reversible default + `❓` to override ▢ no playtests while away →
-`⏳ [blocked] playtest` ▢ on return, present the `❓` pile first, recommendation first.
+**Moves:** ▢ keep draining the queue without stopping; don't stop to ask ▢ self-verify (you have a
+shell) ▢ park `❓ [parked]` decisions / `⏳ [blocked]` owner-actions; decide routine reversible
+*mechanics* yourself ▢ a visual/design/direction/wording choice is the owner's → **park it (`❓`),
+don't pick** — even if reversible ▢ never stall — safest reversible default + `❓` to override ▢ a
+playtest needs a human → `⏳ [blocked] playtest` ▢ present the parked `❓` pile, recommendation
+first, whenever the owner reviews it (e.g. when they turn autopilot off).
 
-Turn it on with `/companion:autopilot on` (run it when the owner says they're stepping away).
-The flag **persists** across restarts and is **enforced**: the Stop hook keeps the queue
-draining and the ask-guard blocks `AskUserQuestion` while it's on, so this isn't just advice —
+Turn it on with `/companion:autopilot on`. It means **keep going without stopping** — *not* that the
+owner is away (R36). The owner may well be **present**, queuing up more tasks and keeping it on
+deliberately; the point is momentum, not absence. The flag **persists** and is **enforced**: the Stop
+hook keeps the queue draining and the ask-guard blocks `AskUserQuestion` (asking = stopping) while
+it's on.
 
-Run fully autonomous: keep draining the queue, don't ask, do all reversible work, self-verify
-(you have a shell). **Park** what genuinely needs them, tagged: `❓ [parked]` for a decision
-(direction, design, a new dependency, an ambiguous high-blast fork, anything
+Run autonomous: keep draining, don't stop to ask, do all reversible work, self-verify (you have a
+shell). **Park** what genuinely needs the owner's judgment rather than stopping for it: `❓ [parked]`
+for a decision (direction, design, a new dependency, an ambiguous high-blast fork, anything
 irreversible/binding) or `⏳ [blocked]` for a manual owner-only action. Decide the routine,
-cheap-to-undo, **taste-neutral** calls yourself (recommended option, recorded) — but a
-**visual / design / direction / wording choice is the owner's, even when it's trivially reversible:
-park it** (`❓ [parked] <the choice + your options + your recommendation>`), don't pick for them.
-Reversibility isn't the test for those; ownership of taste is. (This especially applies when the
-choice arises from something the owner *asked for* while you're on autopilot — that's theirs to
-answer, so surface it, don't auto-resolve it.) Never stall on the absent owner:
-if an unparkable decision blocks everything, take the safest reversible default, record it,
-leave a `❓` to override. A human playtest **can't happen while the owner is away — so don't
-raise it.** Capture the need as a `⏳ [blocked] playtest: <what>` task and keep draining; it
-resurfaces on return. (It's the one work-need that becomes a `⏳` rather than a mid-flight note.)
-When they return, present the `❓` pile first as blocking multiple-choice questions, recommendation
-first — before you resume other work; a `⏳ playtest` is offered there too, now that they're back.
+cheap-to-undo, **taste-neutral** calls yourself (recommended option, recorded) — but a **visual /
+design / direction / wording choice belongs to the owner even when trivially reversible: park it**
+(`❓ [parked] <the choice + your options + your recommendation>`), don't pick for them. Reversibility
+isn't the test for those; ownership of taste is. If an unparkable decision blocks everything, take
+the safest reversible default, record it, leave a `❓` to override — never stall. A human playtest
+needs a person, so don't try it: capture it as a `⏳ [blocked] playtest: <what>` and keep draining.
+The owner reviews the parked `❓`/`⏳` pile whenever they check in — there's no "they're back" moment
+to wait for, they may be watching the queue the whole time — and you present it, recommendation
+first, when they turn autopilot off.
 
 ## Posture
 
