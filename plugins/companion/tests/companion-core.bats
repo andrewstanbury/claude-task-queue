@@ -186,6 +186,36 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [ -z "$output" ]
 }
 
+@test "ship-mode (R34): toggle, and Stop auto-commits work to an autopilot/* branch — NEVER main" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  [ "$(cd "$repo" && "$AP" ship status)" = "off" ]
+  ( cd "$repo" && "$AP" ship on ) >/dev/null
+  [ "$(cd "$repo" && "$AP" ship status)" = "on" ]
+  ( cd "$repo" && "$AP" on ) >/dev/null                      # auto-commit requires autopilot on too
+  local sid=shipT; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  jq -n '{id:"1",subject:"do it",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  printf 'work\n' > "$repo/newfile.txt"                      # uncommitted work while HEAD is on main
+  jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1 || true
+  [ "$(git -C "$repo" branch --show-current)" != "main" ]    # moved off main to protect it
+  git -C "$repo" branch | grep -q 'autopilot/'              # onto an autopilot/* branch
+  [ -z "$(git -C "$repo" status --porcelain)" ]             # the work got committed (clean tree)
+  git -C "$repo" log -1 --pretty=%s | grep -q 'autopilot: checkpoint'
+  ! git -C "$repo" cat-file -e main:newfile.txt 2>/dev/null  # main NEVER received the work
+}
+
+@test "ship-mode: off → Stop does NOT auto-commit (work stays uncommitted)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  ( cd "$repo" && "$AP" on ) >/dev/null                      # autopilot on, ship-mode OFF
+  local sid=noShip; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  jq -n '{id:"1",subject:"do it",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  printf 'work\n' > "$repo/newfile.txt"
+  jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1 || true
+  [ "$(git -C "$repo" branch --show-current)" = "main" ]     # no branch created
+  [ -n "$(git -C "$repo" status --porcelain)" ]             # work left uncommitted for the owner
+}
+
 @test "autopilot: Stop yields after the no-progress cap (can't spin forever)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null

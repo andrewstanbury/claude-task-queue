@@ -26,7 +26,7 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [ "$status" -eq 0 ]
   [[ "$output" == *"●"* ]]             # health beacon (static ● with color off)
   [[ "$output" == *"🛡"* ]]            # secret gate on
-  [[ "$output" == *" 🛡 "* ]]          # shield has breathing room (│ 🛡 │), not jammed
+  [[ "$output" == *"🛡️"* ]]           # carries the emoji variation selector (consistent width)
   [[ "$output" == *"opus-4-8"* ]]      # model, claude- prefix + date stripped
   [[ "$output" == *"⇡45.2k"* ]]        # up tokens
   [[ "$output" == *"⇣1.3k"* ]]         # down tokens
@@ -59,7 +59,18 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
 
 @test "status line: 🛡✗ when the secret gate is disabled" {
   run bash -c 'printf "{}" | CLAUDE_COMPANION_SECSCAN=0 NO_COLOR=1 "$1"' _ "$SL"
-  [[ "$output" == *"🛡✗"* ]]
+  [[ "$output" == *"🛡"*"✗"* ]]
+}
+
+@test "status line: 📦 ship-mode icon shows only when ship-mode is armed (R34)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"s",cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [[ "$output" != *"📦"* ]]                 # ship-mode off → no icon
+  ( cd "$repo" && "$AP" ship on ) >/dev/null
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [[ "$output" == *"📦"* ]]                 # armed → icon shows
 }
 
 @test "status line: a space in the model name / project path doesn't corrupt the parse (R32·1)" {

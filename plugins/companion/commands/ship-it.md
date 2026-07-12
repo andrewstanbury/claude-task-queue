@@ -21,12 +21,23 @@ visible, so be careful and confirm the irreversible steps.
 3. **Review + commit.** Show `git status` and a short `git diff --stat`. Commit the work with a
    clear message (what changed + why). If a version/marketplace manifest is part of this change,
    make sure it's bumped.
-4. **Push + integrate.**
-   - On a **feature branch** with `gh` available: open a PR, or — if the owner wants it landed —
-     merge to the default branch (fast-forward or squash) and delete the branch.
+4. **Push + integrate → the default branch.** Land the verified work on the default branch:
+   - On a **feature / `autopilot/*` branch** with `gh`: merge to the default branch (fast-forward
+     or squash) — or open a PR if the owner wants review first.
    - Without `gh`: push the branch and print the compare/PR URL to open manually.
    - Already on the **default branch**: push it.
-5. **Confirm** in one plain line what shipped and where (branch / commit / PR URL), so the owner
-   can install or review.
+5. **Clean up merged branches (R35) — only after the merge SUCCEEDS.**
+   - Delete the branch you just shipped: local `git branch -d <branch>` (lowercase — it **refuses**
+     an unmerged branch, so no work is ever lost) and, if a remote copy exists,
+     `git push origin --delete <branch>`.
+   - Prune other branches **already merged into the default**: `git branch -d` each of
+     `git branch --merged <default>` except the default and the current branch, then `git fetch
+     --prune` to drop stale remote-tracking refs.
+   - **Guardrails:** never `-D` / force-delete; never delete the default branch; and if the repo is
+     **shared** (branches on the remote you didn't create), *list the merged remote branches and
+     confirm* before deleting them — a teammate's merged branch may still be wanted. Never
+     mass-delete remote branches silently.
+6. **Confirm** in one plain line what shipped and what was cleaned up (branch / commit / PR URL +
+   which branches were deleted), so the owner can install or review.
 
 Never force-push or rewrite published history unless the owner explicitly asks.

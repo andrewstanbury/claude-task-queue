@@ -21,7 +21,10 @@ ledger) and not in-flight work (that's the queue) — just "watch out for X here
 
 ## Tests (bats)
 - **git identity:** `git commit` in a test needs `-c user.email=t@t -c user.name=t` — CI's bare
-  runner has no global identity and fails status 128 otherwise.
+  runner has no global identity and fails status 128 otherwise. **Same for a hook that commits**
+  (ship-mode's auto-commit in `stop-autopilot.sh`): try the repo's identity, then fall back to
+  `git -c user.name=… -c user.email=… commit`, or it silently captures nothing on an unconfigured
+  machine.
 - **`--print-output-on-failure`** on the `bats` call is what surfaces a flaky test's real
   `$output` in CI; keep it in `check.sh`.
 - Tests live in `plugins/companion/tests/*.bats`, split by concern (core · hud). The 300-line size

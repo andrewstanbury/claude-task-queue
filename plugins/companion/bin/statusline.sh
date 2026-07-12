@@ -56,7 +56,9 @@ case "$NDOING" in ''|*[!0-9]*) NDOING=0;; esac
 # 🛡 secret gate (the one enforced guarantee) — green shield on, red ✗ when disabled.
 # Brace every var: on macOS's bash 3.2 an unbraced `$B` directly before the 🛡 glyph swallows the
 # emoji's leading byte into the variable name, which `set -u` then rejects (a real macOS-CI crash).
-if [ "${CLAUDE_COMPANION_SECSCAN:-1}" = "0" ]; then SHIELD="${R}${B}🛡✗${X}"; else SHIELD="${G}${B}🛡${X}"; fi
+# 🛡️ carries the emoji variation selector (U+FE0F) so it renders full emoji-width like ✈️/📦 —
+# without it many terminals draw a narrow/monochrome shield, making the icon spacing look uneven.
+if [ "${CLAUDE_COMPANION_SECSCAN:-1}" = "0" ]; then SHIELD="${R}${B}🛡️✗${X}"; else SHIELD="${G}${B}🛡️${X}"; fi
 
 # repo root (git toplevel, else CWD) — one rev-parse, reused for project name + autopilot/gate flags.
 ROOT="$(companion_root "$CWD")"; PROJ="${ROOT##*/}"
@@ -92,16 +94,19 @@ else
   BEACON="●"
 fi
 
-# assemble (│ = dim divider): ⠋ │ 🛡 │ model [✈️] · ⇡in ⇣out │ 📋 open ❓parked ⏳blocked │ project ⎇branch *changes
+# assemble (│ = dim divider), plugin-relevance order (R34): ⠋ │ 🛡 ✈️ 📦 │ 📋 tasks │ model ⇡in ⇣out │ project ⎇branch *changes
+# Three plugin sections, then generic: beacon (health) · ACTIVE FEATURES (🛡 gate always · ✈️
+# autopilot · 📦 ship-mode when armed) · the QUEUE (📋/❓/⏳) on its own · then model/tokens · git.
 DIV=" ${D}│${X} "
-out="${BCOL}${B}${BEACON}${X}${DIV}${SHIELD}${DIV}${C}${MODEL}${X}${AP}"
-[ "${ITOK:-0}" -gt 0 ] 2>/dev/null && out="$out ${D}⇡$(hum "$ITOK") ⇣$(hum "$OTOK")$X"
-# tasks: 📋 open always; ❓ parked · ⏳ blocked only when present (attention states).
+SHIP=""; companion_ship_on "$ROOT" && SHIP=" ${Y}${B}📦${X}"
+# the queue in its own section: 📋 open always; ❓ parked · ⏳ blocked only when present
 TASKS="${C}${B}📋 $NOPEN${X}"
 [ "$NPARK"  -gt 0 ] && TASKS="$TASKS ${Y}${B}❓ $NPARK${X}"
 [ "$NBLOCK" -gt 0 ] && TASKS="$TASKS ${Y}${B}⏳ $NBLOCK${X}"
-out="$out${DIV}$TASKS"
-[ -n "$PROJ" ] && out="$out $PROJ"
+out="${BCOL}${B}${BEACON}${X}${DIV}${SHIELD}${AP}${SHIP}${DIV}${TASKS}"
+out="$out${DIV}${C}${MODEL}${X}"
+[ "${ITOK:-0}" -gt 0 ] 2>/dev/null && out="$out ${D}⇡$(hum "$ITOK") ⇣$(hum "$OTOK")$X"
+[ -n "$PROJ" ] && out="$out${DIV}$PROJ"
 if [ -n "$BRANCH" ]; then
   out="$out ${C}${B}⎇ $BRANCH${X}"
   [ "$DIRTY"  -gt 0 ] && out="$out ${Y}${B}*$DIRTY${X}"

@@ -30,13 +30,15 @@ it governs how you work here too.**
   - `tq` — **THE task queue.** The companion owns its store (`~/.claude/companion/tasks`) and
     deliberately does **not** use Claude Code's native task tools (R8/R10). `tq report` reprints
     the queue on every `add`/`doing`/`done`.
-  - `statusline.sh` — a `statusLine` command (not a hook): ⠋ beacon (animates only on activity —
-    autopilot draining or a task in-progress; static ● when idle, R30·d9) · 🛡 secret gate · model ·
-    ✈️ autopilot · ⇡in ⇣out · 📋 open · ❓ parked · ⏳ blocked tasks · project · branch (+ ↑ahead
-    ↓behind). Wire it with `/companion:setup` (sets `refreshInterval:1` for the beacon).
+  - `statusline.sh` — a `statusLine` command (not a hook), grouped by plugin-relevance (R34):
+    ⠋ beacon (animates on activity, R30·d9) · **│ 🛡 gate ✈️ autopilot 📦 ship-mode │** (active
+    features) · **│ 📋 open ❓ parked ⏳ blocked │** (the queue, its own section) · model · ⇡in ⇣out ·
+    project · branch (+ ↑ahead ↓behind). Wire it with `/companion:setup` (`refreshInterval:3`).
   - **Autopilot** (R26) — `/companion:autopilot on\|off` sets a persisted per-repo flag;
     while on it's *enforced*: `stop-autopilot.sh` (Stop) auto-continues the drain and
-    `ask-guard.sh` (PreToolUse) blocks asking. `lib/companion.sh` holds the shared helpers.
+    `ask-guard.sh` (PreToolUse) blocks asking. **Ship-mode** (R34, `autopilot ship on\|off`): while
+    on, the Stop hook auto-commits each turn's work to an `autopilot/*` branch (never main, no
+    push) for review + `/companion:ship-it`. `lib/companion.sh` holds the shared helpers.
   - **The hook/steering line (R28)** — code only where it must *execute* (format) or *block*
     (secret gate) or *guarantee control-flow* (autopilot). Judgment (wireframe-first,
     weigh-against-direction, present-parked-first) and nudges (blast-radius, size, outcome-recap)

@@ -16,6 +16,12 @@ companion_root() { git -C "${1:-$PWD}" rev-parse --show-toplevel 2>/dev/null || 
 companion_autopilot_flag() { printf '%s/autopilot/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_autopilot_on()   { [ -n "${1:-}" ] && [ -f "$(companion_autopilot_flag "$1")" ]; }
 
+# Ship-mode (R34): while autopilot is ON, the Stop hook auto-COMMITS accumulated work to a
+# non-default branch (never main, never a push) so completed work is captured as reversible
+# checkpoints for the owner to review + `/companion:ship-it` on return.
+companion_ship_flag() { printf '%s/ship/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
+companion_ship_on()   { [ -n "${1:-}" ] && [ -f "$(companion_ship_flag "$1")" ]; }
+
 # The companion's own task store (not native tasks).
 companion_tasks_dir() { printf '%s' "${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}"; }
 

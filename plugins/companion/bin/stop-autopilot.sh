@@ -18,6 +18,29 @@ sid="$(printf '%s' "$in" | jq -r '.session_id // empty' 2>/dev/null || true)"
 root="$(companion_root "$cwd")"
 companion_autopilot_on "$root" || allow
 
+# Ship-mode (R34): capture this turn's work as a reversible COMMIT on a non-default branch — never
+# the default branch, never a push. Best-effort in a subshell; nothing here may break the stop.
+if companion_ship_on "$root" && [ -n "$(git -C "$cwd" status --porcelain 2>/dev/null)" ]; then
+  ( cd "$cwd" 2>/dev/null || exit 0
+    git rev-parse HEAD >/dev/null 2>&1 || exit 0                              # need ≥1 commit
+    def="$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')"
+    [ -n "$def" ] || def="$(git config --get init.defaultBranch 2>/dev/null)"; [ -n "$def" ] || def="main"
+    cur="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+    case "$cur" in "$def"|main|master|HEAD|"")                                # protect the default branch
+      git checkout -q -b "autopilot/$(date +%Y%m%d-%H%M%S)" 2>/dev/null || exit 0 ;;
+    esac
+    cur="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+    case "$cur" in "$def"|main|master|HEAD|"") exit 0 ;; esac                 # NEVER commit to default
+    git add -A 2>/dev/null || true
+    # Use the repo's own identity if configured; else a companion fallback (these throwaway
+    # checkpoints get squashed under the owner's identity on /companion:ship-it). Without this the
+    # commit fails wherever git identity isn't set (CI, a fresh machine) — silently capturing nothing.
+    git commit -q -m "autopilot: checkpoint on $cur" 2>/dev/null \
+      || git -c user.name='companion (autopilot)' -c user.email='autopilot@companion.local' \
+             commit -q -m "autopilot: checkpoint on $cur" 2>/dev/null || true
+  ) >/dev/null 2>&1 || true
+fi
+
 dir="${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}/$sid"
 files=("$dir"/*.json); [ -e "${files[0]}" ] || allow
 # open = pending/in_progress and NOT deferred (❓/⏳); done = completed (progress signal).

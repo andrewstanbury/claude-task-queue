@@ -2,6 +2,19 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 2.2.0 — 2026-07-12
+
+- **Ship-mode** (ledger R34) — `/companion:autopilot ship on`: while autopilot is on, the Stop hook
+  auto-commits each turn's work to an `autopilot/*` branch (reversible checkpoints; **never the
+  default branch, never a push**) for you to review + `/companion:ship-it` on return. Shown as 📦.
+  The safe subset of "auto-ship": commit is reversible; the push/merge stays your manual command.
+- **ship-it prunes merged branches** (ledger R35) — after merging to the default branch, it deletes
+  the branch it shipped (local + remote) and prunes other `--merged` branches via `git branch -d`
+  (never `-D`, never the default/current); shared repos are confirmed before deleting remote branches.
+- **Status line regrouped** (R34) — three plugin sections, then generic: ⠋ beacon · │ 🛡️ ✈️ 📦 │
+  (active features) · │ 📋 ❓ ⏳ │ (the queue, its own section) · model · git. The shield gained an
+  emoji variation selector (🛡️) so it renders at consistent width with the other icons.
+
 ## companion 2.1.0 — 2026-07-12
 
 - **Status-line task icon** — the open-task count is now `📋 N` (was `◻N`), with a space after the

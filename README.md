@@ -20,7 +20,7 @@ reads once per session. The only things that are code are the things that must a
 | **Ship** | `/companion:ship-it` — verify your gate, commit, push, and open/merge a PR. |
 | **`tq`** | The task queue — self-owned, so it works everywhere (including the newest models where Claude's built-in task tracking is switched off) and doesn't depend on Claude Code internals. It reprints the queue on every change, so the CLI always shows what's in progress and next. |
 | **Autopilot** | `/companion:autopilot on` when you step away — Claude keeps working the queue on its own and parks decisions for your return. Enforced (it won't stop or ask while on) and persists across restarts. |
-| **Status line** | One glance line: ⠋ beacon · 🛡 secret gate · model · ✈️ autopilot · ⇡⇣ tokens · 📋/❓/⏳ tasks · project · ⎇ branch · ↑↓ ahead/behind. Wire it once with `/companion:setup` (legend below). |
+| **Status line** | One glance line, grouped: ⠋ beacon · `│` 🛡 ✈️ 📦 `│` (active features) · `│` 📋 ❓ ⏳ `│` (the queue) · model · ⇡⇣ tokens · project · ⎇ branch · ↑↓ ahead/behind. Wire it once with `/companion:setup` (legend below). |
 
 Bash + `jq`, zero build, one install.
 
@@ -31,15 +31,19 @@ Bash + `jq`, zero build, one install.
   (default: the whole project), presented as recommendation-first choices, then queued. Doubles
   as a cleanliness sweep (size · debt · blast-radius · perf).
 - **`/companion:autopilot on|off`** — work the queue autonomously while you're away.
+  Add **`autopilot ship on`** to auto-commit completed work to an `autopilot/*` branch (reversible,
+  never main, no push) for you to review + ship on return.
 - **`/companion:resume`** — re-surface this repo's unfinished tasks on demand.
-- **`/companion:ship-it`** — verify → state the case → commit → push → PR/merge.
+- **`/companion:ship-it`** — verify → state the case → commit → push → **merge to main → prune the
+  merged branches** (local + remote; shared repos are confirmed first).
 
 ## Status line legend
 
+Three plugin sections then generic — `⠋` beacon `│` **active features** `│` **the queue** `│` model · git:
 `⠋` health beacon (spins while working) · `🛡` secret gate on (`🛡✗` off) · `✈️` autopilot on ·
-`⇡`/`⇣` input/output tokens · `📋` open · `❓` parked · `⏳` blocked tasks · project · `⎇` branch ·
-`*N` uncommitted · `↑`/`↓` commits ahead/behind upstream. *(`⇡⇣` are tokens; `↑↓` are git — two
-arrow pairs, different meanings.)*
+`📦` ship-mode armed · `📋` open · `❓` parked · `⏳` blocked tasks · `⇡`/`⇣` input/output tokens ·
+project · `⎇` branch · `*N` uncommitted · `↑`/`↓` commits ahead/behind upstream. *(`⇡⇣` are tokens;
+`↑↓` are git — two arrow pairs, different meanings.)*
 
 ## Requirements
 
