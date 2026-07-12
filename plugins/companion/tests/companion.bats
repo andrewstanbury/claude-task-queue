@@ -106,7 +106,7 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
 
 @test "status line: renders 🛡 · model · tokens · task count · project · branch" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
-  git -C "$repo" commit -q --allow-empty -m init
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sBar"
   jq -n '{id:"1",subject:"a",status:"pending"}'     > "$CLAUDE_COMPANION_TASKS_DIR/sBar/1.json"
   jq -n '{id:"2",subject:"b",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/sBar/2.json"
@@ -130,7 +130,7 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
 }
 
 @test "status line: shows 🎨/🔒 only when the R27 edit-gates are armed" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; git -C "$repo" commit -q --allow-empty -m init
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   local root; root="$(git -C "$repo" rev-parse --show-toplevel)"
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sG",cwd:$c}')"
   # idle → neither gate icon

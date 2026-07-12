@@ -20,7 +20,7 @@ companion_autopilot_on "$root" && exit 0          # away → no recap to show an
 
 intent_f="$(companion_intent_file "$sid")"; [ -f "$intent_f" ] || exit 0
 reminded="$(companion_reminded_flag "$sid")"; [ -f "$reminded" ] && exit 0   # already fired this request
-intent="$(cat "$intent_f" 2>/dev/null | tr '\n\t' '  ' | cut -c1-500)"; [ -n "$intent" ] || exit 0
+intent="$(tr '\n\t' '  ' < "$intent_f" 2>/dev/null | cut -c1-500)"; [ -n "$intent" ] || exit 0
 { mkdir -p "$(companion_state_dir)" 2>/dev/null && : > "$reminded"; } 2>/dev/null || true
 
 ledger=""; dec="$(companion_decisions_path "$root")"; [ -n "$dec" ] && ledger=" against recorded direction ($dec)"
