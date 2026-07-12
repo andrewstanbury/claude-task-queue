@@ -9,7 +9,7 @@
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"; TOUCH="$ROOT/bin/touch.sh"
-  AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"
+  AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
   export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"   # the companion's OWN store, not ~/.claude/tasks
   export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"   # autopilot flags live here
   export CLAUDE_COMPANION_SESSION_ID="s1"
@@ -84,6 +84,21 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"Working agreement"* ]]   # STEERING injected
   [[ "$output" == *"resume me"* ]]           # this repo's task
   [[ "$output" != *"NOT MINE"* ]]            # no cross-repo bleed
+}
+
+@test "manual resume: lists THIS repo's open tasks on demand (and says so when none)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sM"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/sM/.root"
+  jq -n '{id:"1",subject:"pick me up",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/sM/1.json"
+  jq -n '{id:"2",subject:"already shipped",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/sM/2.json"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pick me up"* ]]          # open task surfaced
+  [[ "$output" != *"already shipped"* ]]     # completed excluded
+  # a repo with nothing says so
+  local empty; empty="$(mktemp -d)"; git -C "$empty" init -q
+  run bash -c 'cd "$1" && "$2"' _ "$empty" "$RESUME"
+  [[ "$output" == *"No carried-over"* ]]
 }
 
 # ---- status line (the glance surface) ----

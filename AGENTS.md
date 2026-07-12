@@ -58,10 +58,10 @@ plugins/companion/
   .claude-plugin/plugin.json       # version == the marketplace entry
   hooks/hooks.json                 # SessionStart · PreToolUse[Write|Edit,AskUserQuestion] · PostToolUse · Stop
   STEERING.md                      # the steering layer (prose)
-  bin/session-start.sh secret-guard.sh touch.sh statusline.sh tq
+  bin/session-start.sh secret-guard.sh touch.sh statusline.sh tq resume.sh
   bin/autopilot.sh ask-guard.sh stop-autopilot.sh   # enforced autopilot (R26)
-  lib/autopilot.sh                 # shared autopilot-flag helpers (one plugin → a lib is fine)
-  commands/{setup,audit,autopilot}.md
+  lib/companion.sh                 # shared helpers (state/enc/root, autopilot flag, open-tasks)
+  commands/{setup,audit,autopilot,ship-it,resume}.md
   tests/companion.bats             # tests the ENFORCED CORE only
 ```
 

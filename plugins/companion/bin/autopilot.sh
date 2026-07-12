@@ -5,8 +5,8 @@
 # AskUserQuestion. Run via /companion:autopilot or directly. Best-effort.
 set -uo pipefail
 SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; done
-# shellcheck source=../lib/autopilot.sh
-. "$(cd "$(dirname "$SELF")/../lib" && pwd)/autopilot.sh"
+# shellcheck source=../lib/companion.sh
+. "$(cd "$(dirname "$SELF")/../lib" && pwd)/companion.sh"
 
 cmd="${1:-status}"
 root="$(companion_root "$PWD")"

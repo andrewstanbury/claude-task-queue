@@ -6,8 +6,8 @@
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || exit 0
 SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; done
-# shellcheck source=../lib/autopilot.sh
-. "$(cd "$(dirname "$SELF")/../lib" && pwd)/autopilot.sh"
+# shellcheck source=../lib/companion.sh
+. "$(cd "$(dirname "$SELF")/../lib" && pwd)/companion.sh"
 
 in="$(cat 2>/dev/null || true)"
 cwd="$(printf '%s' "$in" | jq -r '.cwd // empty' 2>/dev/null || true)"; [ -n "$cwd" ] || cwd="$PWD"

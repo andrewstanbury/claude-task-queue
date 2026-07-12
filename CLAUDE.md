@@ -30,7 +30,10 @@ it governs how you work here too.**
     model · ⇡in ⇣out · 📋 open tasks · project · branch. Wire it with `/companion:setup`.
   - **Autopilot** (R26) — `/companion:autopilot on\|off` sets a persisted per-repo flag;
     while on it's *enforced*: `stop-autopilot.sh` (Stop) auto-continues the drain and
-    `ask-guard.sh` (PreToolUse) blocks asking. `lib/autopilot.sh` holds the shared flag helpers.
+    `ask-guard.sh` (PreToolUse) blocks asking. `lib/companion.sh` holds the shared helpers.
+  - **Commands** — `/companion:setup` (status line), `/companion:audit` (project sweep),
+    `/companion:autopilot`, `/companion:ship-it` (verify→commit→push→merge), `/companion:resume`
+    (manual re-surface of earlier open tasks).
 
 Keep the split honest: don't add advisory prose as a hook, and don't add a hook for anything
 a document can say.

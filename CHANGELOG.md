@@ -2,6 +2,17 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 1.3.0 — 2026-07-12
+
+- **`/companion:ship-it`** — verify the project's gate → commit → push → PR/merge to the
+  default branch. Codifies the ship flow.
+- **`/companion:resume`** + `bin/resume.sh` — manually re-surface this repo's unfinished tasks
+  from an earlier session (the on-demand twin of the automatic SessionStart resume).
+- Internal: the shared `lib/companion.sh` (renamed from `lib/autopilot.sh`) now holds the
+  cross-session open-tasks helper, used by both SessionStart and manual resume.
+- First step of "restore features onto the one-plugin spine" — the removed commands other than
+  these two stay gone by owner choice.
+
 ## companion 1.2.0 — 2026-07-11
 
 - **Autopilot is enforced + persisted** (ledger R26). `/companion:autopilot on|off` sets a

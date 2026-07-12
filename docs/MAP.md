@@ -25,6 +25,9 @@ four plugins into one; this reflects the current tree.
 | `bin/touch.sh` | PostToolUse[Write\|Edit] hook: **clean-as-you-touch** — format the edited file (project's own formatter), surface its blast radius (dependents), flag over-budget size. Non-blocking. `CLAUDE_COMPANION_TOUCH=0` disables; `CLAUDE_COMPANION_SIZE_BUDGET` tunes size. |
 | `commands/audit.md` | `/companion:audit` — on-demand whole-project sweep (size / debt / blast-radius hotspots), queues fixes via `tq`. |
 | `bin/tq` | **THE task queue** — the companion owns its store (`~/.claude/companion/tasks`, NOT native tasks). `add`/`doing`/`note`/`done`/`list`/`report`; the report reprints on every `add`/`doing`/`done`. |
+| `bin/resume.sh` | Manual resume (`/companion:resume`) — list this repo's open tasks from earlier sessions on demand (the SessionStart twin). |
+| `commands/ship-it.md` | `/companion:ship-it` — verify → commit → push → PR/merge to the default branch. |
+| `commands/resume.md` | `/companion:resume` — re-surface + reinstate earlier open tasks. |
 | `bin/statusline.sh` | The status line (a `statusLine` command, not a hook): 🛡 secret gate · model · ⇡in ⇣out tokens · 📋 open tasks · project · branch. Read-only, zero model cost. Wire with `/companion:setup`. |
 | `bin/autopilot.sh` | Toggle the persisted per-repo autopilot flag (`on`/`off`/`status`). |
 | `bin/stop-autopilot.sh` | Stop hook: while autopilot is on and non-deferred work remains, auto-continue the drain (no-progress capped); yields when only ❓/⏳ remain. `CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0` disables. |

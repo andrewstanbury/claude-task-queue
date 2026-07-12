@@ -14,3 +14,22 @@ companion_root() { git -C "${1:-$PWD}" rev-parse --show-toplevel 2>/dev/null || 
 
 companion_autopilot_flag() { printf '%s/autopilot/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_autopilot_on()   { [ -n "${1:-}" ] && [ -f "$(companion_autopilot_flag "$1")" ]; }
+
+# The companion's own task store (not native tasks).
+companion_tasks_dir() { printf '%s' "${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}"; }
+
+# Open (pending/in_progress) task subjects for a repo, across every session dir whose `.root`
+# stamp matches — the cross-session resume signal. One "  ◻ <subject>" line each; empty when
+# none. Shared by the SessionStart hook (auto-resume) and `bin/resume.sh` (manual).
+companion_open_tasks() {
+  local root="$1" store d f
+  store="$(companion_tasks_dir)"; [ -d "$store" ] || return 0
+  for d in "$store"/*/; do
+    [ -d "$d" ] || continue
+    [ "$(cat "$d.root" 2>/dev/null || true)" = "$root" ] || continue
+    for f in "$d"*.json; do
+      [ -f "$f" ] || continue
+      jq -r 'select(.status=="pending" or .status=="in_progress") | "  ◻ " + (.subject // "")' "$f" 2>/dev/null || true
+    done
+  done
+}
