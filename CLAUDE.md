@@ -39,7 +39,8 @@ it governs how you work here too.**
     are **STEERING**, not hooks. (This retired R27's edit-gates + intent reminder.)
   - **Commands** — `/companion:setup` (status line), `/companion:audit` (project sweep),
     `/companion:autopilot`, `/companion:ship-it` (verify→commit→push→merge), `/companion:resume`
-    (manual re-surface of earlier open tasks).
+    (manual re-surface of earlier open tasks), `/companion:advise` (R29 — independent brutal-honest
+    critique of a target as recommendation-first options you pick one at a time, then queued).
 
 Keep the split honest: don't add advisory prose as a hook, and don't add a hook for anything
 a document can say.

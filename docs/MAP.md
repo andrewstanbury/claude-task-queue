@@ -24,6 +24,7 @@ four plugins into one; this reflects the current tree.
 | `bin/secret-guard.sh` | PreToolUse[Write\|Edit] hook: the one **enforced** content-gate — block a write that would commit a credential (`exit 2`). `CLAUDE_COMPANION_SECSCAN=0` disables. |
 | `bin/touch.sh` | PostToolUse[Write\|Edit] hook: **clean-as-you-touch, format-only** — run the project's own formatter on the edited file (behavior-preserving execution). Non-blocking, emits nothing. Blast-radius + size are steering now (R28). `CLAUDE_COMPANION_TOUCH=0` disables. |
 | `commands/audit.md` | `/companion:audit` — on-demand whole-project sweep (size / debt / blast-radius hotspots), queues fixes via `tq`. |
+| `commands/advise.md` | `/companion:advise` (R29) — independent brutal-honest critique of a target (default: whole project) via a critic panel; presents deltas as recommendation-first `AskUserQuestion`s one at a time, then closes the loop into `tq` + an offered ledger entry. |
 | `bin/tq` | **THE task queue** — the companion owns its store (`~/.claude/companion/tasks`, NOT native tasks). `add`/`doing`/`note`/`done`/`list`/`report`; the report reprints on every `add`/`doing`/`done`. |
 | `bin/resume.sh` | Manual resume (`/companion:resume`) — list this repo's open tasks from earlier sessions on demand (the SessionStart twin). |
 | `commands/ship-it.md` | `/companion:ship-it` — verify → commit → push → PR/merge to the default branch. |

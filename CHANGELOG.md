@@ -2,6 +2,16 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 1.6.0 — 2026-07-12
+
+- **`/companion:advise`** (ledger R29) — an independent, brutally-honest critique ritual. Takes a
+  target (file / subsystem / decision / topic; default: the whole project), spawns a critic
+  **panel** with distinct lenses so the critique comes from contexts that didn't build the thing,
+  and presents each recommended change as a **recommendation-first `AskUserQuestion`, one at a
+  time**; then closes the loop into `tq` + an offered ledger entry. Every critic may conclude "no
+  change" — a manufactured delta is the fake pushback the steering doc forbids. Operationalizes
+  the R5/R17 challenge posture as an on-demand command; owner-present (blocked under autopilot).
+
 ## companion 1.5.0 — 2026-07-12
 
 - **Status bar redesign** — the single `📋 N` count split into `◻ open · ❓ parked · ⏳ blocked`,
