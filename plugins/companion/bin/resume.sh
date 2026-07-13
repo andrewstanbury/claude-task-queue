@@ -19,7 +19,7 @@ root="$(companion_root "$PWD")"
 # A — disable autopilot first so the resumed pile is triaged, not autopiloted. Loud when it
 # was on (don't silently clobber a persisted intent); quiet no-op when already off.
 if companion_autopilot_on "$root"; then
-  rm -f "$(companion_autopilot_flag "$root")" 2>/dev/null
+  companion_autopilot_clear "$root"
   printf 'autopilot was ON — turned it OFF so the resumed pile comes back to you, not autopilot. Re-arm with /companion:autopilot on when you want to drain again.\n'
 fi
 

@@ -15,6 +15,9 @@ companion_root() { git -C "${1:-$PWD}" rev-parse --show-toplevel 2>/dev/null || 
 
 companion_autopilot_flag() { printf '%s/autopilot/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_autopilot_on()   { [ -n "${1:-}" ] && [ -f "$(companion_autopilot_flag "$1")" ]; }
+# Clear the flag (single source of truth — autopilot.sh `off` and resume.sh both use this so the
+# teardown can't drift). Best-effort; a missing flag is not an error.
+companion_autopilot_clear() { rm -f "$(companion_autopilot_flag "${1:-}")" 2>/dev/null || true; }
 
 # Ship-mode (R34): while autopilot is ON, the Stop hook auto-COMMITS accumulated work to a
 # non-default branch (never main, never a push) so completed work is captured as reversible
