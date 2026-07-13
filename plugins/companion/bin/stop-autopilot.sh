@@ -51,7 +51,10 @@ fi
 dir="${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}/$sid"
 files=("$dir"/*.json); [ -e "${files[0]}" ] || allow
 # open = pending/in_progress and NOT deferred (❓/⏳); done = completed (progress signal).
-read -r OPEN DONE NEXT < <(jq -rs '
+# IFS=$'\t' on the read is load-bearing (R46): the fields are tab-joined and the subject (NEXT) can
+# carry spaces — a default-IFS split would corrupt it the moment a field order changes (the R32·1
+# space-in-value bug the status line already hit; keep the two parses consistent).
+IFS=$'\t' read -r OPEN DONE NEXT < <(jq -rs '
   def pk: ((.subject//"")|sub("^\\s+";"")|(startswith("❓") or startswith("⏳")));
   ([.[]|select((.status=="pending" or .status=="in_progress") and (pk|not))]) as $o
   | "\($o|length)\t\([.[]|select(.status=="completed")]|length)\t\(($o[0].subject // "")|gsub("\t";" "))"' "${files[@]}" 2>/dev/null)

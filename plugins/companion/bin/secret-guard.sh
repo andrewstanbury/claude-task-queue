@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# PreToolUse[Write|Edit] — the ONE enforced content gate: block a write that would land a
-# hardcoded credential before it reaches disk. Native permissions scan bash *commands*, not
-# file *content*, and a committed key is irreversible — so this earns a real block (exit 2).
+# PreToolUse[Write|Edit|NotebookEdit] — the ONE enforced content gate: block a write that would
+# land a hardcoded credential before it reaches disk. Native permissions scan bash *commands*, not
+# file *content*, and a committed key is irreversible — so this earns a real block (exit 2). Covers
+# every content-writing tool: Write/Edit (.content/.new_string) AND NotebookEdit (.new_source) — a
+# tool the gate must not leave a hole for (R43).
 # Everything else the companion does is steering prose (STEERING.md), never a block.
 # Best-effort: any parse issue fails OPEN (allow). Disable with CLAUDE_COMPANION_SECSCAN=0.
 set -uo pipefail
@@ -9,7 +11,7 @@ command -v jq >/dev/null 2>&1 || exit 0
 [ "${CLAUDE_COMPANION_SECSCAN:-1}" = "0" ] && exit 0
 
 in="$(cat 2>/dev/null || true)"; [ -n "$in" ] || exit 0
-content="$(printf '%s' "$in" | jq -r '.tool_input.content // .tool_input.new_string // empty' 2>/dev/null || true)"
+content="$(printf '%s' "$in" | jq -r '.tool_input.content // .tool_input.new_string // .tool_input.new_source // empty' 2>/dev/null || true)"
 path="$(printf '%s' "$in" | jq -r '.tool_input.file_path // "the file"' 2>/dev/null || true)"
 [ -n "$content" ] || exit 0
 

@@ -34,6 +34,10 @@ EOF
 
 next_id() { local f n max=0; for f in "$DIR"/*.json; do [ -f "$f" ] || continue
   n="$(basename "$f" .json)"; case "$n" in ''|*[!0-9]*) continue;; esac; [ "$n" -gt "$max" ] && max="$n"; done; printf '%d' $((max+1)); }
+# Every write goes to a temp file then `mv` over the target — atomic-rename is deliberate crash-safety
+# (R44), NOT idiom: a task file is never left half-written if jq errors or the process dies mid-write,
+# which is what protects crash-resume (breadcrumbs + done-when surviving a crash). jq can't edit in
+# place, so temp+rename is the crash-safe form. Do NOT "simplify" to `jq … > "$f"`. (Same for `add`.)
 set_task() { local f="$DIR/$1.json" t="$DIR/.$1.tmp"; jq --arg s "$2" --arg d "$3" \
   '(if $s!="" then .status=$s else . end)|(if $d!="" then .description=$d else . end)' "$f" >"$t" && mv "$t" "$f"; }
 

@@ -256,3 +256,42 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_MAX=3 "$STOP")"
   [ -z "$r" ]                                                      # 3rd no-progress stop → yield
 }
+
+# ---- decisions surfaced + recorded by /companion:document (R41) ----
+
+@test "secret gate: covers NotebookEdit's new_source — key blocked, clean cell passes (R43)" {
+  local k="AKIA""ABCDEFGHIJKLMNOP"                          # split so THIS file isn't a secret
+  run bash -c 'jq -nc --arg c "$1" "{tool_input:{notebook_path:\"/x/n.ipynb\",new_source:\$c}}" | "$2"' _ "API_KEY = \"$k\"" "$GUARD"
+  [ "$status" -eq 2 ]                                       # NotebookEdit no longer bypasses the gate
+  [[ "$output" == *"BLOCKED"* ]]
+  run bash -c 'jq -nc "{tool_input:{notebook_path:\"/x/n.ipynb\",new_source:\"print(1+1)\"}}" | "$1"' _ "$GUARD"
+  [ "$status" -eq 0 ]                                       # a clean cell still passes
+}
+
+@test "parked/blocked (❓/⏳) is a prefix-view over pending, NOT a status value (R42)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  local sid=pkv; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  jq -n '{id:"1",subject:"did it",status:"completed"}'   > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  jq -n '{id:"2",subject:"❓ decide X",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
+  [ -z "$output" ]                                          # a ❓ PENDING task counts as parked → Stop yields
+  # drop the prefix → same pending task is now real open work → Stop blocks (keeps draining)
+  jq -n '{id:"2",subject:"decide X",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3" | jq -r ".decision // \"allow\""' _ "$repo" "$sid" "$STOP"
+  [ "$output" = "block" ]                                   # so parked-ness lives in the prefix, not status
+}
+
+@test "ship-mode never commits to the default branch, even from detached HEAD (R45)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  git -C "$repo" checkout -q --detach 2>/dev/null           # detached HEAD (cur=="HEAD")
+  ( cd "$repo" && "$AP" ship on ) >/dev/null; ( cd "$repo" && "$AP" on ) >/dev/null
+  local sid=det; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  jq -n '{id:"1",subject:"x",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  printf 'work\n' > "$repo/newfile.txt"
+  jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1 || true
+  git -C "$repo" branch | grep -q 'autopilot/'                    # moved onto an autopilot/* branch
+  git -C "$repo" log -1 --pretty=%s | grep -q 'autopilot: checkpoint'  # a checkpoint WAS committed (non-vacuous)
+  ! git -C "$repo" cat-file -e main:newfile.txt 2>/dev/null       # …but main NEVER received the work
+}

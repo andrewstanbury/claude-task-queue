@@ -4,9 +4,9 @@
 # ⇡ input ⇣ output tokens · 📋 open · ❓ parked · ⏳ blocked tasks · project · branch (+ *N changes,
 # ↑ahead ↓behind). No hooks, no writes,
 # no model cost — it only reads the JSON Claude Code pipes on stdin plus the companion's own task
-# store and git. The beacon advances one braille frame per real second, so wire it with
-# refreshInterval:1 (which /companion:setup sets) to repaint on a timer:
-#   { "statusLine": { "type": "command", "command": "bash <THIS>", "refreshInterval": 1 } }
+# store and git. The beacon frame is a wall-clock function (one position per second); the bar
+# repaints on its timer, so wire it with refreshInterval:3 (which /companion:setup sets, R32·5):
+#   { "statusLine": { "type": "command", "command": "bash <THIS>", "refreshInterval": 3 } }
 set -uo pipefail
 
 if [ -n "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ]; then G=""; Y=""; C=""; R=""; B=""; D=""; X="";
@@ -81,11 +81,12 @@ APON=0; companion_autopilot_on "$ROOT" && APON=1
 AP=""; [ "$APON" = 1 ] && AP=" ${Y}✈️${X}"
 
 # ⠋ health beacon — animates ONLY while there's work in motion (autopilot draining or a task
-# in-progress); otherwise a static ● (R30·d9 — no pointless idle spinning). One braille-orbit
-# frame per real second when active (needs refreshInterval:1 to repaint). Green normally, yellow
-# under autopilot. A no-color/dumb terminal can't spin a colored glyph, so it's always ● there.
-# (Note: refreshInterval still wakes the command each second — the animation stops when idle, the
-# per-second render doesn't; dropping refreshInterval entirely is the fully-static option.)
+# in-progress); otherwise a static ● (R30·d9 — no pointless idle spinning). The frame is a
+# wall-clock function (advances one position per second), repainted on the refresh timer —
+# refreshInterval:3 (R32·5), so it visibly steps every ~3s. Green normally, yellow under autopilot.
+# A no-color/dumb terminal can't spin a colored glyph, so it's always ● there.
+# (Note: refreshInterval wakes the command every ~3s — the frame keeps advancing while active;
+# dropping refreshInterval entirely is the fully-static option.)
 ACTIVE=0; { [ "$APON" = 1 ] || [ "$NDOING" -gt 0 ]; } && ACTIVE=1
 BFRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏); BCOL="$G"; [ "$APON" = 1 ] && BCOL="$Y"
 if [ -n "$G" ] && [ "$ACTIVE" = 1 ]; then

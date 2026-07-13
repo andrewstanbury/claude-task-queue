@@ -2,6 +2,48 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 2.9.0 — 2026-07-13
+
+- **`/companion:document` refinement + first dogfood run** (ledger R41 refined; R42–R46 added). The
+  command now presents its candidate *whys* as the multiple-choice options — the owner picks or
+  overrides, there is **always** an open-ended "write your own rationale," and **only an active pick
+  records an entry** (an unchosen guess never becomes a 🔒). Running it on this repo recorded five
+  previously-undocumented, load-bearing decisions: the `❓/⏳` prefix-view over `pending` (R42), the
+  secret gate now covering `NotebookEdit`'s `.new_source` (R43), `tq`'s atomic temp-then-`mv` writes
+  (R44), `stop-autopilot`'s redundant default-branch guard (R45), and `IFS=$'\t'` on tab-delimited
+  reads (R46) — three backed by executable checks. Fixed two stale-doc drifts (statusline
+  `refreshInterval` comments, MAP `touch.sh` row).
+
+## companion 2.8.1 — 2026-07-13
+
+- **De-dup autopilot flag teardown** — new `companion_autopilot_clear()` shared helper; `resume.sh`
+  and `autopilot.sh off` both call it instead of a hand-rolled `rm -f`, so the teardown can't drift.
+  Internal refactor, no behavior change (closes the R39 devil's-advocate follow-up).
+
+## companion 2.8.0 — 2026-07-13
+
+- **`/companion:document`** (ledger R41) — new command, the *producer* side of advise: scans an
+  existing repo for load-bearing, undocumented decisions and records them tiered *executable check ›
+  🔒 › 🔓 › dropped*, with strength-of-why setting the lock and a provenance tag — so advise stops
+  guessing and can't reverse a critical choice that was never written down. Reuses the R29/R38 loop,
+  writes the existing ledger (no new doc format), generic per R9, a command not a hook (R28).
+
+## companion 2.7.0 — 2026-07-13
+
+- **`/companion:ship-it` produces review-optimized output** (ledger R40) — structured commit/PR
+  messages (What/Why/requirement-IDs/tasks/tests), curated one-commit-per-logical-unit history on
+  `autopilot/*` merges instead of an opaque squash (reshapes R34's squash-on-ship; the per-turn
+  capture is unchanged), structured PR bodies, and a right-size nudge for large/mixed diffs — so
+  shipped work reads as easy-to-review even when no human reviews it.
+
+## companion 2.6.0 — 2026-07-13
+
+- **`/companion:resume` is a triage handoff** (ledger R39) — it turns autopilot off first
+  (announced, never a silent clobber) so the resurfaced pile comes back to the owner, reinstates
+  carried-over tasks preserving their `❓/⏳/📋` classification (never promoting a parked decision to
+  a plain open task), then runs the R38 review. The fix lives in the task's *type*, so
+  triage-vs-drain survives in either mode.
+
 ## companion 2.5.0 — 2026-07-13
 
 - **Turning autopilot off starts a parked-pile review** (ledger R38) — new `/companion:review`:
