@@ -167,6 +167,17 @@ parked/blocked). Scope is parked + blocked only — plain `📋 open` tasks need
 the plain-conversation path, actually run `autopilot.sh off` **first** — while the flag is still on
 the ask-guard blocks the review's questions.
 
+**Resume is a triage handoff (R39).** `/companion:resume` (and its script) is the same review
+trigger from the other end: it **turns autopilot off first** so the resurfaced pile comes back to
+the owner, not to autopilot (a parked `❓` that resurfaced while autopilot was on would get
+autopiloted, not asked). When you reinstate carried-over tasks, **preserve their classification** —
+a decision comes back `❓ [parked]`, an owner-action `⏳ [blocked]`, a plain task `📋 open`; never
+promote a parked decision into a plain open task (that hands the next drain the answer instead of
+the owner). Then, autopilot now being off, run the parked-pile review over the pile you just
+re-surfaced. This is why the fix lives in the task's *type*, not a mode flag: the triage-vs-drain
+distinction survives on the `❓`/`⏳`/`📋` prefix in either mode, so resume needs no ask-guard
+exemption — turning autopilot off already clears the block.
+
 ## Posture
 
 Non-negotiable: autonomy on the reversible, plain-language consent on the consequential (the

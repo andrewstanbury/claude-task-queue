@@ -140,6 +140,20 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"No carried-over"* ]]
 }
 
+@test "manual resume: turns autopilot OFF first, announced when on and quiet when off (R39)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  [ "$(cd "$repo" && "$AP" status)" = "on" ]                  # armed
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"autopilot was ON"* ]]                     # the flip is announced, not silent
+  [ "$(cd "$repo" && "$AP" status)" = "off" ]                 # flag for THIS root actually cleared
+  # second run: already off → quiet no-op, no autopilot notice
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"autopilot was ON"* ]]
+}
+
 # ---- clean-as-you-touch (PostToolUse: format-only; blast radius + size are steering now, R28) ----
 
 @test "touch: format-only — no advisory output (blast/size moved to steering), never breaks the edit, disable-able" {
