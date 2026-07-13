@@ -45,7 +45,8 @@ it governs how you work here too.**
     are **STEERING**, not hooks. (This retired R27's edit-gates + intent reminder.) Whole-project
     cleanliness sweeps live in `/companion:advise` (which absorbed `/companion:audit`, R32).
   - **Commands** — `/companion:setup` (status line), `/companion:autopilot`,
-    `/companion:ship-it` (verify→commit→push→merge), `/companion:resume`
+    `/companion:ship-it` (verify→commit→push→merge; review-optimized output — clean
+    messages, curated commits, structured PR bodies, R40), `/companion:resume`
     (R39 — triage handoff: turns autopilot off, re-surfaces earlier tasks *preserving their
     ❓/⏳/📋 class*, then runs the review), `/companion:review` (R38 — walk the
     parked/blocked pile recommendation-first, auto-runs when autopilot is turned off),
