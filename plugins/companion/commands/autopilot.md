@@ -13,7 +13,10 @@ gave (`on`, `off`, `status`, or `ship on|off|status`):
   (`❓ [parked]` decision / `⏳ [blocked]` owner-action; a visual/design/direction choice is parked
   too, not decided — R33). Enforced: the Stop hook auto-continues the queue and the ask-guard blocks
   AskUserQuestion (asking = stopping) while it's on. The flag persists across restarts.
-- **off** — normal review loop resumes. Present any parked `❓` items first, recommendation-first.
+- **off** — normal review loop resumes. **Immediately run the parked-pile review** (R38): walk the
+  `❓ [parked]` + `⏳ [blocked]` pile one at a time, recommendation-first, and record each pick back
+  to `tq` **before** any new work — follow `/companion:review` (defer/bail allowed; no-op if the pile
+  is empty). Do this whether the owner turned autopilot off by this command or in plain conversation.
 - **ship on|off** — toggle **ship-mode** (R34). While ship-mode *and* autopilot are on, the Stop
   hook auto-commits each turn's work to an `autopilot/*` branch (reversible; **never the default
   branch, never a push**), so completed work is captured for the owner to review + `/companion:ship-it`

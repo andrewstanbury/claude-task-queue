@@ -46,7 +46,9 @@ it governs how you work here too.**
     cleanliness sweeps live in `/companion:advise` (which absorbed `/companion:audit`, R32).
   - **Commands** — `/companion:setup` (status line), `/companion:autopilot`,
     `/companion:ship-it` (verify→commit→push→merge), `/companion:resume`
-    (manual re-surface of earlier open tasks), `/companion:advise` (R29/R32 — independent brutal-honest
+    (manual re-surface of earlier open tasks), `/companion:review` (R38 — walk the
+    parked/blocked pile recommendation-first, auto-runs when autopilot is turned off),
+    `/companion:advise` (R29/R32 — independent brutal-honest
     critique of a target as recommendation-first options you pick one at a time, then queued).
 
 Keep the split honest: don't add advisory prose as a hook, and don't add a hook for anything
@@ -63,4 +65,5 @@ a document can say.
 - Verify everything with **`./check.sh`** — CI runs the same script.
 
 Project docs: **[docs/MAP.md](./docs/MAP.md)**, **[docs/ROADMAP.md](./docs/ROADMAP.md)**,
-**[AGENTS.md](./AGENTS.md)**, **[docs/REQUIREMENTS.md](./docs/REQUIREMENTS.md)**.
+**[AGENTS.md](./AGENTS.md)**, **[docs/REQUIREMENTS.md](./docs/REQUIREMENTS.md)**,
+**[docs/GLOSSARY.md](./docs/GLOSSARY.md)** (coined vocabulary, R37 — on-demand, not injected).

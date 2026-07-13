@@ -99,14 +99,24 @@ seam until something varies ▢ one job per unit; ~300 lines is a seam smell ▢
 
 ## How we know the project
 
-**Moves:** ▢ gate substantive work on a self-describing project (map · ledger · stack notes);
+**Moves:** ▢ gate substantive work on a self-describing project (map · ledger · stack notes · glossary);
 bootstrap if missing ▢ pin a test on high-rework files before extending ▢ append repo gotchas to
-`LESSONS.md` as they bite ▢ docs are Claude-facing: terse, one canonical home per fact.
+`LESSONS.md` as they bite ▢ coin/consult a `GLOSSARY.md` term when a concept recurs ▢ docs are
+Claude-facing: terse, one canonical home per fact.
 
 Gate substantive work on the project being self-describing: a map (file→responsibility,
 for blast radius), the requirements ledger, quality attributes, stack notes. Bootstrap them
 if missing. Treat files the project has **repeatedly had to fix** (high git rework-ratio) as
 high-risk — pin a test before extending them.
+
+**Speak the project's language — keep a `GLOSSARY.md`** (`docs/GLOSSARY.md`). When a concept
+recurs and its plain description is long, **coin a term** for it (a *coined domain term → its
+meaning*, e.g. "materialization cascade" for "when a lesson inside a section is made real") and
+add one terse line; then **reuse that term** when you name code, variables, and docs, so one word
+carries twenty and naming stays consistent. **Consult it before naming** something new — reuse an
+existing term rather than minting a synonym. It's vocabulary only — gotchas go in `LESSONS.md`,
+decisions in the ledger, work in the queue. Unlike LESSONS this is **not injected each session**:
+load it on demand when domain/naming work needs it, so it costs nothing until it pays.
 
 **Keep a `LESSONS.md` of repo-specific gotchas** (`docs/LESSONS.md`) — injected each session.
 When a trap bites (a portability quirk, a test that needs special setup, a fragile file), append
@@ -148,8 +158,14 @@ isn't the test for those; ownership of taste is. If an unparkable decision block
 the safest reversible default, record it, leave a `❓` to override — never stall. A human playtest
 needs a person, so don't try it: capture it as a `⏳ [blocked] playtest: <what>` and keep draining.
 The owner reviews the parked `❓`/`⏳` pile whenever they check in — there's no "they're back" moment
-to wait for, they may be watching the queue the whole time — and you present it, recommendation
-first, when they turn autopilot off.
+to wait for, they may be watching the queue the whole time. **When autopilot is turned off — by
+`/companion:autopilot off` *or* by a plain-conversation "turn it off" — immediately run the
+parked-pile review (R38): walk the `❓`/`⏳` pile one item at a time, recommendation-first, and
+write each pick back to `tq` *before* starting any new work** (follow `/companion:review`; each item
+can be deferred and the owner can bail — it's the default, not a wall; a clean no-op if nothing is
+parked/blocked). Scope is parked + blocked only — plain `📋 open` tasks need doing, not deciding. On
+the plain-conversation path, actually run `autopilot.sh off` **first** — while the flag is still on
+the ask-guard blocks the review's questions.
 
 ## Posture
 

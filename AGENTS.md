@@ -70,7 +70,7 @@ plugins/companion/
   bin/session-start.sh secret-guard.sh touch.sh statusline.sh tq resume.sh
   bin/autopilot.sh ask-guard.sh stop-autopilot.sh   # enforced autopilot (R26)
   lib/companion.sh                 # shared helpers (state/enc/root, autopilot flag, open-tasks)
-  commands/{setup,autopilot,ship-it,resume,advise}.md   # advise absorbed audit (R32)
+  commands/{setup,autopilot,ship-it,resume,review,advise}.md  # review = parked-pile walk on autopilot-off (R38); advise absorbed audit (R32)
   tests/companion-{core,hud,fuzz}.bats   # tests the ENFORCED CORE only
 ```
 

@@ -19,8 +19,8 @@ Tuned for **existing, often legacy, under-tested projects that must stay clean a
 These are the *values* the steering doc encodes; they're not code.
 
 - **0 · Keep the project self-describing** *(precondition)* — a map (file→responsibility), the
-  requirements ledger, quality attributes, stack notes. Bootstrap if missing; gate substantive
-  work on it.
+  requirements ledger, quality attributes, stack notes, a coined-vocabulary glossary (R37).
+  Bootstrap if missing; gate substantive work on it.
 - **1 · Contain blast radius** — know what a change ripples into (code + architectural) and
   cover it; one owner per concern. **YAGNI: the burden of proof is on *adding*.**
 - **2 · Verify + stay aligned** — confirm intent in plain language; verify observably

@@ -31,6 +31,22 @@ else
   echo "  SKIP — claude CLI not installed (run locally before publishing)"
 fi
 
+section "Version match (each plugin.json == its marketplace entry)"
+vm_fail=0
+for pj in plugins/*/.claude-plugin/plugin.json; do
+  name=$(jq -r '.name // empty' "$pj")
+  pv=$(jq -r '.version // empty' "$pj")
+  mkt=$(jq -r --arg n "$name" '.plugins[] | select(.name==$n) | .version' .claude-plugin/marketplace.json)
+  if [ -z "$name" ] || [ -z "$pv" ]; then
+    echo "  FAIL $pj: missing name/version"; vm_fail=1; fail=1
+  elif [ -z "$mkt" ] || [ "$mkt" = "null" ]; then
+    echo "  FAIL $name: no marketplace entry"; vm_fail=1; fail=1
+  elif [ "$pv" != "$mkt" ]; then
+    echo "  FAIL $name: plugin.json $pv != marketplace $mkt"; vm_fail=1; fail=1
+  fi
+done
+[ "$vm_fail" -eq 0 ] && echo "  ok"
+
 section "ShellCheck"
 if have shellcheck; then
   # SC1091: libs are sourced by a computed path at runtime — expected.

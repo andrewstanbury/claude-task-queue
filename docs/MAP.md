@@ -12,7 +12,8 @@ four plugins into one; this reflects the current tree.
 | `docs/REQUIREMENTS.md` | The **requirements ledger** — durable requirements/decisions with 🔒/🔓/⚰️ status. Source of truth. |
 | `docs/ROADMAP.md` | Direction and backlog. |
 | `docs/MAP.md` | This file. |
-| `check.sh` | One-command gate: JSON valid · `claude plugin validate` · ShellCheck · secret scan · 300-line size guard · bats. CI runs this. |
+| `docs/GLOSSARY.md` | The companion's **coined vocabulary** — a *term → meaning* index (R37). Claude-facing, terse, **loaded on demand** (not injected each session); vocabulary only (gotchas → LESSONS, decisions → ledger). |
+| `check.sh` | One-command gate: JSON valid · `claude plugin validate` · **version match (each `plugin.json` == its marketplace entry)** · ShellCheck · secret scan · 300-line size guard · bats. CI runs this. |
 | `.claude-plugin/marketplace.json` | Marketplace manifest (the one `companion` plugin). |
 
 ## plugins/companion — the whole system
@@ -29,6 +30,7 @@ four plugins into one; this reflects the current tree.
 | `bin/resume.sh` | Manual resume (`/companion:resume`) — list this repo's open tasks from earlier sessions on demand (the SessionStart twin). |
 | `commands/ship-it.md` | `/companion:ship-it` — verify → **state the case** (risks / what-changes / R-IDs; devil's-advocate for consequential changes, R30·d6) → commit → push → merge to the default branch → **prune merged branches** (R35: delete the shipped branch local+remote, sweep `--merged` branches with `-d`; shared-repo confirm). |
 | `commands/resume.md` | `/companion:resume` — re-surface + reinstate earlier open tasks. |
+| `commands/review.md` | `/companion:review` (R38) — walk the `❓ [parked]` + `⏳ [blocked]` pile one at a time, recommendation-first (reusing the advise loop, R29), and write picks back to `tq` before new work. **Runs automatically when autopilot is turned off.** Parked+blocked only; defer/bail allowed; no-op when empty. |
 | `bin/statusline.sh` | The status line (a `statusLine` command, not a hook), grouped by plugin-relevance (R34): ⠋ beacon · `│` 🛡 gate · ✈️ autopilot · 📦 ship-mode `│` (active features) · `│` 📋 open · ❓ parked · ⏳ blocked `│` (the queue, own section) · model · ⇡in ⇣out · project · branch (+ ↑ahead ↓behind). Read-only; beacon animates at `refreshInterval:3`. Wire with `/companion:setup`. |
 | `bin/autopilot.sh` | Toggle the persisted per-repo autopilot flag (`on`/`off`/`status`), and **ship-mode** (`ship on`/`off`/`status`, R34). |
 | `bin/stop-autopilot.sh` | Stop hook: while autopilot is on and non-deferred work remains, auto-continue the drain (no-progress capped); yields when only ❓/⏳ remain. **Ship-mode (R34):** also auto-commits each turn's work to an `autopilot/*` branch (never the default, never a push), best-effort. `CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0` disables the continue. |

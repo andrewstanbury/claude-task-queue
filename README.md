@@ -34,6 +34,9 @@ Bash + `jq`, zero build, one install.
   Add **`autopilot ship on`** to auto-commit completed work to an `autopilot/*` branch (reversible,
   never main, no push) for you to review + ship on return.
 - **`/companion:resume`** — re-surface this repo's unfinished tasks on demand.
+- **`/companion:review`** — walk the parked/blocked pile one at a time, recommendation-first, and
+  record your picks before new work. **Runs automatically when you turn autopilot off** — so
+  decisions it deferred while running get your input before it moves on.
 - **`/companion:ship-it`** — verify → state the case → commit → push → **merge to main → prune the
   merged branches** (local + remote; shared repos are confirmed first).
 

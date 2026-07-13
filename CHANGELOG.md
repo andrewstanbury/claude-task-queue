@@ -2,6 +2,27 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 2.5.0 — 2026-07-13
+
+- **Turning autopilot off starts a parked-pile review** (ledger R38) — new `/companion:review`:
+  walks the `❓ [parked]` + `⏳ [blocked]` pile one at a time, recommendation-first, and records each
+  pick back to `tq` **before** any new work. Triggered two ways so neither path misses it — the
+  `/companion:autopilot off` command invokes it, and a STEERING clause fires it on the plain-language
+  "turn it off" path. Scope is parked+blocked only (open tasks need doing, not deciding); each item
+  can be deferred and the owner can bail (default, not a wall); clean no-op when the pile is empty.
+  A **command, not a hook** (R28 — presenting recommendations is `AskUserQuestion` workflow), reusing
+  the `/companion:advise` loop (R29) rather than a parallel machine.
+
+## companion 2.4.0 — 2026-07-13
+
+- **Domain-glossary layer** (ledger R37) — a project the companion governs keeps a terse,
+  Claude-facing `docs/GLOSSARY.md` mapping a *coined term → its meaning* (e.g. "materialization
+  cascade"); Claude coins one when a concept recurs and reuses it when naming, so one word carries
+  twenty and naming stays consistent. Joins the map + ledger + stack-notes as part of a
+  self-describing project (STEERING), **loaded on demand — not injected each session** — so it can't
+  erode the token-efficiency value (R3). Steering convention, not a hook (R28). The one idea mined
+  from mattpocock/skills' `CONTEXT.md`; this repo dogfoods its own `docs/GLOSSARY.md`.
+
 ## companion 2.3.0 — 2026-07-12
 
 - **Autopilot reframed as "keep-going," not "owner-away"** (ledger R36) — it means keep draining the
