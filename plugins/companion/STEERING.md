@@ -17,6 +17,8 @@ first ▢ `doing` / `note` / `done` as you go, one breadcrumb on the active task
 pause (AskUserQuestion, recommendation first) only on real signal ▢ verify by exercising, not
 asserting; recap in one line.
 
+The report ends with a **`→ next:`** pointer — a *mechanical* default (the in-progress task, else the head of the open queue in the order you added it). It's a convenience, not a verdict: when blast-radius or a dependency says a different task should go first, **say so out loud and pick that one** instead of following the pointer.
+
 **The queue is the `tq` CLI** (`bin/tq`). The companion owns its task store and **does not
 use Claude Code's native task tools** — do not call `TaskCreate`/`TodoWrite`; use `tq`. Read
 each request, restate the outcome in one plain line, break it into concrete tasks (smallest

@@ -57,10 +57,10 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [ "$(jq -r .status "$CLAUDE_COMPANION_TASKS_DIR/s1/1.json")" = "in_progress" ]
   run "$TQ" done 1
   [ "$status" -eq 0 ]
-  [[ "$output" == *"#1 → completed"* ]]
-  [[ "$output" == *"📋 Task queue"* ]]
-  [[ "$output" == *"1 parked"* ]]
-  [[ "$output" == *"✔ #1"* ]]
+  [[ "$output" == *"#1 → completed"* ]]        # the state transition (behavioral, format-agnostic)
+  [[ "$output" == *"📋"* ]]                     # a report is printed
+  [[ "$output" == *"pick a backend"* ]]        # the parked sibling is surfaced (leading ❓ stripped)
+  [[ "$output" != *"build it"* ]]              # completed task is count-only, not a full line (Design D, R47)
 }
 
 @test "tq: cancel retracts a task — cancelled, excluded from report counts, file kept (R32)" {
@@ -72,7 +72,8 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   run "$TQ" report
   [[ "$output" != *"wrong task"* ]]        # retracted → not shown (no false ✔, no lingering ◻)
   [[ "$output" == *"keep me"* ]]           # the sibling remains
-  [[ "$output" == *"1 open"* ]]            # cancelled excluded from the open count
+  # cancelled excluded from open — asserted at the store, not the header string (format-agnostic)
+  [ "$(jq -s '[.[]|select(.status=="pending")]|length' "$CLAUDE_COMPANION_TASKS_DIR/s1"/*.json)" -eq 1 ]
 }
 
 @test "tq: no session id errors cleanly" {
@@ -81,12 +82,12 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"session id"* ]]
 }
 
-@test "tq: done-when — --done on add, the done-when subcommand, and it renders in the report (R30·d1)" {
+@test "tq: done-when — --done on add + the done-when subcommand STORE it; report omits it (D/R47, resurfaced on resume)" {
   ( cd "$ROOT" && "$TQ" add "wire export" --done "downloads a .csv" ) >/dev/null
-  [ "$(jq -r .done_when "$CLAUDE_COMPANION_TASKS_DIR/s1/1.json")" = "downloads a .csv" ]
+  [ "$(jq -r .done_when "$CLAUDE_COMPANION_TASKS_DIR/s1/1.json")" = "downloads a .csv" ]   # stored in the task
   run "$TQ" report
-  [[ "$output" == *"◻ #1  wire export"* ]]
-  [[ "$output" == *"done when: downloads a .csv"* ]]     # rendered under the task
+  [[ "$output" == *"#1"*"wire export"* ]]                # the task is listed
+  [[ "$output" != *"done when"* ]]                       # …but the compact report does NOT render done-when (Design D)
   ( cd "$ROOT" && "$TQ" add "plain" ) >/dev/null          # no --done → empty, no done-when line
   [ "$(jq -r .done_when "$CLAUDE_COMPANION_TASKS_DIR/s1/2.json")" = "" ]
   "$TQ" done-when 2 "no errors on load" >/dev/null         # set it after the fact
