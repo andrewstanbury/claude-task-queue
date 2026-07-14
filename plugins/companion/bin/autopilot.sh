@@ -4,7 +4,11 @@
 # ENFORCED: the Stop hook auto-continues the queue while it's on, and the ask-guard blocks
 # AskUserQuestion. Run via /companion:autopilot or directly. Best-effort.
 set -uo pipefail
-SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; done
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  link="$(readlink "$SELF")"
+  case "$link" in /*) SELF="$link" ;; *) SELF="$(dirname "$SELF")/$link" ;; esac
+done
 # shellcheck source=../lib/companion.sh
 . "$(cd "$(dirname "$SELF")/../lib" && pwd)/companion.sh"
 

@@ -19,7 +19,7 @@ STORE="${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}"
 DIR="$STORE/$SID"
 
 usage() { cat >&2 <<'EOF'
-tq — fallback task queue (native task tools gated off)
+tq — self-owned task queue (does not use Claude Code's native task tools)
   tq add "<subject>" [more...] [--done "<acceptance>"]   queue pending task(s) + report
   tq doing <id> ["<breadcrumb>"] mark in progress (opt. crash-resume note) + report
   tq note  <id> "<breadcrumb>"   update the in-progress breadcrumb
@@ -34,45 +34,50 @@ EOF
 
 next_id() { local f n max=0; for f in "$DIR"/*.json; do [ -f "$f" ] || continue
   n="$(basename "$f" .json)"; case "$n" in ''|*[!0-9]*) continue;; esac; [ "$n" -gt "$max" ] && max="$n"; done; printf '%d' $((max+1)); }
-# Every write goes to a temp file then `mv` over the target — atomic-rename is deliberate crash-safety
-# (R44), NOT idiom: a task file is never left half-written if jq errors or the process dies mid-write,
-# which is what protects crash-resume (breadcrumbs + done-when surviving a crash). jq can't edit in
-# place, so temp+rename is the crash-safe form. Do NOT "simplify" to `jq … > "$f"`. (Same for `add`.)
+# Every write goes to a temp file then `mv` over the target — atomic-rename is deliberate crash-safety:
+# a task file is never left half-written if jq errors or the process dies mid-write, which is what
+# protects crash-resume (breadcrumbs + done-when surviving a crash). jq can't edit in place,
+# so temp+rename is the crash-safe form. Do NOT "simplify" to `jq … > "$f"`. (Same for `add`.)
 set_task() { local f="$DIR/$1.json" t="$DIR/.$1.tmp"; jq --arg s "$2" --arg d "$3" \
   '(if $s!="" then .status=$s else . end)|(if $d!="" then .description=$d else . end)' "$f" >"$t" && mv "$t" "$f"; }
+append_note() { local f="$DIR/$1.json" t="$DIR/.$1.tmp" ts
+  ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || printf '0Z')"
+  jq --arg ts "$ts" --arg x "$2" '.notes=((.notes//[])+[{ts:$ts,text:$x}])' "$f" >"$t" && mv "$t" "$f"; }
 
 report() {
   local files=("$DIR"/*.json); [ -e "${files[0]}" ] || { printf '📋 Task queue — (empty)\n'; return 0; }
-  # Design D (ultra-compact): glyph-count header, one line per ACTIVE task (no done-when),
-  # completed shown as a count only. done-when still lives in the store and is re-surfaced on
-  # cross-session resume (lib/companion.sh), so trimming it here costs no crash-resume context.
+  # Pre-filter: skip files that are empty or not valid JSON (e.g. a half-written crash artefact)
+  # so a single bad file doesn't collapse the whole report to "(unreadable)".
+  local valid=()
+  local f; for f in "${files[@]}"; do
+    [ -s "$f" ] && jq -e . "$f" >/dev/null 2>&1 && valid+=("$f")
+  done
+  [ "${#valid[@]}" -gt 0 ] || { printf '📋 Task queue — (empty)\n'; return 0; }
   jq -rs '
     def pk: ((.subject//"")|sub("^\\s+";"")|startswith("❓")); def bl: ((.subject//"")|sub("^\\s+";"")|startswith("⏳"));
-    # strip a leading ❓/⏳ marker so the front glyph is not duplicated, then truncate
-    def s72: ((.subject//"")|sub("^\\s*[❓⏳]\\s*";"")|if length>72 then .[0:71]+"…" else . end);
-    def ln($g): "  "+$g+" #"+(.id|tostring)+"  "+s72;
+    def s72: ((.subject//"")|if length>72 then .[0:71]+"…" else . end);
+    def fmt($g): ("  "+$g+" #"+(.id|tostring)+"  "+s72) + (if (.done_when//"")!="" then "\n       └ done when: "+(.done_when) else "" end) + (if (.notes//[]|length>0) then "\n       └ note: "+((.notes[-1]).text//"") elif (.description//"")!="" then "\n       └ note: "+(.description) else "" end);
     (map(select(.status=="in_progress"))|sort_by(.id|tonumber)) as $ip
     |(map(select(.status=="pending" and (pk|not) and (bl|not)))|sort_by(.id|tonumber)) as $op
     |(map(select(.status=="pending" and pk))|sort_by(.id|tonumber)) as $p
     |(map(select(.status=="pending" and bl))|sort_by(.id|tonumber)) as $b
     |(map(select(.status=="completed"))|sort_by(.id|tonumber)) as $d
-    |([ (if($ip|length)>0 then "▸\($ip|length)" else empty end),
-        (if($op|length)>0 then "◻\($op|length)" else empty end),
-        (if($p|length)>0 then "❓\($p|length)" else empty end),
-        (if($b|length)>0 then "⏳\($b|length)" else empty end),
-        (if($d|length)>0 then "✔\($d|length)" else empty end)]|join(" ")) as $h
-    |("📋"+(if $h=="" then " Task queue — (all clear)" else "  "+$h end)),
-     ($ip[]|ln("▸")),($op[]|ln("◻")),($p[]|ln("❓")),($b[]|ln("⏳")),
-     (($ip[0] // $op[0]) as $nx | if $nx then "  → next: #\($nx.id)" else empty end)
-  ' "${files[@]}" 2>/dev/null || printf '📋 Task queue — (unreadable)\n'
+    |([ (if($ip|length)>0 then "\($ip|length) in progress" else empty end),
+        (if($op|length)>0 then "\($op|length) open" else empty end),
+        (if($p|length)>0 then "\($p|length) parked" else empty end),
+        (if($b|length)>0 then "\($b|length) blocked" else empty end),
+        (if($d|length)>0 then "\($d|length) done" else empty end)]|join(" · ")) as $h
+    |("📋 Task queue"+(if $h=="" then "" else "  ·  "+$h end)),
+     ($ip[]|fmt("▸")),($op[]|fmt("◻")),($p[]|fmt("◻")),($b[]|fmt("◻")),($d[]|fmt("✔"))
+  ' "${valid[@]}" 2>/dev/null || printf '📋 Task queue — (unreadable)\n'
 }
 
 cmd="${1:-list}"; shift || true
 case "$cmd" in
   add) mkdir -p "$DIR" || exit 1
-    # --done "<acceptance>" (R30·d1) sets the done-when criterion for the task(s) added in this
-    # call; remaining args are subjects. A task that carries its own acceptance re-derives the
-    # right next action after a context compaction, not just "there's a thing called X".
+    # --done "<acceptance>" sets the done-when criterion for the task(s) added in this call;
+    # remaining args are subjects. A task that carries its own acceptance re-derives the right
+    # next action after a context compaction, not just "there's a thing called X".
     dw=""; subs=()
     while [ "$#" -gt 0 ]; do case "$1" in --done) shift; dw="${1:-}";; *) subs+=("$1");; esac; shift || true; done
     [ "${#subs[@]}" -gt 0 ] || { usage; exit 1; }
@@ -87,7 +92,7 @@ case "$cmd" in
   doing) { [ "$#" -ge 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" in_progress "${2:-}"; echo "#$1 → in_progress"; echo; report ;;
   done) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" completed ""; echo "#$1 → completed"; echo; report ;;
   cancel) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" cancelled ""; echo "#$1 → cancelled (retracted; kept for audit, excluded from counts)"; echo; report ;;
-  note) { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }; set_task "$1" "" "$2"; echo "#$1 note set" ;;
+  note) { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }; append_note "$1" "$2"; echo "#$1 note added" ;;
   done-when|dw) { [ "$#" -eq 2 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: usage: tq done-when <id> \"<acceptance>\"" >&2; exit 1; }
     f="$DIR/$1.json"; t="$DIR/.$1.tmp"; jq --arg d "$2" '.done_when=$d' "$f" >"$t" && mv "$t" "$f"; echo "#$1 done-when set"; echo; report ;;
   report) report ;;

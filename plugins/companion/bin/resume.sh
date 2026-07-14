@@ -4,13 +4,17 @@
 # twin for when you want to pull them back mid-session). Prints the open tasks; the model
 # reinstates them. Read-only on the store, best-effort.
 #
-# Resume is a TRIAGE handoff (R39): it first turns autopilot OFF (announced when it was on)
+# Resume is a TRIAGE handoff: it first turns autopilot OFF (announced when it was on)
 # so the resumed decisions come back to the OWNER, not to autopilot — while autopilot is on
 # the ask-guard blocks questions, so a parked ❓ that resurfaced would get autopiloted, not
-# reviewed. Clearing the flag here also arms the R38 parked-pile review that resume.md runs.
+# reviewed. Clearing the flag here also arms the parked-pile review that resume.md runs.
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || { echo "resume: jq required" >&2; exit 1; }
-SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; done
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  link="$(readlink "$SELF")"
+  case "$link" in /*) SELF="$link" ;; *) SELF="$(dirname "$SELF")/$link" ;; esac
+done
 # shellcheck source=../lib/companion.sh
 . "$(cd "$(dirname "$SELF")/../lib" && pwd)/companion.sh"
 

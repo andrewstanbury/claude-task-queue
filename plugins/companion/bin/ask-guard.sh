@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # PreToolUse[AskUserQuestion] — while autopilot is ON, DENY the question. Autopilot means keep
-# going without stopping (R36); asking = stopping, so the model must decide-if-reversible-mechanic
-# or PARK the decision/design choice as a `❓` task instead. This makes autopilot's "don't stop to
-# ask" mechanical, not advisory. Silent (allow) when autopilot is off. Best-effort: degrades to allow.
+# going without stopping (asking = stopping), so the model must decide-if-reversible-mechanic
+# or PARK the decision/design choice as a `❓` task instead. This makes autopilot's "don't stop
+# to ask" mechanical, not advisory. Silent (allow) when autopilot is off. Best-effort: degrades to allow.
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || exit 0
-SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; done
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  link="$(readlink "$SELF")"
+  case "$link" in /*) SELF="$link" ;; *) SELF="$(dirname "$SELF")/$link" ;; esac
+done
 # shellcheck source=../lib/companion.sh
 . "$(cd "$(dirname "$SELF")/../lib" && pwd)/companion.sh"
 

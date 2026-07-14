@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # statusline — a minimal read-only status line: the companion's one glance surface.
-# Shows: ⠋ animated health beacon · │ 🛡 secret gate │ (🛡✗ if disabled) · model · ✈️ autopilot ·
+# Shows: ⠋ animated health beacon · │ 🛡️ secret gate │ (🛡️✗ if disabled) · model · ✈️ autopilot ·
 # ⇡ input ⇣ output tokens · 📋 open · ❓ parked · ⏳ blocked tasks · project · branch (+ *N changes,
-# ↑ahead ↓behind). No hooks, no writes,
-# no model cost — it only reads the JSON Claude Code pipes on stdin plus the companion's own task
-# store and git. The beacon frame is a wall-clock function (one position per second); the bar
-# repaints on its timer, so wire it with refreshInterval:3 (which /companion:setup sets, R32·5):
+# ↑ahead ↓behind). No hooks, no writes, no model cost — it only reads the JSON Claude Code pipes
+# on stdin plus the companion's own task store and git. The beacon frame is a wall-clock function
+# (one position per second); the bar repaints on its timer, so wire it with refreshInterval:3
+# (which /companion:setup sets):
 #   { "statusLine": { "type": "command", "command": "bash <THIS>", "refreshInterval": 3 } }
 set -uo pipefail
 
@@ -13,8 +13,13 @@ if [ -n "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ]; then G=""; Y=""; C=""; R=
 else G=$'\033[32m'; Y=$'\033[33m'; C=$'\033[36m'; R=$'\033[31m'; B=$'\033[1m'; D=$'\033[2m'; X=$'\033[0m'; fi
 
 command -v jq >/dev/null 2>&1 || exit 0
-SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; done
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  link="$(readlink "$SELF")"
+  case "$link" in /*) SELF="$link" ;; *) SELF="$(dirname "$SELF")/$link" ;; esac
+done
 # shellcheck source=../lib/companion.sh
+# shellcheck disable=SC1091
 . "$(cd "$(dirname "$SELF")/../lib" && pwd)/companion.sh"
 in=""; [ -t 0 ] || in="$(cat 2>/dev/null || true)"; [ -n "$in" ] || in="{}"
 IFS=$'\t' read -r MODEL SID CWD ITOK OTOK < <(printf '%s' "$in" | jq -r '
@@ -32,20 +37,19 @@ hum() { local n="${1%%.*}"; case "$n" in ''|*[!0-9]*) printf '0'; return;; esac
   else printf '%s.%sM' "$((n/1000000))" "$(((n%1000000)/100000))"; fi; }
 
 # Tasks in this session's companion store, split by state: 📋 open · ❓ parked · ⏳ blocked
-# (parked/blocked detected by the ❓/⏳ subject prefix — the same convention as the queue and
-# the return-review gate). One jq pass emits the three counts, tab-separated.
 NOPEN=0; NPARK=0; NBLOCK=0; NDOING=0
 store="${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}/$SID"
 if [ -n "${SID:-}" ] && [ -d "$store" ]; then
   files=("$store"/*.json)
   if [ -e "${files[0]}" ]; then
     read -r NOPEN NPARK NBLOCK NDOING < <(jq -rs '
-      [ .[] | select(.status=="pending" or .status=="in_progress") ] as $o
-      | ($o | map((.subject//"") | sub("^\\s+";""))) as $s
+      [ .[] | select(.status=="pending") ] as $pending
+      | [ .[] | select(.status=="in_progress") ] as $ip
+      | ($pending | map((.subject//"") | sub("^[[:space:]]+";""))) as $s
       | [ ($s | map(select((startswith("❓") or startswith("⏳")) | not)) | length),
           ($s | map(select(startswith("❓"))) | length),
           ($s | map(select(startswith("⏳"))) | length),
-          ($o | map(select(.status=="in_progress")) | length) ] | @tsv' "${files[@]}" 2>/dev/null)
+          ($ip | length) ] | @tsv' "${files[@]}" 2>/dev/null)
   fi
 fi
 case "$NOPEN"  in ''|*[!0-9]*) NOPEN=0;;  esac
@@ -53,11 +57,10 @@ case "$NPARK"  in ''|*[!0-9]*) NPARK=0;;  esac
 case "$NBLOCK" in ''|*[!0-9]*) NBLOCK=0;; esac
 case "$NDOING" in ''|*[!0-9]*) NDOING=0;; esac
 
-# 🛡 secret gate (the one enforced guarantee) — green shield on, red ✗ when disabled.
+# 🛡️ secret gate — green shield on, red ✗ when disabled.
 # Brace every var: on macOS's bash 3.2 an unbraced `$B` directly before the 🛡 glyph swallows the
 # emoji's leading byte into the variable name, which `set -u` then rejects (a real macOS-CI crash).
-# 🛡️ carries the emoji variation selector (U+FE0F) so it renders full emoji-width like ✈️/📦 —
-# without it many terminals draw a narrow/monochrome shield, making the icon spacing look uneven.
+# 🛡️ carries the emoji variation selector (U+FE0F) so it renders full emoji-width like ✈️/📦.
 if [ "${CLAUDE_COMPANION_SECSCAN:-1}" = "0" ]; then SHIELD="${R}${B}🛡️✗${X}"; else SHIELD="${G}${B}🛡️${X}"; fi
 
 # repo root (git toplevel, else CWD) — one rev-parse, reused for project name + autopilot/gate flags.
@@ -76,17 +79,12 @@ if [ -n "$AB" ]; then a="${AB%% *}"; AHEAD="${a#+}"; b="${AB##* }"; BEHIND="${b#
 case "$AHEAD"  in ''|*[!0-9]*) AHEAD=0;;  esac
 case "$BEHIND" in ''|*[!0-9]*) BEHIND=0;; esac
 
-# ✈️ autopilot when it's armed for this repo (an attention state) — also tints the beacon yellow.
+# ✈️ autopilot when it's armed for this repo — also tints the beacon yellow.
 APON=0; companion_autopilot_on "$ROOT" && APON=1
 AP=""; [ "$APON" = 1 ] && AP=" ${Y}✈️${X}"
 
 # ⠋ health beacon — animates ONLY while there's work in motion (autopilot draining or a task
-# in-progress); otherwise a static ● (R30·d9 — no pointless idle spinning). The frame is a
-# wall-clock function (advances one position per second), repainted on the refresh timer —
-# refreshInterval:3 (R32·5), so it visibly steps every ~3s. Green normally, yellow under autopilot.
-# A no-color/dumb terminal can't spin a colored glyph, so it's always ● there.
-# (Note: refreshInterval wakes the command every ~3s — the frame keeps advancing while active;
-# dropping refreshInterval entirely is the fully-static option.)
+# in-progress); otherwise a static ●. Green normally, yellow under autopilot.
 ACTIVE=0; { [ "$APON" = 1 ] || [ "$NDOING" -gt 0 ]; } && ACTIVE=1
 BFRAMES=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏); BCOL="$G"; [ "$APON" = 1 ] && BCOL="$Y"
 if [ -n "$G" ] && [ "$ACTIVE" = 1 ]; then
@@ -95,12 +93,9 @@ else
   BEACON="●"
 fi
 
-# assemble (│ = dim divider), plugin-relevance order (R34): ⠋ │ 🛡 ✈️ 📦 │ 📋 tasks │ model ⇡in ⇣out │ project ⎇branch *changes
-# Three plugin sections, then generic: beacon (health) · ACTIVE FEATURES (🛡 gate always · ✈️
-# autopilot · 📦 ship-mode when armed) · the QUEUE (📋/❓/⏳) on its own · then model/tokens · git.
+# assemble — plugin-relevance order: ⠋ │ 🛡️ ✈️ 📦 │ 📋 tasks │ model ⇡in ⇣out │ project ⎇branch *changes
 DIV=" ${D}│${X} "
 SHIP=""; companion_ship_on "$ROOT" && SHIP=" ${Y}${B}📦${X}"
-# the queue in its own section: 📋 open always; ❓ parked · ⏳ blocked only when present
 TASKS="${C}${B}📋 $NOPEN${X}"
 [ "$NPARK"  -gt 0 ] && TASKS="$TASKS ${Y}${B}❓ $NPARK${X}"
 [ "$NBLOCK" -gt 0 ] && TASKS="$TASKS ${Y}${B}⏳ $NBLOCK${X}"
