@@ -58,11 +58,11 @@ files=("$dir"/*.json); [ -e "${files[0]}" ] || allow
 # IFS=$'\t' on the read is load-bearing (R46): the fields are tab-joined and the subject (NEXT) can
 # carry spaces — a default-IFS split would corrupt it the moment a field order changes (the R32·1
 # space-in-value bug the status line already hit; keep the two parses consistent).
-IFS=$'\t' read -r OPEN DONE NEXT < <(jq -rs '
+IFS=$'\t' read -r OPEN DONE NEXT NID DONEWHEN < <(jq -rs '
   def pk: ((.subject//"")|sub("^\\s+";"")|(startswith("❓") or startswith("⏳")));
   ([.[]|select((.status=="pending" or .status=="in_progress") and (pk|not))]) as $o
-  | "\($o|length)\t\([.[]|select(.status=="completed")]|length)\t\(($o[0].subject // "")|gsub("\t";" "))"' "${files[@]}" 2>/dev/null)
-OPEN="${OPEN:-0}"; DONE="${DONE:-0}"
+  | "\($o|length)\t\([.[]|select(.status=="completed")]|length)\t\(($o[0].subject // "")|gsub("\t";" "))\t\($o[0].id // "")\t\(($o[0].done_when // "")|gsub("\t";" "))"' "${files[@]}" 2>/dev/null)
+OPEN="${OPEN:-0}"; DONE="${DONE:-0}"; NID="${NID:-}"; DONEWHEN="${DONEWHEN:-}"
 case "$OPEN" in ''|*[!0-9]*) OPEN=0 ;; esac
 case "$DONE" in ''|*[!0-9]*) DONE=0 ;; esac
 
@@ -78,5 +78,5 @@ max="$(printf '%s' "${CLAUDE_COMPANION_AUTOPILOT_MAX:-8}" | tr -dc '0-9')"; max=
 if [ "$stall" -ge "$max" ]; then rm -f "$cfile" 2>/dev/null; allow; fi   # stuck → yield
 { mkdir -p "$(dirname "$cfile")" 2>/dev/null && printf '%s %s' "$DONE" "$stall" > "$cfile"; } 2>/dev/null || true
 
-jq -cn --arg n "$NEXT" --arg c "$OPEN" '{decision:"block", reason:
-  ("✈️ Autopilot: \($c) task(s) still open — next: “\($n)”. Keep going (autopilot means do not stop): DO NOT stop and DO NOT ask. Take the next task, do it, verify your own work (you have a shell), `tq done` it, and continue. PARK what genuinely needs the owner — `❓ [parked]` for a decision or a visual/design/direction choice, `⏳ [blocked]` for an owner-only action — and decide the routine, low-stakes rest yourself. Keep going until only ❓/⏳ items remain.")}'
+jq -cn --arg n "$NEXT" --arg c "$OPEN" --arg id "$NID" --arg dw "$DONEWHEN" '{decision:"block", reason:
+  ("✈️ Autopilot: \($c) task(s) still open — next: #\($id) “\($n)”\(if $dw != "" then " (done when: \($dw))" else "" end). Keep going (autopilot means do not stop): DO NOT stop and DO NOT ask. Take task #\($id), do it, verify your own work (you have a shell), `tq done \($id)` it, and continue. PARK what genuinely needs the owner — `❓ [parked]` for a decision or a visual/design/direction choice, `⏳ [blocked]` for an owner-only action — and decide the routine, low-stakes rest yourself. Keep going until only ❓/⏳ items remain.")}'

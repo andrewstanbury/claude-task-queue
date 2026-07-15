@@ -40,6 +40,12 @@ next_id() { local f n max=0; for f in "$DIR"/*.json; do [ -f "$f" ] || continue
 # place, so temp+rename is the crash-safe form. Do NOT "simplify" to `jq … > "$f"`. (Same for `add`.)
 set_task() { local f="$DIR/$1.json" t="$DIR/.$1.tmp"; jq --arg s "$2" --arg d "$3" \
   '(if $s!="" then .status=$s else . end)|(if $d!="" then .description=$d else . end)' "$f" >"$t" && mv "$t" "$f"; }
+# `note` APPENDS to .notes[] (ts+text) instead of overwriting .description, so a second breadcrumb
+# on the same task doesn't erase the first — the crash-resume trail is cumulative (same temp+rename
+# crash-safety as set_task, R44). Ported from PR #126 (author @andrewstanbury-thinkific).
+append_note() { local f="$DIR/$1.json" t="$DIR/.$1.tmp" ts
+  ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || printf '0Z')"
+  jq --arg ts "$ts" --arg x "$2" '.notes=((.notes//[])+[{ts:$ts,text:$x}])' "$f" >"$t" && mv "$t" "$f"; }
 
 report() {
   local files=("$DIR"/*.json); [ -e "${files[0]}" ] || { printf '📋 Task queue — (empty)\n'; return 0; }
@@ -87,7 +93,7 @@ case "$cmd" in
   doing) { [ "$#" -ge 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" in_progress "${2:-}"; echo "#$1 → in_progress"; echo; report ;;
   done) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" completed ""; echo "#$1 → completed"; echo; report ;;
   cancel) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" cancelled ""; echo "#$1 → cancelled (retracted; kept for audit, excluded from counts)"; echo; report ;;
-  note) { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }; set_task "$1" "" "$2"; echo "#$1 note set" ;;
+  note) { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }; append_note "$1" "$2"; echo "#$1 note added" ;;
   done-when|dw) { [ "$#" -eq 2 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: usage: tq done-when <id> \"<acceptance>\"" >&2; exit 1; }
     f="$DIR/$1.json"; t="$DIR/.$1.tmp"; jq --arg d "$2" '.done_when=$d' "$f" >"$t" && mv "$t" "$f"; echo "#$1 done-when set"; echo; report ;;
   report) report ;;
