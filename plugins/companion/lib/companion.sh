@@ -45,7 +45,7 @@ companion_open_tasks() {
     [ "$(cat "$d.root" 2>/dev/null || true)" = "$root" ] || continue
     for f in "$d"*.json; do
       [ -f "$f" ] || continue
-      jq -r 'select(.status=="pending" or .status=="in_progress") | "  ◻ " + (.subject // "") + (if (.done_when//"")!="" then "\n       └ done when: " + .done_when else "" end)' "$f" 2>/dev/null || true
+      jq -r 'select(.status=="pending" or .status=="in_progress") | "  ◻ " + (.subject // "") + (if (.done_when//"")!="" then "\n       └ done when: " + .done_when else "" end) + (if ((.notes//[])|length)>0 then "\n       └ note: " + ((.notes[-1].text)//"") elif (.description//"")!="" then "\n       └ note: " + .description else "" end)' "$f" 2>/dev/null || true
     done
   done
 }
