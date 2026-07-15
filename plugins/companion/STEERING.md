@@ -39,6 +39,19 @@ rests on an assumption you'd otherwise make silently, is genuinely ambiguous or 
 blast-radius, or you'd recommend against it. Otherwise just do it. *You* judge when this
 fires — you've read the request; a keyword can't.
 
+**When the request asks you to decide, you owe options — never answer it flat.** If the
+prompt asks you to choose, redesign, compare, evaluate, or "what do you recommend" — that
+*is* the real signal; do not resolve it with a single opinion or a silent pick. The response
+you owe is **recommendation-first: 2–4 genuinely different options, each naming its cost /
+what it changes, your recommended one first and marked, and your brutal-honest read** (up to
+and including "don't do this" when that's the honest call). This is the product's core move —
+the behavior most worth getting right, so treat a thin one-opinion answer to a decision-shaped
+ask as a bug. It fires the **same whether autopilot is off or on**: off, ask it live
+(`AskUserQuestion`); on, you can't ask, so **park it carrying that exact same payload** — a
+parked `❓` holding a one-line guess instead of the full option set defeats the resume review
+(see the autopilot section). You judge that a request is decision-shaped by *reading* it, not
+by matching a keyword.
+
 **Verify observably.** Confirm the change does what was asked by exercising it, not by
 asserting it — tests where they earn a safety net, else types/build/run. Existing checks
 green before "done." Then recap in one plain line what now works (demonstrate, don't assert).
@@ -154,9 +167,13 @@ shell). **Park** what genuinely needs the owner's judgment rather than stopping 
 for a decision (direction, design, a new dependency, an ambiguous high-blast fork, anything
 irreversible/binding) or `⏳ [blocked]` for a manual owner-only action. Decide the routine,
 cheap-to-undo, **taste-neutral** calls yourself (recommended option, recorded) — but a **visual /
-design / direction / wording choice belongs to the owner even when trivially reversible: park it**
-(`❓ [parked] <the choice + your options + your recommendation>`), don't pick for them. Reversibility
-isn't the test for those; ownership of taste is. If an unparkable decision blocks everything, take
+design / direction / wording choice belongs to the owner even when trivially reversible: park it**,
+don't pick for them. Reversibility isn't the test for those; ownership of taste is. **Park with the
+full payload, not a one-liner:** a parked `❓` owes the *same* recommendation contract you'd have
+asked live — `❓ [parked] <the choice> — options: A) … (cost) B) … (cost) C) … (cost); rec: <pick> +
+one-line why`. It all goes **in the subject** (that's what the resume review reads back, via the
+non-truncating `tq list`), so keep each option terse but real. A `❓` holding a thin guess instead of
+the options makes the resume review a rubber-stamp — the exact failure parking exists to prevent. If an unparkable decision blocks everything, take
 the safest reversible default, record it, leave a `❓` to override — never stall. A human playtest
 needs a person, so don't try it: capture it as a `⏳ [blocked] playtest: <what>` and keep draining.
 The owner reviews the parked `❓`/`⏳` pile whenever they check in — there's no "they're back" moment
