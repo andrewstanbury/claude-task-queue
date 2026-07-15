@@ -35,9 +35,10 @@ if companion_ship_on "$root" && [ -n "$(git -C "$cwd" status --porcelain 2>/dev/
     esac
     cur="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
     case "$cur" in "$def"|main|master|HEAD|"") exit 0 ;; esac                 # NEVER commit to default
-    git add -u 2>/dev/null || true
-    # Don't bake a real credential into a checkpoint. If the staged diff has a high-confidence
-    # key shape, unstage and skip this commit. (Anchored shapes only, ~zero FP.)
+    git add -A 2>/dev/null || true
+    # Don't bake a real credential into a checkpoint (ship-mode's `git add` isn't seen by the
+    # secret gate, which only scans Write/Edit). If the staged diff has a high-confidence key shape,
+    # unstage and skip this commit — the owner deals with it. (R34; anchored shapes only, ~zero FP.)
     if git diff --cached 2>/dev/null | grep -qE "$(companion_secret_re)"; then
       git reset -q 2>/dev/null || true
       exit 0
@@ -67,16 +68,14 @@ case "$DONE" in ''|*[!0-9]*) DONE=0 ;; esac
 cfile="$(companion_state_dir)/autopilot/continue-$(printf '%s' "${sid:-x}" | sed 's:/:-:g')"
 if [ "$OPEN" -eq 0 ]; then rm -f "$cfile" 2>/dev/null; allow; fi   # only ❓/⏳ left → genuinely done
 
-# No-progress cap: reset stall when a task completed OR when any in_progress task's
-# description/notes changed (breadcrumb counts as progress — partial work is not stuck).
-taskhash="$(jq -rs '[.[] | select(.status == "in_progress") | {d:(.description//""),n:(.notes//[])}] | tojson' "${files[@]}" 2>/dev/null | cksum | awk '{print $1}')"
-last=0; stall=0; lasthash=""
-[ -f "$cfile" ] && read -r last stall lasthash < "$cfile" 2>/dev/null
+# No-progress cap: reset the stall counter whenever a task completed since last stop.
+last=0; stall=0
+[ -f "$cfile" ] && read -r last stall < "$cfile" 2>/dev/null
 case "$last" in ''|*[!0-9]*) last=0 ;; esac; case "$stall" in ''|*[!0-9]*) stall=0 ;; esac
-if [ "$DONE" -gt "$last" ] || { [ -n "$taskhash" ] && [ "$taskhash" != "$lasthash" ]; }; then stall=0; else stall=$((stall+1)); fi
+if [ "$DONE" -gt "$last" ]; then stall=0; else stall=$((stall+1)); fi
 max="$(printf '%s' "${CLAUDE_COMPANION_AUTOPILOT_MAX:-8}" | tr -dc '0-9')"; max="${max:-8}"
 if [ "$stall" -ge "$max" ]; then rm -f "$cfile" 2>/dev/null; allow; fi   # stuck → yield
-{ mkdir -p "$(dirname "$cfile")" 2>/dev/null && printf '%s %s %s' "$DONE" "$stall" "$taskhash" > "$cfile"; } 2>/dev/null || true
+{ mkdir -p "$(dirname "$cfile")" 2>/dev/null && printf '%s %s' "$DONE" "$stall" > "$cfile"; } 2>/dev/null || true
 
 jq -cn --arg n "$NEXT" --arg c "$OPEN" --arg id "$NID" --arg dw "$DONEWHEN" '{decision:"block", reason:
   ("✈️ Autopilot: \($c) task(s) still open — next: #\($id) \"\($n)\"\(if $dw != "" then " (done when: \($dw))" else "" end). Keep going (autopilot means do not stop): `tq doing \($id)` is already set — DO NOT stop and DO NOT ask. Do the task, verify your own work (you have a shell), `tq done \($id)` it, and continue. PARK what genuinely needs the owner — `❓ [parked]` for a decision or a visual/design/direction choice, `⏳ [blocked]` for an owner-only action — and decide the routine, low-stakes rest yourself. Keep going until only ❓/⏳ items remain.")}'
