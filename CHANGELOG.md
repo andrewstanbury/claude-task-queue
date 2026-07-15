@@ -2,6 +2,54 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 2.12.1 — 2026-07-14
+
+- **Surface the latest note on cross-session resume** — completes the notes-array feature from
+  2.12.0, which *stored* `.notes[]` but nothing *read* it. `companion_open_tasks` (the
+  resume / post-compaction re-anchor renderer) now shows a `└ note: <latest>` line under each
+  carried-over task, beside the existing `└ done when:` line — so a crash/compaction resumes from
+  the last breadcrumb, not just the subject. Falls back to legacy `.description` for pre-array
+  tasks. Resume-only: the live `tq report` stays Design-D compact, so **R47** is untouched.
+
+## companion 2.12.0 — 2026-07-14
+
+- **Ported the two verified fixes from third-party PR #126** (author co-credited): `tq note` now
+  **appends to `.notes[]`** instead of overwriting `.description`, so a second breadcrumb no longer
+  erases the first; and the autopilot continue-nudge (`stop-autopilot.sh`) now names the next task's
+  **`#id` + done-when**, so the model resumes against acceptance criteria, not a bare subject. The
+  **symlink-safe `SELF` resolution** across all `bin/` scripts (relative `readlink` targets resolved
+  against the symlink's own dir — fixes central-symlink installs) was salvaged from the same PR.
+- **Declined the rest of #126, on review** — its `tq report` rewrite reversed locked **R47**; its
+  statusline count refactor dropped in-progress tasks from the `📋` count (a regression, and not one
+  of the PR's stated bugs); it added a dangling `lib/tidy.sh` reference; and it stripped `R##` comment
+  anchors repo-wide (kept, per **R45/R46**). PR #126 superseded and closed with the rationale.
+
+## companion 2.11.0 — 2026-07-14
+
+- **The recommendation contract** (ledger **R49**, 🔒) — sharpens the brutal-honest posture from
+  advisory prose the model skips into an explicit contract: a request that asks you to
+  choose / redesign / compare / evaluate / "what do you recommend" **owes 2–4 genuinely different
+  options, each naming its cost, the recommended one marked first, plus the honest read** (up to
+  "don't do this"). It fires **identically off or on autopilot** — off, ask it live
+  (`AskUserQuestion`); on, park the *same* payload in the `❓` subject so the resume review is a real
+  choice, not a rubber-stamp. STEERING + the `ask-guard` deny message; refines **R36/R38/R39**;
+  generic per **R9** (judgment by reading the request, never a keyword hook).
+
+## companion 2.10.0 — 2026-07-14
+
+- **`tq report` → Design-D compact** (ledger **R47**, 🔒) — the report is now a glyph-count header
+  (`📋 ▸n ◻n ❓n ⏳n ✔n`), **one line per active task**, completed shown as a **count only**, and a
+  trailing `→ next: #id` pointer. `done_when` is no longer rendered in the live report (it reprints
+  on every `add`/`doing`/`done`, so its height is a constant tax) — it's still **stored** and
+  re-surfaced on cross-session resume, so crash-resume is unaffected. STEERING notes the `→ next`
+  pointer is a *mechanical* default: override it aloud when blast-radius/dependency says otherwise.
+- **Testing policy: keep the enforcement spine, don't grow format tests** (ledger **R48**, 🔒) — an
+  audit found the ~30-case suite is mostly real enforcement (secret gate, hook-fuzz contract,
+  autopilot control-flow, ship-mode-never-touches-default, validators), not theater. Policy: keep
+  `check.sh` green; when an intentional change reddens an assertion, **loosen it to behavioral**
+  rather than pin cosmetics; don't add a format test per feature. Removed 4,500 lines of stale
+  `hud-gates` worktree tests. Reshapes CLAUDE.md's "verify with `./check.sh`" into keep-green-don't-grow.
+
 ## companion 2.9.0 — 2026-07-13
 
 - **`/companion:document` refinement + first dogfood run** (ledger R41 refined; R42–R46 added). The
