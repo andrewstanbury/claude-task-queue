@@ -8,7 +8,11 @@
 # resume half on demand. Read-only, best-effort: any failure injects nothing, never breaks startup.
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || exit 0
-SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; done
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  link="$(readlink "$SELF")"
+  case "$link" in /*) SELF="$link" ;; *) SELF="$(dirname "$SELF")/$link" ;; esac
+done
 PLUGIN_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 # shellcheck source=../lib/companion.sh
 . "$PLUGIN_DIR/lib/companion.sh"

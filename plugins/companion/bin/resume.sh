@@ -10,7 +10,11 @@
 # reviewed. Clearing the flag here also arms the R38 parked-pile review that resume.md runs.
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || { echo "resume: jq required" >&2; exit 1; }
-SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; done
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  link="$(readlink "$SELF")"
+  case "$link" in /*) SELF="$link" ;; *) SELF="$(dirname "$SELF")/$link" ;; esac
+done
 # shellcheck source=../lib/companion.sh
 . "$(cd "$(dirname "$SELF")/../lib" && pwd)/companion.sh"
 

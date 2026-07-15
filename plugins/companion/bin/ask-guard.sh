@@ -5,7 +5,11 @@
 # ask" mechanical, not advisory. Silent (allow) when autopilot is off. Best-effort: degrades to allow.
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || exit 0
-SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; done
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  link="$(readlink "$SELF")"
+  case "$link" in /*) SELF="$link" ;; *) SELF="$(dirname "$SELF")/$link" ;; esac
+done
 # shellcheck source=../lib/companion.sh
 . "$(cd "$(dirname "$SELF")/../lib" && pwd)/companion.sh"
 

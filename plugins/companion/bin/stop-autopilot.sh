@@ -8,7 +8,11 @@ set -uo pipefail
 allow() { exit 0; }
 command -v jq >/dev/null 2>&1 || allow
 [ "${CLAUDE_COMPANION_AUTOPILOT_CONTINUE:-1}" = "0" ] && allow
-SELF="${BASH_SOURCE[0]}"; while [ -L "$SELF" ]; do SELF="$(readlink "$SELF")"; done
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  link="$(readlink "$SELF")"
+  case "$link" in /*) SELF="$link" ;; *) SELF="$(dirname "$SELF")/$link" ;; esac
+done
 # shellcheck source=../lib/companion.sh
 . "$(cd "$(dirname "$SELF")/../lib" && pwd)/companion.sh"
 
