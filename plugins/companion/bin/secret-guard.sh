@@ -15,6 +15,16 @@ content="$(printf '%s' "$in" | jq -r '.tool_input.content // .tool_input.new_str
 path="$(printf '%s' "$in" | jq -r '.tool_input.file_path // "the file"' 2>/dev/null || true)"
 [ -n "$content" ] || exit 0
 
+# Per-repo `secret` toggle (R50) — inline read, NO lib source: this gate stays self-contained so a
+# broken dependency can never make it fail open. Fail-safe: only an explicit `secret=off` in THIS
+# repo's feature file disables it; any read error leaves the gate active. Keep path/encoding in sync
+# with lib companion_feature_file. (Global CLAUDE_COMPANION_SECSCAN=0 above still wins for CI.)
+fp="$(printf '%s' "$in" | jq -r '.tool_input.file_path // empty' 2>/dev/null || true)"
+if [ -n "$fp" ]; then
+  gr="$(git -C "$(dirname "$fp")" rev-parse --show-toplevel 2>/dev/null || true)"
+  [ -n "$gr" ] && grep -qs '^secret=off$' "${CLAUDE_COMPANION_STATE_DIR:-$HOME/.claude/companion}/features/$(printf '%s' "$gr" | sed -e 's:%:%25:g' -e 's:/:%2F:g')" && exit 0
+fi
+
 # Prefix-anchored credential shapes (AWS / GitHub / Slack / Stripe / Google / private key),
 # plus a placeholder-filtered generic "SECRET = '…'". High precision so false blocks are ~0.
 anchored='AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,}|xox[baprs]-[0-9A-Za-z-]{10,}|sk_live_[0-9A-Za-z]{16,}|AIza[0-9A-Za-z_-]{35}|-----BEGIN [A-Z ]*PRIVATE KEY-----'

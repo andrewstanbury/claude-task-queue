@@ -6,7 +6,7 @@
 
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"; TOUCH="$ROOT/bin/touch.sh"
+  GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"
   AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
   export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"
   export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"
@@ -60,6 +60,16 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
 @test "status line: 🛡✗ when the secret gate is disabled" {
   run bash -c 'printf "{}" | CLAUDE_COMPANION_SECSCAN=0 NO_COLOR=1 "$1"' _ "$SL"
   [[ "$output" == *"🛡"*"✗"* ]]
+}
+
+@test "status line: 🛡✗ when the secret gate is off per-repo via features (R50)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"s",cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [[ "$output" != *"✗"* ]]                       # on → plain shield
+  ( cd "$repo" && "$ROOT/bin/features.sh" secret off ) >/dev/null
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [[ "$output" == *"🛡"*"✗"* ]]                    # off for this repo → ✗
 }
 
 @test "status line: 📦 ship-mode icon shows only when ship-mode is armed (R34)" {

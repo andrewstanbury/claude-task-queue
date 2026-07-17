@@ -1,8 +1,8 @@
 {
   "name": "companion",
-  "version": "2.12.1",
+  "version": "3.0.0",
   "author": {
     "name": "Andrew Stanbury"
   },
-  "description": "A disciplined AI pair-programming companion: one steering document (STEERING.md — how Claude queues work, decides with brutal-honest recommendations against a requirements ledger, and keeps the code clean) delivered once per session, plus a small enforced core — a PreToolUse secret-scan that blocks committed credentials, a clean-as-you-touch formatter pass on the file you just edited, persisted + enforced autopilot, cross-session task resume, its own task-queue CLI (`tq`; the companion owns the queue and deliberately does not use Claude Code's native tasks), and an animated status line. The dividing line is nature, not preference: only behavior that must execute (format) or block (secret gate) is code — everything else (wireframe-first, outcome-checks, clean-as-you-go, present-parked-first) is steering the model reads once per session. Replaces the earlier four-plugin system: ~15 hooks of advisory prose collapsed into one readable file."
+  "description": "A disciplined AI pair-programming companion: one steering document (STEERING.md — how Claude queues work, decides with brutal-honest recommendations against a requirements ledger, and keeps the code clean) delivered once per session, plus a small enforced core — a PreToolUse secret-scan that blocks committed credentials, persisted + enforced autopilot, cross-session task resume, its own task-queue CLI (`tq`; the companion owns the queue and deliberately does not use Claude Code's native tasks), and an animated status line. It runs one loop — propose → queue → drain. The dividing line is nature, not preference: only behavior that must block (secret gate), inject (session-start), or guarantee control-flow (autopilot) is code — everything else (wireframe-first, outcome-checks, clean-as-you-go, the context nudges) is steering the model reads once per session. Replaces the earlier four-plugin system: ~15 hooks of advisory prose collapsed into one readable file."
 }

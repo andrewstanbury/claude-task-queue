@@ -27,8 +27,18 @@ root="$(companion_root "$cwd")"
 # task's done-when) + LESSONS — the real cross-compaction memory — but NOT the whole ~2.4k-token
 # STEERING (R32): the agreement from session start still applies and the summarizer largely
 # preserves it, so re-pasting static prose every compaction was the biggest repeatable token waste.
+# Per-repo `steering` toggle (R50): when off, this repo opts out of the working-agreement
+# injection (the one SessionStart output with real token cost) — resume + LESSONS still fire, since
+# those are cheap and repo-specific. `/companion:features steering off` sets it.
+steering_off=0; companion_feature_off steering "$root" && steering_off=1
 if [ "$src" = "compact" ]; then
-  msg="Your context was just compacted. Re-anchor from your LIVE task queue (each task's done-when is its acceptance test) and this repo's lessons below — resume from the queue, not from memory. The working agreement injected at session start still applies (not re-pasted here, to save tokens)."$'\n\n'
+  if [ "$steering_off" = 1 ]; then
+    msg="Your context was just compacted. Re-anchor from your LIVE task queue (each task's done-when is its acceptance test) and this repo's lessons below — resume from the queue, not from memory."$'\n\n'
+  else
+    msg="Your context was just compacted. Re-anchor from your LIVE task queue (each task's done-when is its acceptance test) and this repo's lessons below — resume from the queue, not from memory. The working agreement injected at session start still applies (not re-pasted here, to save tokens) — including its core move, which the summarizer must not drop: a decision-shaped request (choose / redesign / compare / evaluate / \"what do you recommend\") is owed recommendation-first options — 2–4 genuinely different, each with its cost, your pick first and marked, plus the brutal-honest read — never a flat one-opinion answer (R49)."$'\n\n'
+  fi
+elif [ "$steering_off" = 1 ]; then
+  msg=""
 else
   msg="Read the working agreement below — it governs how you queue, decide, and keep this repo clean for the whole session."$'\n\n'
   [ -f "$PLUGIN_DIR/STEERING.md" ] && msg="$msg$(cat "$PLUGIN_DIR/STEERING.md")"

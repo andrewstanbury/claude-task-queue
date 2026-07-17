@@ -2,6 +2,41 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 3.0.0 — 2026-07-17
+
+- **Retired `touch.sh`, the format-on-edit hook (major — a user-facing surface removed).** The
+  enforced core now has **no *execute* hook** — only *block* (secret gate), *inject* (session-start),
+  and *control-flow* (autopilot). Formatting is a steering nudge now, not an enforced pass; the
+  `format` feature toggle and `CLAUDE_COMPANION_TOUCH` env var are gone. **Retires R25**; **R51**
+  records the move. Whole-project formatting is still available via `/companion:advise`.
+- **Nudge + queue as the product's shape (R52, direction A).** The companion is framed as one loop —
+  **propose → queue → drain**: context surfaces a recommendation-first nudge → the owner picks → it
+  enters `tq` → it drains. STEERING gains pick-from-CLI options as the **default shape of every
+  owner-input moment** (with own-answer / just-chat escapes), an **always-on brutal-honest verdict**,
+  a **context-nudge catalogue** (debt → tq task · big blast → split · repetitive drain → autopilot ·
+  done → ship-it), and **TDD-as-discipline** (no test-writing mandate; the `--done` acceptance
+  drives). Delivered as steering, not new hooks — the only proactive plugin surfaces are SessionStart
+  injection + statusline + `AskUserQuestion` (autocomplete-prompt injection is not possible; verified
+  with claude-code-guide).
+- **One-plugin packaging freed (R52 amends R24).** R24's anti-sprawl *principle* stays locked; the
+  single-plugin *packaging* is now a current-state fact, so a future `tq`-standalone extraction is
+  un-blocked.
+- **Per-repo feature surface — `/companion:features` (R50).** One place to view and flip every
+  enforced-core capability per repo — **secret** (the gate) · **steering** (the SessionStart
+  injection) · **autopilot** · **ship** — resolution order **env var → per-repo flag → default**,
+  with a loud warning when the irreversible secret gate is disabled. (Landed here from prior
+  uncommitted work; the `format` toggle it once carried was removed with `touch.sh`, above.)
+- **Ledger overhaul — a 4-agent adversarial audit of all 52 entries, then a sweep.** Synced stale
+  bodies to the shipped system (R28/R24 no longer name the deleted formatter or call `tq` a
+  "fallback"; R7 no longer contradicts the secret gate; dead 4-plugin vocab reworded in R15/R19/R21;
+  R18 retired). Demoted two shipped-changelog build-trackers (R30/R32) from 🔒. Moved gotchas/impl out
+  of the ledger (R44 → a bats check; R45 → code comment; R46 → `LESSONS.md`; R42 → R39). Deduped the
+  recommendation contract to a canonical **R5** (R17/R49/R51/R52 now cite it; STEERING states it
+  once). Extracted the ledger-honesty rules to **R53**. Downgraded locked aphorisms/specs to 🔓
+  (R6/R11/R12/R16/R37/R40/R41/R47); R50's secret-gate fail-safe invariant deliberately kept 🔒.
+- **Tests:** removed `touch.sh`'s cases, added an R44 atomic-write guard; the enforcement spine is
+  intact (**35 cases green**). `check.sh` unchanged.
+
 ## companion 2.12.1 — 2026-07-14
 
 - **Surface the latest note on cross-session resume** — completes the notes-array feature from

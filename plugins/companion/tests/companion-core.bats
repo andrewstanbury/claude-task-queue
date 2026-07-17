@@ -2,12 +2,12 @@
 #
 # Enforced core — the base behavior that must execute or block: the secret gate, `tq` (THE
 # queue; the companion owns its store and does NOT use native tasks), SessionStart (steering +
-# root-scoped resume), clean-as-you-touch, and persisted+enforced autopilot. (R27 edit-gates
+# root-scoped resume), and persisted+enforced autopilot. (R27 edit-gates
 # live in companion-gates.bats; the status line in companion-hud.bats.)
 
 setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"; TOUCH="$ROOT/bin/touch.sh"
+  GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"
   AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
   export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"   # the companion's OWN store, not ~/.claude/tasks
   export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"   # autopilot flags live here
@@ -46,6 +46,51 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [ "$status" -eq 0 ]
 }
 
+# ---- per-repo feature toggles (R50): one unified surface, scoped per repo ----
+
+@test "features: default list shows every capability, on by default (autopilot/ship off)" {
+  run "$ROOT/bin/features.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"secret     on"* ]]
+  [[ "$output" == *"steering   on"* ]]
+  [[ "$output" == *"autopilot  off"* ]]
+}
+
+@test "features secret off: the gate ALLOWS in that repo but still BLOCKS elsewhere (per-repo, isolated)" {
+  local k="AKIA""ABCDEFGHIJKLMNOP"
+  local repo other; repo="$(mktemp -d)"; other="$(mktemp -d)"
+  git -C "$repo" init -q; git -C "$other" init -q
+  ( cd "$repo" && "$ROOT/bin/features.sh" secret off >/dev/null )
+  # off in $repo → allowed
+  run bash -c 'jq -nc --arg p "$1" --arg c "$2" "{tool_input:{file_path:\$p,content:\$c}}" | "$3"' _ "$repo/c.py" "API_KEY = \"$k\"" "$GUARD"
+  [ "$status" -eq 0 ]
+  # still on in $other → blocked (no cross-repo bleed)
+  run bash -c 'jq -nc --arg p "$1" --arg c "$2" "{tool_input:{file_path:\$p,content:\$c}}" | "$3"' _ "$other/c.py" "API_KEY = \"$k\"" "$GUARD"
+  [ "$status" -eq 2 ]
+  rm -rf "$repo" "$other"
+}
+
+@test "features secret off: warns that the gate is irreversible-harm" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  run bash -c 'cd "$1" && "$2" secret off' _ "$repo" "$ROOT/bin/features.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SECRET GATE"* ]]
+  rm -rf "$repo"
+}
+
+@test "features steering off: SessionStart drops the working agreement (resume/lessons unaffected)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$ROOT/bin/features.sh" steering off >/dev/null )
+  run bash -c 'jq -nc --arg c "$1" "{source:\"startup\",cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.additionalContext"' _ "$repo" "$SS"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"working agreement"* ]]
+  # turn back on → agreement returns
+  ( cd "$repo" && "$ROOT/bin/features.sh" steering on >/dev/null )
+  run bash -c 'jq -nc --arg c "$1" "{source:\"startup\",cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.additionalContext"' _ "$repo" "$SS"
+  [[ "$output" == *"working agreement"* ]]
+  rm -rf "$repo"
+}
+
 # ---- tq (THE queue, companion-owned store) ----
 
 @test "tq: add/doing/done write the companion store + stamp the repo root; report groups by state" {
@@ -74,6 +119,12 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"keep me"* ]]           # the sibling remains
   # cancelled excluded from open — asserted at the store, not the header string (format-agnostic)
   [ "$(jq -s '[.[]|select(.status=="pending")]|length' "$CLAUDE_COMPANION_TASKS_DIR/s1"/*.json)" -eq 1 ]
+}
+
+@test "tq: writes go temp-file + mv, never in-place jq (R44 crash-safety)" {
+  # Guards the atomic write idiom against a 'simplify to jq > $f' refactor that breaks crash-resume.
+  [ "$(grep -Fc 'mv "$t" "$f"' "$ROOT/bin/tq")" -ge 2 ]         # set_task/append_note/done-when rename
+  grep -Fq 'mv "$DIR/.$id.tmp" "$DIR/$id.json"' "$ROOT/bin/tq"  # add() renames too
 }
 
 @test "tq: no session id errors cleanly" {
@@ -153,22 +204,6 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
   [ "$status" -eq 0 ]
   [[ "$output" != *"autopilot was ON"* ]]
-}
-
-# ---- clean-as-you-touch (PostToolUse: format-only; blast radius + size are steering now, R28) ----
-
-@test "touch: format-only — no advisory output (blast/size moved to steering), never breaks the edit, disable-able" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
-  printf 'def helper(): pass\n' > "$repo/helper.py"
-  printf 'from helper import helper\nhelper()\n' > "$repo/main.py"   # a dependent (once surfaced, now not)
-  git -C "$repo" add -A; git -C "$repo" -c user.email=t@t -c user.name=t commit -q -m init
-  local i; for i in $(seq 1 305); do echo "# $i" >> "$repo/helper.py"; done   # over the old size budget
-  run bash -c 'jq -nc --arg p "$1" "{tool_input:{file_path:\$p}}" | "$2"' _ "$repo/helper.py" "$TOUCH"
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]                              # format-only → emits nothing, even with a dependent + over budget
-  # disabled → still silent, still exit 0
-  run bash -c 'jq -nc --arg p "$1" "{tool_input:{file_path:\$p}}" 2>/dev/null | CLAUDE_COMPANION_TOUCH=0 "$2"' _ "$repo/helper.py" "$TOUCH"
-  [ -z "$output" ]                              # 2>/dev/null: hook exits pre-stdin → silence jq's broken-pipe
 }
 
 # ---- autopilot (persisted + enforced: ask-guard deny · Stop auto-continue) ----

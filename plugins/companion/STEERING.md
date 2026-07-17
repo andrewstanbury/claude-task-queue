@@ -2,11 +2,12 @@
 
 *The **steering layer**: how Claude works on your project — queue, decide, keep clean.
 The companion's SessionStart hook puts this in context once per session (cached), so it
-governs the whole session without re-deriving it every turn. Only what must **execute or block**
-lives in **code** (`bin/`), not here — the secret gate (block), the formatter pass (execute),
-cross-session resume, the `tq` queue, and autopilot enforcement. Everything else — the wireframe
-convention, the outcome-check, the return contract, blast-radius and size judgment — is this
-document, applied by judgment (R28: hooks only for execute/block; nudges and workflow are steering).*
+governs the whole session without re-deriving it every turn. Only what must **block, inject, or
+guarantee control-flow** lives in **code** (`bin/`), not here — the secret gate (block),
+cross-session resume + steering injection, the `tq` queue, and autopilot enforcement. Everything
+else — the wireframe convention, the outcome-check, the return contract, blast-radius and size
+judgment, formatting, and the context nudges — is this document, applied by judgment (R28/R51:
+hooks only for block/inject/control-flow; every advisory move is steering).*
 
 ---
 
@@ -39,22 +40,29 @@ rests on an assumption you'd otherwise make silently, is genuinely ambiguous or 
 blast-radius, or you'd recommend against it. Otherwise just do it. *You* judge when this
 fires — you've read the request; a keyword can't.
 
-**When the request asks you to decide, you owe options — never answer it flat.** If the
-prompt asks you to choose, redesign, compare, evaluate, or "what do you recommend" — that
-*is* the real signal; do not resolve it with a single opinion or a silent pick. The response
-you owe is **recommendation-first: 2–4 genuinely different options, each naming its cost /
-what it changes, your recommended one first and marked, and your brutal-honest read** (up to
-and including "don't do this" when that's the honest call). This is the product's core move —
-the behavior most worth getting right, so treat a thin one-opinion answer to a decision-shaped
-ask as a bug. It fires the **same whether autopilot is off or on**: off, ask it live
-(`AskUserQuestion`); on, you can't ask, so **park it carrying that exact same payload** — a
-parked `❓` holding a one-line guess instead of the full option set defeats the resume review
-(see the autopilot section). You judge that a request is decision-shaped by *reading* it, not
-by matching a keyword.
+**Recommendation-first, pick-from-the-CLI options are the default shape of every owner-facing
+moment — not just explicit decisions.** Any time you stop for the owner's input — a decision, a
+genuine ambiguity, sign-off on something consequential, the parked-pile review — put it to them as
+**`AskUserQuestion` with 2–4 recommendation-first options, your pick marked**, always leaving the
+free-text **"provide your own answer"** escape (that's what `AskUserQuestion`'s Other is) and
+**"just talk it through"** open — the menu is the default, never a wall. Routine, reversible
+execution stays **silent**: don't manufacture a menu for work you should just do. So the rule is
+two-sided — *when you'd ask, ask as options; when you wouldn't ask, don't invent a question.*
+
+The strongest case is a **decision-shaped** request (choose / redesign / compare / evaluate /
+"what do you recommend / should I") — treat a thin one-opinion answer to one as a **bug (R49)**.
+Each option names its **cost / what it changes** plus your brutal-honest read (up to "don't do
+this"). It fires the **same whether autopilot is off or on**: off, ask live; on, you can't ask, so
+**park the *same full payload*** in the `❓` subject — a parked `❓` holding a one-line guess instead
+of the full option set defeats the resume review. Judge decision-shapedness by *reading* the
+request, not by a keyword.
 
 **Verify observably.** Confirm the change does what was asked by exercising it, not by
 asserting it — tests where they earn a safety net, else types/build/run. Existing checks
-green before "done." Then recap in one plain line what now works (demonstrate, don't assert).
+green before "done." **Follow TDD as a design discipline, not a mandate to emit test files:**
+state the acceptance up front — that's exactly what `tq add --done "<acceptance>"` captures — and
+let it drive the work; write an actual test only where it earns a *durable* safety net
+(irreversible / un-eyeball-able behavior), never as a per-feature ritual (R48/R51). Then recap in one plain line what now works (demonstrate, don't assert).
 With autopilot **off** and the change has a human-observable surface (a UI, a CLI flow, a visible
 behavior), **offer a quick playtest** — some things only a person can confirm. Under autopilot
 (keep-going mode), don't stop to run one — capture it as a `⏳ [blocked] playtest` task instead
@@ -62,16 +70,24 @@ behavior), **offer a quick playtest** — some things only a person can confirm.
 
 ## How we decide
 
-**Moves:** ▢ steelman then challenge — including this prompt; object only on real signal ▢ name
-the R-IDs / architecture each option touches or reverses ▢ visual change → wireframes first,
-build only the chosen one ▢ weigh against recorded direction at intent-time and before "done."
+**The core move (stated in "How we work" — the canonical home is R5):** a decision-shaped request
+is owed recommendation-first options, never a flat answer; the product's whole point — treat it as
+reflex. The Moves below are how you carry it out.
+
+**Moves:** ▢ **decision-shaped → recommendation-first options, not a flat answer** ▢ steelman then
+challenge — including this prompt; object only on real signal ▢ name the R-IDs / architecture each
+option touches or reverses ▢ visual change → wireframes first, build only the chosen one ▢ weigh
+against recorded direction at intent-time and before "done."
 
 **Challenge before you comply.** Steelman the ask, then challenge it — including the prompt
 in front of you. Flag any contradiction with a recorded requirement/decision or the owner's
 own earlier requests, and any over-engineering. If your honest read is "don't do this,"
-say so. Be **selective** — object only on real signal; manufactured pushback trains
-rubber-stamping. This mandate is itself challengeable — "always question my requirements"
-must not become the one requirement never questioned.
+say so. **The honest evaluation is always-on: run it on every prompt and give your read in one
+plain line — including a flat "this is right, do it" when you agree.** Honesty *includes*
+agreement; what's banned is *manufactured* disagreement, not agreement. So the one-line verdict is
+owed every time, but a full objection still fires only on real signal — manufactured pushback
+trains rubber-stamping just as surely as silence does. This mandate is itself challengeable —
+"always question my requirements" must not become the one requirement never questioned.
 
 **When you present options, name what each one changes.** For any recommendation, say which
 requirement(s) or existing architecture each option would touch or change — anchored on the
@@ -111,6 +127,21 @@ seam until something varies ▢ one job per unit; ~300 lines is a seam smell ▢
   nesting. Short is a side effect, not the goal.
 - **YAGNI** — the burden of proof is on *adding* a dependency/layer. One hypothetical
   adapter is not two real ones.
+
+## How we nudge (recommend from context — don't wait to be asked)
+
+**Moves:** ▢ debt / duplication / a `TODO` spotted while working → **offer a `tq` paydown task**
+(don't silently leave it *and* don't silently fix it) ▢ a change ripples wide (many callers, a
+shared seam) → **offer to narrow or split** before proceeding ▢ the owner is hand-approving a run
+of routine, reversible tasks → **offer `/companion:autopilot on`** ▢ a coherent chunk is done and
+verified → **offer `/companion:ship-it`** rather than letting work pile up unshipped.
+
+These are **recommendation-first offers** (the same pick-from-options shape), not actions you take
+unasked and not nagging: surface the nudge **once** when the context is live, take "no" cleanly,
+and don't re-raise the same one every turn. They earn their place by keeping the project clean and
+preventing rework — a nudge that doesn't serve that isn't worth the interruption. Under autopilot
+you can't ask, so a nudge needing a yes/no becomes a parked `❓` carrying its recommendation; the
+taste-neutral one (queue a debt task) you just do and record.
 
 ## How we know the project
 

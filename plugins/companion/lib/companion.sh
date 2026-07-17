@@ -25,6 +25,28 @@ companion_autopilot_clear() { rm -f "$(companion_autopilot_flag "${1:-}")" 2>/de
 companion_ship_flag() { printf '%s/ship/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_ship_on()   { [ -n "${1:-}" ] && [ -f "$(companion_ship_flag "$1")" ]; }
 
+# Per-repo feature toggles (R50) — a single per-repo file storing only OFF overrides, one
+# `<feature>=off` line each. Absence of a line ⇒ the feature's default (secret/steering
+# default ON). This is the unified surface `/companion:features` writes and every enforced-core
+# hook reads; env var (CLAUDE_COMPANION_SECSCAN) stays as a *global* override that wins,
+# so a per-repo flag never fights CI. autopilot/ship keep their own flag files (their commands own
+# that state) — `features` just reflects+delegates them, no duplicate source of truth.
+# NOTE: the self-contained hook (secret-guard.sh) MUST NOT source this lib — it
+# reads the file with an inline grep instead; keep that path/encoding in sync with companion_enc.
+companion_feature_file()  { printf '%s/features/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
+# 0 (true) only when the feature is *explicitly* turned off for this repo — fail-safe: any read
+# error leaves the feature at its default (on), never silently disables an enforced gate.
+companion_feature_off()   { [ -n "${2:-}" ] && grep -qs "^${1:-}=off\$" "$(companion_feature_file "$2")"; }
+companion_feature_state() { companion_feature_off "${1:-}" "${2:-}" && printf off || printf on; }
+# Set a feature on|off for a repo. `off` records the override line; `on` removes it (back to default).
+companion_feature_set() {
+  local feat="${1:-}" root="${2:-}" val="${3:-}" f; f="$(companion_feature_file "$root")"
+  [ -n "$feat" ] && [ -n "$root" ] || return 1
+  mkdir -p "$(dirname "$f")" 2>/dev/null || true
+  local rest=""; [ -f "$f" ] && rest="$(grep -v "^${feat}=" "$f" 2>/dev/null || true)"
+  { [ -n "$rest" ] && printf '%s\n' "$rest"; [ "$val" = "off" ] && printf '%s=off\n' "$feat"; } >"$f" 2>/dev/null || true
+}
+
 # The high-confidence, vendor-anchored credential shapes (~zero false positive). Ship-mode greps
 # a staged diff against this before committing, so it never bakes a real key into a checkpoint.
 # NOTE: `bin/secret-guard.sh` keeps its OWN inline copy on purpose (the enforced gate stays

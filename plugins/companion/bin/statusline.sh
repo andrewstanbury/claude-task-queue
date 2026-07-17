@@ -57,15 +57,18 @@ case "$NPARK"  in ''|*[!0-9]*) NPARK=0;;  esac
 case "$NBLOCK" in ''|*[!0-9]*) NBLOCK=0;; esac
 case "$NDOING" in ''|*[!0-9]*) NDOING=0;; esac
 
-# 🛡 secret gate (the one enforced guarantee) — green shield on, red ✗ when disabled.
+# repo root (git toplevel, else CWD) — one rev-parse, reused for project name + autopilot/gate flags.
+ROOT="$(companion_root "$CWD")"; PROJ="${ROOT##*/}"
+
+# 🛡 secret gate (the one enforced guarantee) — green shield on, red ✗ when disabled. ✗ fires by the
+# same global-then-per-repo order the hook resolves (R50): the env var kills it everywhere; a per-repo
+# `features secret off` kills it here.
 # Brace every var: on macOS's bash 3.2 an unbraced `$B` directly before the 🛡 glyph swallows the
 # emoji's leading byte into the variable name, which `set -u` then rejects (a real macOS-CI crash).
 # 🛡️ carries the emoji variation selector (U+FE0F) so it renders full emoji-width like ✈️/📦 —
 # without it many terminals draw a narrow/monochrome shield, making the icon spacing look uneven.
-if [ "${CLAUDE_COMPANION_SECSCAN:-1}" = "0" ]; then SHIELD="${R}${B}🛡️✗${X}"; else SHIELD="${G}${B}🛡️${X}"; fi
-
-# repo root (git toplevel, else CWD) — one rev-parse, reused for project name + autopilot/gate flags.
-ROOT="$(companion_root "$CWD")"; PROJ="${ROOT##*/}"
+if [ "${CLAUDE_COMPANION_SECSCAN:-1}" = "0" ] || companion_feature_off secret "$ROOT"; then
+  SHIELD="${R}${B}🛡️✗${X}"; else SHIELD="${G}${B}🛡️${X}"; fi
 
 # git: branch + dirty count + ahead/behind in one read (branch.ab = "+A -B", upstream only).
 BRANCH=""; DIRTY=0; AB=""
