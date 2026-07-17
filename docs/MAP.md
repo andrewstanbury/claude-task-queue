@@ -2,7 +2,9 @@
 
 A compact `file → responsibility` index. Read [AGENTS.md](../AGENTS.md) for conventions and
 [docs/ROADMAP.md](./ROADMAP.md) for direction. The 2026-07-11 rebuild (R24) collapsed the old
-four plugins into one; this reflects the current tree.
+four plugins into one; this reflects the current tree. The plugin runs one loop —
+**propose → queue → drain** (R52): `session-start` seeds it · `tq` holds it · autopilot drains it ·
+the secret gate guards every write (see ROADMAP "The loop").
 
 ## Repo root
 
@@ -23,7 +25,6 @@ four plugins into one; this reflects the current tree.
 | `STEERING.md` | **The steering layer** — the working agreement (queue discipline · challenge-the-ask + recommendation posture against the ledger · clean-as-you-go · autopilot). Prose the model reads once per session; not code, not a hook. |
 | `bin/session-start.sh` | SessionStart hook: inject STEERING once + re-surface this repo's open tasks from an earlier session (scoped by each session store's `.root` stamp — no native transcript, no cross-repo bleed) + surface the repo's `docs/LESSONS.md` gotchas if present (R30·d7). Fires on `source=compact` too → **re-anchors after a context compaction** (R30·d2), with a compaction-aware lead. |
 | `bin/secret-guard.sh` | PreToolUse[Write\|Edit] hook: the one **enforced** content-gate — block a write that would commit a credential (`exit 2`). `CLAUDE_COMPANION_SECSCAN=0` disables. |
-| `bin/touch.sh` | PostToolUse[Write\|Edit] hook: **clean-as-you-touch, format-only** — runs the project's own per-ext formatter on the file (which reads the project's config; black-vs-ruff honored from pyproject) — R30·d4, **per-ext only since R32·2 dropped the `pre-commit` fast-path** (a per-edit hook must stay bounded). Behavior-preserving, non-blocking, emits nothing. Blast-radius + size are steering (R28). `CLAUDE_COMPANION_TOUCH=0` disables. |
 | `docs/LESSONS.md` | This repo's accumulated **gotchas** (portability/test/CI traps) — model-maintained, injected each session by `session-start.sh` (R30·d7). Gotchas only; decisions live in the ledger, work in the queue. |
 | `commands/advise.md` | `/companion:advise` (R29/R32) — independent brutal-honest critique of a target (default: whole project) via a critic panel. Few findings → recommendation-first `AskUserQuestion`s one at a time; many (a whole-project cleanliness sweep — it absorbed `/companion:audit`, R32) → ranked + queued directly. Closes the loop into `tq` + an offered ledger entry. |
 | `bin/tq` | **THE task queue** — the companion owns its store (`~/.claude/companion/tasks`, NOT native tasks). `add [--done "<acceptance>"]`/`doing`/`note`/`done-when`/`done`/`list`/`report`; a task's `done_when` (R30·d1) is its acceptance test, rendered in the report + resume so it survives a compaction. Report reprints on every state change. |
@@ -37,6 +38,6 @@ four plugins into one; this reflects the current tree.
 | `bin/ask-guard.sh` | PreToolUse[AskUserQuestion] hook: deny asking while autopilot is on (decide-if-reversible or park as ❓). Silent when autopilot is off. |
 | `lib/companion.sh` | Shared helpers (flag encoding/paths, repo root, open-task scan) — sourced by autopilot, the Stop hook, ask-guard, session-start/resume, and the status line, so the encoding can't drift. |
 | `commands/setup.md` · `commands/autopilot.md` | `/companion:setup` (status line) · `/companion:autopilot` (toggle). |
-| `hooks/hooks.json` | Wires SessionStart · PreToolUse[Write\|Edit (secret-guard) + AskUserQuestion (ask-guard)] · PostToolUse[Write\|Edit (touch)] · Stop (stop-autopilot). |
+| `hooks/hooks.json` | Wires SessionStart · PreToolUse[Write\|Edit (secret-guard) + AskUserQuestion (ask-guard)] · Stop (stop-autopilot). |
 | `.claude-plugin/plugin.json` | Manifest + version. |
-| `tests/companion-{core,hud,fuzz}.bats` | Test the **enforced core only** — `core` (secret gate · `tq` · session-start/resume · touch · autopilot), `hud` (status line), `fuzz` (every hook survives empty/garbage/huge/emoji stdin — R30·d8). The steering layer is prose; it isn't unit-testable, and pretending it was is what the old system got wrong. |
+| `tests/companion-{core,hud,fuzz}.bats` | Test the **enforced core only** — `core` (secret gate · `tq` · session-start/resume · autopilot), `hud` (status line), `fuzz` (every hook survives empty/garbage/huge/emoji stdin — R30·d8). The steering layer is prose; it isn't unit-testable, and pretending it was is what the old system got wrong. |

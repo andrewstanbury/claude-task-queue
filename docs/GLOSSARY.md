@@ -18,7 +18,6 @@ Loaded on demand (not injected each session).
 | **R-ID** | A ledger entry (e.g. R28), with status **🔒 locked / 🔓 open / ⚰️ retired**. Recommendations cite the R-IDs they touch (R5). |
 | **blast radius** | What a change ripples into (callers, dependents) — grep the symbol, cover them before changing (criterion 1). |
 | **the secret gate** | The PreToolUse floor that blocks a write committing a credential (`secret-guard.sh`) — the one sanctioned edit-breaker (R19). |
-| **clean-as-you-touch** | The PostToolUse **format-only** pass on the file just edited (`touch.sh`, R25/R28). |
 | **the beacon** | The status-line spinner (`⠋`) that animates *on activity only*, static when idle (R30·d9). |
 | **autopilot / keep-going mode** | The persisted, enforced "keep draining the queue without stopping" flag — *momentum, not owner-absence* (R26/R36). |
 | **park / `❓ [parked]`** | Under autopilot, defer a decision that's the owner's (direction, design, taste, irreversible) instead of stopping or auto-deciding (R33). |

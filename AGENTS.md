@@ -22,8 +22,6 @@ One Claude Code plugin — **`plugins/companion/`** — built on a single princi
   - `secret-guard.sh` — PreToolUse[Write|Edit]: blocks a write that would commit a recognised
     credential (`exit 2`). The one real content-gate. (A fuzzy `name=value` heuristic only
     *warns*, so it can't false-block a legit edit — R32.)
-  - `touch.sh` — PostToolUse[Write|Edit]: formats the edited file with the project's own
-    formatter (genuine execution, **format-only**; R25/R28).
   - `session-start.sh` — SessionStart: injects STEERING + re-surfaces this repo's open tasks
     from an earlier session (repo-scoped resume) + this repo's `LESSONS.md`; re-anchors on
     `source=compact`.
@@ -65,18 +63,18 @@ CLAUDE.md  AGENTS.md  README.md    # this file = maintainer SSOT; README = disco
 docs/REQUIREMENTS.md  docs/ROADMAP.md  docs/MAP.md
 plugins/companion/
   .claude-plugin/plugin.json       # version == the marketplace entry
-  hooks/hooks.json                 # SessionStart · PreToolUse[Write|Edit,AskUserQuestion] · PostToolUse · Stop
+  hooks/hooks.json                 # SessionStart · PreToolUse[Write|Edit,AskUserQuestion] · Stop
   STEERING.md                      # the steering layer (prose)
-  bin/session-start.sh secret-guard.sh touch.sh statusline.sh tq resume.sh
+  bin/session-start.sh secret-guard.sh statusline.sh tq resume.sh
   bin/autopilot.sh ask-guard.sh stop-autopilot.sh   # enforced autopilot (R26)
   lib/companion.sh                 # shared helpers (state/enc/root, autopilot flag, open-tasks)
   commands/{setup,autopilot,ship-it,resume,review,advise}.md  # review = parked-pile walk on autopilot-off (R38); advise absorbed audit (R32)
   tests/companion-{core,hud,fuzz}.bats   # tests the ENFORCED CORE only
 ```
 
-(`touch.sh` is a legit hook, not "prose-only": it *executes* — formats the edited file, format-
-only. That's the line: it does something, so it's code. Its old blast-radius/size *nudges* were
-judgment, so R28 moved them to STEERING.)
+(There is no longer an *execute* hook: **R51 retired `touch.sh`**, the format-on-touch pass.
+Formatting is now a steering nudge, not enforced. The remaining hooks all *block* (secret gate),
+*inject* (session-start), or *guarantee control-flow* (autopilot) — R28's surviving categories.)
 
 ## Conventions
 

@@ -18,6 +18,10 @@ ledger) and not in-flight work (that's the queue) — just "watch out for X here
   (single-quoted). A literal `'` in the message (e.g. `owner's`) terminates the quote → the program
   breaks at runtime AND shellcheck trips (SC1036/SC2026). Reword to avoid apostrophes
   (`the owner's call` → `belongs to the owner`).
+- **Tab-joined `read` needs `IFS=$'\t'`:** any `read` splitting a tab-joined `jq` line whose last
+  field is free text (a task subject) must set `IFS=$'\t'` — the trailing subject can carry spaces
+  and a default-IFS split corrupts it (the confirmed R32·1 status-line bug). Readers: `statusline.sh`,
+  `stop-autopilot.sh`. *(Was ledger R46; moved here 2026-07-17 — it's a gotcha, not a decision.)*
 
 ## Tests (bats)
 - **git identity:** `git commit` in a test needs `-c user.email=t@t -c user.name=t` — CI's bare
@@ -31,5 +35,5 @@ ledger) and not in-flight work (that's the queue) — just "watch out for X here
   gate covers only `bin/`+`lib/`, not tests.
 
 ## CI
-- macOS is a **required** lane (bash 3.2 — the strictest environment). CI installs no formatters,
-  so `touch.sh` is a silent no-op there; test hooks for *silence*, not for formatting.
+- macOS is a **required** lane (bash 3.2 — the strictest environment). Test hooks for *silence*
+  under missing tooling, not for their happy-path effect.

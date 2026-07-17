@@ -1,8 +1,9 @@
 # CLAUDE.md
 
-This repo is the source of **`companion`** — one Claude Code plugin: a *steering document*
-plus a *tiny enforced core*. (It replaced a four-plugin system on 2026-07-11; see **R24** in
-the ledger.)
+This repo is the source of **`companion`** — a Claude Code plugin: a *steering document*
+plus a *tiny enforced core*, organized as one loop: **propose → queue → drain** (R52). (It
+replaced a four-plugin system on 2026-07-11; see **R24**. Single-plugin packaging is the
+current shape, not a hard requirement — R52 freed it while keeping R24's anti-sprawl principle.)
 
 ## The working agreement lives in one file
 
@@ -16,12 +17,9 @@ it governs how you work here too.**
 
 - **Steering** (prose the model reads, ignorable-by-nature) → `STEERING.md`. One file, not
   scattered across hooks.
-- **Enforced core** (must execute or block) → `plugins/companion/bin/`:
+- **Enforced core** (must block, inject, or guarantee control-flow) → `plugins/companion/bin/`:
   - `secret-guard.sh` — PreToolUse: blocks a write that would commit a credential (`exit 2`).
     The one real content-gate; a leaked key is irreversible.
-  - `touch.sh` — PostToolUse: clean-as-you-touch, **format-only** — run the project's own
-    formatter on the edited file (R25/R28; blast-radius + size are steering, not a hook). Whole-
-    project cleanliness sweeps are part of `/companion:advise` (R32).
   - `session-start.sh` — SessionStart: injects STEERING + re-surfaces this repo's open tasks
     from an earlier session (scoped by the store's `.root` stamp; no cross-repo bleed) + surfaces
     the repo's `docs/LESSONS.md` gotchas if present (R30·d7). Fires on `compact` too, so it
@@ -39,10 +37,12 @@ it governs how you work here too.**
     `ask-guard.sh` (PreToolUse) blocks asking. **Ship-mode** (R34, `autopilot ship on\|off`): while
     on, the Stop hook auto-commits each turn's work to an `autopilot/*` branch (never main, no
     push) for review + `/companion:ship-it`. `lib/companion.sh` holds the shared helpers.
-  - **The hook/steering line (R28)** — code only where it must *execute* (format) or *block*
-    (secret gate) or *guarantee control-flow* (autopilot). Judgment (wireframe-first,
-    weigh-against-direction, present-parked-first) and nudges (blast-radius, size, outcome-recap)
-    are **STEERING**, not hooks. (This retired R27's edit-gates + intent reminder.) Whole-project
+  - **The hook/steering line (R28, sharpened by R51)** — code only where it must *block*
+    (secret gate), *inject context* (session-start), or *guarantee control-flow* (autopilot).
+    Everything advisory — judgment (wireframe-first, weigh-against-direction, present-parked-first)
+    *and* nudges (blast-radius, size, outcome-recap, the context-triggered recommendations) — is
+    **STEERING**, not hooks. (R27 retired the edit-gates + intent reminder; **R51 retired the last
+    *execute* hook, `touch.sh` — formatting is now steering-nudged, not enforced**.) Whole-project
     cleanliness sweeps live in `/companion:advise` (which absorbed `/companion:audit`, R32).
   - **Commands** — `/companion:setup` (status line), `/companion:autopilot`,
     `/companion:ship-it` (verify→commit→push→merge; review-optimized output — clean
@@ -54,7 +54,9 @@ it governs how you work here too.**
     critique of a target as recommendation-first options you pick one at a time, then queued),
     `/companion:document` (R41 — the producer side of advise: scan an existing repo for
     load-bearing, undocumented decisions and record them tiered check › 🔒 › 🔓, with
-    strength-of-why + provenance, so advise stops guessing and can't reverse an undocumented choice).
+    strength-of-why + provenance, so advise stops guessing and can't reverse an undocumented choice),
+    `/companion:features` (R50 — one per-repo surface to view/flip the enforced-core capabilities:
+    secret · steering · autopilot · ship; env vars stay a global override).
 
 Keep the split honest: don't add advisory prose as a hook, and don't add a hook for anything
 a document can say.

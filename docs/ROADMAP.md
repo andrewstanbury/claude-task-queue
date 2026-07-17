@@ -39,14 +39,35 @@ steering model doesn't incur, and it drove prose into cryptic anchors. Efficienc
 - **Steering** (`plugins/companion/STEERING.md`) — all the prose: queue discipline, the
   brutal-honest recommendation posture against the ledger, clean-as-you-go, autopilot. Read
   once per session. Advisory by nature; it lives in one file, not scattered across hooks.
-- **Enforced core** (`plugins/companion/bin/`) — the behavior that must execute, block, or
-  render (the dividing rule is **R28**): the secret gate (`secret-guard.sh`), the format-only
-  clean-as-you-touch pass (`touch.sh`; R25), cross-session resume + steering injection + the
-  post-compaction re-anchor (`session-start.sh`), persisted + enforced autopilot (`autopilot.sh`
-  · `ask-guard.sh` · `stop-autopilot.sh`; R26), the `tq` queue (the companion owns its store — it
-  does **not** use native tasks; R8/R10), and the status line (`statusline.sh`).
+- **Enforced core** (`plugins/companion/bin/`) — the behavior that must **block, inject, or
+  guarantee control-flow** (the dividing rule is **R28**, sharpened by **R51** — there is no longer
+  an *execute* member): the secret gate (`secret-guard.sh`), cross-session resume + steering
+  injection + the post-compaction re-anchor (`session-start.sh`), persisted + enforced autopilot
+  (`autopilot.sh` · `ask-guard.sh` · `stop-autopilot.sh`; R26), the `tq` queue (the companion owns
+  its store — it does **not** use native tasks; R8/R10), and the status line (`statusline.sh`).
 
 Bash + `jq`, zero build. The `file → responsibility` index is [docs/MAP.md](./MAP.md).
+
+## The loop — propose → queue → drain (R52)
+
+The product is one loop, and every capability is a stage of it:
+
+1. **Propose** — from repo context, Claude surfaces the highest-value next action as a
+   **recommendation-first nudge** (debt → a paydown task · wide blast radius → split · repetitive
+   manual drain → autopilot · a finished chunk → ship-it). Nudges are the *funnel into the queue* —
+   ephemeral model judgment, **not stored state** — delivered as STEERING. (The only proactive
+   plugin surfaces are SessionStart injection, the status line, and `AskUserQuestion`; a plugin
+   **cannot** inject CLI autocomplete prompts — verified, R51.)
+2. **Queue** — the owner picks (or edits, declines, or just talks it through); the chosen work
+   enters `tq`, the durable, crash-safe spine (**R44/R8**). The queue — not the nudge — is the
+   backbone; nudges are the best *content* flowing into it (**R52**: the two are asymmetric —
+   infrastructure vs behavior).
+3. **Drain** — work the queue by hand, or under **autopilot** (keep-going, R26/R36), landing
+   finished work via **`/companion:ship-it`** (R40).
+
+The enforced core maps cleanly onto the loop: `session-start` seeds it (inject), `tq` holds it,
+autopilot drains it (control-flow), the secret gate guards every write (block). Everything
+advisory — the nudges, the recommendation contract, clean-as-you-go — is **STEERING** (R28).
 
 ## Durable decisions → the ledger
 
