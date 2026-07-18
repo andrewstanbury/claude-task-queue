@@ -2,6 +2,13 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 3.0.1 — 2026-07-17
+
+- **Sharpen the recommendation reflex in STEERING.** Added a lead "Moves" beat so the first thing
+  Claude checks each turn is: *decision-shaped → recommendation-first options (R5), and close every
+  reply with a one-line brutal-honest verdict* — while explicitly **not** menu-ifying trivial asks.
+  Raises the salience of the R5/R49/R51 contract without new machinery or duplication.
+
 ## companion 3.0.0 — 2026-07-17
 
 - **Retired `touch.sh`, the format-on-edit hook (major — a user-facing surface removed).** The

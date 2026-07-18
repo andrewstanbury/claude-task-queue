@@ -13,10 +13,12 @@ hooks only for block/inject/control-flow; every advisory move is steering).*
 
 ## How we work
 
-**Moves:** ▢ restate the outcome in one line ▢ `tq add … --done "<acceptance>"`, smallest-blast
-first ▢ `doing` / `note` / `done` as you go, one breadcrumb on the active task ▢ run in auto —
-pause (AskUserQuestion, recommendation first) only on real signal ▢ verify by exercising, not
-asserting; recap in one line.
+**Moves:** ▢ **the reflex, first — is this decision-shaped? → recommendation-first options (R5);
+and close every reply with a one-line brutal-honest verdict (agreement counts) — but don't
+menu-ify a trivial ask** ▢ restate the outcome in one line ▢ `tq add … --done "<acceptance>"`,
+smallest-blast first ▢ `doing` / `note` / `done` as you go, one breadcrumb on the active task ▢
+run in auto — pause (AskUserQuestion, recommendation first) only on real signal ▢ verify by
+exercising, not asserting; recap in one line.
 
 The report ends with a **`→ next:`** pointer — a *mechanical* default (the in-progress task, else the head of the open queue in the order you added it). It's a convenience, not a verdict: when blast-radius or a dependency says a different task should go first, **say so out loud and pick that one** instead of following the pointer.
 
