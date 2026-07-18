@@ -2,10 +2,10 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
-## Unreleased
+## companion 3.2.0 — 2026-07-17
 
-*Maintainer-facing testing & contract work — no user-visible behavior change — hardening 3.1.0's
-regen/redesign so a future rebuild is trustworthy.*
+*Maintainer-facing testing & contract hardening — **no user-visible behavior change vs 3.1.0** —
+making 3.1.0's regen/redesign trustworthy before a real rebuild.*
 
 - **Behavior-coverage net (R56) — the suite grew from ~38 to 53 checks.** A 3-agent audit found
   "beacon-class" gaps: intended, load-bearing behaviors no test pinned, which a from-scratch regen
