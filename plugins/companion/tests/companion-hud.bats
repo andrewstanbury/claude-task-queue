@@ -114,3 +114,17 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   run bash -c 'printf "%s" "$1" | env -u NO_COLOR TERM=xterm "$2"' _ "$p" "$SL"
   [[ "$output" != *"●"* ]]              # in-progress → animated braille, no static dot
 }
+
+@test "status line: beacon animates under autopilot even with no in-progress task (R55 dogfood gap)" {
+  # Activity = autopilot DRAINING or in-progress — not in-progress alone. The regen dogfood on
+  # statusline.sh silently dropped this because nothing pinned it; this closes that gap.
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  ( cd "$repo" && "$AP" on ) >/dev/null                 # autopilot armed for this repo
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sAP"
+  jq -n '{id:"1",subject:"later",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sAP/1.json"   # pending, NOT in-progress
+  local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sAP",cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | env -u NO_COLOR TERM=xterm "$2"' _ "$p" "$SL"
+  [[ "$output" == *"✈️"* ]]              # autopilot armed → ✈️ shows
+  [[ "$output" != *"●"* ]]              # and the beacon spins (braille frame), NOT the static idle dot
+}
