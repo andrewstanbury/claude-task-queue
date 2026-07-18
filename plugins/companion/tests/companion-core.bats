@@ -78,6 +78,25 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   rm -rf "$repo"
 }
 
+@test "secret gate FAIL-SAFE: a flag file that isn't exactly 'secret=off' still BLOCKS (R50/R54 never-fails-open)" {
+  # Invariant (invisible to the user): only an exact ^secret=off$ line disables; corruption/typo -> gate ACTIVE.
+  local k="AKIA""ABCDEFGHIJKLMNOP"
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$ROOT/bin/features.sh" secret off >/dev/null )   # writes the flag at the enc path
+  local flag; flag="$(find "${CLAUDE_COMPANION_STATE_DIR:?}/features" -type f 2>/dev/null | head -1)"
+  [ -n "$flag" ]
+  printf 'secret=off_typo\ngarbage\n' > "$flag"                     # NOT the exact ^secret=off$ line
+  run bash -c 'jq -nc --arg p "$1" --arg c "$2" "{tool_input:{file_path:\$p,content:\$c}}" | "$3"' _ "$repo/c.py" "API_KEY = \"$k\"" "$GUARD"
+  [ "$status" -eq 2 ]                                               # fail-safe: corrupt flag -> still blocks
+  rm -rf "$repo"
+}
+
+@test "secret gate is self-contained: sources no lib (R50/R54 never-fails-open via a dependency)" {
+  # The one enforced gate must not depend on lib/companion.sh — a broken dependency could make it fail open.
+  run grep -nE '^[[:space:]]*(\.|source)[[:space:]]+.*companion\.sh' "$GUARD"
+  [ "$status" -ne 0 ]
+}
+
 @test "features steering off: SessionStart drops the working agreement (resume/lessons unaffected)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   ( cd "$repo" && "$ROOT/bin/features.sh" steering off >/dev/null )
