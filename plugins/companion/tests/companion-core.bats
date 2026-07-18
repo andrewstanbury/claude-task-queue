@@ -146,6 +146,24 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   grep -Fq 'mv "$DIR/.$id.tmp" "$DIR/$id.json"' "$ROOT/bin/tq"  # add() renames too
 }
 
+@test "command prompts retain their critical gate steps (R56 P3 — structural guard for prose)" {
+  # Prose behavior can't be tested behaviorally (it's Claude's judgment, R28); the ceiling is a
+  # structural guard that a command's non-negotiable gate INSTRUCTION wasn't deleted (like a regen
+  # of a .md might do). Catches deletion, not a subtler regression — the honest best for prose.
+  local C="$ROOT/commands"
+  grep -q "Refuse to regen"                "$C/regen.md"        # R3 checks-first gate
+  grep -q "auto-revert"                    "$C/regen.md"        # R5 rollback-on-red
+  grep -q 'autopilot.sh" off'              "$C/regen.md"        # step-0 autopilot clear
+  grep -q "invariant net covers the app"   "$C/redesign.md"     # D0 coverage gate
+  grep -qE "bounded, check-gated|never.*unbounded" "$C/redesign.md"  # D2/D3 bounded passes
+  grep -q 'autopilot.sh" off'              "$C/redesign.md"     # step-0 autopilot clear
+  grep -q "Verify FIRST"                   "$C/ship-it.md"      # verify before commit
+  grep -q "Never force-push"               "$C/ship-it.md"      # never rewrite published history
+  grep -q "anti-laundering"                "$C/document.md"     # only the owner's pick records a 🔒
+  grep -q "autopilot"                      "$C/review.md"       # review respects/clears autopilot
+  grep -q "autopilot"                      "$C/resume.md"       # resume clears autopilot first (R39)
+}
+
 @test "tq: no session id errors cleanly" {
   run env -u CLAUDE_COMPANION_SESSION_ID -u CLAUDE_CODE_SESSION_ID "$TQ" add x
   [ "$status" -ne 0 ]
@@ -255,6 +273,110 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [ -z "$output" ]
 }
 
+# ---- R56 P2: characterization tests for beacon-class gaps the coverage audit found ----
+# (intended, load-bearing behaviors a green from-scratch regen would silently drop)
+
+@test "autopilot: the Stop block REASON carries the nudge — next #id, done-when, both park tokens (R56 G1)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  local sid=apR; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  jq -n '{id:"7",subject:"real work",status:"pending",done_when:"it works"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/7.json"
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3" | jq -r ".reason // \"\""' _ "$repo" "$sid" "$STOP"
+  [[ "$output" == *"#7"* ]]                    # names the next task id
+  [[ "$output" == *"done when: it works"* ]]   # carries its acceptance criterion
+  [[ "$output" == *"❓ [parked]"* ]]           # the park-a-decision instruction
+  [[ "$output" == *"⏳ [blocked]"* ]]          # the block-an-owner-action instruction
+  [[ "$output" == *"DO NOT stop"* ]]           # the keep-going instruction
+}
+
+@test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  jq -n '{id:"1",subject:"carry me",status:"pending",done_when:"green tests",notes:[{ts:"t1",text:"first crumb"},{ts:"t2",text:"latest crumb"}]}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"carry me"* ]]                 # the task surfaces
+  [[ "$output" == *"done when: green tests"* ]]   # acceptance re-surfaced (the R47 resume side)
+  [[ "$output" == *"note: latest crumb"* ]]       # LATEST note (PR #126), not the first
+  [[ "$output" != *"note: first crumb"* ]]        # only the latest, not the whole trail
+}
+
+@test "tq report: glyph-count header + → next pointer (R56 G3/G4 — R47 spec)" {
+  ( cd "$ROOT" && "$TQ" add "task one" ) >/dev/null
+  ( cd "$ROOT" && "$TQ" add "task two" ) >/dev/null
+  run bash -c 'cd "$1" && "$2" report' _ "$ROOT" "$TQ"
+  [[ "$output" == *"📋"* ]]                 # the glyph-count header line
+  [[ "$output" == *"◻2"* ]]                 # 2 open, counted in the header
+  [[ "$output" == *"→ next: #1"* ]]         # pointer = head of the open queue
+  ( cd "$ROOT" && "$TQ" doing 2 ) >/dev/null
+  run bash -c 'cd "$1" && "$2" report' _ "$ROOT" "$TQ"
+  [[ "$output" == *"▸1"* ]]                 # 1 in-progress, counted
+  [[ "$output" == *"→ next: #2"* ]]         # the in-progress task becomes next
+}
+
+@test "tq note: appends to .notes[] cumulatively, never overwrites (R56 G4 — PR #126)" {
+  ( cd "$ROOT" && "$TQ" add "with notes" ) >/dev/null
+  ( cd "$ROOT" && "$TQ" note 1 "first" ) >/dev/null
+  ( cd "$ROOT" && "$TQ" note 1 "second" ) >/dev/null
+  local f; f="$(ls "$CLAUDE_COMPANION_TASKS_DIR"/*/1.json | head -1)"
+  [ "$(jq '.notes | length' "$f")" -eq 2 ]            # both breadcrumbs kept (not overwritten)
+  [ "$(jq -r '.notes[0].text' "$f")" = "first" ]      # first preserved
+  [ "$(jq -r '.notes[1].text' "$f")" = "second" ]     # second appended after it
+}
+
+@test "features: autopilot/ship delegate to autopilot.sh — no second state copy (R56 — R50)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$ROOT/bin/features.sh" autopilot on ) >/dev/null
+  [ "$(cd "$repo" && "$AP" status)" = "on" ]              # features autopilot on flipped the REAL autopilot flag
+  ( cd "$repo" && "$ROOT/bin/features.sh" ship on ) >/dev/null
+  [ "$(cd "$repo" && "$AP" ship status)" = "on" ]         # features ship on flipped the REAL ship flag
+}
+
+@test "ask-guard: the deny REASON carries park-with-full-options guidance (R56 G5)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.permissionDecisionReason // \"\""' _ "$repo" "$ASK"
+  [[ "$output" == *"PARK"* ]]                # instructs to park, not answer
+  [[ "$output" == *"❓ [parked]"* ]]         # with the park token + full payload
+  [[ "$output" == *"options"* ]]             # carry the options
+  [[ "$output" == *"rec"* ]]                 # + a recommendation
+}
+
+@test "tq: stamps the session .root with the actual git toplevel (R56 G8 — cross-session scope)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$TQ" add "scoped" ) >/dev/null
+  # not just that .root exists (already pinned) — that it holds the CORRECT root, else resume mis-scopes
+  [ "$(cat "$CLAUDE_COMPANION_TASKS_DIR/s1/.root")" = "$(git -C "$repo" rev-parse --show-toplevel)" ]
+}
+
+@test "session start: the compaction re-anchor keeps the recommendation-contract clause (R56 G3 — R49)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  run bash -c 'jq -nc --arg c "$1" "{source:\"compact\",cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.additionalContext // \"\""' _ "$repo" "$SS"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"recommendation-first"* ]]   # the R49 posture must survive a compaction summary (its whole purpose)
+}
+
+@test "features: flipping one toggle preserves the others in the file (R56 G7)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$ROOT/bin/features.sh" secret off >/dev/null )
+  ( cd "$repo" && "$ROOT/bin/features.sh" steering off >/dev/null )   # must NOT clobber the secret=off line
+  local ff; ff="$(find "$CLAUDE_COMPANION_STATE_DIR/features" -type f | head -1)"
+  grep -q '^secret=off$'   "$ff"    # both off-flags coexist — set-one preserves the rest
+  grep -q '^steering=off$' "$ff"
+}
+
+@test "secret gate: blocks non-AWS anchored keys too — GH/Slack/Stripe/Google/PEM (R56 — INVARIANTS claim)" {
+  # INVARIANTS.md claims six-vendor coverage but only AKIA was ever exercised. Construct each shape
+  # at runtime (never a literal key in this file) so gitleaks doesn't flag the test itself.
+  local pad; pad="$(printf 'a%.0s' $(seq 40))"                         # 40 alnum, ≥ each prefix's min run
+  local ghp="ghp""_$pad" xox="xox""b-$pad" sk="sk_""live_$pad"
+  local aiza="AIza$(printf 'a%.0s' $(seq 35))" pem="-----BEGIN ""PRIVATE KEY-----"
+  for k in "$ghp" "$xox" "$sk" "$aiza" "$pem"; do
+    run bash -c 'jq -nc --arg p "/x/c.txt" --arg c "$1" "{tool_input:{file_path:\$p,content:\$c}}" | "$2"' _ "SECRET=\"$k\"" "$GUARD"
+    [ "$status" -eq 2 ]                        # every recognised vendor shape blocks (exit 2), not just AWS
+  done
+}
+
 @test "ship-mode (R34): toggle, and Stop auto-commits work to an autopilot/* branch — NEVER main" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
@@ -310,6 +432,23 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   done
   r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_MAX=3 "$STOP")"
   [ -z "$r" ]                                                      # 3rd no-progress stop → yield
+}
+
+@test "autopilot: the no-progress cap RESETS when a task completes — a productive drain keeps going (R56 G5)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  local sid=apRst; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  jq -n '{id:"1",subject:"a",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  jq -n '{id:"2",subject:"b",status:"pending"}'     > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
+  local i r
+  for i in 1 2; do   # two no-progress stops → stall 2, one below MAX=3
+    r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_MAX=3 "$STOP" | jq -r '.decision // "allow"')"
+    [ "$r" = "block" ]
+  done
+  # a task completes → progress made → the next stop RESETS the counter and still BLOCKS (open work remains)
+  jq -n '{id:"1",subject:"a",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_MAX=3 "$STOP" | jq -r '.decision // "allow"')"
+  [ "$r" = "block" ]   # without the reset this 3rd stop would YIELD; it blocks because a task completed
 }
 
 # ---- decisions surfaced + recorded by /companion:document (R41) ----

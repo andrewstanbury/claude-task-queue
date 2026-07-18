@@ -128,3 +128,30 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"✈️"* ]]              # autopilot armed → ✈️ shows
   [[ "$output" != *"●"* ]]              # and the beacon spins (braille frame), NOT the static idle dot
 }
+
+@test "status line: sections render in R34 plugin-relevance order — beacon → features → queue → git (R56 #24)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sOrd"
+  jq -n '{id:"1",subject:"x",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sOrd/1.json"
+  local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sOrd",cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [ "$status" -eq 0 ]
+  # beacon → 🛡 (features) → 📋 (queue) → ⎇ (git): the R34 order. A reordered bar fails this.
+  printf '%s' "$output" | grep -qE '●.*🛡.*📋.*⎇'
+}
+
+@test "status line: semantic colors — red shield when gate off, yellow beacon under autopilot (R56 #24)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sClr",cwd:$c}')"
+  # gate OFF → the shield carries the RED code (\033[31m is used ONLY by the off-shield)
+  run bash -c 'printf "%s" "$1" | env -u NO_COLOR TERM=xterm CLAUDE_COMPANION_SECSCAN=0 "$2"' _ "$p" "$SL"
+  [[ "$output" == *$'\033[31m'* ]]         # red present → shield-off is red (a semantic signal, not decoration)
+  # gate ON → no red anywhere
+  run bash -c 'printf "%s" "$1" | env -u NO_COLOR TERM=xterm "$2"' _ "$p" "$SL"
+  [[ "$output" != *$'\033[31m'* ]]
+  # autopilot ON → the beacon LEADS yellow (\033[33m at the very start)
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  run bash -c 'printf "%s" "$1" | env -u NO_COLOR TERM=xterm "$2"' _ "$p" "$SL"
+  [[ "$output" == $'\033[33m'* ]]          # output starts yellow → the beacon is yellow-tinted under autopilot
+}
