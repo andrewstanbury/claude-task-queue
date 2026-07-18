@@ -49,21 +49,20 @@ points; restating it would drift). Every row keeps its **[E]/[S]** kind and its 
 | While on, asking is blocked and the drain auto-continues each turn | [E] | — | — |
 | Ship-mode auto-commits each turn to an `autopilot/*` branch (never main, never pushed) | [E] | *guardrails default-on* | — |
 
-## Path 4 · Pick up where you left off (`/companion:review`)
+## Path 4 · Pick up where you left off (`/companion:resume`)
 
 | Step | Kind | Pattern | Check |
 |---|---|---|---|
-| `/companion:review` step 1 — turns autopilot off, re-surfaces earlier-session tasks preserving their ❓/⏳/📋 class (absorbs the former `/companion:resume`, R39) | [E]/[S] | *recommendation-first* | `manual resume: turns autopilot OFF first …` |
+| `/companion:resume` step 1 — turns autopilot off, re-surfaces earlier-session tasks preserving their ❓/⏳/📋 class (absorbs the former `/companion:resume`, R39) | [E]/[S] | *recommendation-first* | `manual resume: turns autopilot OFF first …` |
 | Then walk the parked/blocked pile one at a time, picks written back before new work | [S] | *recommendation-first* | — |
 
-## Path 5 · Improve the design (advise → document → regen/redesign)
+## Path 5 · Improve the design (advise → document → redesign)
 
 | Step | Kind | Pattern | Check |
 |---|---|---|---|
 | `/companion:advise` — brutal-honest critique as options you pick one at a time, then queued (critique only, never edits) | [S] | *recommendation-first* | — |
 | `/companion:document` — record load-bearing decisions, tagged by contract pillar (check › 🔒 › 🔓) | [S] | — | — |
-| `/companion:regen <target>` — contract-preserving rebuild of one bounded target, on a branch, check-gated (experimental) | [S] | *contract-preserving rebuild* | — |
-| `/companion:redesign` — whole-app contract-preserving rebuild in bounded, check-gated passes (experimental) | [S] | *contract-preserving rebuild* | — |
+| `/companion:redesign` — whole-app contract-preserving rebuild in bounded, check-gated passes; **runs `document` first**, and a single bounded target is just one pass (absorbs the former `regen`) (experimental) | [S] | *contract-preserving rebuild* | — |
 
 ---
 
@@ -78,7 +77,7 @@ Each is defined **once here**; the happy-path steps above reference it by name.
 | *wireframe-first* | [S] | A visual change gets a wireframe/ASCII sketch agreed before code. | — |
 | *clean-as-you-go* | [S] | Weigh blast radius, subtract, YAGNI; verify by exercising, not asserting; recap in one line. | — |
 | *offer-not-act nudges* | [S] | Context nudges are **offers, not actions**: debt → task · big blast → split · repetitive drain → autopilot · finished chunk → ship-it. | — |
-| *contract-preserving rebuild* | [S] | `regen`/`redesign` reproduce the logged UX + NFR contract, gated on the safety checks, applied on a branch — the experience is preserved, the implementation may change. | — |
+| *contract-preserving rebuild* | [S] | `redesign` reproduces the logged UX + NFR contract, gated on the safety checks, applied on a branch — the experience is preserved, the implementation may change (a single bounded target is one pass). | — |
 | *guardrails default-on* | [E] | Safety features (secret gate, status-line health, ship-mode's never-main) are on by default and opt-out only; disabling the secret gate warns loudly. | `secret gate: blocks a real AWS key (exit 2)` |
 
 ---
@@ -90,22 +89,23 @@ Each is defined **once here**; the happy-path steps above reference it by name.
 Reprints on every change. `add · doing · note · done · cancel · list · report`. The spine the
 user watches. See *queue-one-at-a-time* above.
 
-## Slash commands (9)
+## Slash commands (7)
 
 `/companion:setup` (wire status line) · `/companion:autopilot` (keep-draining, enforced when on) ·
-`/companion:ship-it` (verify→commit→push→merge) · `/companion:review` (re-surface earlier-session
-tasks + walk the parked pile — absorbs the former `resume`) · `/companion:advise` (brutal-honest critique
-as options — critique only, never edits) · `/companion:regen` (contract-preserving rebuild of one
-bounded target — experimental) · `/companion:redesign` (whole-app contract-preserving rebuild in
-bounded, check-gated passes — experimental) · `/companion:document` (record load-bearing decisions,
-tagged by contract pillar) · `/companion:features` (toggle enforced-core capabilities per repo).
+`/companion:ship-it` (verify→commit→push→merge) · `/companion:resume` (re-surface earlier-session
+tasks + walk the parked pile — absorbs the former `review`) · `/companion:advise` (brutal-honest critique
+as options — critique only, never edits) · `/companion:redesign` (whole-app contract-preserving rebuild in
+bounded, check-gated passes; runs `document` first, a single target is one pass — absorbs the former
+`regen`; experimental) · `/companion:document` (record load-bearing decisions, tagged by contract pillar).
 
 ## Configuration the user controls
 
-- Per-repo toggles via `/companion:features`: **secret · steering · autopilot · ship** (disabling
-  the secret gate warns loudly). | [E] |
+- **Autopilot / ship** toggle via `/companion:autopilot` (`on|off`, and `ship on|off`). | [E] |
+- **Secret gate / steering** are on by default; disable per-repo via a hand-written `<feature>=off`
+  flag file (the `/companion:features` CLI was removed 2026-07-18, R50) — the flag mechanism + the
+  gate's read of it are unchanged. | [E] |
 - Ship-mode: autopilot auto-commits each turn to an `autopilot/*` branch (never main, never pushed). | [E] |
-- Global override: `CLAUDE_COMPANION_SECSCAN=0` (CI escape hatch). | [E] |
+- Global override: `CLAUDE_COMPANION_SECSCAN=0` (CI escape hatch, wins everywhere). | [E] |
 
 ---
 

@@ -4,7 +4,7 @@
 #   2. Re-surface THIS repo's still-open tasks from an earlier session (cross-session resume).
 #   3. Surface the repo's own LESSONS.md (accumulated gotchas) if it has one (R30·d7).
 # The companion owns its task store (no native tasks); each session dir is stamped with its
-# repo root (`.root`), so scoping needs no native transcript. `/companion:review` re-runs the
+# repo root (`.root`), so scoping needs no native transcript. `/companion:resume` re-runs the
 # resume half on demand (its step 1). Read-only, best-effort: any failure injects nothing, never breaks startup.
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || exit 0
@@ -29,7 +29,8 @@ root="$(companion_root "$cwd")"
 # preserves it, so re-pasting static prose every compaction was the biggest repeatable token waste.
 # Per-repo `steering` toggle (R50): when off, this repo opts out of the working-agreement
 # injection (the one SessionStart output with real token cost) — resume + LESSONS still fire, since
-# those are cheap and repo-specific. `/companion:features steering off` sets it.
+# those are cheap and repo-specific. A `steering=off` line in the per-repo flag file sets it (the
+# `/companion:features` CLI was removed 2026-07-18, R50; the flag mechanism + this read are unchanged).
 steering_off=0; companion_feature_off steering "$root" && steering_off=1
 if [ "$src" = "compact" ]; then
   if [ "$steering_off" = 1 ]; then

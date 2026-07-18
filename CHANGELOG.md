@@ -2,6 +2,26 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 3.4.0 — 2026-07-18
+
+*Command-surface trim (9 → 7), each reversal signed off + logged in the ledger.*
+
+- **`/companion:review` renamed to `/companion:resume`** (R38 🔒 amended). Same ritual —
+  session-pickup (re-surface earlier tasks) + parked-pile review — under the name that leads with
+  its first move. All behavior + checks preserved.
+- **`/companion:regen` removed; its engine inlined into `/companion:redesign`** (R54/R55 amended).
+  The bounded per-target rebuild (R1–R5: bound → checks-first-or-refuse → regenerate → apply-on-branch
+  → auto-revert-on-red) is now redesign's D3 per-module pass. A single target is just one pass. The
+  R56 command-gate test moved from `regen.md` to `redesign.md`.
+- **`/companion:redesign` now requires `/companion:document` first** (D1). It rebuilds against the
+  *logged* UX + quality-attribute contract, so it refuses to proceed without a current one.
+  `document` stays a standalone command (it also feeds `/companion:advise`, R41).
+- **`/companion:features` removed completely** (R50 🔒 amended). The per-repo toggle CLI + `features.sh`
+  + the dead `companion_feature_set`/`_state` lib helpers are gone. **The secret gate is untouched** —
+  its fail-safe per-repo `secret=off` read (G1/G2, isolated) and the steering-off read remain, with
+  their invariant checks rewritten to drive the flag file directly. Per-repo secret/steering now toggle
+  via a hand-written flag or `CLAUDE_COMPANION_SECSCAN=0`; autopilot/ship keep their own command.
+
 ## companion 3.3.0 — 2026-07-17
 
 *UX-contract reorganization, just-in-time requirements capture, and a command-surface trim (10 → 9).*

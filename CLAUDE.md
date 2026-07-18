@@ -46,20 +46,22 @@ it governs how you work here too.**
     cleanliness sweeps live in `/companion:advise` (which absorbed `/companion:audit`, R32).
   - **Commands** — `/companion:setup` (status line), `/companion:autopilot`,
     `/companion:ship-it` (verify→commit→push→merge; review-optimized output — clean
-    messages, curated commits, structured PR bodies, R40), `/companion:review`
+    messages, curated commits, structured PR bodies, R40), `/companion:resume`
     (R38/R39 — triage handoff: step 1 turns autopilot off + re-surfaces earlier tasks *preserving
     their ❓/⏳/📋 class* (absorbs the former `/companion:resume`, folded 2026-07-17), then walks the
     parked/blocked pile recommendation-first, auto-runs when autopilot is turned off),
     `/companion:advise` (R29/R32 — independent brutal-honest
     critique of a target as recommendation-first options you pick one at a time, then queued — it
-    *only* critiques), `/companion:regen <target>` + `/companion:redesign` (R54/R55 —
-    contract-preserving rebuilds against the logged UX+QA contract: one bounded target, or the whole
-    app in bounded, check-gated passes),
+    *only* critiques), `/companion:redesign` (R54/R55 —
+    whole-app contract-preserving rebuild against the logged UX+QA contract, in bounded check-gated
+    passes; **runs `/companion:document` first**, and the per-module rebuild engine is inlined — a
+    single bounded target is one pass, absorbing the former `/companion:regen`, R55 amended 2026-07-18),
     `/companion:document` (R41 — the producer side of advise: scan an existing repo for
     load-bearing, undocumented decisions and record them tiered check › 🔒 › 🔓, with
-    strength-of-why + provenance, so advise stops guessing and can't reverse an undocumented choice),
-    `/companion:features` (R50 — one per-repo surface to view/flip the enforced-core capabilities:
-    secret · steering · autopilot · ship; env vars stay a global override).
+    strength-of-why + provenance, so advise stops guessing and can't reverse an undocumented choice).
+    *(The `/companion:features` toggle CLI was removed 2026-07-18, R50 — per-repo secret/steering are
+    now set by a hand-written flag or the `CLAUDE_COMPANION_SECSCAN=0` env; autopilot/ship keep their
+    own command. The flag mechanism + enforced-core readers are unchanged.)*
 
 Keep the split honest: don't add advisory prose as a hook, and don't add a hook for anything
 a document can say.

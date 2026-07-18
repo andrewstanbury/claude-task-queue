@@ -68,7 +68,7 @@ plugins/companion/
   bin/session-start.sh secret-guard.sh statusline.sh tq resume.sh
   bin/autopilot.sh ask-guard.sh stop-autopilot.sh   # enforced autopilot (R26)
   lib/companion.sh                 # shared helpers (state/enc/root, autopilot flag, open-tasks)
-  commands/{setup,autopilot,ship-it,review,advise,regen,redesign,document,features}.md  # review absorbs the former resume (R39); advise=critique; regen/redesign=contract-preserving rebuilds (R54/R55)
+  commands/{setup,autopilot,ship-it,resume,advise,redesign,document}.md  # resume=pickup+parked-pile review (R38/R39); advise=critique; redesign=whole-app rebuild, runs document first, absorbs the former regen (R54/R55); features CLI removed (R50)
   tests/companion-{core,hud,fuzz}.bats   # tests the ENFORCED CORE only
 ```
 

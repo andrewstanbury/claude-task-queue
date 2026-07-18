@@ -1,12 +1,13 @@
 ---
-description: Re-surface this repo's earlier-session tasks (on demand), then review the parked/blocked pile one at a time, recommendation-first, and write your picks back to the queue before new work
+description: Resume an earlier session — re-surface this repo's carried-over tasks, then review the parked/blocked pile one at a time, recommendation-first, writing your picks back to the queue before new work
 ---
 
-Run a **parked-pile review** — and, when picking up an earlier session, first **re-surface** its
-carried-over tasks. This is the ritual that runs when autopilot is turned off (R38), and you can
-run it any time. It **absorbs the former `/companion:resume`** (R39, folded 2026-07-17 with owner
-sign-off): the on-demand session-pickup is now this command's opening step, so there's one review
-entry point instead of two.
+Run a **session resume**: re-surface this repo's tasks carried over from an earlier session, then
+**review** the parked/blocked pile one at a time, recommendation-first, recording each pick before
+any new work. This is the ritual that runs when autopilot is turned off (R38), and you can run it
+any time. Named `resume` because the session-pickup is its first move — it is the **single entry
+point** for the pickup **and** the parked-pile review (R38/R39; it absorbed the standalone `review`
+command, renamed 2026-07-18, and the earlier `resume` fold).
 
 It's judgment + workflow, not enforcement — it proposes, you choose, it records (R28). It reuses
 the `/companion:advise` presentation loop (R29). It's owner-present by nature: autopilot's ask-guard

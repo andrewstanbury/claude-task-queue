@@ -15,7 +15,7 @@ gave (`on`, `off`, `status`, or `ship on|off|status`):
   AskUserQuestion (asking = stopping) while it's on. The flag persists across restarts.
 - **off** — normal review loop resumes. **Immediately run the parked-pile review** (R38): walk the
   `❓ [parked]` + `⏳ [blocked]` pile one at a time, recommendation-first, and record each pick back
-  to `tq` **before** any new work — follow `/companion:review` (defer/bail allowed; no-op if the pile
+  to `tq` **before** any new work — follow `/companion:resume` (defer/bail allowed; no-op if the pile
   is empty). Do this whether the owner turned autopilot off by this command or in plain conversation.
 - **ship on|off** — toggle **ship-mode** (R34). While ship-mode *and* autopilot are on, the Stop
   hook auto-commits each turn's work to an `autopilot/*` branch (reversible; **never the default

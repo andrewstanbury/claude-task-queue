@@ -19,7 +19,7 @@ not the same buckets.
 |---|---|---|
 | Anchored vendor keys (AWS/GH/Slack/Stripe/Google/PEM) are **blocked** (`exit 2`); placeholders + ordinary code pass; generic `name=value` only **warns** | `secret gate: blocks a real AWS key` · `…allows placeholder` · `…allows ordinary code` · `…generic … WARNS` | ✅ |
 | Gate covers **every** content tool — Write/Edit **and** NotebookEdit (`.new_source`) — no bypass (R43) | `secret gate: covers NotebookEdit's new_source` | ✅ |
-| Disable-able only by explicit opt-out; env `CLAUDE_COMPANION_SECSCAN=0` + per-repo flag; **isolated** per repo (no cross-repo bleed) | `…disabled via …SECSCAN=0` · `features secret off: ALLOWS in that repo but still BLOCKS elsewhere` | ✅ |
+| Disable-able only by explicit opt-out; env `CLAUDE_COMPANION_SECSCAN=0` + per-repo `secret=off` flag; **isolated** per repo (no cross-repo bleed). *(The `/companion:features` CLI was removed 2026-07-18, R50; the flag mechanism + the gate's read of it are unchanged — settable by hand or a re-add.)* | `…disabled via …SECSCAN=0` · `secret gate: honors a per-repo secret=off flag — ALLOWS there but still BLOCKS elsewhere` | ✅ |
 | **Fail-safe:** only an exact `^secret=off$` line disables — corruption / typo / read-error → gate stays **active** (R50/R54) | `secret gate FAIL-SAFE: a flag file that isn't exactly 'secret=off' still BLOCKS` | ✅ *(gap G1, closed 2026-07-17)* |
 | **No fail-open dependency:** `secret-guard.sh` sources **no** lib — a broken dependency can't disable the gate (R50/R54) | `secret gate is self-contained: sources no lib` | ✅ *(gap G2, closed 2026-07-17)* |
 
@@ -49,7 +49,7 @@ not the same buckets.
 | Invariant | Check | Status |
 |---|---|---|
 | Resume + tasks are **scoped to this repo** (by the store's `.root` stamp) — no cross-repo bleed | `session start: … resumes THIS repo's tasks only (scoped by .root)` | ✅ |
-| Steering **off** drops the injection but resume/LESSONS still fire (R50) | `features steering off: SessionStart drops the working agreement (resume/lessons unaffected)` | ✅ |
+| Steering **off** (per-repo flag) drops the injection but resume/LESSONS still fire (R50) | `steering off (per-repo flag): SessionStart drops the working agreement (resume/lessons unaffected)` | ✅ |
 | Resume turns autopilot **off first** so a resurfaced decision isn't autopiloted (R39) | `manual resume: turns autopilot OFF first` | ✅ |
 | Compaction re-anchors with **queue+pointer, not full STEERING** (token cost, R30·d2/R32) | `session start: re-anchors on a compaction with queue+pointer, NOT the full STEERING` | ✅ |
 

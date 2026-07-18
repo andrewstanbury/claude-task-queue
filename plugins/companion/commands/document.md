@@ -59,7 +59,7 @@ regen may change them), not catalogued. Don't build a technical-requirements cat
 
 0. **Clear autopilot first.** If autopilot is on, run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off`
    before anything else — while the flag is on, the ask-guard blocks `AskUserQuestion` and this
-   command can't ask a single question. (Mirrors `/companion:review` step 0.)
+   command can't ask a single question. (Mirrors `/companion:resume` step 0.)
 
 1. **Scan — read-only, no questions.** Detect the repo's structure **generically** (R9 — no
    language/framework allowlists; delegate recognition to the model, detect structure generically).

@@ -14,6 +14,15 @@ setup() {
 }
 teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR"; }
 
+# Write a per-repo feature OFF flag directly (the `/companion:features` CLI was removed 2026-07-18,
+# R50; the flag mechanism + the statusline's read of it are unchanged).
+_feature_off() {  # $1=feature  $2=repo-dir
+  local root enc; root="$(git -C "$2" rev-parse --show-toplevel)"
+  enc="$(printf '%s' "$root" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  mkdir -p "$CLAUDE_COMPANION_STATE_DIR/features"
+  printf '%s=off\n' "$1" >> "$CLAUDE_COMPANION_STATE_DIR/features/$enc"
+}
+
 @test "status line: renders 🛡 · model · tokens · task count · project · branch" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
@@ -62,12 +71,12 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"🛡"*"✗"* ]]
 }
 
-@test "status line: 🛡✗ when the secret gate is off per-repo via features (R50)" {
+@test "status line: 🛡✗ when the secret gate is off per-repo via the secret=off flag (R50)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"s",cwd:$c}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
   [[ "$output" != *"✗"* ]]                       # on → plain shield
-  ( cd "$repo" && "$ROOT/bin/features.sh" secret off ) >/dev/null
+  _feature_off secret "$repo"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
   [[ "$output" == *"🛡"*"✗"* ]]                    # off for this repo → ✗
 }

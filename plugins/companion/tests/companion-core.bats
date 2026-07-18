@@ -15,6 +15,17 @@ setup() {
 }
 teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR"; }
 
+# Write a per-repo feature OFF flag directly at the reader's enc path (the `/companion:features`
+# CLI was removed 2026-07-18; the flag mechanism + its readers remain — R50). Mirrors
+# companion_feature_file(companion_root(repo)) so secret-guard / session-start / statusline find it.
+_feature_off() {  # $1=feature  $2=repo-dir
+  local root enc; root="$(git -C "$2" rev-parse --show-toplevel)"
+  enc="$(printf '%s' "$root" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  mkdir -p "$CLAUDE_COMPANION_STATE_DIR/features"
+  printf '%s=off\n' "$1" >> "$CLAUDE_COMPANION_STATE_DIR/features/$enc"
+}
+_feature_clear() { rm -f "$CLAUDE_COMPANION_STATE_DIR/features/"* 2>/dev/null || true; }
+
 # ---- secret gate (the one enforced content block) ----
 
 @test "secret gate: blocks a real AWS key (exit 2)" {
@@ -48,19 +59,11 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
 
 # ---- per-repo feature toggles (R50): one unified surface, scoped per repo ----
 
-@test "features: default list shows every capability, on by default (autopilot/ship off)" {
-  run "$ROOT/bin/features.sh"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"secret     on"* ]]
-  [[ "$output" == *"steering   on"* ]]
-  [[ "$output" == *"autopilot  off"* ]]
-}
-
-@test "features secret off: the gate ALLOWS in that repo but still BLOCKS elsewhere (per-repo, isolated)" {
+@test "secret gate: honors a per-repo secret=off flag — ALLOWS there but still BLOCKS elsewhere (isolated, R50/R54)" {
   local k="AKIA""ABCDEFGHIJKLMNOP"
   local repo other; repo="$(mktemp -d)"; other="$(mktemp -d)"
   git -C "$repo" init -q; git -C "$other" init -q
-  ( cd "$repo" && "$ROOT/bin/features.sh" secret off >/dev/null )
+  _feature_off secret "$repo"
   # off in $repo → allowed
   run bash -c 'jq -nc --arg p "$1" --arg c "$2" "{tool_input:{file_path:\$p,content:\$c}}" | "$3"' _ "$repo/c.py" "API_KEY = \"$k\"" "$GUARD"
   [ "$status" -eq 0 ]
@@ -70,19 +73,11 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   rm -rf "$repo" "$other"
 }
 
-@test "features secret off: warns that the gate is irreversible-harm" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
-  run bash -c 'cd "$1" && "$2" secret off' _ "$repo" "$ROOT/bin/features.sh"
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"SECRET GATE"* ]]
-  rm -rf "$repo"
-}
-
 @test "secret gate FAIL-SAFE: a flag file that isn't exactly 'secret=off' still BLOCKS (R50/R54 never-fails-open)" {
   # Invariant (invisible to the user): only an exact ^secret=off$ line disables; corruption/typo -> gate ACTIVE.
   local k="AKIA""ABCDEFGHIJKLMNOP"
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
-  ( cd "$repo" && "$ROOT/bin/features.sh" secret off >/dev/null )   # writes the flag at the enc path
+  _feature_off secret "$repo"                                      # writes the flag at the enc path
   local flag; flag="$(find "${CLAUDE_COMPANION_STATE_DIR:?}/features" -type f 2>/dev/null | head -1)"
   [ -n "$flag" ]
   printf 'secret=off_typo\ngarbage\n' > "$flag"                     # NOT the exact ^secret=off$ line
@@ -97,14 +92,14 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [ "$status" -ne 0 ]
 }
 
-@test "features steering off: SessionStart drops the working agreement (resume/lessons unaffected)" {
+@test "steering off (per-repo flag): SessionStart drops the working agreement (resume/lessons unaffected, R50)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
-  ( cd "$repo" && "$ROOT/bin/features.sh" steering off >/dev/null )
+  _feature_off steering "$repo"
   run bash -c 'jq -nc --arg c "$1" "{source:\"startup\",cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.additionalContext"' _ "$repo" "$SS"
   [ "$status" -eq 0 ]
   [[ "$output" != *"working agreement"* ]]
-  # turn back on → agreement returns
-  ( cd "$repo" && "$ROOT/bin/features.sh" steering on >/dev/null )
+  # clear the flag → agreement returns (default ON)
+  _feature_clear
   run bash -c 'jq -nc --arg c "$1" "{source:\"startup\",cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.additionalContext"' _ "$repo" "$SS"
   [[ "$output" == *"working agreement"* ]]
   rm -rf "$repo"
@@ -151,17 +146,17 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   # structural guard that a command's non-negotiable gate INSTRUCTION wasn't deleted (like a regen
   # of a .md might do). Catches deletion, not a subtler regression — the honest best for prose.
   local C="$ROOT/commands"
-  grep -q "Refuse to regen"                "$C/regen.md"        # R3 checks-first gate
-  grep -q "auto-revert"                    "$C/regen.md"        # R5 rollback-on-red
-  grep -q 'autopilot.sh" off'              "$C/regen.md"        # step-0 autopilot clear
   grep -q "invariant net covers the app"   "$C/redesign.md"     # D0 coverage gate
   grep -qE "bounded, check-gated|never.*unbounded" "$C/redesign.md"  # D2/D3 bounded passes
   grep -q 'autopilot.sh" off'              "$C/redesign.md"     # step-0 autopilot clear
+  grep -q "auto-revert"                    "$C/redesign.md"     # R5 rollback-on-red (inlined regen engine)
+  grep -qE "Refuse to (regenerate|proceed)" "$C/redesign.md"    # R3 checks-first + D1 document gate
+  grep -q "REQUIRED first step"            "$C/redesign.md"     # D1 document-first requirement (R55)
   grep -q "Verify FIRST"                   "$C/ship-it.md"      # verify before commit
   grep -q "Never force-push"               "$C/ship-it.md"      # never rewrite published history
   grep -q "anti-laundering"                "$C/document.md"     # only the owner's pick records a 🔒
-  grep -q "autopilot"                      "$C/review.md"       # review respects/clears autopilot
-  grep -q "resume.sh"                       "$C/review.md"       # review absorbs the resume re-surface (R39, folded)
+  grep -q "autopilot"                      "$C/resume.md"       # resume respects/clears autopilot
+  grep -q "resume.sh"                       "$C/resume.md"       # resume runs the re-surface (R39, folded)
 }
 
 @test "docs/UX.md lists every shipped command + the count matches (UX contract can't silently drift)" {
@@ -338,14 +333,6 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [ "$(jq -r '.notes[1].text' "$f")" = "second" ]     # second appended after it
 }
 
-@test "features: autopilot/ship delegate to autopilot.sh — no second state copy (R56 — R50)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
-  ( cd "$repo" && "$ROOT/bin/features.sh" autopilot on ) >/dev/null
-  [ "$(cd "$repo" && "$AP" status)" = "on" ]              # features autopilot on flipped the REAL autopilot flag
-  ( cd "$repo" && "$ROOT/bin/features.sh" ship on ) >/dev/null
-  [ "$(cd "$repo" && "$AP" ship status)" = "on" ]         # features ship on flipped the REAL ship flag
-}
-
 @test "ask-guard: the deny REASON carries park-with-full-options guidance (R56 G5)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
@@ -370,14 +357,6 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   [[ "$output" == *"recommendation-first"* ]]   # the R49 posture must survive a compaction summary (its whole purpose)
 }
 
-@test "features: flipping one toggle preserves the others in the file (R56 G7)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
-  ( cd "$repo" && "$ROOT/bin/features.sh" secret off >/dev/null )
-  ( cd "$repo" && "$ROOT/bin/features.sh" steering off >/dev/null )   # must NOT clobber the secret=off line
-  local ff; ff="$(find "$CLAUDE_COMPANION_STATE_DIR/features" -type f | head -1)"
-  grep -q '^secret=off$'   "$ff"    # both off-flags coexist — set-one preserves the rest
-  grep -q '^steering=off$' "$ff"
-}
 
 @test "secret gate: blocks non-AWS anchored keys too — GH/Slack/Stripe/Google/PEM (R56 — INVARIANTS claim)" {
   # INVARIANTS.md claims six-vendor coverage but only AKIA was ever exercised. Construct each shape

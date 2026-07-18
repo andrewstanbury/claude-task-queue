@@ -62,7 +62,7 @@ ROOT="$(companion_root "$CWD")"; PROJ="${ROOT##*/}"
 
 # 🛡 secret gate (the one enforced guarantee) — green shield on, red ✗ when disabled. ✗ fires by the
 # same global-then-per-repo order the hook resolves (R50): the env var kills it everywhere; a per-repo
-# `features secret off` kills it here.
+# `secret=off` flag kills it here (the flag mechanism; the `/companion:features` CLI was removed 2026-07-18).
 # Brace every var: on macOS's bash 3.2 an unbraced `$B` directly before the 🛡 glyph swallows the
 # emoji's leading byte into the variable name, which `set -u` then rejects (a real macOS-CI crash).
 # 🛡️ carries the emoji variation selector (U+FE0F) so it renders full emoji-width like ✈️/📦 —

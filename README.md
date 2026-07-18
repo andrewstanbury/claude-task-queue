@@ -15,7 +15,7 @@ reads once per session. The only things that are code are the things that must a
 |---|---|
 | **Steering** ([STEERING.md](plugins/companion/STEERING.md)) | The working agreement: how Claude queues work, challenges the ask, recommends against a **requirements ledger** (🔒 locked / 🔓 open), keeps changes clean, and runs autonomously without stopping. Put in context once per session. |
 | **Secret gate** | Before any write, blocks a file that would commit a credential — the one thing native permissions can't scan. A leaked key is irreversible. |
-| **Resume** | Re-surfaces this repo's unfinished tasks when you start a new session — or on demand as the first step of `/companion:review`. |
+| **Resume** | Re-surfaces this repo's unfinished tasks when you start a new session — or on demand as the first step of `/companion:resume`. |
 | **Ship** | `/companion:ship-it` — verify your gate, commit, push, and open/merge a PR. |
 | **`tq`** | The task queue — self-owned, so it works everywhere (including the newest models where Claude's built-in task tracking is switched off) and doesn't depend on Claude Code internals. It reprints the queue on every change, so the CLI always shows what's in progress and next. |
 | **Autopilot** | `/companion:autopilot on` — Claude keeps working the queue **without stopping**, parking decisions it shouldn't make alone. It's "keep going," *not* "you're away": keep it on and keep queuing tasks while you watch. Enforced (won't stop or ask while on), persists across restarts. `ship on` also auto-commits work to an `autopilot/*` branch. |
@@ -29,14 +29,15 @@ Bash + `jq`, zero build, one install.
 - **`/companion:advise [target]`** — an independent, brutally-honest **critique** of a target
   (default: the whole project), presented as recommendation-first choices, then queued. Doubles
   as a cleanliness sweep (size · debt · blast-radius · perf). Critique only — never edits.
-- **`/companion:regen <target>`** / **`/companion:redesign`** *(experimental)* — contract-preserving
-  rebuilds: `regen` rebuilds one bounded target from your logged UX + quality-attribute contract;
-  `redesign` rebuilds the whole app as bounded, check-gated passes. Both apply on a branch, stay
-  gated on your safety checks, and confirm each step.
+- **`/companion:redesign`** *(experimental)* — a contract-preserving rebuild of the whole app from
+  your logged UX + quality-attribute contract, as bounded, check-gated passes. It runs
+  **`/companion:document` first** to log the contract, applies on a branch, stays gated on your
+  safety checks, auto-reverts on red, and confirms each step. A single bounded target is just one
+  pass (this absorbed the former `/companion:regen`).
 - **`/companion:autopilot on|off`** — keep working the queue without stopping — keep it on and keep queuing tasks.
   Add **`autopilot ship on`** to auto-commit completed work to an `autopilot/*` branch (reversible,
   never main, no push) for you to review + ship on return.
-- **`/companion:review`** — first **re-surfaces this repo's unfinished tasks** from an earlier
+- **`/companion:resume`** — first **re-surfaces this repo's unfinished tasks** from an earlier
   session (turning autopilot off — this absorbs the former `/companion:resume`), then walks the
   parked/blocked pile one at a time, recommendation-first, and records your picks before new work.
   **Runs automatically when you turn autopilot off** — so decisions it deferred while running get

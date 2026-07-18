@@ -217,13 +217,13 @@ The owner reviews the parked `❓`/`⏳` pile whenever they check in — there's
 to wait for, they may be watching the queue the whole time. **When autopilot is turned off — by
 `/companion:autopilot off` *or* by a plain-conversation "turn it off" — immediately run the
 parked-pile review (R38): walk the `❓`/`⏳` pile one item at a time, recommendation-first, and
-write each pick back to `tq` *before* starting any new work** (follow `/companion:review`; each item
+write each pick back to `tq` *before* starting any new work** (follow `/companion:resume`; each item
 can be deferred and the owner can bail — it's the default, not a wall; a clean no-op if nothing is
 parked/blocked). Scope is parked + blocked only — plain `📋 open` tasks need doing, not deciding. On
 the plain-conversation path, actually run `autopilot.sh off` **first** — while the flag is still on
 the ask-guard blocks the review's questions.
 
-**Resume is a triage handoff (R39) — now step 1 of `/companion:review`.** The on-demand session
+**Resume is a triage handoff (R39) — now step 1 of `/companion:resume`.** The on-demand session
 pickup folded into `review` (2026-07-17, owner sign-off): `review` runs `resume.sh`, which **turns
 autopilot off first** so the resurfaced pile comes back to the owner, not to autopilot (a parked
 `❓` that resurfaced while autopilot was on would get autopiloted, not asked). When you reinstate
