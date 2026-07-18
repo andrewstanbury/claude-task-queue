@@ -2,6 +2,29 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## Unreleased
+
+*Maintainer-facing testing & contract work — no user-visible behavior change — hardening 3.1.0's
+regen/redesign so a future rebuild is trustworthy.*
+
+- **Behavior-coverage net (R56) — the suite grew from ~38 to 53 checks.** A 3-agent audit found
+  "beacon-class" gaps: intended, load-bearing behaviors no test pinned, which a from-scratch regen
+  would silently drop (as a dogfooded `regen` of `statusline.sh` dropped the autopilot-beacon
+  animation). Added characterization tests closing them — the autopilot Stop-nudge payload, resume's
+  `done-when`/latest-`note` sub-lines, `tq`'s report `→ next` pointer + glyph header + note-append,
+  `features`→`autopilot` delegation, the compaction R49 clause, non-AWS vendor-key blocking (which
+  also corrected a *false* `INVARIANTS.md` claim — it advertised six vendors, only AWS was tested),
+  the stall-counter reset, and more — plus **structural guards** that each command prompt keeps its
+  critical gate step, and the statusline's section-order + semantic colors. The command layer tops
+  out at structural guards: a prompt's behavior is judgment, not mechanically verifiable (the R56 ceiling).
+- **The UX contract is self-defending.** `docs/UX.md` (R54's contract pillar a) was synced to the
+  real **10** commands, and a check now **fails CI** if a command ships without a UX.md entry — so
+  the contract can't silently drift from reality (it had, mid-development: 8 vs 10).
+- **Dogfooded both edit commands (R54/R55).** `regen` of `statusline.sh` correctly returned "don't
+  apply — already faithful" (and its R5 behavior-check caught a regression the tests missed);
+  `redesign`'s **D0 gate correctly refused** a blind whole-app rebuild because the net wasn't yet
+  complete — which is exactly what the behavior-net work above then addressed.
+
 ## companion 3.1.0 — 2026-07-17
 
 - **Contract-preserving regeneration — new `/companion:regen` + `/companion:redesign` commands
@@ -17,6 +40,11 @@ Notable changes. Per-change detail lives in `git log`; this file keeps the headl
   R45 guard (G4) stays a documented owner-ack residual.
 - **`/companion:document` tags by contract pillar (R54).** Each finding routes to its pillar doc —
   safety-invariant → a check, UX → `UX.md`, agreed-NFR → `NFR.md`, incidental/technical → disposable.
+- **The R54 contract foundation the rebuilds read.** Created the three contract pillars —
+  `docs/UX.md` (experience), `docs/NFR.md` (7 owner-agreed quality attributes), `docs/INVARIANTS.md`
+  (the enumerated safety net) — and closed two invisible fail-safe gaps with tests: the secret gate
+  stays **active** on a corrupt flag file, and it **sources no lib** so a broken dependency can't
+  disable it.
 - *Prototype note:* the regen/redesign modes are prompt flows, not yet exercised on a real rebuild.
 
 ## companion 3.0.1 — 2026-07-17
