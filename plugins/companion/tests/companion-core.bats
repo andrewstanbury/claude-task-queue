@@ -164,6 +164,20 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   grep -q "autopilot"                      "$C/resume.md"       # resume clears autopilot first (R39)
 }
 
+@test "docs/UX.md lists every shipped command + the count matches (UX contract can't silently drift)" {
+  # The UX record is the R54 contract pillar a regen reproduces; if a command is added without a
+  # UX.md entry, a regen reproduces the WRONG surface. This is the guard that caught the 8-vs-10 drift.
+  local repo ux; repo="$(cd "$ROOT/../.." && pwd)"; ux="$repo/docs/UX.md"
+  [ -f "$ux" ]
+  local f name n=0
+  for f in "$ROOT/commands"/*.md; do
+    name="$(basename "$f" .md)"
+    grep -q "companion:$name" "$ux"        # every shipped command must appear in the UX record
+    n=$((n+1))
+  done
+  grep -q "Slash commands ($n)" "$ux"      # and the stated count matches reality
+}
+
 @test "tq: no session id errors cleanly" {
   run env -u CLAUDE_COMPANION_SESSION_ID -u CLAUDE_CODE_SESSION_ID "$TQ" add x
   [ "$status" -ne 0 ]

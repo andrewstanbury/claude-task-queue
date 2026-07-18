@@ -33,13 +33,15 @@ Tied to a check where one exists (see `docs/INVARIANTS.md`).
 Reprints on every change. `add · doing · note · done · cancel · list · report`. The companion owns
 its store; deliberately not Claude's native tasks.
 
-## Slash commands (8)
+## Slash commands (10)
 
 `/companion:setup` (wire status line) · `/companion:autopilot` (keep-draining, enforced when on) ·
 `/companion:ship-it` (verify→commit→push→merge) · `/companion:resume` (re-surface + triage earlier
 tasks) · `/companion:review` (walk the parked pile) · `/companion:advise` (brutal-honest critique
-as options) · `/companion:document` (record load-bearing decisions) · `/companion:features`
-(toggle enforced-core capabilities per repo).
+as options — critique only, never edits) · `/companion:regen` (contract-preserving rebuild of one
+bounded target — experimental) · `/companion:redesign` (whole-app contract-preserving rebuild in
+bounded, check-gated passes — experimental) · `/companion:document` (record load-bearing decisions,
+tagged by contract pillar) · `/companion:features` (toggle enforced-core capabilities per repo).
 
 ## Configuration the user controls
 
