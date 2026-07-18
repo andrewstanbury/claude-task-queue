@@ -15,7 +15,6 @@ reads once per session. The only things that are code are the things that must a
 |---|---|
 | **Steering** ([STEERING.md](plugins/companion/STEERING.md)) | The working agreement: how Claude queues work, challenges the ask, recommends against a **requirements ledger** (🔒 locked / 🔓 open), keeps changes clean, and runs autonomously without stopping. Put in context once per session. |
 | **Secret gate** | Before any write, blocks a file that would commit a credential — the one thing native permissions can't scan. A leaked key is irreversible. |
-| **Clean-as-you-touch** | After you edit a file, it's auto-formatted with your project's own formatter (a behavior-preserving pass). Deeper cleanliness — blast radius, size, debt hotspots — is a whole-project sweep in `/companion:advise`. |
 | **Resume** | Re-surfaces this repo's unfinished tasks when you start a new session — or on demand with `/companion:resume`. |
 | **Ship** | `/companion:ship-it` — verify your gate, commit, push, and open/merge a PR. |
 | **`tq`** | The task queue — self-owned, so it works everywhere (including the newest models where Claude's built-in task tracking is switched off) and doesn't depend on Claude Code internals. It reprints the queue on every change, so the CLI always shows what's in progress and next. |
@@ -27,9 +26,13 @@ Bash + `jq`, zero build, one install.
 ## Commands
 
 - **`/companion:setup`** — wire the status line into your settings (one-time).
-- **`/companion:advise [target]`** — an independent, brutally-honest critique of a target
+- **`/companion:advise [target]`** — an independent, brutally-honest **critique** of a target
   (default: the whole project), presented as recommendation-first choices, then queued. Doubles
-  as a cleanliness sweep (size · debt · blast-radius · perf).
+  as a cleanliness sweep (size · debt · blast-radius · perf). Critique only — never edits.
+- **`/companion:regen <target>`** / **`/companion:redesign`** *(experimental)* — contract-preserving
+  rebuilds: `regen` rebuilds one bounded target from your logged UX + quality-attribute contract;
+  `redesign` rebuilds the whole app as bounded, check-gated passes. Both apply on a branch, stay
+  gated on your safety checks, and confirm each step.
 - **`/companion:autopilot on|off`** — keep working the queue without stopping — keep it on and keep queuing tasks.
   Add **`autopilot ship on`** to auto-commit completed work to an `autopilot/*` branch (reversible,
   never main, no push) for you to review + ship on return.

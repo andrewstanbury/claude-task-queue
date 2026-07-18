@@ -29,6 +29,25 @@ Two honesty rules make this safe rather than a fabrication machine:
   records one** — an unchosen assumption never becomes a 🔒. A labeled **`unknown → 🔓`** is *better*
   than a confident-but-wrong 🔒; confident-and-wrong is the worst possible input to an agent.
 
+**Two axes, not one (R54).** The tier above is *reliability*. Each recorded item also has a
+**contract pillar** — which part of the R54 contract it belongs to — and that decides **which doc it
+lands in**:
+
+> **safety-invariant** → `docs/INVARIANTS.md` (+ a check — a must-hold the user never sees) ·
+> **UX-contract** → `docs/UX.md` (what the user sees/does) · **agreed-NFR** → `docs/NFR.md` (an
+> owner-agreed quality attribute) · **incidental-implementation** → *not contract* (a 🔓 ledger note
+> at most, or dropped — a regen may change it freely).
+
+The anti-laundering rule applies **doubly** to `agreed-NFR`: only a quality attribute the owner
+*actively agreed* is contract; an inferred one the owner didn't pick is `incidental`, not NFR. This
+pillar routing is what lets `advise` **regenerate against the contract** (R54), not just read the ledger.
+
+**For a redesign contract, log only UX + quality attributes (R55).** When `document` is feeding a
+`/companion:redesign`, the two pillars the owner *logs* are **UX** (`docs/UX.md`) + **quality attributes**
+(`docs/NFR.md`). **Safety-invariants** route to a **check** (`docs/INVARIANTS.md` + `check.sh`) — not a
+prose catalogue you maintain — and **technical requirements / incidental** are **disposable** (a
+regen may change them), not catalogued. Don't build a technical-requirements catalogue.
+
 ---
 
 0. **Clear autopilot first.** If autopilot is on, run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off`
@@ -92,8 +111,15 @@ Two honesty rules make this safe rather than a fabrication machine:
      R-ID (R5).
    - A **gotcha** belongs in `docs/LESSONS.md`; a **coined term** in `docs/GLOSSARY.md` (R37) — not
      the ledger. Keep the ledger to *requirements*.
+   - **Route by R54 pillar** (the second axis): a confirmed **safety-invariant** → `docs/INVARIANTS.md`
+     as an enumerated row + its check; a **UX-contract** item → `docs/UX.md` ([E]nforced/[S]teering);
+     an **owner-agreed NFR** → `docs/NFR.md` (with the "would advise build differently?" filter); an
+     **incidental** one → left disposable (a regen may change it), a 🔓 ledger pointer at most. Keep
+     each fact in **one** canonical pillar doc (R2), cross-referenced by name — never duplicated.
 
-5. **Close the loop.** Recap in a short table — *item → tier (check / 🔒 / 🔓 / dropped) → where
-   recorded*. Then state plainly **what stayed 🔓** (the constraints with no real why): advise is now
-   free to challenge exactly those, and must not silently reverse the 🔒s. Only after this is advise
-   standing on documented ground instead of guessing.
+5. **Close the loop.** Recap in a short table — *item → tier (check / 🔒 / 🔓 / dropped) → **pillar**
+   (UX / NFR / invariant / incidental) → where recorded*. Then state plainly **what stayed 🔓** (the
+   constraints with no real why) and **what's incidental** (disposable — a regen may redesign it):
+   advise is now free to challenge the 🔓s and redesign the incidental, must not silently reverse the
+   🔒s, and must reproduce the contract pillars. Only after this is advise standing on documented
+   ground instead of guessing.

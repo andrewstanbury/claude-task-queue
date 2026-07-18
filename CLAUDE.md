@@ -51,7 +51,10 @@ it governs how you work here too.**
     ❓/⏳/📋 class*, then runs the review), `/companion:review` (R38 — walk the
     parked/blocked pile recommendation-first, auto-runs when autopilot is turned off),
     `/companion:advise` (R29/R32 — independent brutal-honest
-    critique of a target as recommendation-first options you pick one at a time, then queued),
+    critique of a target as recommendation-first options you pick one at a time, then queued — it
+    *only* critiques), `/companion:regen <target>` + `/companion:redesign` (R54/R55 —
+    contract-preserving rebuilds against the logged UX+QA contract: one bounded target, or the whole
+    app in bounded, check-gated passes),
     `/companion:document` (R41 — the producer side of advise: scan an existing repo for
     load-bearing, undocumented decisions and record them tiered check › 🔒 › 🔓, with
     strength-of-why + provenance, so advise stops guessing and can't reverse an undocumented choice),

@@ -11,6 +11,12 @@ This is judgment + workflow, not enforcement — it never blocks or edits on its
 you choose (R28). It's owner-present by nature: autopilot's ask-guard blocks the questions, so
 don't run it while autopilot is on.
 
+**advise only critiques + queues — it never edits.** For contract-preserving *rebuilds*, its two
+sibling commands do the editing (R54/R55): **`/companion:regen <target>`** rebuilds one bounded
+target against the recorded contract, and **`/companion:redesign`** rebuilds the whole application as
+a sequence of bounded, check-gated passes. Both are gated (checks-first, on-branch, confirmed); this
+command is the safe, read-only critique they grew out of.
+
 1. **Scope + understand.** Resolve the target. Read what you genuinely need to critique it
    honestly: the relevant code, the requirements ledger (`REQUIREMENTS.md`), `docs/MAP.md`, and —
    if the target is the whole project — its complete current functionality. Restate in one line

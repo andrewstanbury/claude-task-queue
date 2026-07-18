@@ -2,6 +2,23 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 3.1.0 — 2026-07-17
+
+- **Contract-preserving regeneration — new `/companion:regen` + `/companion:redesign` commands
+  (R54/R55).** Two discoverable commands beyond critique: **`regen <target>`** rebuilds one bounded
+  target from the ground up against the recorded contract; **`redesign`** rebuilds the whole
+  application as a sequence of bounded, check-gated passes. (`advise` stays **critique-only** — the
+  edit modes were split out into their own commands so they show in the `/` menu.) Both treat
+  implementation as disposable but are **gated**: they clear autopilot first, refuse unless every
+  relevant invariant check is green (`redesign` verifies whole-app coverage up front), apply only on
+  a branch, re-run `check.sh`, and **auto-revert on any red** — so a rebuild **can't silently drop a
+  fail-safe**. The **logged contract is UX + quality attributes** (`docs/UX.md` + `docs/NFR.md`); the
+  safety net is the existing checks (`docs/INVARIANTS.md` + `check.sh`), not a catalogue. The uncheckable
+  R45 guard (G4) stays a documented owner-ack residual.
+- **`/companion:document` tags by contract pillar (R54).** Each finding routes to its pillar doc —
+  safety-invariant → a check, UX → `UX.md`, agreed-NFR → `NFR.md`, incidental/technical → disposable.
+- *Prototype note:* the regen/redesign modes are prompt flows, not yet exercised on a real rebuild.
+
 ## companion 3.0.1 — 2026-07-17
 
 - **Sharpen the recommendation reflex in STEERING.** Added a lead "Moves" beat so the first thing
