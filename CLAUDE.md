@@ -46,9 +46,9 @@ it governs how you work here too.**
     cleanliness sweeps live in `/companion:advise` (which absorbed `/companion:audit`, R32).
   - **Commands** — `/companion:setup` (status line), `/companion:autopilot`,
     `/companion:ship-it` (verify→commit→push→merge; review-optimized output — clean
-    messages, curated commits, structured PR bodies, R40), `/companion:resume`
-    (R39 — triage handoff: turns autopilot off, re-surfaces earlier tasks *preserving their
-    ❓/⏳/📋 class*, then runs the review), `/companion:review` (R38 — walk the
+    messages, curated commits, structured PR bodies, R40), `/companion:review`
+    (R38/R39 — triage handoff: step 1 turns autopilot off + re-surfaces earlier tasks *preserving
+    their ❓/⏳/📋 class* (absorbs the former `/companion:resume`, folded 2026-07-17), then walks the
     parked/blocked pile recommendation-first, auto-runs when autopilot is turned off),
     `/companion:advise` (R29/R32 — independent brutal-honest
     critique of a target as recommendation-first options you pick one at a time, then queued — it

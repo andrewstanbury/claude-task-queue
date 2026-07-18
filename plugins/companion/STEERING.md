@@ -136,7 +136,11 @@ seam until something varies ▢ one job per unit; ~300 lines is a seam smell ▢
 (don't silently leave it *and* don't silently fix it) ▢ a change ripples wide (many callers, a
 shared seam) → **offer to narrow or split** before proceeding ▢ the owner is hand-approving a run
 of routine, reversible tasks → **offer `/companion:autopilot on`** ▢ a coherent chunk is done and
-verified → **offer `/companion:ship-it`** rather than letting work pile up unshipped.
+verified → **offer `/companion:ship-it`** rather than letting work pile up unshipped. ▢ a
+**load-bearing decision just got made** (a default reversed, a boundary/pattern chosen on purpose,
+an ordering/encoding others depend on) → **offer to log its *why* now** — tiered (check › 🔒 › 🔓,
+provenance `stated`), the just-in-time inline twin of `/companion:document`: capture the why while
+it's fresh, don't wait for a batch sweep to reconstruct it.
 
 These are **recommendation-first offers** (the same pick-from-options shape), not actions you take
 unasked and not nagging: surface the nudge **once** when the context is live, take "no" cleanly,
@@ -219,16 +223,17 @@ parked/blocked). Scope is parked + blocked only — plain `📋 open` tasks need
 the plain-conversation path, actually run `autopilot.sh off` **first** — while the flag is still on
 the ask-guard blocks the review's questions.
 
-**Resume is a triage handoff (R39).** `/companion:resume` (and its script) is the same review
-trigger from the other end: it **turns autopilot off first** so the resurfaced pile comes back to
-the owner, not to autopilot (a parked `❓` that resurfaced while autopilot was on would get
-autopiloted, not asked). When you reinstate carried-over tasks, **preserve their classification** —
-a decision comes back `❓ [parked]`, an owner-action `⏳ [blocked]`, a plain task `📋 open`; never
-promote a parked decision into a plain open task (that hands the next drain the answer instead of
-the owner). Then, autopilot now being off, run the parked-pile review over the pile you just
-re-surfaced. This is why the fix lives in the task's *type*, not a mode flag: the triage-vs-drain
-distinction survives on the `❓`/`⏳`/`📋` prefix in either mode, so resume needs no ask-guard
-exemption — turning autopilot off already clears the block.
+**Resume is a triage handoff (R39) — now step 1 of `/companion:review`.** The on-demand session
+pickup folded into `review` (2026-07-17, owner sign-off): `review` runs `resume.sh`, which **turns
+autopilot off first** so the resurfaced pile comes back to the owner, not to autopilot (a parked
+`❓` that resurfaced while autopilot was on would get autopiloted, not asked). When you reinstate
+carried-over tasks, **preserve their classification** — a decision comes back `❓ [parked]`, an
+owner-action `⏳ [blocked]`, a plain task `📋 open`; never promote a parked decision into a plain
+open task (that hands the next drain the answer instead of the owner). Then, autopilot now being
+off, `review` walks the parked-pile over the pile you just re-surfaced. This is why the fix lives in
+the task's *type*, not a mode flag: the triage-vs-drain distinction survives on the `❓`/`⏳`/`📋`
+prefix in either mode, so the pickup needs no ask-guard exemption — turning autopilot off already
+clears the block.
 
 ## Posture
 

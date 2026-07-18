@@ -4,8 +4,8 @@
 #   2. Re-surface THIS repo's still-open tasks from an earlier session (cross-session resume).
 #   3. Surface the repo's own LESSONS.md (accumulated gotchas) if it has one (R30·d7).
 # The companion owns its task store (no native tasks); each session dir is stamped with its
-# repo root (`.root`), so scoping needs no native transcript. `/companion:resume` re-runs the
-# resume half on demand. Read-only, best-effort: any failure injects nothing, never breaks startup.
+# repo root (`.root`), so scoping needs no native transcript. `/companion:review` re-runs the
+# resume half on demand (its step 1). Read-only, best-effort: any failure injects nothing, never breaks startup.
 set -uo pipefail
 command -v jq >/dev/null 2>&1 || exit 0
 SELF="${BASH_SOURCE[0]}"

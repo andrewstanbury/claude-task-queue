@@ -12,6 +12,13 @@ records (R28). It's owner-present by nature (it asks questions), so it's meant f
 **off**. It reuses the `/companion:advise` recommendation-first loop (R29) — don't build a second
 machine.
 
+**`document` is the batch backstop; the just-in-time twin is a STEERING nudge.** The preferred path
+is to capture a decision's *why* **the moment it's made** during normal work (the "load-bearing
+decision just made → log the why now" nudge — provenance `stated`, the why still fresh). `document`
+then earns its place for what JIT can't catch: decisions made **before** the record existed, and
+**autopilot runs** where no one was present to answer. Batch is reconstruction; JIT is recording —
+prefer JIT, run `document` to sweep up the rest.
+
 **The governing idea — record for the agent that will consume it.** Rank every finding by
 *reliability to Claude*, and record it at the highest tier it can reach:
 
@@ -112,7 +119,11 @@ regen may change them), not catalogued. Don't build a technical-requirements cat
    - A **gotcha** belongs in `docs/LESSONS.md`; a **coined term** in `docs/GLOSSARY.md` (R37) — not
      the ledger. Keep the ledger to *requirements*.
    - **Route by R54 pillar** (the second axis): a confirmed **safety-invariant** → `docs/INVARIANTS.md`
-     as an enumerated row + its check; a **UX-contract** item → `docs/UX.md` ([E]nforced/[S]teering);
+     as an enumerated row + its check; a **UX-contract** item → `docs/UX.md` ([E]nforced/[S]teering),
+   placed on one of its **two axes**: a *journey step* under the right **happy path** (something the
+   user walks through in order), **or** a **design pattern** (a recurring convention) — and if the
+   item exercises an existing pattern, **reference that pattern by name, don't restate it** (one
+   definition, linked from each path — restating drifts). Keep the `Slash commands (N)` count honest;
      an **owner-agreed NFR** → `docs/NFR.md` (with the "would advise build differently?" filter); an
      **incidental** one → left disposable (a regen may change it), a 🔓 ledger pointer at most. Keep
      each fact in **one** canonical pillar doc (R2), cross-referenced by name — never duplicated.

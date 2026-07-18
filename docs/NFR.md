@@ -5,6 +5,11 @@ meet. Only what the owner *actively picked* is here (R53 anti-laundering); each 
 *"would advise build differently if this weren't true?"* Provenance: **inferred-from-ledger/memory,
 owner-confirmed** 2026-07-17 (a best-guess candidate the owner actively selected).
 
+Organized by **priority tier** (this doc's native axis — priority is what resolves NFR conflicts).
+NFRs are deliberately **cross-cutting**: most constrain *every* UX path/pattern at once, so there's
+no per-row spine link (adding "all paths" to each row would violate N1). The shared spine
+(`docs/UX.md`) is referenced only where an NFR maps to a *specific* path — flagged with `↳`.
+
 ## P0 — foundational (changes what advise builds, fundamentally)
 
 | # | NFR | How it constrains a regen | Source |
@@ -18,7 +23,7 @@ owner-confirmed** 2026-07-17 (a best-guess candidate the owner actively selected
 
 | # | NFR | How it constrains a regen | Source |
 |---|---|---|---|
-| N5 | **Autonomy on reversible, plain-language consent on consequential** (the line is reversibility + cost + data-safety) | Act freely on reversible work; gate the irreversible/binding behind a plain-language ask. | R14 |
+| N5 | **Autonomy on reversible, plain-language consent on consequential** (the line is reversibility + cost + data-safety) | Act freely on reversible work; gate the irreversible/binding behind a plain-language ask. `↳` UX: *recommendation-first* pattern + Path 3 (autopilot's consent line). | R14 |
 | N6 | **Native-first — a hook/custom mechanism must earn its place** | Prefer Claude Code's native mechanisms; build custom only where native can't do the job (the one owned exception is the task queue, R8). | R10 |
 | N7 | **Prevention > detection** | Favor blocking a bad outcome (a gate) over reporting it after the fact (a warning). | memory, feature-eval |
 

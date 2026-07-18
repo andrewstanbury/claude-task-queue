@@ -161,7 +161,7 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   grep -q "Never force-push"               "$C/ship-it.md"      # never rewrite published history
   grep -q "anti-laundering"                "$C/document.md"     # only the owner's pick records a 🔒
   grep -q "autopilot"                      "$C/review.md"       # review respects/clears autopilot
-  grep -q "autopilot"                      "$C/resume.md"       # resume clears autopilot first (R39)
+  grep -q "resume.sh"                       "$C/review.md"       # review absorbs the resume re-surface (R39, folded)
 }
 
 @test "docs/UX.md lists every shipped command + the count matches (UX contract can't silently drift)" {

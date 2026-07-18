@@ -2,6 +2,27 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 3.3.0 — 2026-07-17
+
+*UX-contract reorganization, just-in-time requirements capture, and a command-surface trim (10 → 9).*
+
+- **`docs/UX.md` recatalogued into two axes — Happy paths + Design patterns.** The user-experience
+  contract (R54 pillar a) is now organized as **journeys** (5 happy paths: first run · core loop ·
+  hands-off drain · pickup · improve-the-design) plus the **recurring conventions** they're built
+  from (7 patterns, defined once and referenced by name from each step). Every `[E]`/`[S]` row and
+  its check survived the reshape; the `Slash commands` drift guard still holds.
+- **The other contract docs cross-reference the UX spine.** `INVARIANTS.md` (per risk-area),
+  `NFR.md` (per priority), and `REQUIREMENTS.md` (chronological) keep their native axes but now point
+  rows/sections at the happy path / pattern they serve (`↳`) — one shared spine, not identical buckets.
+- **Just-in-time requirements capture (new STEERING nudge).** When a load-bearing decision is made
+  during normal work, Claude now offers to log its *why* **then** — tiered (check › 🔒 › 🔓,
+  provenance `stated`), the inline twin of `/companion:document`. `document` becomes the batch
+  backstop (pre-existing decisions + autopilot runs); JIT is the preferred, contemporaneous path.
+- **`/companion:resume` folded into `/companion:review` (R39 amended, owner sign-off).** The
+  on-demand session pickup is now `review`'s step 1 (runs `resume.sh` — autopilot-off-first +
+  class-preserving reinstatement — then walks the pile). All three R39 behaviors + checks preserved;
+  one fewer command. `resume.sh` (the script) stays, shared with the SessionStart hook.
+
 ## companion 3.2.0 — 2026-07-17
 
 *Maintainer-facing testing & contract hardening — **no user-visible behavior change vs 3.1.0** —

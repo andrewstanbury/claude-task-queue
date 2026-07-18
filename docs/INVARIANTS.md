@@ -8,7 +8,12 @@ is not. Everything here is enforced by `./check.sh` (bats + validators).
 **Legend:** ✅ behavioral check · ⚠️ known-limit (guarded, but not by a full behavioral check —
 regen MUST preserve it by contract/structure, not rely on the net).
 
+Grouped by **risk area** (this doc's native axis). Each section notes the **UX spine** it protects
+(`↳ protects:` → a happy path / design pattern in `docs/UX.md`) — same shared spine as `NFR.md`,
+not the same buckets.
+
 ## Irreversible-harm gate (the one hard block)
+`↳ protects:` *guardrails default-on* · UX Path 2 (the secret-gate step)
 
 | Invariant | Check | Status |
 |---|---|---|
@@ -19,6 +24,7 @@ regen MUST preserve it by contract/structure, not rely on the net).
 | **No fail-open dependency:** `secret-guard.sh` sources **no** lib — a broken dependency can't disable the gate (R50/R54) | `secret gate is self-contained: sources no lib` | ✅ *(gap G2, closed 2026-07-17)* |
 
 ## Task store (crash-safety)
+`↳ protects:` *queue-one-at-a-time* · the `tq` spine (UX Path 2/4)
 
 | Invariant | Check | Status |
 |---|---|---|
@@ -27,6 +33,7 @@ regen MUST preserve it by contract/structure, not rely on the net).
 | `tq cancel` retracts without a false `done` or lingering `open` (file kept for audit) | `tq: cancel retracts a task` | ✅ |
 
 ## Autopilot / ship-mode (near-irreversible)
+`↳ protects:` UX Path 3 (hands-off drain → ship-mode)
 
 | Invariant | Check | Status |
 |---|---|---|
@@ -37,6 +44,7 @@ regen MUST preserve it by contract/structure, not rely on the net).
 | Ship-mode **off** → Stop does not auto-commit | `ship-mode: off → Stop does NOT auto-commit` | ✅ |
 
 ## Session / scope
+`↳ protects:` UX Path 1 (first run / session start) · Path 4 (resume)
 
 | Invariant | Check | Status |
 |---|---|---|
@@ -46,6 +54,7 @@ regen MUST preserve it by contract/structure, not rely on the net).
 | Compaction re-anchors with **queue+pointer, not full STEERING** (token cost, R30·d2/R32) | `session start: re-anchors on a compaction with queue+pointer, NOT the full STEERING` | ✅ |
 
 ## Hooks / structure
+`↳ protects:` cross-cutting (every path — best-effort reliability under any input)
 
 | Invariant | Check | Status |
 |---|---|---|

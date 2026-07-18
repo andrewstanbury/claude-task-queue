@@ -1,10 +1,12 @@
 ---
-description: Review the parked/blocked pile one at a time, recommendation-first, and write your picks back to the queue before new work
+description: Re-surface this repo's earlier-session tasks (on demand), then review the parked/blocked pile one at a time, recommendation-first, and write your picks back to the queue before new work
 ---
 
-Run a **parked-pile review**: walk everything in the `tq` queue that needs the owner's input,
-one item at a time, recommendation-first — and record each decision **before** starting any new
-work. This is the ritual that runs when autopilot is turned off (R38), and you can run it any time.
+Run a **parked-pile review** — and, when picking up an earlier session, first **re-surface** its
+carried-over tasks. This is the ritual that runs when autopilot is turned off (R38), and you can
+run it any time. It **absorbs the former `/companion:resume`** (R39, folded 2026-07-17 with owner
+sign-off): the on-demand session-pickup is now this command's opening step, so there's one review
+entry point instead of two.
 
 It's judgment + workflow, not enforcement — it proposes, you choose, it records (R28). It reuses
 the `/companion:advise` presentation loop (R29). It's owner-present by nature: autopilot's ask-guard
@@ -15,15 +17,29 @@ blocks the questions, so it's meant for when autopilot is **off** (turning it of
    `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off` **before** anything else — while the persisted flag
    is still on, the ask-guard blocks `AskUserQuestion` and the review can't ask a single question.
 
-1. **Gather the pile — parked + blocked only.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/tq" list` (**not
+1. **Re-surface earlier-session tasks (session pickup — the former `/companion:resume`, R39).** Run
+   `"${CLAUDE_PLUGIN_ROOT}/bin/resume.sh"`: it turns **autopilot off first** — announced in one line
+   when it was on (relay that notice; never a silent clobber of a persisted intent — re-arm is a
+   manual `/companion:autopilot on`), quiet no-op when already off — and lists this repo's still-open
+   tasks carried over from earlier sessions (the SessionStart hook does this automatically each new
+   session; this is the on-demand twin). Reinstate the ones still relevant (skip anything already
+   done or no longer wanted), **preserving each item's classification** — a decision comes back
+   parked (`tq add "❓ [parked] <the choice + options + your recommendation>"`), an owner-only action
+   blocked (`tq add "⏳ [blocked] <action>"`), a plain doable task open (`tq add "<subject>"`).
+   **Never promote a parked decision into a plain open task** — that would let the next drain
+   autopilot the answer instead of asking you (R39·D). Restore anything in progress with
+   `tq doing <id>` and pick up from its breadcrumb. Clean no-op if nothing carried over — go
+   straight to the pile.
+
+2. **Gather the pile — parked + blocked only.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/tq" list` (**not
    `report`** — the report truncates each subject to ~72 chars, and a parked item carries its options
    *in* the subject) and take only the tasks whose subject starts with **❓ (parked decision)** or
-   **⏳ (owner-blocked action)**.
+   **⏳ (owner-blocked action)** — including anything you just re-parked in step 1.
    **Ignore plain `📋 open` tasks** — they need doing, not deciding; presenting a menu for
    "implement X" is noise. If nothing is parked or blocked, say so in one line and stop — this is
    a clean no-op, not a reason to manufacture questions.
 
-2. **Walk it one at a time, recommendation-first.** For each item, in smallest-blast / dependency
+3. **Walk it one at a time, recommendation-first.** For each item, in smallest-blast / dependency
    order, present a **single `AskUserQuestion`** — number them ("N of M"), carry picks forward:
    - **❓ parked** — the subject already frames the choice; surface its recorded options + your
      recommendation. Options recommended-first, `(Recommended)` on your pick, each naming its
@@ -36,7 +52,7 @@ blocks the questions, so it's meant for when autopilot is **off** (turning it of
    The owner can **bail at any point** — "review before new work" is the default, not a wall.
    Deferred and still-blocked items stay in the pile untouched for next time.
 
-3. **Write each pick back to `tq` immediately** (so a crash mid-review loses nothing) using only the
+4. **Write each pick back to `tq` immediately** (so a crash mid-review loses nothing) using only the
    real verbs — `add [--done]` / `doing` / `done` / `cancel` / `note` (there is no subject-edit):
    - **Decision made on a ❓** → `tq note <id> "decided: <pick + one-line why>"`, then convert:
      `tq add "<the concrete decided task>" --done "<acceptance>"` (a fresh actionable task, no ❓
@@ -47,7 +63,7 @@ blocks the questions, so it's meant for when autopilot is **off** (turning it of
      `tq cancel <id>`.
    - **Defer** → leave the item as-is (optionally `tq note <id> "deferred <what you're waiting on>"`).
 
-4. **Close the loop.** Recap the picks in a short table (item → decision → what's now queued), then
+5. **Close the loop.** Recap the picks in a short table (item → decision → what's now queued), then
    confirm the queue state with `tq report`. Only **after** the review do you resume normal work —
    and only if the owner says go. If a decision would touch a locked requirement, offer to draft the
    ledger entry (per R5).
