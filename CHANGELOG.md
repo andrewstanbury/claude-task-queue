@@ -2,6 +2,15 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 3.8.1 — 2026-07-19
+
+*Status-line shield spacing fix.*
+
+- **Shield icon renders at full emoji width.** Restored the 🛡️ variation selector so the shield is
+  the same width as ✈️/📦 — without it the shield rendered text-narrow and looked like it had no
+  space after it. (3.8.0 removed the selector to fix a *different* terminal's phantom-cell; the real
+  cause was icon-width inconsistency, so all three feature icons are now uniform emoji width.)
+
 ## companion 3.8.0 — 2026-07-19
 
 *Decisive autopilot mode + a status-line version indicator.*

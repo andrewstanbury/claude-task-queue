@@ -68,12 +68,13 @@ ROOT="$(companion_root "$CWD")"; PROJ="${ROOT##*/}"
 # `secret=off` flag kills it here (the flag mechanism; the `/companion:features` CLI was removed 2026-07-18).
 # Brace every var: on macOS's bash 3.2 an unbraced `$B` directly before the 🛡 glyph swallows the
 # emoji's leading byte into the variable name, which `set -u` then rejects (a real macOS-CI crash).
-# The shield is used WITHOUT the U+FE0F variation selector (owner-reported, 2026-07-19): on some
-# terminals (e.g. Steam Deck's font stack) VS16 renders a phantom trailing cell, showing as a double
-# space before the divider. Plain 🛡 avoids that; the trade-off is a narrower shield where VS16 had
-# forced emoji width.
+# The shield 🛡️ carries the U+FE0F variation selector so it renders as a full-width EMOJI, matching
+# ✈️ (also VS16) and 📦 — uniform icon width means even single-space gaps between them. Without it,
+# 🛡 renders text-narrow (1 cell) next to the wide emoji, which reads as a *missing* space after the
+# shield (owner-reported 2026-07-19, on the real install). If a terminal's font instead renders VS16
+# with a phantom trailing cell, the robust alternative is non-emoji text markers (not this glyph).
 if [ "${CLAUDE_COMPANION_SECSCAN:-1}" = "0" ] || companion_feature_off secret "$ROOT"; then
-  SHIELD="${R}${B}🛡✗${X}"; else SHIELD="${G}${B}🛡${X}"; fi
+  SHIELD="${R}${B}🛡️✗${X}"; else SHIELD="${G}${B}🛡️${X}"; fi
 
 # git: branch + dirty count + ahead/behind in one read (branch.ab = "+A -B", upstream only).
 BRANCH=""; DIRTY=0; AB=""

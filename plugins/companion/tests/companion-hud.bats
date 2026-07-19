@@ -35,7 +35,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
   [ "$status" -eq 0 ]
   [[ "$output" == *"●"* ]]             # health beacon (static ● with color off)
   [[ "$output" == *"🛡"* ]]            # secret gate on
-  [[ "$output" != *"🛡️"* ]]           # NO U+FE0F variation selector (phantom double-space, owner-reported 2026-07-19)
+  [[ "$output" == *"🛡️"* ]]           # shield carries U+FE0F → full emoji width, matching ✈️/📦 (even spacing, owner-reported 2026-07-19)
   local pv; pv="$(jq -r .version "$ROOT/.claude-plugin/plugin.json")"
   [[ "$output" == *"v$pv"* ]]          # plugin version shown (from the manifest, not hardcoded)
   [[ "$output" == *"opus-4-8"* ]]      # model, claude- prefix + date stripped
