@@ -352,6 +352,26 @@ _feature_clear() { rm -f "$CLAUDE_COMPANION_STATE_DIR/features/"* 2>/dev/null ||
   [[ "$output" == *"rec"* ]]                 # + a recommendation
 }
 
+@test "autopilot decisive (R59): toggle persists, and flips the ask-guard guidance park→decide" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  [ "$(cd "$repo" && "$AP" decisive status)" = "off" ]           # off by default
+  ( cd "$repo" && "$AP" decisive on ) >/dev/null
+  [ "$(cd "$repo" && "$AP" decisive status)" = "on" ]            # persisted flag
+  # still DENIES (asking = stopping), but the guidance now says DECIDE reversible + park only irreversible
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c}" | "$2"' _ "$repo" "$ASK"
+  [[ "$output" == *'"permissionDecision":"deny"'* ]]
+  local reason; reason="$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecisionReason')"
+  [[ "$reason" == *"DECISIVE"* ]]
+  [[ "$reason" == *"pick your own recommended option"* ]]        # auto-decide reversible
+  [[ "$reason" == *"IRREVERSIBLE"* ]]                            # park ONLY irreversible-critical
+  [[ "$reason" != *"belongs to the owner"* ]]                    # the R33 always-park-taste line is overridden
+  # decisive is a no-op without autopilot on (it's an intensity ON TOP of autopilot)
+  ( cd "$repo" && "$AP" off ) >/dev/null
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c}" | "$2"' _ "$repo" "$ASK"
+  [[ "$output" != *"deny"* ]]                                    # autopilot off → ask-guard silent (no deny) regardless of decisive
+}
+
 @test "tq: stamps the session .root with the actual git toplevel (R56 G8 — cross-session scope)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   ( cd "$repo" && "$TQ" add "scoped" ) >/dev/null

@@ -26,7 +26,7 @@ points; restating it would drift). Every row keeps its **[E]/[S]** kind and its 
 | Earlier-session tasks in *this repo* re-surface (no cross-repo bleed) | [E] | — | `… resumes THIS repo's tasks only (scoped by .root)` |
 | Repo gotchas (`LESSONS.md`) surface if present | [E] | — | — |
 | After a compaction, the queue + next-pointer re-anchor (work continues, not drifts) | [E] | — | `re-anchors on a compaction with queue+pointer …` |
-| A persistent status line appears: beacon · 🛡/✈️/📦 health · 📋/❓/⏳ queue · model · tokens · project · branch | [E] | *guardrails default-on* | `status line: renders …` |
+| A persistent status line appears: beacon · **plugin version (`v<x.y.z>`)** · 🛡/✈️(·⚡ decisive)/📦 health · 📋/❓/⏳ queue · model · tokens · project · branch | [E] | *guardrails default-on* | `status line: renders …` · `… version shown` |
 
 ## Path 2 · The core loop (request → queue → drain → ship)
 
@@ -50,6 +50,7 @@ points; restating it would drift). Every row keeps its **[E]/[S]** kind and its 
 | `/companion:autopilot on` — Claude keeps draining the queue without stopping to ask | [E] | *offer-not-act nudges* | — |
 | While on, asking is blocked and the drain auto-continues each turn | [E] | — | — |
 | Ship-mode auto-commits each turn to an `autopilot/*` branch (never main, never pushed) | [E] | *guardrails default-on* | — |
+| `/companion:autopilot decisive on` — auto-picks the recommended option for **reversible** decisions (design/wording included) and records each, parking only the irreversible-critical (R59); shown as `✈️⚡` | [E]/[S] | *recommendation-first* | `autopilot decisive: toggle persists, flips ask-guard guidance park→decide` |
 
 ## Path 4 · Pick up where you left off, then clear the pile (`/companion:resume` → `/companion:review`)
 
@@ -107,7 +108,8 @@ recommends, never writes).
 
 ## Configuration the user controls
 
-- **Autopilot / ship** toggle via `/companion:autopilot` (`on|off`, and `ship on|off`). | [E] |
+- **Autopilot / ship / decisive** toggles via `/companion:autopilot` (`on|off`, `ship on|off`, and
+  `decisive on|off` — R59: auto-decide reversible, park only irreversible). | [E] |
 - **Secret gate / steering** are on by default; disable per-repo via a hand-written `<feature>=off`
   flag file (the `/companion:features` CLI was removed 2026-07-18, R50) — the flag mechanism + the
   gate's read of it are unchanged. | [E] |

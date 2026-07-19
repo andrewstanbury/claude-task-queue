@@ -42,6 +42,7 @@ not the same buckets.
 | Ship-mode **refuses to commit a credential** (staged re-scan backstop, R34) | `ship-mode: refuses to auto-commit a hardcoded credential` | ✅ |
 | Autopilot is **enforced + persisted** (ask-guard deny + Stop auto-continue) and **can't spin forever** (no-progress cap, R26) | `autopilot: toggle persists, and is enforced` · `autopilot: Stop yields after the no-progress cap` | ✅ |
 | Ship-mode **off** → Stop does not auto-commit | `ship-mode: off → Stop does NOT auto-commit` | ✅ |
+| **Decisive mode (R59)** is opt-in + persisted, and while on the ask-guard **still denies** asking (it flips the *guidance* park→decide, but never allows a stop) — and is a no-op when autopilot is off | `autopilot decisive: toggle persists, flips ask-guard guidance park→decide` | ✅ |
 
 ## Session / scope
 `↳ protects:` UX Path 1 (first run / session start) · Path 4 (resume)

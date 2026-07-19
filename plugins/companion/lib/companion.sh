@@ -25,6 +25,14 @@ companion_autopilot_clear() { rm -f "$(companion_autopilot_flag "${1:-}")" 2>/de
 companion_ship_flag() { printf '%s/ship/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_ship_on()   { [ -n "${1:-}" ] && [ -f "$(companion_ship_flag "$1")" ]; }
 
+# Decisive mode (R59): while autopilot is ON, instead of PARKING every decision, autopilot
+# auto-picks its own recommended option for **reversible** choices (design/wording/direction
+# included — overrides R33), records each pick, and keeps going; it still parks (❓) / blocks (⏳)
+# only the irreversible / externally-binding / data-destructive. Opt-in, per-repo, persisted; the
+# safety is the audit trail (every auto-pick is a `tq note`), read back by /companion:review.
+companion_decisive_flag() { printf '%s/decisive/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
+companion_decisive_on()   { [ -n "${1:-}" ] && [ -f "$(companion_decisive_flag "$1")" ]; }
+
 # Per-repo feature OFF flags (R50) — a single per-repo file storing only OFF overrides, one
 # `<feature>=off` line each. Absence of a line ⇒ the feature's default (secret/steering
 # default ON). Read by every enforced-core reader (session-start steering, statusline shield);

@@ -2,6 +2,25 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 3.8.0 — 2026-07-19
+
+*Decisive autopilot mode + a status-line version indicator.*
+
+- **`/companion:autopilot decisive on` (new mode, R59).** An opt-in intensity on top of autopilot:
+  instead of parking every decision, it **picks its recommended option for reversible choices**
+  (design/wording/direction included) and **records each**, then keeps going — parking or blocking
+  **only** the irreversible-critical (a push, delete, spend, anything you can't cleanly undo). Every
+  auto-pick is a recorded breadcrumb, so `/companion:review` can audit them and you can reverse any
+  after the fact — that audit trail is what makes auto-deciding safe. Shown on the status line as
+  `✈️⚡`. Off by default; a no-op unless autopilot is on. It deliberately relaxes R33/R49 (which
+  always parked taste) **only** while you opt in — recorded as visible amendments.
+- **Status line shows the plugin version.** `v<x.y.z>` (read from the manifest) now renders right
+  after the beacon, so it's clear which companion is installed.
+- **Shield double-space fixed.** The 🛡 glyph dropped its U+FE0F variation selector, which rendered a
+  phantom trailing cell (a double space before the divider) on some terminals.
+- **Status-line dividers.** Section dividers are now `:` (was `│`), with single even spacing between
+  the active-feature icons (🛡 ✈️ 📦).
+
 ## companion 3.7.0 — 2026-07-19
 
 *Pickup and triage become two commands again — `/companion:resume` re-surfaces earlier-session work, `/companion:review` clears the backlog waiting on you (R38/R39 re-split).*

@@ -242,6 +242,21 @@ parked/blocked). Scope is parked + blocked only — plain `📋 open` tasks need
 the plain-conversation path, actually run `autopilot.sh off` **first** — while the flag is still on
 the ask-guard blocks the review's questions.
 
+**Decisive mode (R59) — `/companion:autopilot decisive on`.** An opt-in intensity *on top of*
+autopilot: while it's on, **don't park a reversible decision — decide it.** For any choice you'd
+normally park — including a **visual / design / direction / wording** choice (this **overrides
+R33's** always-park-taste rule *for this mode only*) — pick the option you'd have marked
+`(Recommended)`, **record it** as a breadcrumb (`tq note <id> "decided: <pick> + one-line why"`, or a
+fresh `tq add` for the chosen task), and keep going. Still run the full recommendation reasoning —
+you're auto-*accepting* your own top pick, not skipping the thought. **The audit trail is the safety
+net:** every auto-pick is recorded, so `/companion:review` can walk them and the owner can reverse any
+after the fact — which is why auto-deciding is safe *only* for the reversible. **Park (`❓`) / block
+(`⏳`) ONLY the irreversible-critical:** a push, a delete, spending money, an externally-binding or
+data-destructive action — anything you can't cleanly undo. **When unsure whether it's reversible,
+treat it as irreversible and park** (the conservative default protects the one thing that matters).
+Decisive is enforced through the ask-guard's mode-aware message; off by default, and a no-op unless
+autopilot is also on.
+
 **Pickup and review are two moves (R39, re-split 2026-07-19).** `/companion:review` is the
 parked-pile triage above; `/companion:resume` is the **session pickup** — it runs `resume.sh`, which
 **turns autopilot off first** so the resurfaced pile comes back to the owner, not to autopilot (a

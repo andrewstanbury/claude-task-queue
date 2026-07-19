@@ -28,5 +28,13 @@ case "$cmd" in
       status) companion_ship_on "$root" && echo on || echo off ;;
       *) echo "usage: autopilot ship on|off|status" >&2; exit 1 ;;
     esac ;;
-  *) echo "usage: autopilot on|off|status | ship on|off|status" >&2; exit 1 ;;
+  decisive) sub="${2:-status}"; dflag="$(companion_decisive_flag "$root")"
+    case "$sub" in
+      on)  mkdir -p "$(dirname "$dflag")" 2>/dev/null && : > "$dflag" \
+           && echo "⚡ decisive mode ON for $root — while autopilot is on I'll PICK my recommended option for reversible decisions (design/wording included) and record each, instead of parking. I still park (❓) / block (⏳) only what's irreversible, externally-binding, or destructive. Review the auto-picks any time with /companion:review." ;;
+      off) rm -f "$dflag" 2>/dev/null; echo "decisive mode OFF for $root — autopilot parks decisions (❓) again instead of auto-deciding." ;;
+      status) companion_decisive_on "$root" && echo on || echo off ;;
+      *) echo "usage: autopilot decisive on|off|status" >&2; exit 1 ;;
+    esac ;;
+  *) echo "usage: autopilot on|off|status | ship on|off|status | decisive on|off|status" >&2; exit 1 ;;
 esac

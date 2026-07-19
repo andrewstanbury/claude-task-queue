@@ -18,8 +18,11 @@ while [ -L "$SELF" ]; do
   link="$(readlink "$SELF")"
   case "$link" in /*) SELF="$link" ;; *) SELF="$(dirname "$SELF")/$link" ;; esac
 done
+PLUGIN_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 # shellcheck source=../lib/companion.sh
-. "$(cd "$(dirname "$SELF")/../lib" && pwd)/companion.sh"
+. "$PLUGIN_DIR/lib/companion.sh"
+# Plugin version (so it's clear at a glance which companion is installed) — read from the manifest.
+VERSION="$(jq -r '.version // empty' "$PLUGIN_DIR/.claude-plugin/plugin.json" 2>/dev/null || true)"
 in=""; [ -t 0 ] || in="$(cat 2>/dev/null || true)"; [ -n "$in" ] || in="{}"
 IFS=$'\t' read -r MODEL SID CWD ITOK OTOK < <(printf '%s' "$in" | jq -r '
   [ (.model.display_name // .model.id // "?"),
@@ -65,10 +68,12 @@ ROOT="$(companion_root "$CWD")"; PROJ="${ROOT##*/}"
 # `secret=off` flag kills it here (the flag mechanism; the `/companion:features` CLI was removed 2026-07-18).
 # Brace every var: on macOS's bash 3.2 an unbraced `$B` directly before the 🛡 glyph swallows the
 # emoji's leading byte into the variable name, which `set -u` then rejects (a real macOS-CI crash).
-# 🛡️ carries the emoji variation selector (U+FE0F) so it renders full emoji-width like ✈️/📦 —
-# without it many terminals draw a narrow/monochrome shield, making the icon spacing look uneven.
+# The shield is used WITHOUT the U+FE0F variation selector (owner-reported, 2026-07-19): on some
+# terminals (e.g. Steam Deck's font stack) VS16 renders a phantom trailing cell, showing as a double
+# space before the divider. Plain 🛡 avoids that; the trade-off is a narrower shield where VS16 had
+# forced emoji width.
 if [ "${CLAUDE_COMPANION_SECSCAN:-1}" = "0" ] || companion_feature_off secret "$ROOT"; then
-  SHIELD="${R}${B}🛡️✗${X}"; else SHIELD="${G}${B}🛡️${X}"; fi
+  SHIELD="${R}${B}🛡✗${X}"; else SHIELD="${G}${B}🛡${X}"; fi
 
 # git: branch + dirty count + ahead/behind in one read (branch.ab = "+A -B", upstream only).
 BRANCH=""; DIRTY=0; AB=""
@@ -84,8 +89,15 @@ case "$AHEAD"  in ''|*[!0-9]*) AHEAD=0;;  esac
 case "$BEHIND" in ''|*[!0-9]*) BEHIND=0;; esac
 
 # ✈️ autopilot when it's armed for this repo (an attention state) — also tints the beacon yellow.
+# ⚡ appended when DECISIVE mode is also on (R59): autopilot auto-decides reversible choices rather
+# than parking — a distinct, louder state the owner should see at a glance.
 APON=0; companion_autopilot_on "$ROOT" && APON=1
-AP=""; [ "$APON" = 1 ] && AP=" ${Y}✈️${X}"
+# One space before each feature icon (🛡 ✈️ 📦) — single, even separation.
+AP=""
+if [ "$APON" = 1 ]; then
+  AP=" ${Y}✈️${X}"
+  companion_decisive_on "$ROOT" && AP=" ${Y}${B}✈️⚡${X}"
+fi
 
 # ⠋ health beacon — animates ONLY while there's work in motion (autopilot draining or a task
 # in-progress); otherwise a static ● (R30·d9 — no pointless idle spinning). The frame is a
@@ -102,16 +114,19 @@ else
   BEACON="●"
 fi
 
-# assemble (│ = dim divider), plugin-relevance order (R34): ⠋ │ 🛡 ✈️ 📦 │ 📋 tasks │ model ⇡in ⇣out │ project ⎇branch *changes
+# assemble (: = dim divider, owner-picked over │/- 2026-07-19), plugin-relevance order (R34):
+# ⠋ : 🛡 ✈️ 📦 : 📋 tasks : model ⇡in ⇣out : project ⎇branch *changes
 # Three plugin sections, then generic: beacon (health) · ACTIVE FEATURES (🛡 gate always · ✈️
 # autopilot · 📦 ship-mode when armed) · the QUEUE (📋/❓/⏳) on its own · then model/tokens · git.
-DIV=" ${D}│${X} "
+DIV=" ${D}:${X} "
 SHIP=""; companion_ship_on "$ROOT" && SHIP=" ${Y}${B}📦${X}"
 # the queue in its own section: 📋 open always; ❓ parked · ⏳ blocked only when present
 TASKS="${C}${B}📋 $NOPEN${X}"
 [ "$NPARK"  -gt 0 ] && TASKS="$TASKS ${Y}${B}❓ $NPARK${X}"
 [ "$NBLOCK" -gt 0 ] && TASKS="$TASKS ${Y}${B}⏳ $NBLOCK${X}"
-out="${BCOL}${B}${BEACON}${X}${DIV}${SHIELD}${AP}${SHIP}${DIV}${TASKS}"
+out="${BCOL}${B}${BEACON}${X}"
+[ -n "${VERSION:-}" ] && out="$out ${D}v$VERSION${X}"
+out="$out${DIV}${SHIELD}${AP}${SHIP}${DIV}${TASKS}"
 out="$out${DIV}${C}${MODEL}${X}"
 [ "${ITOK:-0}" -gt 0 ] 2>/dev/null && out="$out ${D}⇡$(hum "$ITOK") ⇣$(hum "$OTOK")$X"
 [ -n "$PROJ" ] && out="$out${DIV}$PROJ"

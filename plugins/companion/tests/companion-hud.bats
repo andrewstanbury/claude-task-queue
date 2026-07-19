@@ -35,7 +35,9 @@ _feature_off() {  # $1=feature  $2=repo-dir
   [ "$status" -eq 0 ]
   [[ "$output" == *"●"* ]]             # health beacon (static ● with color off)
   [[ "$output" == *"🛡"* ]]            # secret gate on
-  [[ "$output" == *"🛡️"* ]]           # carries the emoji variation selector (consistent width)
+  [[ "$output" != *"🛡️"* ]]           # NO U+FE0F variation selector (phantom double-space, owner-reported 2026-07-19)
+  local pv; pv="$(jq -r .version "$ROOT/.claude-plugin/plugin.json")"
+  [[ "$output" == *"v$pv"* ]]          # plugin version shown (from the manifest, not hardcoded)
   [[ "$output" == *"opus-4-8"* ]]      # model, claude- prefix + date stripped
   [[ "$output" == *"⇡45.2k"* ]]        # up tokens
   [[ "$output" == *"⇣1.3k"* ]]         # down tokens
@@ -136,6 +138,20 @@ _feature_off() {  # $1=feature  $2=repo-dir
   run bash -c 'printf "%s" "$1" | env -u NO_COLOR TERM=xterm "$2"' _ "$p" "$SL"
   [[ "$output" == *"✈️"* ]]              # autopilot armed → ✈️ shows
   [[ "$output" != *"●"* ]]              # and the beacon spins (braille frame), NOT the static idle dot
+}
+
+@test "status line: ⚡ decisive indicator shows only when autopilot AND decisive are on (R59)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sDec",cwd:$c}')"
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [[ "$output" == *"✈️"* ]]; [[ "$output" != *"⚡"* ]]   # autopilot on, decisive off → ✈️ but no ⚡
+  ( cd "$repo" && "$AP" decisive on ) >/dev/null
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [[ "$output" == *"✈️⚡"* ]]                            # decisive on → ✈️⚡
+  ( cd "$repo" && "$AP" off ) >/dev/null                 # decisive is a no-op without autopilot
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [[ "$output" != *"⚡"* ]]; [[ "$output" != *"✈️"* ]]
 }
 
 @test "status line: sections render in R34 plugin-relevance order — beacon → features → queue → git (R56 #24)" {
