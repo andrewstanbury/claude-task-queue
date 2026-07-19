@@ -58,7 +58,8 @@ not the same buckets.
 
 | Invariant | Check | Status |
 |---|---|---|
-| Every stdin-reading hook is **best-effort** — survives empty / garbage / truncated / huge / multibyte input without breaking the triggering action (R7) | `fuzz: every stdin-reading hook survives …` · `fuzz: … multibyte / emoji` | ✅ |
+| Every stdin-reading hook is **best-effort** — survives empty / garbage / truncated / huge / multibyte input without breaking the triggering action (R7). Covers `capture.sh` (R58). | `fuzz: every stdin-reading hook survives …` · `fuzz: … multibyte / emoji` | ✅ |
+| **Prompt capture is write-only** — `capture.sh` (`UserPromptSubmit`, R58) banks the prompt but prints **nothing** to stdout (no `additionalContext`), so it carries zero runtime token cost (N1). Regen must keep the sink silent. | `capture: banks the prompt, injects nothing` | ✅ |
 | Manifests valid + versions in lockstep + shellcheck-clean + no leaked secret + files ≤300 lines | `check.sh`: JSON valid · version match · ShellCheck · gitleaks · size | ✅ |
 
 ---

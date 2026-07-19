@@ -2,6 +2,59 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 3.7.0 — 2026-07-19
+
+*Pickup and triage become two commands again — `/companion:resume` re-surfaces earlier-session work, `/companion:review` clears the backlog waiting on you (R38/R39 re-split).*
+
+- **`/companion:review` (restored).** Walks the backlog that needs *you* — parked ❓ decisions +
+  blocked ⏳ owner-actions — one at a time, recommendation-first, recording each pick before new
+  work. This is what runs when you turn autopilot off, and you can run it any time to clear the pile.
+- **`/companion:resume` is now session-pickup only.** It re-surfaces this repo's carried-over tasks
+  (autopilot off first, preserving each task's ❓/⏳/📋 class), then hands off to `/companion:review`
+  for anything waiting on your input — instead of doing both in one command.
+- **Why the re-split.** The two were merged in 3.4.0 for less surface; the owner chose the clearer
+  seam — pickup (a session-boundary move) and triage (deciding the parked pile) are different jobs.
+  Recorded as a visible reversal of the R38/R39 fold (the ledger notes it was taken over the
+  recommendation to keep them merged). All the ritual's behavior + checks are preserved; only the
+  command boundary moved. Surface goes 8 → 9 commands.
+
+## companion 3.6.0 — 2026-07-19
+
+*The living contract — the UX + quality-attribute record stays accurate at any moment while you build, as one plugin, not a split (R58).*
+
+- **Prompt capture (new hook).** A `UserPromptSubmit` hook (`bin/capture.sh`) banks every prompt to
+  a per-repo write-only store — the raw material for keeping the contract current. It **injects
+  nothing** (zero runtime token cost, N1); it's read on demand, never pasted into context.
+- **The contract reflex (steering).** When a request or edit changes what the user sees/does (UX) or
+  a quality attribute (NFR), the working agreement now moves the `docs/UX.md` / `docs/NFR.md` entry
+  **first** (recommendation-first) and queues the code against it — the continuous twin of
+  `/companion:document`'s batch sweep, so the contract leads the code instead of chasing it.
+- **Drift backstop (check).** `bin/contract-drift.sh` (generic, R9) surfaces behaviour that changed
+  without a contract doc moving — run by `check.sh` and `ship-it`. Advisory by design (a warning,
+  never a hard fail): most changes don't touch the contract, so a gate would false-positive; the
+  reflex is the prevention, this is the visibility net.
+- **`/companion:cover` (new command).** Ranks the UX paths by criticality × coverage gap and
+  recommends the ideal test for each critical one, in the repo's own idiom, queued as tasks — it
+  **recommends, never writes** test files. The test-recommendation arm of the same contract.
+- **Why one plugin, not two.** A separate planning plugin would duplicate the queue/gate/status line
+  and add a second SessionStart injection — the one real token cost — against N1, and reverse the
+  R24/R52 collapse. The contract isn't separable from the loop that ships against it. (R58, 🔒.)
+
+## companion 3.5.0 — 2026-07-18
+
+*`/companion:ship-it` becomes contract-aware — the recorded contract can't drift a commit behind (R57).*
+
+- **ship-it names the contract impact.** It reads the diff, identifies which R54 pillar it touches
+  (UX / NFR / invariant), and folds the relevant logged design into the commit + PR body — loudest
+  for UX changes, so a reviewer sees the experience delta, not just the code.
+- **ship-it proposes the UX-doc update, recommendation-first.** When a ship changes UX, it drafts
+  the `docs/UX.md` edit for you to confirm, then stages it **with** the code so they land in one
+  commit. It never silently rewrites the contract — the owner still governs the experience, and the
+  drift-guard check stays the backstop. (Same for genuine NFR/invariant changes.)
+- **ship-it maintains a README docs index + `docs/` is the default home.** A `Documentation` section
+  in the README links every `docs/*.md`, kept current each ship, so a GitHub reviewer reaches the
+  contract in one click. `document` records generated contract docs under `docs/` by default.
+
 ## companion 3.4.0 — 2026-07-18
 
 *Command-surface trim (9 → 7), each reversal signed off + logged in the ledger.*

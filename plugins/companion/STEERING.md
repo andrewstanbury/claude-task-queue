@@ -56,7 +56,7 @@ The strongest case is a **decision-shaped** request (choose / redesign / compare
 Each option names its **cost / what it changes** plus your brutal-honest read (up to "don't do
 this"). It fires the **same whether autopilot is off or on**: off, ask live; on, you can't ask, so
 **park the *same full payload*** in the `❓` subject — a parked `❓` holding a one-line guess instead
-of the full option set defeats the resume review. Judge decision-shapedness by *reading* the
+of the full option set defeats the parked-pile review. Judge decision-shapedness by *reading* the
 request, not by a keyword.
 
 **Verify observably.** Confirm the change does what was asked by exercising it, not by
@@ -149,6 +149,25 @@ preventing rework — a nudge that doesn't serve that isn't worth the interrupti
 you can't ask, so a nudge needing a yes/no becomes a parked `❓` carrying its recommendation; the
 taste-neutral one (queue a debt task) you just do and record.
 
+## How we keep the contract live (R58)
+
+**Moves:** ▢ a request/edit changes **what the user sees or does** (UX) or a **quality attribute**
+(NFR) → **move the contract doc first** — propose the `docs/UX.md` / `docs/NFR.md` edit
+recommendation-first, *before* the code, and queue the code as a `tq` task against it ▢ let the
+contract be the acceptance the work satisfies (the doc-side twin of `--done`) ▢ on a critical,
+un-eyeball-able UX path with no safety net → **offer `/companion:cover`** (recommend the ideal test;
+never auto-write it) ▢ never let behaviour outrun the contract silently.
+
+The goal is a **UX/NFR/quality contract that's accurate at any moment**, not just at ship. Three
+layers carry it, split the usual way (R28): **capture** is a hook (`bin/capture.sh` banks every
+prompt, write-only, zero injection) — raw material, no judgment; the **reflex above** is steering —
+the judgment of *which* change touches the contract and moving the doc first (the continuous twin of
+`/companion:document`'s batch sweep); the **backstop** is a check (`bin/contract-drift.sh`, run by
+`check.sh` + `ship-it`) that surfaces behaviour changed without a contract doc — detection, because
+"does this change the contract" is a judgment a gate can't make without false-positiving. Prevention
+is the reflex; the check is the net. `/companion:cover` is the test-recommendation arm of the same
+contract — it critiques coverage of the UX paths, it never writes files.
+
 ## How we know the project
 
 **Moves:** ▢ gate substantive work on a self-describing project (map · ledger · stack notes · glossary);
@@ -208,32 +227,32 @@ design / direction / wording choice belongs to the owner even when trivially rev
 don't pick for them. Reversibility isn't the test for those; ownership of taste is. **Park with the
 full payload, not a one-liner:** a parked `❓` owes the *same* recommendation contract you'd have
 asked live — `❓ [parked] <the choice> — options: A) … (cost) B) … (cost) C) … (cost); rec: <pick> +
-one-line why`. It all goes **in the subject** (that's what the resume review reads back, via the
+one-line why`. It all goes **in the subject** (that's what the parked-pile review reads back, via the
 non-truncating `tq list`), so keep each option terse but real. A `❓` holding a thin guess instead of
-the options makes the resume review a rubber-stamp — the exact failure parking exists to prevent. If an unparkable decision blocks everything, take
+the options makes the review a rubber-stamp — the exact failure parking exists to prevent. If an unparkable decision blocks everything, take
 the safest reversible default, record it, leave a `❓` to override — never stall. A human playtest
 needs a person, so don't try it: capture it as a `⏳ [blocked] playtest: <what>` and keep draining.
 The owner reviews the parked `❓`/`⏳` pile whenever they check in — there's no "they're back" moment
 to wait for, they may be watching the queue the whole time. **When autopilot is turned off — by
 `/companion:autopilot off` *or* by a plain-conversation "turn it off" — immediately run the
-parked-pile review (R38): walk the `❓`/`⏳` pile one item at a time, recommendation-first, and
-write each pick back to `tq` *before* starting any new work** (follow `/companion:resume`; each item
+parked-pile review (`/companion:review`, R38): walk the `❓`/`⏳` pile one item at a time,
+recommendation-first, and write each pick back to `tq` *before* starting any new work** (each item
 can be deferred and the owner can bail — it's the default, not a wall; a clean no-op if nothing is
 parked/blocked). Scope is parked + blocked only — plain `📋 open` tasks need doing, not deciding. On
 the plain-conversation path, actually run `autopilot.sh off` **first** — while the flag is still on
 the ask-guard blocks the review's questions.
 
-**Resume is a triage handoff (R39) — now step 1 of `/companion:resume`.** The on-demand session
-pickup folded into `review` (2026-07-17, owner sign-off): `review` runs `resume.sh`, which **turns
-autopilot off first** so the resurfaced pile comes back to the owner, not to autopilot (a parked
-`❓` that resurfaced while autopilot was on would get autopiloted, not asked). When you reinstate
-carried-over tasks, **preserve their classification** — a decision comes back `❓ [parked]`, an
-owner-action `⏳ [blocked]`, a plain task `📋 open`; never promote a parked decision into a plain
-open task (that hands the next drain the answer instead of the owner). Then, autopilot now being
-off, `review` walks the parked-pile over the pile you just re-surfaced. This is why the fix lives in
-the task's *type*, not a mode flag: the triage-vs-drain distinction survives on the `❓`/`⏳`/`📋`
-prefix in either mode, so the pickup needs no ask-guard exemption — turning autopilot off already
-clears the block.
+**Pickup and review are two moves (R39, re-split 2026-07-19).** `/companion:review` is the
+parked-pile triage above; `/companion:resume` is the **session pickup** — it runs `resume.sh`, which
+**turns autopilot off first** so the resurfaced pile comes back to the owner, not to autopilot (a
+parked `❓` that resurfaced while autopilot was on would get autopiloted, not asked), then re-surfaces
+this repo's earlier-session tasks. When you reinstate carried-over tasks, **preserve their
+classification** — a decision comes back `❓ [parked]`, an owner-action `⏳ [blocked]`, a plain task
+`📋 open`; never promote a parked decision into a plain open task (that hands the next drain the
+answer instead of the owner). `resume` then hands off to `review` for any parked/blocked items it
+surfaced. This is why the fix lives in the task's *type*, not a mode flag: the triage-vs-drain
+distinction survives on the `❓`/`⏳`/`📋` prefix in either mode, so the pickup needs no ask-guard
+exemption — turning autopilot off already clears the block.
 
 ## Posture
 

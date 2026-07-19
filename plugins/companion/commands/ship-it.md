@@ -1,5 +1,5 @@
 ---
-description: Ship finished work — verify, commit, push, and merge to the default branch
+description: Ship finished work — verify, sync the contract docs, commit, push, and merge to the default branch
 ---
 
 Take verified work from the working tree to shipped. Pushing and merging are externally
@@ -18,7 +18,30 @@ visible, so be careful and confirm the irreversible steps.
      + the goal and ask it to find every reason *not* to ship, independently. Surface its
      objections. A rubber-stamp from a context that didn't build the change is worth little; an
      objection from one is worth a lot — if it lands a real one, fix or reconsider before you push.
-3. **Review + commit — write it to be *read* (R40).** Show `git status` and a short
+3. **Sync the contract + docs before you commit (R57).** A ship that changes what the user *sees or
+   does* must not leave the recorded contract a commit behind. Before committing:
+   - **Name the contract impact.** Read the diff and identify which R54 pillar it touches — **UX**
+     (a command / flow / output the user sees), **NFR** (a quality attribute), or an **invariant**
+     (a must-hold). Pull the *relevant logged design* for what changed — the affected `docs/UX.md`
+     rows, the `docs/NFR.md` entry, the invariant — and fold it into the commit body (and the PR
+     body), **called out loudest for UX changes** so a reviewer sees the *experience* delta, not
+     just the code.
+   - **Propose the UX-doc update, recommendation-first — the contract stays owner-governed.** If the
+     change alters UX (a command added / removed / renamed, a flow or output changed), **draft the
+     `docs/UX.md` edit** — the exact rows to add / change / remove, preserving every `[E]/[S]` kind +
+     its check — and present it recommendation-first for the owner to confirm or adjust (the same
+     `AskUserQuestion` shape; under autopilot, park it as a `❓` carrying the drafted edit). On
+     approval, **stage the doc edit *with* the code** so they land in one commit — the contract never
+     drifts a commit behind. Do **not** silently rewrite the contract: the drift-guard check stays
+     the backstop (a mismatch still fails CI), and the owner still governs what the experience *is*
+     (R54). Same for a genuine NFR/invariant change — propose the `docs/NFR.md` / `docs/INVARIANTS.md`
+     edit rather than assuming it.
+   - **Refresh the README docs index.** Ensure the `README` has a **Documentation** section that
+     links each `docs/*.md` (the contract + the map), and update it if this ship added / removed /
+     renamed a doc — so a GitHub reviewer reaches the docs in one click. Keep it a plain link list;
+     don't copy the docs' content into the README (that just makes a second thing to drift).
+
+4. **Review + commit — write it to be *read* (R40).** Show `git status` and a short
    `git diff --stat`. Then **right-size first:** if the diff mixes unrelated concerns or is large,
    say so in one line and offer to split it into separate logical commits (or stacked PRs) — a
    reviewer, human or not, reads one concern at a time. Commit each logical unit with a
@@ -31,7 +54,7 @@ visible, so be careful and confirm the irreversible steps.
      **Tasks** it closes (the `tq`/tracker items), and the **Test result** (`check.sh` green, N tests).
    - This makes even a single squashed commit self-documenting. If a version/marketplace manifest is
      part of the change, make sure it's bumped.
-4. **Push + integrate → the default branch.** Land the verified work on the default branch:
+5. **Push + integrate → the default branch.** Land the verified work on the default branch:
    - On a **feature / `autopilot/*` branch** with `gh`: **first curate the history for review (R40,
      reshapes R34's squash-on-ship).** An `autopilot/*` branch is a string of per-turn
      `autopilot: checkpoint` commits (WIP included) — don't merge that raw, and don't flatten it to
@@ -47,7 +70,7 @@ visible, so be careful and confirm the irreversible steps.
    - Without `gh`: push the branch and print the compare/PR URL to open manually.
    - Already on the **default branch**: push it (curation/PR steps don't apply — commit is already
      shaped in step 3).
-5. **Clean up merged branches (R35) — only after the merge SUCCEEDS.**
+6. **Clean up merged branches (R35) — only after the merge SUCCEEDS.**
    - Delete the branch you just shipped: local `git branch -d <branch>` (lowercase — it **refuses**
      an unmerged branch, so no work is ever lost) and, if a remote copy exists,
      `git push origin --delete <branch>`.
@@ -58,7 +81,7 @@ visible, so be careful and confirm the irreversible steps.
      **shared** (branches on the remote you didn't create), *list the merged remote branches and
      confirm* before deleting them — a teammate's merged branch may still be wanted. Never
      mass-delete remote branches silently.
-6. **Confirm** in one plain line what shipped and what was cleaned up (branch / commit / PR URL +
+7. **Confirm** in one plain line what shipped and what was cleaned up (branch / commit / PR URL +
    which branches were deleted), so the owner can install or review.
 
 Never force-push or rewrite published history unless the owner explicitly asks.

@@ -48,6 +48,13 @@ companion_secret_re() { printf '%s' 'AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,}
 # The companion's own task store (not native tasks).
 companion_tasks_dir() { printf '%s' "${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}"; }
 
+# Per-repo raw prompt-capture store (R58) — the UserPromptSubmit hook appends one JSONL line
+# per prompt here so the living-contract reflex/`/companion:cover` have durable raw material to
+# classify (which prompts changed the UX / a quality attribute). Scoped by encoded repo root, same
+# as the autopilot flag, so there's no cross-repo bleed. Write-only sink: nothing here is ever
+# injected into context (N1 — the hook returns no additionalContext); it's read on demand only.
+companion_captures_dir() { printf '%s/captures/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
+
 # Open (pending/in_progress) task subjects for a repo, across every session dir whose `.root`
 # stamp matches — the cross-session resume signal. One "  ◻ <subject>" line each; empty when
 # none. Shared by the SessionStart hook (auto-resume) and `bin/resume.sh` (manual).

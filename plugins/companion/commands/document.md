@@ -45,6 +45,12 @@ lands in**:
 > owner-agreed quality attribute) · **incidental-implementation** → *not contract* (a 🔓 ledger note
 > at most, or dropped — a regen may change it freely).
 
+**Generated contract docs live in `docs/` (the default home).** `UX.md`, `NFR.md`, and
+`INVARIANTS.md` — plus the ledger (`REQUIREMENTS.md`) and map (`MAP.md`) — all sit under a single
+`docs/` folder at the repo root, so a reviewer finds the whole contract in one place and `ship-it`
+can keep a README index pointing at it (R57). If a repo has no `docs/`, create it; don't scatter
+contract docs across the tree.
+
 The anti-laundering rule applies **doubly** to `agreed-NFR`: only a quality attribute the owner
 *actively agreed* is contract; an inferred one the owner didn't pick is `incidental`, not NFR. This
 pillar routing is what lets `advise` **regenerate against the contract** (R54), not just read the ledger.

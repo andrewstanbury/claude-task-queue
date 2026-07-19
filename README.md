@@ -15,7 +15,7 @@ reads once per session. The only things that are code are the things that must a
 |---|---|
 | **Steering** ([STEERING.md](plugins/companion/STEERING.md)) | The working agreement: how Claude queues work, challenges the ask, recommends against a **requirements ledger** (🔒 locked / 🔓 open), keeps changes clean, and runs autonomously without stopping. Put in context once per session. |
 | **Secret gate** | Before any write, blocks a file that would commit a credential — the one thing native permissions can't scan. A leaked key is irreversible. |
-| **Resume** | Re-surfaces this repo's unfinished tasks when you start a new session — or on demand as the first step of `/companion:resume`. |
+| **Resume / Review** | `/companion:resume` re-surfaces this repo's unfinished tasks (session pickup; also automatic at session start). `/companion:review` walks the backlog waiting on you — parked ❓ decisions + blocked ⏳ actions — one at a time, and runs when you turn autopilot off. |
 | **Ship** | `/companion:ship-it` — verify your gate, commit, push, and open/merge a PR. |
 | **`tq`** | The task queue — self-owned, so it works everywhere (including the newest models where Claude's built-in task tracking is switched off) and doesn't depend on Claude Code internals. It reprints the queue on every change, so the CLI always shows what's in progress and next. |
 | **Autopilot** | `/companion:autopilot on` — Claude keeps working the queue **without stopping**, parking decisions it shouldn't make alone. It's "keep going," *not* "you're away": keep it on and keep queuing tasks while you watch. Enforced (won't stop or ask while on), persists across restarts. `ship on` also auto-commits work to an `autopilot/*` branch. |
@@ -37,11 +37,13 @@ Bash + `jq`, zero build, one install.
 - **`/companion:autopilot on|off`** — keep working the queue without stopping — keep it on and keep queuing tasks.
   Add **`autopilot ship on`** to auto-commit completed work to an `autopilot/*` branch (reversible,
   never main, no push) for you to review + ship on return.
-- **`/companion:resume`** — first **re-surfaces this repo's unfinished tasks** from an earlier
-  session (turning autopilot off — this absorbs the former `/companion:resume`), then walks the
-  parked/blocked pile one at a time, recommendation-first, and records your picks before new work.
-  **Runs automatically when you turn autopilot off** — so decisions it deferred while running get
-  your input before it moves on.
+- **`/companion:resume`** — **re-surfaces this repo's unfinished tasks** from an earlier session
+  (turning autopilot off first, preserving each task's ❓/⏳/📋 class). Session pickup only; it hands
+  off to `/companion:review` for anything waiting on your input.
+- **`/companion:review`** — walks the backlog that needs *you* — parked ❓ decisions + blocked ⏳
+  owner-actions — one at a time, recommendation-first, recording each pick before new work.
+  **Runs automatically when you turn autopilot off** — so decisions deferred while it ran get your
+  input before it moves on. A clean no-op when nothing's parked.
 - **`/companion:ship-it`** — verify → state the case → commit → push → **merge to main → prune the
   merged branches** (local + remote; shared repos are confirmed first).
 
@@ -52,6 +54,19 @@ Three plugin sections then generic — `⠋` beacon `│` **active features** `�
 `📦` ship-mode armed · `📋` open · `❓` parked · `⏳` blocked tasks · `⇡`/`⇣` input/output tokens ·
 project · `⎇` branch · `*N` uncommitted · `↑`/`↓` commits ahead/behind upstream. *(`⇡⇣` are tokens;
 `↑↓` are git — two arrow pairs, different meanings.)*
+
+## Documentation
+
+The full design lives under [`docs/`](docs/) — the contract a rebuild must preserve, plus the map
+and ledger. `/companion:ship-it` keeps this index current (R57).
+
+- **[docs/UX.md](docs/UX.md)** — the user-experience contract: what you see and do, as happy paths + design patterns.
+- **[docs/NFR.md](docs/NFR.md)** — the quality-attribute contract (the agreed non-functional requirements).
+- **[docs/INVARIANTS.md](docs/INVARIANTS.md)** — the safety/correctness net: the must-holds, each tied to an executable check.
+- **[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)** — the requirements ledger (🔒 locked / 🔓 open / ⚰️ retired), the source of truth for durable decisions.
+- **[docs/MAP.md](docs/MAP.md)** — the code map: every file and what it does.
+- **[docs/ROADMAP.md](docs/ROADMAP.md)** — where it's heading.
+- **[docs/GLOSSARY.md](docs/GLOSSARY.md)** — the coined vocabulary.
 
 ## Requirements
 

@@ -70,6 +70,15 @@ for f in "${scripts[@]}"; do
 done
 [ "$size_fail" -eq 0 ] && echo "  ok"
 
+section "Contract drift (advisory — R58)"
+# Backstop for the living contract: warns when behaviour changed locally without a contract doc
+# (docs/UX.md·NFR.md·INVARIANTS.md) moving. Advisory by design — NOT a fail (most changes don't
+# touch the contract; a hard gate here would false-positive into being disabled). The STEERING
+# "contract reflex" is the prevention; this is the visibility net. Silent (clean) in CI, where the
+# tree matches HEAD.
+drift="$(plugins/companion/bin/contract-drift.sh 2>/dev/null || true)"
+if [ -n "$drift" ]; then printf '%s\n' "$drift" | sed 's/^/  /'; else echo "  ok — no unrecorded contract drift"; fi
+
 section "Tests (bats)"
 if have bats; then
   for d in plugins/*/tests tests; do

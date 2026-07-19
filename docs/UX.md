@@ -32,6 +32,8 @@ points; restating it would drift). Every row keeps its **[E]/[S]** kind and its 
 
 | Step | Kind | Pattern | Check |
 |---|---|---|---|
+| Every prompt is captured to a local write-only store (raw material for the living contract; nothing injected, no token cost) | [E] | *living-contract* | `capture: banks the prompt, injects nothing` |
+| A change to what the user sees/does or a quality attribute moves the contract doc **first** (recommendation-first), the code queued against it | [S] | *living-contract* | `contract-drift: warns when behaviour outran the contract` |
 | A request becomes `tq` tasks (smallest-blast-first, each with a done-when) | [S]/[E] | *queue-one-at-a-time* | `tq: done-when …` |
 | Worked one at a time, a breadcrumb on the active task | [S]/[E] | *queue-one-at-a-time* | `parked/blocked … prefix-view over pending` |
 | Decisions surface as pick-from-CLI menus (+ a one-line brutal-honest verdict each reply) | [S] | *recommendation-first* | — |
@@ -39,7 +41,7 @@ points; restating it would drift). Every row keeps its **[E]/[S]** kind and its 
 | Visual changes get a wireframe before code; work stays clean-as-you-go | [S] | *wireframe-first* · *clean-as-you-go* | — |
 | A write that would commit a real credential is **blocked** with a message | [E] | *guardrails default-on* | `secret gate: blocks a real AWS key (exit 2)` |
 | Verified by exercising, not asserting; recapped in one line | [S] | *clean-as-you-go* | — |
-| A finished chunk ships: verify→commit→push→merge (`/companion:ship-it`) | [S] | — | — |
+| A finished chunk ships: verify→**sync the contract docs** (name the pillar it touches; propose the `docs/UX.md` edit recommendation-first, commit it with the code; refresh the README docs index)→commit→push→merge (`/companion:ship-it`, R57) | [S] | *recommendation-first* | — |
 
 ## Path 3 · Hands-off drain (autopilot → ship-mode)
 
@@ -49,12 +51,12 @@ points; restating it would drift). Every row keeps its **[E]/[S]** kind and its 
 | While on, asking is blocked and the drain auto-continues each turn | [E] | — | — |
 | Ship-mode auto-commits each turn to an `autopilot/*` branch (never main, never pushed) | [E] | *guardrails default-on* | — |
 
-## Path 4 · Pick up where you left off (`/companion:resume`)
+## Path 4 · Pick up where you left off, then clear the pile (`/companion:resume` → `/companion:review`)
 
 | Step | Kind | Pattern | Check |
 |---|---|---|---|
-| `/companion:resume` step 1 — turns autopilot off, re-surfaces earlier-session tasks preserving their ❓/⏳/📋 class (absorbs the former `/companion:resume`, R39) | [E]/[S] | *recommendation-first* | `manual resume: turns autopilot OFF first …` |
-| Then walk the parked/blocked pile one at a time, picks written back before new work | [S] | *recommendation-first* | — |
+| `/companion:resume` — turns autopilot off first, re-surfaces this repo's earlier-session tasks preserving their ❓/⏳/📋 class (session pickup; R39) | [E]/[S] | *recommendation-first* | `manual resume: turns autopilot OFF first …` |
+| `/companion:review` — walk the parked (❓) + blocked (⏳) backlog one at a time, recommendation-first, picks written back before new work; also the autopilot-off trigger (R38, re-split 2026-07-19) | [S] | *recommendation-first* | — |
 
 ## Path 5 · Improve the design (advise → document → redesign)
 
@@ -63,6 +65,7 @@ points; restating it would drift). Every row keeps its **[E]/[S]** kind and its 
 | `/companion:advise` — brutal-honest critique as options you pick one at a time, then queued (critique only, never edits) | [S] | *recommendation-first* | — |
 | `/companion:document` — record load-bearing decisions, tagged by contract pillar (check › 🔒 › 🔓) | [S] | — | — |
 | `/companion:redesign` — whole-app contract-preserving rebuild in bounded, check-gated passes; **runs `document` first**, and a single bounded target is just one pass (absorbs the former `regen`) (experimental) | [S] | *contract-preserving rebuild* | — |
+| `/companion:cover` — recommend the ideal test for each critical UX path (ranked by criticality × coverage gap), queued; recommends, never writes test files | [S] | *recommendation-first* · *living-contract* | — |
 
 ---
 
@@ -79,6 +82,7 @@ Each is defined **once here**; the happy-path steps above reference it by name.
 | *offer-not-act nudges* | [S] | Context nudges are **offers, not actions**: debt → task · big blast → split · repetitive drain → autopilot · finished chunk → ship-it. | — |
 | *contract-preserving rebuild* | [S] | `redesign` reproduces the logged UX + NFR contract, gated on the safety checks, applied on a branch — the experience is preserved, the implementation may change (a single bounded target is one pass). | — |
 | *guardrails default-on* | [E] | Safety features (secret gate, status-line health, ship-mode's never-main) are on by default and opt-out only; disabling the secret gate warns loudly. | `secret gate: blocks a real AWS key (exit 2)` |
+| *living-contract* | [E]/[S] | The UX + quality-attribute contract (`docs/UX.md`·`NFR.md`) stays accurate continuously (R58): every prompt is **captured** (hook, write-only, zero injection), a change to what the user sees/does or a quality attribute **moves the contract doc first** (steering reflex — the continuous twin of `/companion:document`), and a **drift backstop** (`check.sh`/`ship-it`) surfaces behaviour that outran the contract. `/companion:cover` is its test-recommendation arm. | `contract-drift: warns when behaviour changed without a contract doc` |
 
 ---
 
@@ -89,14 +93,17 @@ Each is defined **once here**; the happy-path steps above reference it by name.
 Reprints on every change. `add · doing · note · done · cancel · list · report`. The spine the
 user watches. See *queue-one-at-a-time* above.
 
-## Slash commands (7)
+## Slash commands (9)
 
 `/companion:setup` (wire status line) · `/companion:autopilot` (keep-draining, enforced when on) ·
-`/companion:ship-it` (verify→commit→push→merge) · `/companion:resume` (re-surface earlier-session
-tasks + walk the parked pile — absorbs the former `review`) · `/companion:advise` (brutal-honest critique
+`/companion:ship-it` (verify→sync contract docs→commit→push→merge) · `/companion:resume` (re-surface earlier-session
+tasks — session pickup) · `/companion:review` (walk the parked ❓ + blocked ⏳ backlog, recommendation-first;
+the autopilot-off trigger) · `/companion:advise` (brutal-honest critique
 as options — critique only, never edits) · `/companion:redesign` (whole-app contract-preserving rebuild in
 bounded, check-gated passes; runs `document` first, a single target is one pass — absorbs the former
-`regen`; experimental) · `/companion:document` (record load-bearing decisions, tagged by contract pillar).
+`regen`; experimental) · `/companion:document` (record load-bearing decisions, tagged by contract pillar) ·
+`/companion:cover` (recommend the ideal test per critical UX path — ranked by criticality × coverage gap;
+recommends, never writes).
 
 ## Configuration the user controls
 

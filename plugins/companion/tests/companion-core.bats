@@ -9,6 +9,7 @@ setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"
   AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
+  CAP="$ROOT/bin/capture.sh"; DRIFT="$ROOT/bin/contract-drift.sh"   # R58 living contract
   export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"   # the companion's OWN store, not ~/.claude/tasks
   export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"   # autopilot flags live here
   export CLAUDE_COMPANION_SESSION_ID="s1"
@@ -154,9 +155,17 @@ _feature_clear() { rm -f "$CLAUDE_COMPANION_STATE_DIR/features/"* 2>/dev/null ||
   grep -q "REQUIRED first step"            "$C/redesign.md"     # D1 document-first requirement (R55)
   grep -q "Verify FIRST"                   "$C/ship-it.md"      # verify before commit
   grep -q "Never force-push"               "$C/ship-it.md"      # never rewrite published history
+  grep -q "Sync the contract"              "$C/ship-it.md"      # R57 contract-sync step
+  grep -q "Propose the UX-doc update"      "$C/ship-it.md"      # R57 UX-doc proposal (owner-governed, not silent)
   grep -q "anti-laundering"                "$C/document.md"     # only the owner's pick records a 🔒
   grep -q "autopilot"                      "$C/resume.md"       # resume respects/clears autopilot
-  grep -q "resume.sh"                       "$C/resume.md"       # resume runs the re-surface (R39, folded)
+  grep -q "resume.sh"                       "$C/resume.md"       # resume runs the session-pickup re-surface (R39)
+  grep -q "companion:review"               "$C/resume.md"       # pickup hands off to review (R39 re-split)
+  grep -qE "parked|❓"                       "$C/review.md"       # review walks the parked pile (R38)
+  grep -q 'autopilot.sh" off'              "$C/review.md"       # review clears autopilot (it asks)
+  grep -qiE "before .*new work"            "$C/review.md"       # R38 write-back-before-new-work
+  grep -qE "never writes|recommends, never" "$C/cover.md"       # R58 cover recommends, never writes tests
+  grep -q 'autopilot.sh" off'              "$C/cover.md"        # R58 cover clears autopilot (it asks)
 }
 
 @test "docs/UX.md lists every shipped command + the count matches (UX contract can't silently drift)" {
@@ -467,6 +476,39 @@ _feature_clear() { rm -f "$CLAUDE_COMPANION_STATE_DIR/features/"* 2>/dev/null ||
   jq -n '{id:"2",subject:"decide X",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
   run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3" | jq -r ".decision // \"allow\""' _ "$repo" "$sid" "$STOP"
   [ "$output" = "block" ]                                   # so parked-ness lives in the prefix, not status
+}
+
+# ---- living contract (R58): capture write-only + drift backstop ----
+
+@test "capture: banks the prompt, injects nothing" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  run bash -c 'jq -nc --arg c "$1" --arg p "$2" "{cwd:\$c,prompt:\$p}" | "$3"' _ "$repo" "add a /companion:cover command" "$CAP"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]                                          # WRITE-ONLY: nothing to stdout (no additionalContext) — N1
+  local enc; enc="$(printf '%s' "$(git -C "$repo" rev-parse --show-toplevel)" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  local store="$CLAUDE_COMPANION_STATE_DIR/captures/$enc/prompts.jsonl"
+  [ -f "$store" ]                                           # …the prompt WAS banked to the per-repo store
+  [ "$(jq -r .prompt "$store")" = "add a /companion:cover command" ]
+  # garbage stdin is a clean no-op (best-effort, R7)
+  run bash -c 'printf "%s" "not json" | "$1"' _ "$CAP"; [ "$status" -eq 0 ]; [ -z "$output" ]
+}
+
+@test "contract-drift: warns when behaviour changed without a contract doc, silent otherwise (R58)" {
+  local repo; repo="$(mktemp -d)"
+  git -C "$repo" init -q; git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
+  mkdir -p "$repo/docs" "$repo/src"; printf 'x\n' > "$repo/src/app"; printf '# ux\n' > "$repo/docs/UX.md"
+  git -C "$repo" add -A; git -C "$repo" commit -qm init
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$DRIFT"          # clean tree
+  [ "$status" -eq 0 ]; [ -z "$output" ]                     # nothing changed → silent
+  printf 'more\n' >> "$repo/src/app"                         # behaviour changed, no contract doc
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$DRIFT"
+  [ "$status" -eq 0 ]; [[ "$output" == *"contract-drift"* ]]; [[ "$output" == *"src/app"* ]]
+  printf 'row\n' >> "$repo/docs/UX.md"                       # now the contract moved too
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$DRIFT"
+  [ "$status" -eq 0 ]; [ -z "$output" ]                     # contract touched → no drift
+  printf 'note\n' >> "$repo/docs/MAP.md"; git -C "$repo" checkout -q -- src/app docs/UX.md
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$DRIFT"          # docs-only change is never "behaviour"
+  [ "$status" -eq 0 ]; [ -z "$output" ]
 }
 
 @test "ship-mode never commits to the default branch, even from detached HEAD (R45)" {

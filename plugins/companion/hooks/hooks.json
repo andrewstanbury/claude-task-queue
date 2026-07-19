@@ -7,6 +7,9 @@
       { "matcher": "Write|Edit|NotebookEdit", "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/secret-guard.sh\"" } ] },
       { "matcher": "AskUserQuestion", "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/ask-guard.sh\"" } ] }
     ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/capture.sh\"" } ] }
+    ],
     "Stop": [
       { "hooks": [ { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/stop-autopilot.sh\"" } ] }
     ]
