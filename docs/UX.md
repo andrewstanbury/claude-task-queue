@@ -26,7 +26,7 @@ points; restating it would drift). Every row keeps its **[E]/[S]** kind and its 
 | Earlier-session tasks in *this repo* re-surface (no cross-repo bleed) | [E] | — | `… resumes THIS repo's tasks only (scoped by .root)` |
 | Repo gotchas (`LESSONS.md`) surface if present | [E] | — | — |
 | After a compaction, the queue + next-pointer re-anchor (work continues, not drifts) | [E] | — | `re-anchors on a compaction with queue+pointer …` |
-| A persistent status line appears: beacon · **plugin version (`v<x.y.z>`)** · 🛡/✈️(·⚡ decisive)/📦 health · 📋/❓/⏳ queue · model · tokens · project · branch | [E] | *guardrails default-on* | `status line: renders …` · `… version shown` |
+| A persistent status line appears: beacon · **plugin version (`v<x.y.z>`)** · active-feature icons (each shown only when relevant: `🛡️✗` **only when the gate is disabled**, ✈️/✈️⚡ autopilot, 📦 ship-mode) · 📋/❓/⏳ queue · model · tokens · project · branch | [E] | *guardrails default-on* | `status line: renders …` · `… no shield when gate on` |
 
 ## Path 2 · The core loop (request → queue → drain → ship)
 

@@ -2,6 +2,15 @@
 
 Notable changes. Per-change detail lives in `git log`; this file keeps the headlines.
 
+## companion 3.8.2 — 2026-07-19
+
+*The secret-gate shield is now a warning-only indicator.*
+
+- **No more always-on shield.** The status line no longer shows a persistent 🛡️ when the gate is on
+  (the default) — a permanent "all fine" badge is noise. It shows `🛡️✗` **only when the gate is
+  disabled** (the contextually-important state: a safety feature is off). The whole active-features
+  section is omitted when nothing is active, so a quiet session reads `● v… : 📋 … : …`.
+
 ## companion 3.8.1 — 2026-07-19
 
 *Status-line shield spacing fix.*

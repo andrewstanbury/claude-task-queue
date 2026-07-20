@@ -23,7 +23,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
   printf '%s=off\n' "$1" >> "$CLAUDE_COMPANION_STATE_DIR/features/$enc"
 }
 
-@test "status line: renders 🛡 · model · tokens · task count · project · branch" {
+@test "status line: renders version · model · tokens · task count · project · branch (no shield when gate on)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sBar"
@@ -34,8 +34,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
   [ "$status" -eq 0 ]
   [[ "$output" == *"●"* ]]             # health beacon (static ● with color off)
-  [[ "$output" == *"🛡"* ]]            # secret gate on
-  [[ "$output" == *"🛡️"* ]]           # shield carries U+FE0F → full emoji width, matching ✈️/📦 (even spacing, owner-reported 2026-07-19)
+  [[ "$output" != *"🛡"* ]]            # gate ON (default) → NO shield icon; the guard shows one only when disabled (owner request 2026-07-19)
   local pv; pv="$(jq -r .version "$ROOT/.claude-plugin/plugin.json")"
   [[ "$output" == *"v$pv"* ]]          # plugin version shown (from the manifest, not hardcoded)
   [[ "$output" == *"opus-4-8"* ]]      # model, claude- prefix + date stripped
@@ -160,7 +159,8 @@ _feature_off() {  # $1=feature  $2=repo-dir
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sOrd"
   jq -n '{id:"1",subject:"x",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sOrd/1.json"
   local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sOrd",cwd:$c}')"
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  # gate OFF so the features section is populated (🛡️✗) — proves feature placement between beacon and queue
+  run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_SECSCAN=0 NO_COLOR=1 "$2"' _ "$p" "$SL"
   [ "$status" -eq 0 ]
   # beacon → 🛡 (features) → 📋 (queue) → ⎇ (git): the R34 order. A reordered bar fails this.
   printf '%s' "$output" | grep -qE '●.*🛡.*📋.*⎇'

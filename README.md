@@ -19,7 +19,7 @@ reads once per session. The only things that are code are the things that must a
 | **Ship** | `/companion:ship-it` — verify your gate, commit, push, and open/merge a PR. |
 | **`tq`** | The task queue — self-owned, so it works everywhere (including the newest models where Claude's built-in task tracking is switched off) and doesn't depend on Claude Code internals. It reprints the queue on every change, so the CLI always shows what's in progress and next. |
 | **Autopilot** | `/companion:autopilot on` — Claude keeps working the queue **without stopping**, parking decisions it shouldn't make alone. It's "keep going," *not* "you're away": keep it on and keep queuing tasks while you watch. Enforced (won't stop or ask while on), persists across restarts. `ship on` also auto-commits work to an `autopilot/*` branch; `decisive on` auto-picks the recommended option for reversible decisions (recording each) and parks only the irreversible. |
-| **Status line** | One glance line, grouped with `:` dividers: ⠋ beacon · `v<x.y.z>` · `:` 🛡 ✈️ 📦 `:` (active features) · `:` 📋 ❓ ⏳ `:` (the queue) · model · ⇡⇣ tokens · project · ⎇ branch · ↑↓ ahead/behind. Wire it once with `/companion:setup` (legend below). |
+| **Status line** | One glance line, grouped with `:` dividers: ⠋ beacon · `v<x.y.z>` · `:` active features `:` (each shown only when relevant — `🛡️✗` only if the gate is off, ✈️ autopilot, 📦 ship-mode; omitted entirely when none) · `:` 📋 ❓ ⏳ `:` (the queue) · model · ⇡⇣ tokens · project · ⎇ branch · ↑↓ ahead/behind. Wire it once with `/companion:setup` (legend below). |
 
 Bash + `jq`, zero build, one install.
 
@@ -52,8 +52,8 @@ Bash + `jq`, zero build, one install.
 ## Status line legend
 
 Three plugin sections then generic — `⠋` beacon `-` **active features** `-` **the queue** `-` model · git:
-`⠋` health beacon (spins while working) · `v<x.y.z>` the installed plugin version · `🛡` secret gate on
-(`🛡✗` off) · `✈️` autopilot on (`✈️⚡` decisive) · `📦` ship-mode armed · `📋` open · `❓` parked ·
+`⠋` health beacon (spins while working) · `v<x.y.z>` the installed plugin version · `🛡️✗` secret gate
+**off** (shown only when disabled — no icon when it's on) · `✈️` autopilot on (`✈️⚡` decisive) · `📦` ship-mode armed · `📋` open · `❓` parked ·
 `⏳` blocked tasks · `⇡`/`⇣` input/output tokens · project · `⎇` branch · `*N` uncommitted · `↑`/`↓`
 commits ahead/behind upstream. *(`⇡⇣` are tokens; `↑↓` are git — two arrow pairs, different meanings.)*
 

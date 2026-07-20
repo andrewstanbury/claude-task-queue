@@ -63,18 +63,17 @@ case "$NDOING" in ''|*[!0-9]*) NDOING=0;; esac
 # repo root (git toplevel, else CWD) — one rev-parse, reused for project name + autopilot/gate flags.
 ROOT="$(companion_root "$CWD")"; PROJ="${ROOT##*/}"
 
-# 🛡 secret gate (the one enforced guarantee) — green shield on, red ✗ when disabled. ✗ fires by the
-# same global-then-per-repo order the hook resolves (R50): the env var kills it everywhere; a per-repo
-# `secret=off` flag kills it here (the flag mechanism; the `/companion:features` CLI was removed 2026-07-18).
-# Brace every var: on macOS's bash 3.2 an unbraced `$B` directly before the 🛡 glyph swallows the
-# emoji's leading byte into the variable name, which `set -u` then rejects (a real macOS-CI crash).
-# The shield 🛡️ carries the U+FE0F variation selector so it renders as a full-width EMOJI, matching
-# ✈️ (also VS16) and 📦 — uniform icon width means even single-space gaps between them. Without it,
-# 🛡 renders text-narrow (1 cell) next to the wide emoji, which reads as a *missing* space after the
-# shield (owner-reported 2026-07-19, on the real install). If a terminal's font instead renders VS16
-# with a phantom trailing cell, the robust alternative is non-emoji text markers (not this glyph).
+# 🛡️✗ secret-gate WARNING — shown ONLY when the gate is DISABLED (the contextually-important state:
+# a safety feature is off). When the gate is on (the default), NO icon: a persistent "all fine" badge
+# is noise, so the guard shows an icon only when there's something to say (owner request 2026-07-19).
+# ✗ fires by the same global-then-per-repo order the hook resolves (R50): the env var kills the gate
+# everywhere; a per-repo `secret=off` flag kills it here. Leading space so it slots into the features
+# block. Brace every var: on macOS's bash 3.2 an unbraced `$B` before the 🛡 glyph swallows the emoji's
+# leading byte into the variable name (set -u then rejects it — a real macOS-CI crash). 🛡️ carries
+# U+FE0F for full emoji width, matching ✈️/📦.
+SHIELD=""
 if [ "${CLAUDE_COMPANION_SECSCAN:-1}" = "0" ] || companion_feature_off secret "$ROOT"; then
-  SHIELD="${R}${B}🛡️✗${X}"; else SHIELD="${G}${B}🛡️${X}"; fi
+  SHIELD=" ${R}${B}🛡️✗${X}"; fi
 
 # git: branch + dirty count + ahead/behind in one read (branch.ab = "+A -B", upstream only).
 BRANCH=""; DIRTY=0; AB=""
@@ -116,18 +115,21 @@ else
 fi
 
 # assemble (: = dim divider, owner-picked over │/- 2026-07-19), plugin-relevance order (R34):
-# ⠋ : 🛡 ✈️ 📦 : 📋 tasks : model ⇡in ⇣out : project ⎇branch *changes
-# Three plugin sections, then generic: beacon (health) · ACTIVE FEATURES (🛡 gate always · ✈️
-# autopilot · 📦 ship-mode when armed) · the QUEUE (📋/❓/⏳) on its own · then model/tokens · git.
-DIV=" ${D}:${X} "
+# ⠋ [: features] : 📋 tasks : model ⇡in ⇣out : project ⎇branch *changes
+# ACTIVE FEATURES = 🛡️✗ gate-off-warning · ✈️ autopilot · 📦 ship-mode — each shows only when
+# relevant, so the whole section (and its divider) is OMITTED when nothing is active (owner request:
+# the guard shows an icon only when contextually important). Then the QUEUE, then model/tokens · git.
+DIVC="${D}:${X}"; DIV=" $DIVC "
 SHIP=""; companion_ship_on "$ROOT" && SHIP=" ${Y}${B}📦${X}"
+FEAT="${SHIELD}${AP}${SHIP}"          # each item carries its own leading space; empty when none active
 # the queue in its own section: 📋 open always; ❓ parked · ⏳ blocked only when present
 TASKS="${C}${B}📋 $NOPEN${X}"
 [ "$NPARK"  -gt 0 ] && TASKS="$TASKS ${Y}${B}❓ $NPARK${X}"
 [ "$NBLOCK" -gt 0 ] && TASKS="$TASKS ${Y}${B}⏳ $NBLOCK${X}"
 out="${BCOL}${B}${BEACON}${X}"
 [ -n "${VERSION:-}" ] && out="$out ${D}v$VERSION${X}"
-out="$out${DIV}${SHIELD}${AP}${SHIP}${DIV}${TASKS}"
+[ -n "$FEAT" ] && out="$out $DIVC$FEAT"   # features section only when something's active
+out="$out${DIV}${TASKS}"
 out="$out${DIV}${C}${MODEL}${X}"
 [ "${ITOK:-0}" -gt 0 ] 2>/dev/null && out="$out ${D}⇡$(hum "$ITOK") ⇣$(hum "$OTOK")$X"
 [ -n "$PROJ" ] && out="$out${DIV}$PROJ"
