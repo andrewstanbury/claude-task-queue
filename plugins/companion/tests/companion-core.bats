@@ -142,6 +142,97 @@ _feature_clear() { rm -f "$CLAUDE_COMPANION_STATE_DIR/features/"* 2>/dev/null ||
   grep -Fq 'mv "$DIR/.$id.tmp" "$DIR/$id.json"' "$ROOT/bin/tq"  # add() renames too
 }
 
+@test "tq export/import (R60): carries the open queue to a NEW clone path, re-stamped + idempotent" {
+  # Machine A: open + in_progress + parked + one completed (the completed must NOT travel).
+  local A; A="$(mktemp -d)"; git -C "$A" init -q
+  ( cd "$A" && "$TQ" add "build widget" --done "widget works" ) >/dev/null
+  ( cd "$A" && "$TQ" add "❓ pick color" ) >/dev/null
+  ( cd "$A" && "$TQ" doing 1 ) >/dev/null
+  ( cd "$A" && "$TQ" add "already done" ) >/dev/null
+  ( cd "$A" && "$TQ" done 3 ) >/dev/null
+  run bash -c "cd '$A' && '$TQ' export"
+  [ "$status" -eq 0 ]
+  [ -f "$A/.companion/queue.json" ]
+  [ "$(jq 'length' "$A/.companion/queue.json")" -eq 2 ]          # open only, completed excluded
+  run grep -F "$A" "$A/.companion/queue.json"                    # content is path-free (clone-agnostic)
+  [ "$status" -ne 0 ]
+  [ "$(jq -r '[.[]|select(.subject=="build widget")][0].status' "$A/.companion/queue.json")" = "in_progress" ]
+
+  # Machine B: DIFFERENT clone path, DIFFERENT store + session id (a fresh machine after git pull).
+  local B storeB; B="$(mktemp -d)"; storeB="$(mktemp -d)"; git -C "$B" init -q
+  mkdir -p "$B/.companion"; cp "$A/.companion/queue.json" "$B/.companion/queue.json"
+  run env CLAUDE_COMPANION_TASKS_DIR="$storeB" CLAUDE_COMPANION_SESSION_ID="sB" \
+      bash -c "cd '$B' && '$TQ' import"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"added 2"* ]]
+  # re-stamped under B's OWN path — the fix that makes resume path-tolerant across clones
+  [ "$(cat "$storeB/sB/.root")" = "$(git -C "$B" rev-parse --show-toplevel)" ]
+  [ "$(jq -s '[.[]|select(.status!="completed")]|length' "$storeB/sB"/*.json)" -eq 2 ]
+
+  run env CLAUDE_COMPANION_TASKS_DIR="$storeB" CLAUDE_COMPANION_SESSION_ID="sB" \
+      bash -c "cd '$B' && '$TQ' import"                          # idempotent — re-run adds nothing
+  [[ "$output" == *"added 0"* ]]
+  rm -rf "$A" "$B" "$storeB"
+}
+
+@test "tq import (R60): dedups across ALL statuses — a task completed here is not resurrected" {
+  local A; A="$(mktemp -d)"; git -C "$A" init -q
+  mkdir -p "$A/.companion"
+  jq -n '[{subject:"task X",status:"pending",done_when:"",description:"",notes:[]}]' > "$A/.companion/queue.json"
+  ( cd "$A" && "$TQ" add "task X" ) >/dev/null                   # but on THIS machine it's already done
+  ( cd "$A" && "$TQ" done 1 ) >/dev/null
+  run bash -c "cd '$A' && '$TQ' import"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"added 0"* ]]                                 # completed subject → not re-added
+  [ "$(jq -s '[.[]|select(.subject=="task X")]|length' "$CLAUDE_COMPANION_TASKS_DIR/s1"/*.json)" -eq 1 ]
+  [ "$(jq -r '.status' "$CLAUDE_COMPANION_TASKS_DIR/s1/1.json")" = "completed" ]
+  rm -rf "$A"
+}
+
+@test "tq export (R60): one corrupt task file is skipped, the backlog is NOT zeroed (R44-class robustness)" {
+  local A; A="$(mktemp -d)"; git -C "$A" init -q
+  ( cd "$A" && "$TQ" add "good one" ) >/dev/null
+  ( cd "$A" && "$TQ" add "good two" ) >/dev/null
+  printf '{half-written' > "$CLAUDE_COMPANION_TASKS_DIR/s1/99.json"   # a crash-mangled file
+  run bash -c "cd '$A' && '$TQ' export"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"skipped 1 unreadable"* ]]                        # surfaced, not silent
+  [ "$(jq 'length' "$A/.companion/queue.json")" -eq 2 ]             # both good tasks survive
+  [ ! -e "$A/.companion/queue.json.tmp" ]; [ ! -e "$A/.companion/queue.json.parts" ]  # no litter
+  rm -rf "$A"
+}
+
+@test "tq import (R60): two DISTINCT tasks sharing a subject line both import (no subject-collision collapse)" {
+  local A; A="$(mktemp -d)"; git -C "$A" init -q; mkdir -p "$A/.companion"
+  jq -n '[{subject:"fix bug",status:"pending",done_when:"auth",description:"",notes:[]},
+          {subject:"fix bug",status:"pending",done_when:"upload",description:"",notes:[]}]' > "$A/.companion/queue.json"
+  run bash -c "cd '$A' && '$TQ' import"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"added 2"* ]]
+  [ "$(jq -s 'length' "$CLAUDE_COMPANION_TASKS_DIR/s1"/*.json)" -eq 2 ]
+  rm -rf "$A"
+}
+
+@test "tq import (R60): refuses when the session is bound to a DIFFERENT repo (no wrong-.root landing)" {
+  local A; A="$(mktemp -d)"; git -C "$A" init -q; mkdir -p "$A/.companion"
+  jq -n '[{subject:"x",status:"pending",done_when:"",notes:[]}]' > "$A/.companion/queue.json"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/s1"; printf '/some/other/repo' > "$CLAUDE_COMPANION_TASKS_DIR/s1/.root"
+  run bash -c "cd '$A' && '$TQ' import"
+  [ "$status" -ne 0 ]                                                # refused
+  [[ "$output" == *"bound to /some/other/repo"* ]]
+  [ ! -e "$CLAUDE_COMPANION_TASKS_DIR/s1/1.json" ]                  # nothing landed
+  rm -rf "$A"
+}
+
+@test "tq import (R60): a merge-conflicted queue.json is a LOUD no-op, not a silent one" {
+  local A; A="$(mktemp -d)"; git -C "$A" init -q; mkdir -p "$A/.companion"
+  printf '<<<<<<< HEAD\n[]\n=======\n[]\n>>>>>>>\n' > "$A/.companion/queue.json"
+  run bash -c "cd '$A' && '$TQ' import"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"not a readable JSON array"* ]]
+  rm -rf "$A"
+}
+
 @test "command prompts retain their critical gate steps (R56 P3 — structural guard for prose)" {
   # Prose behavior can't be tested behaviorally (it's Claude's judgment, R28); the ceiling is a
   # structural guard that a command's non-negotiable gate INSTRUCTION wasn't deleted (like a regen

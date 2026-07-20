@@ -27,6 +27,18 @@ if companion_autopilot_on "$root"; then
   printf 'autopilot was ON — turned it OFF so the resumed pile comes back to you, not autopilot. Re-arm with /companion:autopilot on when you want to drain again.\n'
 fi
 
+# R60 — cross-machine pickup: if a carried queue (.companion/queue.json) was pulled in from
+# another machine over git, re-materialize it into the local store FIRST (stamped with this
+# machine's `.root`), so path differences between clones don't hide it. Idempotent + best-effort:
+# a same-machine resume with no such file is a silent no-op. `tq` lives beside this script.
+qf="$root/.companion/queue.json"
+if [ -f "$qf" ]; then
+  imp="$("$(dirname "$SELF")/tq" import "$qf" 2>/dev/null | head -1)"
+  # Relay only when it actually carried something in — a steady-state resume (queue.json already
+  # committed + imported) reports "added 0" every time, which is noise, not signal.
+  case "$imp" in *"added 0,"*) : ;; *added*) printf '%s\n' "$imp" ;; esac
+fi
+
 carry="$(companion_open_tasks "$root")"
 if [ -n "$carry" ]; then
   printf 'Open tasks carried over for %s — reinstate them (they are already in the queue):\n%s\n' "$root" "$carry"

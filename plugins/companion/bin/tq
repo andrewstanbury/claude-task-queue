@@ -28,6 +28,10 @@ tq — fallback task queue (native task tools gated off)
   tq cancel <id>                 retract a mis-queued task (cancelled; kept for audit, uncounted)
   tq list                        terse one-line-each queue
   tq report                      full grouped status report (also fires on add/doing/done)
+  tq export [file]               write this repo's OPEN queue to a git-committable file
+                                 (default .companion/queue.json) to carry between machines
+  tq import [file]               re-materialize a carried queue under THIS machine's root stamp
+                                 (idempotent; default .companion/queue.json)
 Lead a subject with ❓ (a parked decision) or ⏳ (owner-blocked) to defer it.
 EOF
 }
@@ -46,6 +50,22 @@ set_task() { local f="$DIR/$1.json" t="$DIR/.$1.tmp"; jq --arg s "$2" --arg d "$
 append_note() { local f="$DIR/$1.json" t="$DIR/.$1.tmp" ts
   ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || printf '0Z')"
   jq --arg ts "$ts" --arg x "$2" '.notes=((.notes//[])+[{ts:$ts,text:$x}])' "$f" >"$t" && mv "$t" "$f"; }
+
+# --- portable queue (R60): carry an open queue between machines over git ---
+# The store is machine-local and each session dir is stamped with the repo's ABSOLUTE path
+# (`.root`); resume matches on that path. So a plain file-sync fails when the other machine
+# clones to a different path. `export` writes this repo's open tasks to a git-committable,
+# path-free file; `import` re-materializes them under THIS machine's `.root` stamp — the
+# re-stamp is what makes resume path-tolerant. Both are best-effort and read-only on other
+# sessions' stores; import is idempotent (dedup by subject).
+repo_root() { git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD"; }
+# Every *.json across sessions whose `.root` stamp equals $1 — the repo-scoped task set (same
+# scoping rule as lib/companion.sh `companion_open_tasks`, so export/resume agree on membership).
+matching_files() { local root="$1" d f
+  for d in "$STORE"/*/; do [ -d "$d" ] || continue
+    [ "$(cat "$d.root" 2>/dev/null || true)" = "$root" ] || continue
+    for f in "$d"*.json; do [ -f "$f" ] && printf '%s\n' "$f"; done
+  done; }
 
 report() {
   local files=("$DIR"/*.json); [ -e "${files[0]}" ] || { printf '📋 Task queue — (empty)\n'; return 0; }
@@ -96,6 +116,67 @@ case "$cmd" in
   note) { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }; append_note "$1" "$2"; echo "#$1 note added" ;;
   done-when|dw) { [ "$#" -eq 2 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: usage: tq done-when <id> \"<acceptance>\"" >&2; exit 1; }
     f="$DIR/$1.json"; t="$DIR/.$1.tmp"; jq --arg d "$2" '.done_when=$d' "$f" >"$t" && mv "$t" "$f"; echo "#$1 done-when set"; echo; report ;;
+  export) root="$(repo_root)"; out="${1:-$root/.companion/queue.json}"
+    mapfile -t mf < <(matching_files "$root")
+    mkdir -p "$(dirname "$out")" || { echo "tq export: cannot create $(dirname "$out")" >&2; exit 1; }
+    # Open tasks only (carry unfinished work); drop session-local id + any absolute path so the
+    # file is clone-location-agnostic. Subject keeps its ❓/⏳ marker, so the class survives the hop.
+    # Filter each file INDIVIDUALLY (bad file → skip, count it) then slurp the valid objects into
+    # one array — a single half-written *.json (exactly what R44 crash-safety exists to survive)
+    # must never zero the whole backlog. A non-matching file yields no line (jq exit 0); a corrupt
+    # one is the only thing counted `bad`. Temp+rename keeps the committed file intact until valid.
+    parts="$out.parts"; : >"$parts"; bad=0
+    if [ "${#mf[@]}" -gt 0 ]; then for f in "${mf[@]}"; do
+      if obj="$(jq -c 'select(.status=="pending" or .status=="in_progress")
+        | {subject,status,done_when:(.done_when//""),description:(.description//""),notes:(.notes//[])}' "$f" 2>/dev/null)"
+      then [ -n "$obj" ] && printf '%s\n' "$obj" >>"$parts"
+      else bad=$((bad+1)); fi
+    done; fi
+    jq -s '.' "$parts" >"$out.tmp" 2>/dev/null || printf '[]\n' >"$out.tmp"
+    mv "$out.tmp" "$out"; rm -f "$parts"
+    n="$(jq 'length' "$out" 2>/dev/null || echo 0)"
+    echo "tq export: wrote $n open task(s) → $out$( [ "$bad" -gt 0 ] && printf '  (skipped %s unreadable file(s))' "$bad")"
+    echo "  commit it (git add $(basename "$(dirname "$out")")/$(basename "$out")) so the queue travels; on the other machine: git pull && /companion:resume" ;;
+  import) root="$(repo_root)"; in="${1:-$root/.companion/queue.json}"
+    [ -f "$in" ] || { echo "tq import: no queue file at $in" >&2; exit 1; }
+    # Refuse to land tasks in a session dir already bound to a DIFFERENT repo — they'd be stamped
+    # with the wrong .root and be invisible to resume. The intended entry is a fresh-session
+    # resume (DIR unstamped → gets this repo's root); a mid-session import from another repo errors.
+    if [ -f "$DIR/.root" ] && [ "$(cat "$DIR/.root" 2>/dev/null)" != "$root" ]; then
+      echo "tq import: this session is bound to $(cat "$DIR/.root") — run import from a session in $root" >&2; exit 1; fi
+    # A malformed / merge-conflicted queue.json is a LOUD no-op, never a silent one (two machines
+    # both edit this committed file, so a conflict is plausible).
+    jq -e 'type=="array"' "$in" >/dev/null 2>&1 || { echo "tq import: $in is not a readable JSON array (merge conflict?) — nothing imported" >&2; exit 1; }
+    mkdir -p "$DIR" || exit 1
+    # Stamp THIS machine's root so resume matches regardless of where the repo was cloned.
+    [ -f "$DIR/.root" ] || printf '%s' "$root" >"$DIR/.root" 2>/dev/null || true
+    # Dedup key: (subject, done_when) already in this repo's store, ANY status — so a task
+    # completed here is never resurrected and a re-run is a no-op, while two DISTINCT tasks that
+    # share a subject line are NOT collapsed (subject alone would, F2). Read per-file so a corrupt
+    # file can't blank the dedup set; filtered in jq (newline-safe, exact — grep -Fx mis-matched a
+    # multi-line subject, F3). Also dedups the batch against itself, order-preserving.
+    mapfile -t mf < <(matching_files "$root")
+    keys="$DIR/.keys.$$"; : >"$keys"
+    if [ "${#mf[@]}" -gt 0 ]; then for f in "${mf[@]}"; do [ -f "$f" ] || continue
+      jq -c '{s:.subject,d:(.done_when//"")}' "$f" 2>/dev/null >>"$keys" || true; done; fi
+    new="$(jq -c --slurpfile ex "$keys" '
+      reduce .[] as $t ([];
+        ($t.subject // "") as $s | ($t.done_when // "") as $d
+        | if $s=="" then .
+          elif (($ex + (map({s:.subject,d:(.done_when//"")}))) | any(.s==$s and .d==$d)) then .
+          else . + [$t] end)' "$in" 2>/dev/null)"
+    rm -f "$keys"
+    count="$(printf '%s' "$new" | jq 'length' 2>/dev/null || echo 0)"; added=0; i=0
+    while [ "$i" -lt "$count" ]; do
+      task="$(printf '%s' "$new" | jq -c ".[$i]" 2>/dev/null)"; i=$((i+1)); [ -n "$task" ] || continue
+      id="$(next_id)"
+      printf '%s' "$task" | jq --arg id "$id" \
+        '{id:$id,subject:.subject,status:(.status//"pending"),done_when:(.done_when//""),blocks:[],blockedBy:[],description:(.description//""),notes:(.notes//[])}' \
+        >"$DIR/.$id.tmp" && mv "$DIR/.$id.tmp" "$DIR/$id.json"
+      added=$((added+1))
+    done
+    total="$(jq 'length' "$in" 2>/dev/null || echo 0)"
+    echo "tq import: added $added, skipped $((total-added>0?total-added:0)) already-present (from $in)"; echo; report ;;
   report) report ;;
   list) l=""; if [ -d "$DIR" ]; then for f in "$DIR"/*.json; do [ -f "$f" ] || continue; l+="$(jq -r '"\(.id)\t\(.status)\t\(.subject)"' "$f" 2>/dev/null)"$'\n'; done; fi
     if printf '%s' "$l" | grep -q '[^[:space:]]'; then printf '%s' "$l" | sort -n | awk -F'\t' 'NF>=3{printf "  #%s  [%s]  %s\n",$1,$2,$3}'; else echo "(queue empty)"; fi ;;

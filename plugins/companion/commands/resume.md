@@ -19,8 +19,18 @@ not to the next autopilot drain (R39).
    `resume.sh` in step 1 clears the persisted flag for you — but if you need it clear *before* running
    anything else, run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off`.
 
+**Carrying the queue between machines (R60).** The task store is machine-local, so to pick up on a
+*different* machine, carry the queue over git: on the first machine run `"${CLAUDE_PLUGIN_ROOT}/bin/tq"
+export` (writes this repo's open tasks to `.companion/queue.json`) and commit that file; on the other
+machine `git pull`, then run this command — step 1's `resume.sh` imports the carried file first,
+re-stamping each task under *this* machine's path so it surfaces regardless of where the repo was
+cloned. Import is idempotent and dedups by subject, so a task already completed here is never
+resurrected. (Linear handoff is the supported flow; two machines editing the same queue concurrently
+is last-export-wins — status changes don't merge back.)
+
 1. **Re-surface earlier-session tasks (session pickup, R39).** Run
-   `"${CLAUDE_PLUGIN_ROOT}/bin/resume.sh"`: it turns **autopilot off first** — announced in one line
+   `"${CLAUDE_PLUGIN_ROOT}/bin/resume.sh"`: it **imports any carried `.companion/queue.json` first**
+   (R60 — relay the one-line import notice when it added tasks), then turns **autopilot off first** — announced in one line
    when it was on (relay that notice; never a silent clobber of a persisted intent — re-arm is a
    manual `/companion:autopilot on`), quiet no-op when already off — and lists this repo's still-open
    tasks carried over from earlier sessions (the SessionStart hook does this automatically each new

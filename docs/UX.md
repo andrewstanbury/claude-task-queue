@@ -57,6 +57,7 @@ points; restating it would drift). Every row keeps its **[E]/[S]** kind and its 
 | Step | Kind | Pattern | Check |
 |---|---|---|---|
 | `/companion:resume` — turns autopilot off first, re-surfaces this repo's earlier-session tasks preserving their ❓/⏳/📋 class (session pickup; R39) | [E]/[S] | *recommendation-first* | `manual resume: turns autopilot OFF first …` |
+| Carry the queue to another machine over git: `tq export` writes this repo's open queue to a committable `.companion/queue.json`; on the other machine `git pull` + `/companion:resume` imports it, re-stamped to the local path so it surfaces regardless of clone location (R60) | [E] | — | `tq export/import (R60): carries the open queue to a NEW clone path …` |
 | `/companion:review` — walk the parked (❓) + blocked (⏳) backlog one at a time, recommendation-first, picks written back before new work; also the autopilot-off trigger (R38, re-split 2026-07-19) | [S] | *recommendation-first* | — |
 
 ## Path 5 · Improve the design (advise → document → redesign)

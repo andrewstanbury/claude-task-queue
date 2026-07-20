@@ -36,6 +36,10 @@ visible, so be careful and confirm the irreversible steps.
      the backstop (a mismatch still fails CI), and the owner still governs what the experience *is*
      (R54). Same for a genuine NFR/invariant change — propose the `docs/NFR.md` / `docs/INVARIANTS.md`
      edit rather than assuming it.
+   - **Snapshot the queue so it travels (R60).** Run `"${CLAUDE_PLUGIN_ROOT}/bin/tq" export` to write
+     the repo's still-open tasks to `.companion/queue.json`, and stage it with the commit — the
+     backlog then rides along with the ship, so the work can be resumed on another machine (`git pull`
+     + `/companion:resume`). Skip only if the repo keeps `.companion/` untracked on purpose.
    - **Refresh the README docs index.** Ensure the `README` has a **Documentation** section that
      links each `docs/*.md` (the contract + the map), and update it if this ship added / removed /
      renamed a doc — so a GitHub reviewer reaches the docs in one click. Keep it a plain link list;

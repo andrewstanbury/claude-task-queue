@@ -27,7 +27,10 @@ it governs how you work here too.**
     STEERING, R32).
   - `tq` — **THE task queue.** The companion owns its store (`~/.claude/companion/tasks`) and
     deliberately does **not** use Claude Code's native task tools (R8/R10). `tq report` reprints
-    the queue on every `add`/`doing`/`done`.
+    the queue on every `add`/`doing`/`done`. **`tq export`/`import` (R60)** carry the open queue
+    between machines over git — export to a path-free `.companion/queue.json`, import re-stamps it
+    under the local repo path so cross-machine resume is path-tolerant (`/companion:resume` imports,
+    `/companion:ship-it` exports).
   - `statusline.sh` — a `statusLine` command (not a hook), grouped by plugin-relevance (R34):
     ⠋ beacon (animates on activity, R30·d9) · **│ 🛡 gate ✈️ autopilot 📦 ship-mode │** (active
     features) · **│ 📋 open ❓ parked ⏳ blocked │** (the queue, its own section) · model · ⇡in ⇣out ·
