@@ -168,6 +168,14 @@ _ux_flow_check() {
   [ "$(jq -s '[.[]|select(.status=="pending")]|length' "$CLAUDE_COMPANION_TASKS_DIR/s1"/*.json)" -eq 1 ]
 }
 
+@test "bin/lib scripts use no bash-4-only builtins — macOS CI runs bash 3.2 (regression guard)" {
+  # mapfile/readarray are Bash 4+; macOS CI's /bin/bash is 3.2, but a dev on bash 5 won't see the
+  # failure locally — it shipped red once (R60 used mapfile in tq). Grep the enforced-core scripts
+  # for the builtins as invoked; if any appears, CI on macOS will `command not found`.
+  run grep -rnE '(mapfile|readarray)' "$ROOT/bin" "$ROOT/lib"
+  [ "$status" -ne 0 ]                                # no match → grep exits non-zero → clean
+}
+
 @test "tq: writes go temp-file + mv, never in-place jq (R44 crash-safety)" {
   # Guards the atomic write idiom against a 'simplify to jq > $f' refactor that breaks crash-resume.
   [ "$(grep -Fc 'mv "$t" "$f"' "$ROOT/bin/tq")" -ge 2 ]         # set_task/append_note/done-when rename
