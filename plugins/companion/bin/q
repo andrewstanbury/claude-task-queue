@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# q — the Claude-only queue (redesign D1/D2). Append-only JSONL event log, committed in the repo,
+# replayed to current state on read. Deliberately NOT the human-facing tq:
+#   - Repo-identity, not path-identity: the queue lives at <repo>/.companion/queue.jsonl. The repo
+#     IS the identity and git IS the transport — cross-machine resume is `git pull`, nothing else.
+#     No machine-local store, no session id, no `.root` stamp, no export/import (all of tq/R60 gone).
+#   - Append-only: one Claude drives it serially (single-writer), so an O_APPEND `>>` is the whole
+#     persistence model — no temp+rename (R44 was for in-place JSON edits; there are none here).
+#   - Machine-first output: `state` is terse and structured for Claude's context (no glyphs, no
+#     status line, no reprint-on-every-change) — the D2 display-surface cut.
+set -uo pipefail
+command -v jq >/dev/null 2>&1 || { echo "q: jq required" >&2; exit 1; }
+root="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"
+Q="${CLAUDE_Q_FILE:-$root/.companion/queue.jsonl}"
+
+now()    { date -u '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || printf '0Z'; }
+emit()   { mkdir -p "$(dirname "$Q")" || return 1; printf '%s\n' "$1" >> "$Q"; }   # atomic append
+next_id(){ [ -f "$Q" ] || { printf 1; return; }; jq -s '[.[]|select(.t=="add")|.id]|(max//0)+1' "$Q"; }
+
+# Replay the event log into current per-id state, sorted by id.
+state_json() {
+  [ -f "$Q" ] || { printf '[]'; return; }
+  jq -s '
+    reduce .[] as $e ({};
+      ($e.id|tostring) as $k
+      | if   $e.t=="add"   then .[$k]={id:$e.id,sub:$e.sub,acc:($e.acc//""),deps:($e.deps//[]),state:"open",note:""}
+        elif $e.t=="start" then .[$k].state="doing"
+        elif $e.t=="done"  then .[$k].state="done"
+        elif $e.t=="cancel"then .[$k].state="cancelled"
+        elif $e.t=="park"  then (.[$k].state="parked"  | .[$k].q=$e.q)
+        elif $e.t=="block" then (.[$k].state="blocked" | .[$k].a=$e.a)
+        elif $e.t=="note"  then .[$k].note=$e.x
+        else . end)
+    | [.[]] | sort_by(.id)
+  ' "$Q"
+}
+
+usage() { cat >&2 <<'EOF'
+q — Claude-only queue (append-only JSONL, committed, repo-identity)
+  q add "<subject>" [--acc "<acceptance>"] [--dep 1,2]   append a task, print its id
+  q start <id> | q done <id> | q cancel <id>             transition
+  q note  <id> "<breadcrumb>"                            latest breadcrumb (crash-resume)
+  q park  <id> "<question + options + rec>"              defer a decision to the human
+  q block <id> "<owner action>"                          mark owner-blocked
+  q state                                                terse current state (for Claude)
+  q log                                                  raw JSONL event log
+EOF
+}
+
+cmd="${1:-state}"; shift || true
+case "$cmd" in
+  add)
+    sub="${1:-}"; shift || true; acc=""; deps="[]"
+    while [ "$#" -gt 0 ]; do case "$1" in
+      --acc) shift; acc="${1:-}";;
+      --dep) shift; deps="$(printf '%s' "${1:-}" | jq -R 'split(",")|map(select(length>0)|tonumber)')";;
+    esac; shift || true; done
+    [ -n "$sub" ] || { usage; exit 1; }
+    id="$(next_id)"
+    emit "$(jq -nc --argjson id "$id" --arg s "$sub" --arg a "$acc" --argjson d "$deps" --arg ts "$(now)" \
+      '{t:"add",id:$id,sub:$s,acc:$a,deps:$d,ts:$ts}')" || exit 1
+    printf '%s\n' "$id" ;;
+  start|done|cancel)
+    [ -n "${1:-}" ] || { usage; exit 1; }
+    emit "$(jq -nc --arg t "$cmd" --argjson id "$1" --arg ts "$(now)" '{t:$t,id:$id,ts:$ts}')" ;;
+  note)  [ -n "${2:-}" ] || { usage; exit 1; }
+    emit "$(jq -nc --argjson id "$1" --arg x "$2" --arg ts "$(now)" '{t:"note",id:$id,x:$x,ts:$ts}')" ;;
+  park)  [ -n "${2:-}" ] || { usage; exit 1; }
+    emit "$(jq -nc --argjson id "$1" --arg q "$2" --arg ts "$(now)" '{t:"park",id:$id,q:$q,ts:$ts}')" ;;
+  block) [ -n "${2:-}" ] || { usage; exit 1; }
+    emit "$(jq -nc --argjson id "$1" --arg a "$2" --arg ts "$(now)" '{t:"block",id:$id,a:$a,ts:$ts}')" ;;
+  state)
+    # Terse, grouped, low-token. Only non-terminal work + a done count.
+    state_json | jq -r '
+      def line: "#\(.id) \(.sub)" + (if .acc!="" then " {acc: \(.acc)}" else "" end);
+      (map(select(.state=="doing")) | .[] | "doing  " + line + (if .note!="" then " [\(.note)]" else "" end)),
+      (map(select(.state=="open"))  | .[] | "open   " + line),
+      (map(select(.state=="parked"))| .[] | "parked #\(.id) \(.q)"),
+      (map(select(.state=="blocked"))|.[] | "blocked #\(.id) \(.a)"),
+      ((map(select(.state=="done"))|length) as $d | if $d>0 then "done   \($d)" else empty end)
+    ' ;;
+  log)   [ -f "$Q" ] && cat "$Q" || true ;;
+  -h|--help|help) usage ;;
+  *) echo "q: unknown command '$cmd'" >&2; usage; exit 1 ;;
+esac
