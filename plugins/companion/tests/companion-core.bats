@@ -349,12 +349,11 @@ _ux_flow_check() {
   ! _check '- [S] `secret gate: blocks a real AWS key (exit 2)`' # an [S] line is NOT gated (skipped)
 }
 
-@test "resume survives a repo MOVE — scoping keys on repo identity (.repo root-SHA), not the abspath" {
-  # The real papercut in path-scoping: clone or move the repo and your carried queue silently
-  # vanishes (the abspath .root no longer matches). tq now also stamps .repo (root-commit SHA),
-  # and companion_open_tasks matches on it, so a path change no longer hides the tasks.
+@test "resume survives a repo MOVE — scoping keys on a per-worktree identity, not the abspath (R63)" {
+  # The papercut in path-scoping: move the repo and your carried queue silently vanishes (the abspath
+  # .root no longer matches). tq now also stamps .repo (a per-working-tree id in the tree's git dir,
+  # which moves WITH the tree), and companion_open_tasks matches on it, so a move no longer hides tasks.
   local a b; a="$(mktemp -d)/proj"; mkdir -p "$a"; git -C "$a" init -q
-  git -C "$a" -c user.email=t@t -c user.name=t commit -q --allow-empty -m root
   ( cd "$a" && "$TQ" add "carry me" ) >/dev/null
   [ -f "$CLAUDE_COMPANION_TASKS_DIR/s1/.repo" ]                       # identity stamp written
   run bash -c 'cd "$1" && . "$2/lib/companion.sh" && companion_open_tasks "$(companion_root "$PWD")"' _ "$a" "$ROOT"
@@ -364,6 +363,22 @@ _ux_flow_check() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"carry me"* ]]                                     # STILL found after the move
   rm -rf "$(dirname "$b")"
+}
+
+@test "resume ISOLATES git worktrees — same history, separate trees, separate queues (R63: not root-SHA)" {
+  # A worktree (or clone/fork) shares the root commit but is a DISTINCT working tree; its queue must
+  # stay separate (the "no cross-project task bleed" invariant). Identity is a per-worktree tag, NOT
+  # the root-SHA — which would collide worktrees/clones and merge their queues (a devil's-advocate catch).
+  local main wt; main="$(mktemp -d)/main"; mkdir -p "$main"; git -C "$main" init -q
+  git -C "$main" -c user.email=t@t -c user.name=t commit -q --allow-empty -m root
+  ( cd "$main" && "$TQ" add "main-tree task" ) >/dev/null
+  wt="$(mktemp -d)/feature"; git -C "$main" worktree add -q "$wt" 2>/dev/null
+  run bash -c 'cd "$1" && . "$2/lib/companion.sh" && companion_open_tasks "$(companion_root "$PWD")"' _ "$main" "$ROOT"
+  [[ "$output" == *"main-tree task"* ]]                               # the main tree sees its task
+  run bash -c 'cd "$1" && . "$2/lib/companion.sh" && companion_open_tasks "$(companion_root "$PWD")"' _ "$wt" "$ROOT"
+  [[ "$output" != *"main-tree task"* ]]                               # the worktree does NOT — isolated
+  git -C "$main" worktree remove --force "$wt" 2>/dev/null || true
+  rm -rf "$(dirname "$main")" "$(dirname "$wt")"
 }
 
 @test "tq: no session id errors cleanly" {

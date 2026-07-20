@@ -12,13 +12,23 @@ companion_enc() { printf '%s' "${1:-}" | sed -e 's:%:%25:g' -e 's:/:%2F:g'; }
 
 # cwd (or a path) -> repo root, git toplevel or the path itself.
 companion_root() { git -C "${1:-$PWD}" rev-parse --show-toplevel 2>/dev/null || printf '%s' "${1:-$PWD}"; }
-# Repo IDENTITY — the root-commit SHA, stable across clone location, move, and rename (unlike the
-# absolute path). Task-store scoping keys on THIS so a carried queue survives the repo being cloned
-# elsewhere or moved; falls back to the abspath for a non-git dir (or one with no commit yet). The
-# `.repo` stamp records it; `.root` (abspath) is still written for back-compat with older stores.
-companion_repo_id() { local d="${1:-$PWD}" id
-  id="$(git -C "$d" rev-list --max-parents=0 HEAD 2>/dev/null | sort | head -1)"
-  if [ -n "$id" ]; then printf '%s' "$id"; else companion_root "$d"; fi; }
+# Repo IDENTITY — a per-WORKING-TREE id that survives a MOVE but stays distinct across worktrees,
+# clones, and forks. It's a random tag stored inside the working tree's own git dir at
+# `git rev-parse --git-path companion-repo-id` — which routes per-worktree (a linked worktree gets
+# its own), moves WITH the tree on a rename (so scoping follows a moved repo), and is absent in a
+# fresh clone (so clones/forks don't inherit each other's queue). This is deliberately NOT the
+# root-commit SHA: that identifies *history*, so worktrees/clones/forks would collide and MERGE
+# their queues (R63 — a devil's-advocate catch). Falls back to the abspath for a non-git dir.
+# Created on first access (read or write) so every reader and the `tq` writer agree on one id.
+companion_repo_id() { local d="${1:-$PWD}" f id
+  f="$(git -C "$d" rev-parse --git-path companion-repo-id 2>/dev/null)" || true
+  if [ -z "$f" ]; then companion_root "$d"; return; fi
+  case "$f" in /*) : ;; *) f="$d/$f" ;; esac                 # --git-path is relative to $d unless linked-worktree (absolute)
+  if [ -f "$f" ]; then cat "$f"; return; fi
+  id="$(head -c16 /dev/urandom 2>/dev/null | od -An -tx1 2>/dev/null | tr -d ' \n\r')"
+  if [ -z "$id" ]; then id="p$$"; fi
+  printf '%s' "$id" > "$f" 2>/dev/null || true
+  printf '%s' "$id"; }
 
 companion_autopilot_flag() { printf '%s/autopilot/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_autopilot_on()   { [ -n "${1:-}" ] && [ -f "$(companion_autopilot_flag "$1")" ]; }

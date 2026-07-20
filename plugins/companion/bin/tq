@@ -59,11 +59,19 @@ append_note() { local f="$DIR/$1.json" t="$DIR/.$1.tmp" ts
 # re-stamp is what makes resume path-tolerant. Both are best-effort and read-only on other
 # sessions' stores; import is idempotent (dedup by subject).
 repo_root() { git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD"; }
-# Repo IDENTITY — root-commit SHA, stable across clone location / move / rename (unlike the abspath).
-# Stamped as `.repo`; matching prefers it so a carried queue survives the repo being moved or cloned
-# elsewhere. Falls back to the abspath for a non-git dir. (Mirrors lib/companion.sh companion_repo_id.)
-repo_id() { local id; id="$(git -C "$PWD" rev-list --max-parents=0 HEAD 2>/dev/null | sort | head -1)"
-  if [ -n "$id" ]; then printf '%s' "$id"; else repo_root; fi; }
+# Repo IDENTITY — a per-working-tree id (a random tag in the tree's own git dir) that survives a
+# MOVE but stays distinct across worktrees/clones/forks. Stamped as `.repo`; matching prefers it so
+# a moved repo keeps its queue while a worktree/clone gets its own. NOT the root-commit SHA (that
+# identifies history → worktrees/clones would collide, R63). Mirrors lib/companion.sh companion_repo_id.
+repo_id() { local f id
+  f="$(git -C "$PWD" rev-parse --git-path companion-repo-id 2>/dev/null)" || true
+  if [ -z "$f" ]; then repo_root; return; fi
+  case "$f" in /*) : ;; *) f="$PWD/$f" ;; esac
+  if [ -f "$f" ]; then cat "$f"; return; fi
+  id="$(head -c16 /dev/urandom 2>/dev/null | od -An -tx1 2>/dev/null | tr -d ' \n\r')"
+  if [ -z "$id" ]; then id="p$$"; fi
+  printf '%s' "$id" > "$f" 2>/dev/null || true
+  printf '%s' "$id"; }
 # Every *.json across sessions whose `.root` stamp equals $1 — the repo-scoped task set (same
 # scoping rule as lib/companion.sh `companion_open_tasks`, so export/resume agree on membership).
 matching_files() { local root="$1" d f id; id="$(repo_id)"
