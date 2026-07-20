@@ -41,25 +41,27 @@ Two honesty rules make this safe rather than a fabrication machine:
 lands in**:
 
 > **safety-invariant** → `docs/INVARIANTS.md` (+ a check — a must-hold the user never sees) ·
-> **UX-contract** → `docs/UX.md` (what the user sees/does) · **agreed-NFR** → `docs/NFR.md` (an
-> owner-agreed quality attribute) · **incidental-implementation** → *not contract* (a 🔓 ledger note
-> at most, or dropped — a regen may change it freely).
+> **UX-contract** → `docs/flows/<flow>.md` (a flow page — what the user sees/does) · **agreed
+> quality attribute** → `docs/flows/_quality-bar.md` (or the flow's own Quality bar) ·
+> **incidental-implementation** → *not contract* (a 🔓 ledger note at most, or dropped — a regen may
+> change it freely).
 
-**Generated contract docs live in `docs/` (the default home).** `UX.md`, `NFR.md`, and
-`INVARIANTS.md` — plus the ledger (`REQUIREMENTS.md`) and map (`MAP.md`) — all sit under a single
-`docs/` folder at the repo root, so a reviewer finds the whole contract in one place and `ship-it`
-can keep a README index pointing at it (R57). If a repo has no `docs/`, create it; don't scatter
-contract docs across the tree.
+**Generated contract docs live in `docs/` (the default home).** The `docs/flows/` pages (+ their
+`_quality-bar.md`) and `INVARIANTS.md` — plus the ledger (`REQUIREMENTS.md`) and map (`MAP.md`) — all
+sit under a single `docs/` folder at the repo root, so a reviewer finds the whole contract in one
+place and `ship-it` can keep a README index pointing at it (R57). If a repo has no `docs/`, create it;
+don't scatter contract docs across the tree.
 
 The anti-laundering rule applies **doubly** to `agreed-NFR`: only a quality attribute the owner
 *actively agreed* is contract; an inferred one the owner didn't pick is `incidental`, not NFR. This
 pillar routing is what lets `advise` **regenerate against the contract** (R54), not just read the ledger.
 
 **For a redesign contract, log only UX + quality attributes (R55).** When `document` is feeding a
-`/companion:redesign`, the two pillars the owner *logs* are **UX** (`docs/UX.md`) + **quality attributes**
-(`docs/NFR.md`). **Safety-invariants** route to a **check** (`docs/INVARIANTS.md` + `check.sh`) — not a
-prose catalogue you maintain — and **technical requirements / incidental** are **disposable** (a
-regen may change them), not catalogued. Don't build a technical-requirements catalogue.
+`/companion:redesign`, the two pillars the owner *logs* are **UX** (`docs/flows/` pages) + **quality
+attributes** (`docs/flows/_quality-bar.md`). **Safety-invariants** route to a **check**
+(`docs/INVARIANTS.md` + `check.sh`) — not a prose catalogue you maintain — and **technical
+requirements / incidental** are **disposable** (a regen may change them), not catalogued. Don't build
+a technical-requirements catalogue.
 
 ---
 
@@ -125,14 +127,14 @@ regen may change them), not catalogued. Don't build a technical-requirements cat
    - A **gotcha** belongs in `docs/LESSONS.md`; a **coined term** in `docs/GLOSSARY.md` (R37) — not
      the ledger. Keep the ledger to *requirements*.
    - **Route by R54 pillar** (the second axis): a confirmed **safety-invariant** → `docs/INVARIANTS.md`
-     as an enumerated row + its check; a **UX-contract** item → `docs/UX.md` ([E]nforced/[S]teering),
-   placed on one of its **two axes**: a *journey step* under the right **happy path** (something the
-   user walks through in order), **or** a **design pattern** (a recurring convention) — and if the
-   item exercises an existing pattern, **reference that pattern by name, don't restate it** (one
-   definition, linked from each path — restating drifts). Keep the `Slash commands (N)` count honest;
-     an **owner-agreed NFR** → `docs/NFR.md` (with the "would advise build differently?" filter); an
-     **incidental** one → left disposable (a regen may change it), a 🔓 ledger pointer at most. Keep
-     each fact in **one** canonical pillar doc (R2), cross-referenced by name — never duplicated.
+     as an enumerated row + its check; a **UX-contract** item → the right **`docs/flows/<flow>.md`**
+   page (R62) — a **Happy-path** step (what the user walks through, in order), tagged in **Tests** as
+   `[E]` (a resolving test name) or `[S]` (👁 eyeball-only); if it exercises a recurring **convention**,
+   add it to `docs/flows/_patterns.md` **once** and reference it by name from the flow (restating
+   drifts). Keep the flows index `Slash commands (N)` count honest. An **owner-agreed quality
+   attribute** → `docs/flows/_quality-bar.md` (or the flow's own Quality bar; "would a redesign build
+   differently?" filter); an **incidental** one → left disposable (a regen may change it), a 🔓 ledger
+   pointer at most. Keep each fact in **one** canonical pillar doc (R2), cross-referenced by name.
 
 5. **Close the loop.** Recap in a short table — *item → tier (check / 🔒 / 🔓 / dropped) → **pillar**
    (UX / NFR / invariant / incidental) → where recorded*. Then state plainly **what stayed 🔓** (the

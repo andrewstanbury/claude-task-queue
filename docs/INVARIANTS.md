@@ -9,11 +9,11 @@ is not. Everything here is enforced by `./check.sh` (bats + validators).
 regen MUST preserve it by contract/structure, not rely on the net).
 
 Grouped by **risk area** (this doc's native axis). Each section notes the **UX spine** it protects
-(`↳ protects:` → a happy path / design pattern in `docs/UX.md`) — same shared spine as `NFR.md`,
+(`↳ protects:` → a flow / convention in `docs/flows/`) — same shared spine as the quality bar,
 not the same buckets.
 
 ## Irreversible-harm gate (the one hard block)
-`↳ protects:` *guardrails default-on* · UX Path 2 (the secret-gate step)
+`↳ protects:` *guardrails default-on* · flow: core-loop (the secret-gate step)
 
 | Invariant | Check | Status |
 |---|---|---|
@@ -24,7 +24,7 @@ not the same buckets.
 | **No fail-open dependency:** `secret-guard.sh` sources **no** lib — a broken dependency can't disable the gate (R50/R54) | `secret gate is self-contained: sources no lib` | ✅ *(gap G2, closed 2026-07-17)* |
 
 ## Task store (crash-safety)
-`↳ protects:` *queue-one-at-a-time* · the `tq` spine (UX Path 2/4)
+`↳ protects:` *queue-one-at-a-time* · the `tq` spine (flows: core-loop · carry-tasks-to-another-machine)
 
 | Invariant | Check | Status |
 |---|---|---|
@@ -33,7 +33,7 @@ not the same buckets.
 | `tq cancel` retracts without a false `done` or lingering `open` (file kept for audit) | `tq: cancel retracts a task` | ✅ |
 
 ## Autopilot / ship-mode (near-irreversible)
-`↳ protects:` UX Path 3 (hands-off drain → ship-mode)
+`↳ protects:` flow: hands-off-drain (autopilot → ship-mode)
 
 | Invariant | Check | Status |
 |---|---|---|
@@ -45,7 +45,7 @@ not the same buckets.
 | **Decisive mode (R59)** is opt-in + persisted, and while on the ask-guard **still denies** asking (it flips the *guidance* park→decide, but never allows a stop) — and is a no-op when autopilot is off | `autopilot decisive: toggle persists, flips ask-guard guidance park→decide` | ✅ |
 
 ## Session / scope
-`↳ protects:` UX Path 1 (first run / session start) · Path 4 (resume)
+`↳ protects:` flows: first-run (session start) · pick-up-where-you-left-off (resume)
 
 | Invariant | Check | Status |
 |---|---|---|

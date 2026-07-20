@@ -11,8 +11,9 @@
 #
 # Generic (N2/R9): no language/framework allowlist. "Behaviour" = any changed tracked/untracked
 # file that is NOT documentation (not under a docs/ dir) and not release noise. "Contract" = the
-# tunable doc set (companion's docs/UX.md + docs/NFR.md + docs/INVARIANTS.md by default). Both are
-# overridable so the check fits any repo's convention.
+# tunable doc set (companion's docs/flows/ + docs/INVARIANTS.md by default — R62 flow pages replaced
+# UX.md/NFR.md). An entry is matched as an exact file OR a directory prefix, so `docs/flows` covers
+# every flow page. Both are overridable so the check fits any repo's convention.
 #
 # Usage: contract-drift.sh [ref]      (ref defaults to HEAD — compares the working tree to it)
 #   CONTRACT_DRIFT_DOCS="a.md b.md"   override the contract doc set (space-separated, repo-relative)
@@ -22,7 +23,7 @@ command -v git >/dev/null 2>&1 || exit 0
 git rev-parse --show-toplevel >/dev/null 2>&1 || exit 0
 
 ref="${1:-HEAD}"
-docs="${CONTRACT_DRIFT_DOCS:-docs/UX.md docs/NFR.md docs/INVARIANTS.md}"
+docs="${CONTRACT_DRIFT_DOCS:-docs/flows docs/INVARIANTS.md}"
 
 # Changed files = tracked diff vs the ref  +  untracked-but-not-ignored (new code/docs).
 changed="$(
@@ -34,8 +35,8 @@ changed="$(
 contract_touched=0 behaviour=""
 while IFS= read -r f; do
   [ -n "$f" ] || continue
-  # Is this one of the contract docs?
-  for d in $docs; do [ "$f" = "$d" ] && { contract_touched=1; continue 2; }; done
+  # Is this a contract doc? Match an exact file OR a directory prefix (docs/flows → any flow page).
+  for d in $docs; do case "$f" in "$d"|"$d"/*) contract_touched=1; continue 2 ;; esac; done
   # Documentation and release noise are never "behaviour".
   case "$f" in
     docs/*|*/docs/*)                 continue ;;

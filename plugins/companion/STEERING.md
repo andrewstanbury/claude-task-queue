@@ -151,12 +151,12 @@ taste-neutral one (queue a debt task) you just do and record.
 
 ## How we keep the contract live (R58)
 
-**Moves:** ▢ a request/edit changes **what the user sees or does** (UX) or a **quality attribute**
-(NFR) → **move the contract doc first** — propose the `docs/UX.md` / `docs/NFR.md` edit
+**Moves:** ▢ a request/edit changes **what the user sees or does** (UX) or a **quality attribute** →
+**move the flow page first** — propose the `docs/flows/<flow>.md` (or `_quality-bar.md`) edit
 recommendation-first, *before* the code, and queue the code as a `tq` task against it ▢ let the
 contract be the acceptance the work satisfies (the doc-side twin of `--done`) ▢ on a critical,
-un-eyeball-able UX path with no safety net → **offer `/companion:cover`** (recommend the ideal test;
-never auto-write it) ▢ never let behaviour outrun the contract silently.
+un-eyeball-able flow with no safety net → **offer `/companion:cover`** (recommend then scaffold the
+ideal test, buy-in first) ▢ never let behaviour outrun the contract silently.
 
 The goal is a **UX/NFR/quality contract that's accurate at any moment**, not just at ship. Three
 layers carry it, split the usual way (R28): **capture** is a hook (`bin/capture.sh` banks every
@@ -165,8 +165,10 @@ the judgment of *which* change touches the contract and moving the doc first (th
 `/companion:document`'s batch sweep); the **backstop** is a check (`bin/contract-drift.sh`, run by
 `check.sh` + `ship-it`) that surfaces behaviour changed without a contract doc — detection, because
 "does this change the contract" is a judgment a gate can't make without false-positiving. Prevention
-is the reflex; the check is the net. `/companion:cover` is the test-recommendation arm of the same
-contract — it critiques coverage of the UX paths, it never writes files.
+is the reflex; the check is the net. `/companion:cover` is the test arm of the same contract — it
+ranks flows by coverage gap, recommends the ideal test, and (buy-in first — it asks before it writes)
+**scaffolds the picked ones** in the project's own runner, tagged to the flow so the R61 gate resolves
+them (R61 amended R58·d's "never writes").
 
 ## How we know the project
 

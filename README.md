@@ -62,8 +62,7 @@ commits ahead/behind upstream. *(`⇡⇣` are tokens; `↑↓` are git — two a
 The full design lives under [`docs/`](docs/) — the contract a rebuild must preserve, plus the map
 and ledger. `/companion:ship-it` keeps this index current (R57).
 
-- **[docs/UX.md](docs/UX.md)** — the user-experience contract: what you see and do, as happy paths + design patterns.
-- **[docs/NFR.md](docs/NFR.md)** — the quality-attribute contract (the agreed non-functional requirements).
+- **[docs/flows/](docs/flows/)** — the user-experience contract: one readable page per user flow (happy path + tests + quality bar + change-log), with shared [conventions](docs/flows/_patterns.md) and a global [quality bar](docs/flows/_quality-bar.md).
 - **[docs/INVARIANTS.md](docs/INVARIANTS.md)** — the safety/correctness net: the must-holds, each tied to an executable check.
 - **[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)** — the requirements ledger (🔒 locked / 🔓 open / ⚰️ retired), the source of truth for durable decisions.
 - **[docs/MAP.md](docs/MAP.md)** — the code map: every file and what it does.

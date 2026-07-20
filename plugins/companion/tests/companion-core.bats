@@ -27,6 +27,38 @@ _feature_off() {  # $1=feature  $2=repo-dir
 }
 _feature_clear() { rm -f "$CLAUDE_COMPANION_STATE_DIR/features/"* 2>/dev/null || true; }
 
+# ---- R61 anti-drift gate: the ONE matcher + extractor, shared by the gate AND its guard-test ----
+# (Factored out so the guard actually exercises the real logic — a guard that re-implements a simpler
+# check proves nothing about the gate. DA finding: fixed.)
+# _ux_check_resolves FRAGMENT TITLES → 0 iff SOME title contains every ≥4-char …-segment of FRAGMENT.
+# A fragment with no ≥4-char segment is UNRESOLVED (return 1), not a silent pass — an empty/too-short
+# Check is itself drift, not coverage. Substring-not-exact is deliberate (Checks abbreviate with …);
+# the honest ceiling: this proves the referenced test EXISTS + is wired to the row, not that a lazy
+# 4-char coincidental substring is the *intended* test — the convention is a distinctive Check.
+_ux_check_resolves() {
+  local rest="$1" titles="$2" seg; local -a segs=()
+  while [ -n "$rest" ]; do
+    case "$rest" in *…*) seg="${rest%%…*}"; rest="${rest#*…}";; *) seg="$rest"; rest="";; esac
+    seg="${seg#"${seg%%[![:space:]]*}"}"; seg="${seg%"${seg##*[![:space:]]}"}"
+    [ "${#seg}" -ge 4 ] && segs+=("$seg")
+  done
+  [ "${#segs[@]}" -gt 0 ] || return 1
+  local t ok; while IFS= read -r t; do ok=1
+    for seg in "${segs[@]}"; do case "$t" in *"$seg"*) : ;; *) ok=0; break;; esac; done
+    [ "$ok" = 1 ] && return 0
+  done <<< "$titles"; return 1
+}
+# _ux_flow_check LINE → the backtick test-name from a flow page's Tests line, or nothing. A flow
+# page (docs/flows/*.md, R62) lists tests as `- [E] `<test name>` ✅` (enforced → must resolve) or
+# `- [S] … 👁` (judgment → skipped). The literal `- [E] ` prefix (matched literally via [[ == ]],
+# NOT a case glob where [E] is a char-class) isolates Tests lines from every other `[E]` mention
+# (headers, config bullets), so extraction can't stray. Robust to leading indentation.
+_ux_flow_check() {
+  local line="${1#"${1%%[![:space:]]*}"}"                  # strip leading whitespace
+  [[ "$line" == '- [E] '* ]] || return 0                    # a Tests [E] line only
+  printf '%s\n' "$line" | grep -oE '`[^`]*`' | head -1 || true
+}
+
 # ---- secret gate (the one enforced content block) ----
 
 @test "secret gate: blocks a real AWS key (exit 2)" {
@@ -247,7 +279,7 @@ _feature_clear() { rm -f "$CLAUDE_COMPANION_STATE_DIR/features/"* 2>/dev/null ||
   grep -q "Verify FIRST"                   "$C/ship-it.md"      # verify before commit
   grep -q "Never force-push"               "$C/ship-it.md"      # never rewrite published history
   grep -q "Sync the contract"              "$C/ship-it.md"      # R57 contract-sync step
-  grep -q "Propose the UX-doc update"      "$C/ship-it.md"      # R57 UX-doc proposal (owner-governed, not silent)
+  grep -q "Propose the flow-page update"   "$C/ship-it.md"      # R57/R62 flow-page proposal (owner-governed, not silent)
   grep -q "anti-laundering"                "$C/document.md"     # only the owner's pick records a 🔒
   grep -q "autopilot"                      "$C/resume.md"       # resume respects/clears autopilot
   grep -q "resume.sh"                       "$C/resume.md"       # resume runs the session-pickup re-surface (R39)
@@ -255,22 +287,58 @@ _feature_clear() { rm -f "$CLAUDE_COMPANION_STATE_DIR/features/"* 2>/dev/null ||
   grep -qE "parked|❓"                       "$C/review.md"       # review walks the parked pile (R38)
   grep -q 'autopilot.sh" off'              "$C/review.md"       # review clears autopilot (it asks)
   grep -qiE "before .*new work"            "$C/review.md"       # R38 write-back-before-new-work
-  grep -qE "never writes|recommends, never" "$C/cover.md"       # R58 cover recommends, never writes tests
-  grep -q 'autopilot.sh" off'              "$C/cover.md"        # R58 cover clears autopilot (it asks)
+  grep -qiE "asks before it writes|buy-in still comes first|recommendation-first" "$C/cover.md"  # R58·d amended by R61/R62: cover SCAFFOLDS, but buy-in (owner picks) still precedes any write
+  grep -q 'autopilot.sh" off'              "$C/cover.md"        # cover clears autopilot (it asks)
 }
 
-@test "docs/UX.md lists every shipped command + the count matches (UX contract can't silently drift)" {
-  # The UX record is the R54 contract pillar a regen reproduces; if a command is added without a
-  # UX.md entry, a regen reproduces the WRONG surface. This is the guard that caught the 8-vs-10 drift.
-  local repo ux; repo="$(cd "$ROOT/../.." && pwd)"; ux="$repo/docs/UX.md"
-  [ -f "$ux" ]
+@test "docs/flows index lists every shipped command + the count matches (contract can't silently drift)" {
+  # The flows index is the R54 contract pillar a regen reproduces; if a command is added without an
+  # entry, a regen reproduces the WRONG surface. This is the guard that caught the 8-vs-10 drift.
+  local repo idx; repo="$(cd "$ROOT/../.." && pwd)"; idx="$repo/docs/flows/README.md"
+  [ -f "$idx" ]
   local f name n=0
   for f in "$ROOT/commands"/*.md; do
     name="$(basename "$f" .md)"
-    grep -q "companion:$name" "$ux"        # every shipped command must appear in the UX record
+    grep -q "companion:$name" "$idx"       # every shipped command must appear in the flows index
     n=$((n+1))
   done
-  grep -q "Slash commands ($n)" "$ux"      # and the stated count matches reality
+  grep -q "Slash commands ($n)" "$idx"     # and the stated count matches reality
+}
+
+@test "docs/flows: every [E] flow test resolves to a real @test (anti-drift gate — R61/R62)" {
+  # THE gate: a flow page's `- [E] `<name>`` Tests line names a backtick substring of a real bats
+  # @test title — the machine-readable link from a documented user experience to the test that proves
+  # it. If that test is renamed/deleted, the flow page silently lies, and a golden/happy-path test
+  # built from the contract LATER would chase a ghost (the exact drift to avoid). This FAILS the build
+  # the moment a referenced test stops resolving. Honest gaps ([S] judgment lines, 👁) are skipped,
+  # not failed — coverage stays truthful. (bats proves the test PASSES; this proves it EXISTS + is
+  # wired to the flow.) Uses the shared _ux_* helpers — the same code the guard-test runs.
+  local repo titles; repo="$(cd "$ROOT/../.." && pwd)"
+  [ -d "$repo/docs/flows" ]; titles="$(grep -h '^@test' "$ROOT/tests"/*.bats)"
+  local f line frag s; local -a bad=()
+  for f in "$repo"/docs/flows/*.md; do [ -f "$f" ] || continue
+    while IFS= read -r line; do
+      frag="$(_ux_flow_check "$line")"; [ -n "$frag" ] || continue
+      s="${frag#\`}"; s="${s%\`}"; [ -n "$s" ] || continue
+      _ux_check_resolves "$s" "$titles" || bad+=("$(basename "$f"): $s")
+    done < "$f"
+  done
+  if [ "${#bad[@]}" -gt 0 ]; then printf 'flow [E] test resolves to no @test:\n'; printf '  - %s\n' "${bad[@]}"; false; fi
+}
+
+@test "docs/flows anti-drift gate FAILS on a phantom test + PASSES a real one — via the real matcher (R61/R62)" {
+  # Guards the guard: a gate that can't fail is theater. This drives fixture lines through the SAME
+  # _ux_flow_check + _ux_check_resolves the real gate uses (not a re-implemented proxy), proving the
+  # matcher rejects a phantom AND accepts a real name — so it can't be silently stuck always-pass or
+  # always-fail. Also covers the silent-skip edge: a leading-indented Tests line must still be gated.
+  local titles; titles="$(grep -h '^@test' "$ROOT/tests"/*.bats)"
+  local frag s; _check() { local r="$1"                # returns 0 iff the line's [E] test resolves
+    frag="$(_ux_flow_check "$r")"; [ -n "$frag" ] || return 1
+    s="${frag#\`}"; s="${s%\`}"; _ux_check_resolves "$s" "$titles"; }
+  ! _check '- [E] `this test absolutely does not exist xyzzy`'   # phantom → unresolved
+  _check '- [E] `secret gate: blocks a real AWS key (exit 2)`'    # real → resolves (not always-fail)
+  ! _check '   - [E] `another phantom qqq nonexistent`'          # indented phantom still reaches matcher
+  ! _check '- [S] `secret gate: blocks a real AWS key (exit 2)`' # an [S] line is NOT gated (skipped)
 }
 
 @test "tq: no session id errors cleanly" {
@@ -607,17 +675,17 @@ _feature_clear() { rm -f "$CLAUDE_COMPANION_STATE_DIR/features/"* 2>/dev/null ||
 @test "contract-drift: warns when behaviour changed without a contract doc, silent otherwise (R58)" {
   local repo; repo="$(mktemp -d)"
   git -C "$repo" init -q; git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
-  mkdir -p "$repo/docs" "$repo/src"; printf 'x\n' > "$repo/src/app"; printf '# ux\n' > "$repo/docs/UX.md"
+  mkdir -p "$repo/docs/flows" "$repo/src"; printf 'x\n' > "$repo/src/app"; printf '# flow\n' > "$repo/docs/flows/upload.md"
   git -C "$repo" add -A; git -C "$repo" commit -qm init
   run bash -c 'cd "$1" && "$2"' _ "$repo" "$DRIFT"          # clean tree
   [ "$status" -eq 0 ]; [ -z "$output" ]                     # nothing changed → silent
   printf 'more\n' >> "$repo/src/app"                         # behaviour changed, no contract doc
   run bash -c 'cd "$1" && "$2"' _ "$repo" "$DRIFT"
   [ "$status" -eq 0 ]; [[ "$output" == *"contract-drift"* ]]; [[ "$output" == *"src/app"* ]]
-  printf 'row\n' >> "$repo/docs/UX.md"                       # now the contract moved too
+  printf 'step\n' >> "$repo/docs/flows/upload.md"            # now the contract moved too (a flow page, R62)
   run bash -c 'cd "$1" && "$2"' _ "$repo" "$DRIFT"
   [ "$status" -eq 0 ]; [ -z "$output" ]                     # contract touched → no drift
-  printf 'note\n' >> "$repo/docs/MAP.md"; git -C "$repo" checkout -q -- src/app docs/UX.md
+  printf 'note\n' >> "$repo/docs/MAP.md"; git -C "$repo" checkout -q -- src/app docs/flows/upload.md
   run bash -c 'cd "$1" && "$2"' _ "$repo" "$DRIFT"          # docs-only change is never "behaviour"
   [ "$status" -eq 0 ]; [ -z "$output" ]
 }

@@ -22,20 +22,20 @@ visible, so be careful and confirm the irreversible steps.
    does* must not leave the recorded contract a commit behind. Before committing:
    - **Name the contract impact.** Read the diff and identify which R54 pillar it touches — **UX**
      (a command / flow / output the user sees), **NFR** (a quality attribute), or an **invariant**
-     (a must-hold). Pull the *relevant logged design* for what changed — the affected `docs/UX.md`
-     rows, the `docs/NFR.md` entry, the invariant — and fold it into the commit body (and the PR
-     body), **called out loudest for UX changes** so a reviewer sees the *experience* delta, not
-     just the code.
-   - **Propose the UX-doc update, recommendation-first — the contract stays owner-governed.** If the
+     (a must-hold). Pull the *relevant logged design* for what changed — the affected
+     `docs/flows/<flow>.md` page (Happy path + Tests + Quality bar), the invariant — and fold it into
+     the commit body (and the PR body), **called out loudest for UX changes** so a reviewer sees the
+     *experience* delta, not just the code.
+   - **Propose the flow-page update, recommendation-first — the contract stays owner-governed.** If the
      change alters UX (a command added / removed / renamed, a flow or output changed), **draft the
-     `docs/UX.md` edit** — the exact rows to add / change / remove, preserving every `[E]/[S]` kind +
-     its check — and present it recommendation-first for the owner to confirm or adjust (the same
-     `AskUserQuestion` shape; under autopilot, park it as a `❓` carrying the drafted edit). On
-     approval, **stage the doc edit *with* the code** so they land in one commit — the contract never
-     drifts a commit behind. Do **not** silently rewrite the contract: the drift-guard check stays
-     the backstop (a mismatch still fails CI), and the owner still governs what the experience *is*
-     (R54). Same for a genuine NFR/invariant change — propose the `docs/NFR.md` / `docs/INVARIANTS.md`
-     edit rather than assuming it.
+     `docs/flows/<flow>.md` edit** — the Happy-path steps to add / change / remove and the Tests +
+     Changes lines, keeping each test line's `[E]`/`[S]` kind — and present it recommendation-first
+     for the owner to confirm or adjust (the same `AskUserQuestion` shape; under autopilot, park it as
+     a `❓` carrying the drafted edit). On approval, **stage the flow-page edit *with* the code** so
+     they land in one commit — the contract never drifts a commit behind. Do **not** silently rewrite
+     the contract: the R61 anti-drift gate + the drift-guard stay the backstop (a broken Tests ref
+     fails CI), and the owner still governs what the experience *is* (R54). Same for a genuine quality
+     or invariant change — propose the `docs/flows/_quality-bar.md` / `docs/INVARIANTS.md` edit.
    - **Snapshot the queue so it travels (R60).** Run `"${CLAUDE_PLUGIN_ROOT}/bin/tq" export` to write
      the repo's still-open tasks to `.companion/queue.json`, and stage it with the commit — the
      backlog then rides along with the ship, so the work can be resumed on another machine (`git pull`

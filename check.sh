@@ -72,7 +72,7 @@ done
 
 section "Contract drift (advisory — R58)"
 # Backstop for the living contract: warns when behaviour changed locally without a contract doc
-# (docs/UX.md·NFR.md·INVARIANTS.md) moving. Advisory by design — NOT a fail (most changes don't
+# (docs/flows/·INVARIANTS.md) moving. Advisory by design — NOT a fail (most changes don't
 # touch the contract; a hard gate here would false-positive into being disabled). The STEERING
 # "contract reflex" is the prevention; this is the visibility net. Silent (clean) in CI, where the
 # tree matches HEAD.

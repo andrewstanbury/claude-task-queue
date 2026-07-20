@@ -7,7 +7,7 @@ Run a **redesign** (R55): rebuild the **whole application** from the logged cont
 regeneration the owner asked for. It **edits**, so every guardrail is mandatory. **Prototype until
 proven on a real rebuild — say so.**
 
-The **logged** contract is `docs/UX.md` (experience) + `docs/NFR.md` (quality attributes). The
+The **logged** contract is `docs/flows/` (experience) + `docs/flows/_quality-bar.md` (quality attributes). The
 **safety invariants are the executable checks** (`docs/INVARIANTS.md` + `check.sh`) every pass must
 keep green — not a prose catalogue the owner maintains. The **per-module rebuild engine is inlined
 below** (D3) — it was the standalone `/companion:regen`, folded into redesign 2026-07-18 (owner
@@ -29,7 +29,7 @@ D0. **Verify the invariant net covers the app BEFORE the first pass (R54 sequenc
 D1. **Log the contract first — `/companion:document` is a REQUIRED first step (R41/R55).** The
     redesign rebuilds against the *logged* UX + quality attributes, so those must exist and be current
     before a single module is touched. **Run `/companion:document` first** to record/refresh
-    `docs/UX.md` (the experience) + `docs/NFR.md` (the quality attributes) — **just those two**, not a
+    `docs/flows/` (the experience) + `docs/flows/_quality-bar.md` (the quality attributes) — **just those two**, not a
     technical-requirements catalogue (the safety net is the checks from D0, not prose). **Refuse to
     proceed** if the contract is missing or stale and the owner declines to log it: a redesign with no
     contract to preserve is an unbounded rewrite, exactly what this command forbids. `document` stays
@@ -44,8 +44,8 @@ D3. **Redesign each module as a bounded, check-gated pass (the inlined engine, R
 
     - **R1 · Bound it.** The pass target is one module (file / subsystem) from D2 — never the whole
       repo at once; the blast radius must stay isolable by the checks.
-    - **R2 · Load the contract.** Read `docs/UX.md` (the user-facing behavior this module must
-      reproduce), `docs/NFR.md` (the quality attributes to meet — *and* what's explicitly
+    - **R2 · Load the contract.** Read `docs/flows/` (the user-facing behavior this module must
+      reproduce), `docs/flows/_quality-bar.md` (the quality attributes to meet — *and* what's explicitly
       **incidental**, so fair to change), and `docs/INVARIANTS.md` (the must-holds touching it).
     - **R3 · Checks first, or stop (R54, non-negotiable).** Identify every invariant check touching
       the module and run `./check.sh`. **Refuse to regenerate** the module if any relevant invariant
@@ -54,9 +54,9 @@ D3. **Redesign each module as a bounded, check-gated pass (the inlined engine, R
       G4 never-commit-default — no full check) and require the owner to acknowledge them; do not let
       "the checks catch it" imply full coverage.
     - **R4 · Regenerate against the contract.** Rebuild the module from scratch with the objective:
-      *minimize implementation surface, subject to (reproduce the UX rows ∧ meet the NFRs ∧ preserve
+      *minimize implementation surface, subject to (reproduce the flows ∧ meet the quality bar ∧ preserve
       every invariant + manual-preserve item).* Incidental implementation (tech/structure — e.g. the
-      bash/jq/≤300 choice `NFR.md` marks disposable) is fair to change. Present recommendation-first:
+      bash/jq/≤300 choice the quality bar marks disposable) is fair to change. Present recommendation-first:
       the rebuilt module + a diff + which contract item each part satisfies + your brutal-honest read
       — including *"this module already satisfies the contract — skip,"* an allowed, encouraged verdict.
     - **R5 · Confirm, apply on a branch, re-check.** Only on the owner's explicit pick: apply on a
