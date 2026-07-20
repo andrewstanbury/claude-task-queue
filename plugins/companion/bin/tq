@@ -59,11 +59,17 @@ append_note() { local f="$DIR/$1.json" t="$DIR/.$1.tmp" ts
 # re-stamp is what makes resume path-tolerant. Both are best-effort and read-only on other
 # sessions' stores; import is idempotent (dedup by subject).
 repo_root() { git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD"; }
+# Repo IDENTITY — root-commit SHA, stable across clone location / move / rename (unlike the abspath).
+# Stamped as `.repo`; matching prefers it so a carried queue survives the repo being moved or cloned
+# elsewhere. Falls back to the abspath for a non-git dir. (Mirrors lib/companion.sh companion_repo_id.)
+repo_id() { local id; id="$(git -C "$PWD" rev-list --max-parents=0 HEAD 2>/dev/null | sort | head -1)"
+  if [ -n "$id" ]; then printf '%s' "$id"; else repo_root; fi; }
 # Every *.json across sessions whose `.root` stamp equals $1 — the repo-scoped task set (same
 # scoping rule as lib/companion.sh `companion_open_tasks`, so export/resume agree on membership).
-matching_files() { local root="$1" d f
+matching_files() { local root="$1" d f id; id="$(repo_id)"
   for d in "$STORE"/*/; do [ -d "$d" ] || continue
-    [ "$(cat "$d.root" 2>/dev/null || true)" = "$root" ] || continue
+    # repo IDENTITY (path-stable) first, else the legacy abspath stamp (back-compat)
+    { [ "$(cat "$d.repo" 2>/dev/null || true)" = "$id" ] || [ "$(cat "$d.root" 2>/dev/null || true)" = "$root" ]; } || continue
     for f in "$d"*.json; do [ -f "$f" ] && printf '%s\n' "$f"; done
   done; }
 
@@ -105,6 +111,7 @@ case "$cmd" in
     # Stamp this session's store with its repo root (once), so resume can scope to a repo
     # without reading any native session transcript. tq runs in the repo the model is working.
     [ -f "$DIR/.root" ] || { r="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"; printf '%s' "$r" > "$DIR/.root" 2>/dev/null || true; }
+    [ -f "$DIR/.repo" ] || printf '%s' "$(repo_id)" > "$DIR/.repo" 2>/dev/null || true   # path-stable identity (survives moves)
     id="$(next_id)"
     for s in "${subs[@]}"; do [ -n "$s" ] || continue
       jq -n --arg id "$id" --arg s "$s" --arg dw "$dw" '{id:$id,subject:$s,status:"pending",done_when:$dw,blocks:[],blockedBy:[]}' >"$DIR/.$id.tmp" && mv "$DIR/.$id.tmp" "$DIR/$id.json"
@@ -139,10 +146,13 @@ case "$cmd" in
     echo "  commit it (git add $(basename "$(dirname "$out")")/$(basename "$out")) so the queue travels; on the other machine: git pull && /companion:resume" ;;
   import) root="$(repo_root)"; in="${1:-$root/.companion/queue.json}"
     [ -f "$in" ] || { echo "tq import: no queue file at $in" >&2; exit 1; }
-    # Refuse to land tasks in a session dir already bound to a DIFFERENT repo — they'd be stamped
-    # with the wrong .root and be invisible to resume. The intended entry is a fresh-session
-    # resume (DIR unstamped → gets this repo's root); a mid-session import from another repo errors.
-    if [ -f "$DIR/.root" ] && [ "$(cat "$DIR/.root" 2>/dev/null)" != "$root" ]; then
+    # Refuse to land tasks in a session dir already bound to a DIFFERENT repo — they'd be scoped
+    # elsewhere and be invisible to resume here. Prefer the path-stable repo IDENTITY; fall back to
+    # the legacy abspath stamp for a session created before `.repo` existed.
+    rid="$(repo_id)"
+    if [ -f "$DIR/.repo" ]; then
+      [ "$(cat "$DIR/.repo" 2>/dev/null)" = "$rid" ] || { echo "tq import: this session is bound to another repo — run import from a session in $root" >&2; exit 1; }
+    elif [ -f "$DIR/.root" ] && [ "$(cat "$DIR/.root" 2>/dev/null)" != "$root" ]; then
       echo "tq import: this session is bound to $(cat "$DIR/.root") — run import from a session in $root" >&2; exit 1; fi
     # A malformed / merge-conflicted queue.json is a LOUD no-op, never a silent one (two machines
     # both edit this committed file, so a conflict is plausible).
@@ -150,6 +160,7 @@ case "$cmd" in
     mkdir -p "$DIR" || exit 1
     # Stamp THIS machine's root so resume matches regardless of where the repo was cloned.
     [ -f "$DIR/.root" ] || printf '%s' "$root" >"$DIR/.root" 2>/dev/null || true
+    [ -f "$DIR/.repo" ] || printf '%s' "$rid" >"$DIR/.repo" 2>/dev/null || true   # path-stable identity
     # Dedup key: (subject, done_when) already in this repo's store, ANY status — so a task
     # completed here is never resurrected and a re-run is a no-op, while two DISTINCT tasks that
     # share a subject line are NOT collapsed (subject alone would, F2). Read per-file so a corrupt

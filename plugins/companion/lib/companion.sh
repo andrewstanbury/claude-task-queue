@@ -12,6 +12,13 @@ companion_enc() { printf '%s' "${1:-}" | sed -e 's:%:%25:g' -e 's:/:%2F:g'; }
 
 # cwd (or a path) -> repo root, git toplevel or the path itself.
 companion_root() { git -C "${1:-$PWD}" rev-parse --show-toplevel 2>/dev/null || printf '%s' "${1:-$PWD}"; }
+# Repo IDENTITY — the root-commit SHA, stable across clone location, move, and rename (unlike the
+# absolute path). Task-store scoping keys on THIS so a carried queue survives the repo being cloned
+# elsewhere or moved; falls back to the abspath for a non-git dir (or one with no commit yet). The
+# `.repo` stamp records it; `.root` (abspath) is still written for back-compat with older stores.
+companion_repo_id() { local d="${1:-$PWD}" id
+  id="$(git -C "$d" rev-list --max-parents=0 HEAD 2>/dev/null | sort | head -1)"
+  if [ -n "$id" ]; then printf '%s' "$id"; else companion_root "$d"; fi; }
 
 companion_autopilot_flag() { printf '%s/autopilot/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_autopilot_on()   { [ -n "${1:-}" ] && [ -f "$(companion_autopilot_flag "$1")" ]; }
@@ -67,11 +74,13 @@ companion_captures_dir() { printf '%s/captures/%s' "$(companion_state_dir)" "$(c
 # stamp matches — the cross-session resume signal. One "  ◻ <subject>" line each; empty when
 # none. Shared by the SessionStart hook (auto-resume) and `bin/resume.sh` (manual).
 companion_open_tasks() {
-  local root="$1" store d f
+  local root="$1" store d f id
   store="$(companion_tasks_dir)"; [ -d "$store" ] || return 0
+  id="$(companion_repo_id "$root")"
   for d in "$store"/*/; do
     [ -d "$d" ] || continue
-    [ "$(cat "$d.root" 2>/dev/null || true)" = "$root" ] || continue
+    # Match on repo IDENTITY (path-stable) first, else the legacy abspath stamp (back-compat).
+    { [ "$(cat "$d.repo" 2>/dev/null || true)" = "$id" ] || [ "$(cat "$d.root" 2>/dev/null || true)" = "$root" ]; } || continue
     for f in "$d"*.json; do
       [ -f "$f" ] || continue
       jq -r 'select(.status=="pending" or .status=="in_progress") | "  ◻ " + (.subject // "") + (if (.done_when//"")!="" then "\n       └ done when: " + .done_when else "" end) + (if ((.notes//[])|length)>0 then "\n       └ note: " + ((.notes[-1].text)//"") elif (.description//"")!="" then "\n       └ note: " + .description else "" end)' "$f" 2>/dev/null || true

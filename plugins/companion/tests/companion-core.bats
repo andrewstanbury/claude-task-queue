@@ -349,6 +349,23 @@ _ux_flow_check() {
   ! _check '- [S] `secret gate: blocks a real AWS key (exit 2)`' # an [S] line is NOT gated (skipped)
 }
 
+@test "resume survives a repo MOVE — scoping keys on repo identity (.repo root-SHA), not the abspath" {
+  # The real papercut in path-scoping: clone or move the repo and your carried queue silently
+  # vanishes (the abspath .root no longer matches). tq now also stamps .repo (root-commit SHA),
+  # and companion_open_tasks matches on it, so a path change no longer hides the tasks.
+  local a b; a="$(mktemp -d)/proj"; mkdir -p "$a"; git -C "$a" init -q
+  git -C "$a" -c user.email=t@t -c user.name=t commit -q --allow-empty -m root
+  ( cd "$a" && "$TQ" add "carry me" ) >/dev/null
+  [ -f "$CLAUDE_COMPANION_TASKS_DIR/s1/.repo" ]                       # identity stamp written
+  run bash -c 'cd "$1" && . "$2/lib/companion.sh" && companion_open_tasks "$(companion_root "$PWD")"' _ "$a" "$ROOT"
+  [[ "$output" == *"carry me"* ]]                                     # found at the original path
+  b="$(mktemp -d)/moved"; mkdir -p "$(dirname "$b")"; mv "$a" "$b"    # MOVE to a different abspath
+  run bash -c 'cd "$1" && . "$2/lib/companion.sh" && companion_open_tasks "$(companion_root "$PWD")"' _ "$b" "$ROOT"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"carry me"* ]]                                     # STILL found after the move
+  rm -rf "$(dirname "$b")"
+}
+
 @test "tq: no session id errors cleanly" {
   run env -u CLAUDE_COMPANION_SESSION_ID -u CLAUDE_CODE_SESSION_ID "$TQ" add x
   [ "$status" -ne 0 ]
