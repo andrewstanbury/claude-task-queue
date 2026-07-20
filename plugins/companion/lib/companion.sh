@@ -12,6 +12,23 @@ companion_enc() { printf '%s' "${1:-}" | sed -e 's:%:%25:g' -e 's:/:%2F:g'; }
 
 # cwd (or a path) -> repo root, git toplevel or the path itself.
 companion_root() { git -C "${1:-$PWD}" rev-parse --show-toplevel 2>/dev/null || printf '%s' "${1:-$PWD}"; }
+# Repo IDENTITY — a per-WORKING-TREE id that survives a MOVE but stays distinct across worktrees,
+# clones, and forks. It's a random tag stored inside the working tree's own git dir at
+# `git rev-parse --git-path companion-repo-id` — which routes per-worktree (a linked worktree gets
+# its own), moves WITH the tree on a rename (so scoping follows a moved repo), and is absent in a
+# fresh clone (so clones/forks don't inherit each other's queue). This is deliberately NOT the
+# root-commit SHA: that identifies *history*, so worktrees/clones/forks would collide and MERGE
+# their queues (R63 — a devil's-advocate catch). Falls back to the abspath for a non-git dir.
+# Created on first access (read or write) so every reader and the `tq` writer agree on one id.
+companion_repo_id() { local d="${1:-$PWD}" f id
+  f="$(git -C "$d" rev-parse --git-path companion-repo-id 2>/dev/null)" || true
+  if [ -z "$f" ]; then companion_root "$d"; return; fi
+  case "$f" in /*) : ;; *) f="$d/$f" ;; esac                 # --git-path is relative to $d unless linked-worktree (absolute)
+  if [ -f "$f" ]; then cat "$f"; return; fi
+  id="$(head -c16 /dev/urandom 2>/dev/null | od -An -tx1 2>/dev/null | tr -d ' \n\r')"
+  if [ -z "$id" ]; then id="p$$"; fi
+  printf '%s' "$id" > "$f" 2>/dev/null || true
+  printf '%s' "$id"; }
 
 companion_autopilot_flag() { printf '%s/autopilot/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_autopilot_on()   { [ -n "${1:-}" ] && [ -f "$(companion_autopilot_flag "$1")" ]; }
@@ -67,11 +84,13 @@ companion_captures_dir() { printf '%s/captures/%s' "$(companion_state_dir)" "$(c
 # stamp matches — the cross-session resume signal. One "  ◻ <subject>" line each; empty when
 # none. Shared by the SessionStart hook (auto-resume) and `bin/resume.sh` (manual).
 companion_open_tasks() {
-  local root="$1" store d f
+  local root="$1" store d f id
   store="$(companion_tasks_dir)"; [ -d "$store" ] || return 0
+  id="$(companion_repo_id "$root")"
   for d in "$store"/*/; do
     [ -d "$d" ] || continue
-    [ "$(cat "$d.root" 2>/dev/null || true)" = "$root" ] || continue
+    # Match on repo IDENTITY (path-stable) first, else the legacy abspath stamp (back-compat).
+    { [ "$(cat "$d.repo" 2>/dev/null || true)" = "$id" ] || [ "$(cat "$d.root" 2>/dev/null || true)" = "$root" ]; } || continue
     for f in "$d"*.json; do
       [ -f "$f" ] || continue
       jq -r 'select(.status=="pending" or .status=="in_progress") | "  ◻ " + (.subject // "") + (if (.done_when//"")!="" then "\n       └ done when: " + .done_when else "" end) + (if ((.notes//[])|length)>0 then "\n       └ note: " + ((.notes[-1].text)//"") elif (.description//"")!="" then "\n       └ note: " + .description else "" end)' "$f" 2>/dev/null || true

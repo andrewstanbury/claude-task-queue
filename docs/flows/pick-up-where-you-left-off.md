@@ -9,12 +9,16 @@
 ## Quality bar
 - Resume never **promotes a parked decision into a plain open task** (that would let the next drain autopilot the answer instead of asking you).
 - Turning autopilot off is what *arms* the review — the two are one gesture.
+- Your carried queue **survives the repo being moved** — scoping keys on a per-worktree identity (a tag in the tree's git dir), not the absolute path — while git **worktrees/clones stay isolated** (no cross-tree bleed) (R63).
 
 ## Tests
 - [E] `manual resume: turns autopilot OFF first, announced when on and quiet when off` ✅
 - [E] `manual resume: lists THIS repo's open tasks on demand (and says so when none)` ✅
 - [E] `resume: carried tasks render the done-when + LATEST note sub-lines` ✅
+- [E] `resume survives a repo MOVE — scoping keys on a per-worktree identity` ✅
+- [E] `resume ISOLATES git worktrees — same history, separate trees, separate queues` ✅
 - [S] `/companion:review` walks the pile recommendation-first, one at a time — judgment, eyeball only. 👁
 
 ## Changes
 - 2026-07-20 — migrated from UX.md Path 4 into a flow page (R62). The "carry the queue to another machine" step moved to its own flow: [Carry tasks to another machine](./carry-tasks-to-another-machine.md).
+- 2026-07-20 — resume now keys on a per-worktree identity, so a moved repo keeps its queue *and* worktrees/clones stay isolated (R63; corrected from an initial root-SHA design that would have merged worktree queues).
