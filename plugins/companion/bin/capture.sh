@@ -49,7 +49,8 @@ red="$(printf '%s' "$prompt" | sed -E \
 # an unbounded plaintext prompt log is a liability, not a feature). Failure → append anyway (R7).
 f="$dir/prompts.jsonl"
 sz=0
-[ -f "$f" ] && sz="$(wc -c < "$f" 2>/dev/null || echo 0)"
+# BSD wc pads with leading spaces — strip ALL whitespace before the digits-only guard (macOS CI).
+[ -f "$f" ] && sz="$(wc -c < "$f" 2>/dev/null | tr -d '[:space:]' || echo 0)"
 case "$sz" in ''|*[!0-9]*) sz=0 ;; esac
 [ "$sz" -gt 1048576 ] && { mv -f "$f" "$f.1" 2>/dev/null || true; }
 # One JSONL line, appended atomically enough for a single-writer local sink. Store the repo root
