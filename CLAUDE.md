@@ -76,7 +76,7 @@ a document can say.
   retired). Reverse one *there*, as a visible trade-off — never silently.
 - **Generic (R9).** No hardcoded language/framework/ecosystem allowlists — delegate
   *recognition* to the model, detect *structure* generically. This is a wide-audience product (R1).
-- **Files ≤ 300 lines; best-effort hooks** (never break the action that triggered them).
+- **Files ≤ 300 lines; best-effort hooks** (never break the action that triggered them; local, single-shot, bounded — R68).
 - Verify everything with **`./check.sh`** — CI runs the same script.
 
 Project docs: **[docs/MAP.md](./docs/MAP.md)**, **[docs/ROADMAP.md](./docs/ROADMAP.md)**,

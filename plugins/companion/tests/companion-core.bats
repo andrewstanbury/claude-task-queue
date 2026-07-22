@@ -712,6 +712,29 @@ _ux_flow_check() {
   run bash -c 'printf "%s" "not json" | "$1"' _ "$CAP"; [ "$status" -eq 0 ]; [ -z "$output" ]
 }
 
+@test "capture: redacts anchored credentials/PII at rest + rotates at the size cap (R68)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local k="AKIA""ABCDEFGHIJKLMNOP"
+  run bash -c 'jq -nc --arg c "$1" --arg p "$2" "{cwd:\$c,prompt:\$p}" | "$3"' _ "$repo" "key $k ssn 123-45-6789 card 4111 1111 1111 1111 end" "$CAP"
+  [ "$status" -eq 0 ]; [ -z "$output" ]
+  local enc; enc="$(printf '%s' "$(git -C "$repo" rev-parse --show-toplevel)" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  local store="$CLAUDE_COMPANION_STATE_DIR/captures/$enc/prompts.jsonl"
+  local banked; banked="$(jq -r .prompt "$store")"
+  [[ "$banked" != *"$k"* ]]                                 # raw key never persisted
+  [[ "$banked" != *"123-45-6789"* ]]                        # SSN shape never persisted
+  [[ "$banked" == *"[REDACTED:key]"* ]]
+  [[ "$banked" == *"[REDACTED:ssn]"* ]]
+  [[ "$banked" == *"[REDACTED:card]"* ]]
+  [[ "$banked" == *"end"* ]]                                # surrounding prose survives
+  # rotation: inflate past the cap, next capture rotates to .1 and starts fresh
+  head -c 1200000 /dev/zero | tr '\0' 'x' > "$store"
+  run bash -c 'jq -nc --arg c "$1" --arg p "after-cap" "{cwd:\$c,prompt:\$p}" | "$2"' _ "$repo" "$CAP"
+  [ "$status" -eq 0 ]
+  [ -f "$store.1" ]                                         # previous generation kept
+  [ "$(wc -c < "$store")" -lt 4096 ]                        # fresh file, bounded
+  [ "$(jq -r .prompt "$store")" = "after-cap" ]
+}
+
 @test "contract-drift: warns when behaviour changed without a contract doc, silent otherwise (R58)" {
   local repo; repo="$(mktemp -d)"
   git -C "$repo" init -q; git -C "$repo" config user.email t@t; git -C "$repo" config user.name t

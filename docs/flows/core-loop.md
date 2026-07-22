@@ -3,7 +3,7 @@ when: request → work → done → shipped (the everyday cycle)
 why: work survives crashes/compactions only as small verified steps with own acceptance; owner attention goes to decisions, not keeping work alive [R52 R65]
 
 steps:
-- every prompt captured to local write-only store (zero injection) [R58·a]
+- every prompt captured to local write-only store (zero injection); obvious credentials/PII redacted at rest, store rotates at ~1MB [R58·a R68]
 - UX/quality-attribute change → move the flow page FIRST, code queued against it [pattern:living-contract]
 - request → `tq` tasks, smallest-blast-first, each `--done "<acceptance>"` [pattern:queue-one-at-a-time]
 - high-blast-for-missing-context task → decompose-park (`❓ decompose:` risk+questions, not options); answers re-enter loop as minimal-blast children — open queue always safe to drain [R65]
@@ -21,6 +21,7 @@ quality:
 
 tests:
 - [E] `capture: banks the prompt, injects nothing` ✅
+- [E] `capture: redacts anchored credentials/PII at rest + rotates at the size cap (R68)` ✅
 - [E] `contract-drift: warns when behaviour changed without a contract doc` ✅
 - [E] `tq: done-when — --done on add + the done-when subcommand STORE it` ✅
 - [E] `parked/blocked (❓/⏳) is a prefix-view over pending, NOT a status value` ✅
@@ -30,5 +31,6 @@ tests:
 - [S] wireframe-first · clean-as-you-go · one-line recap — judgment 👁
 
 changes:
+- 2026-07-22 capture hardened: at-rest redaction + rotation [R68; closes the R58 follow-up]
 - 2026-07-22 machine shape [R66; reverses R62] · decompose-park [R65] · why-line provenance
 - 2026-07-20 from UX.md P2 [R62]; "sync contract docs" → "sync flow pages"
