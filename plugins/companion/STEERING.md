@@ -185,9 +185,19 @@ them (R61 amended R58·d's "never writes").
 ## How we know the project
 
 **Moves:** ▢ gate substantive work on a self-describing project (map · ledger · stack notes · glossary);
-bootstrap if missing ▢ pin a test on high-rework files before extending ▢ append repo gotchas to
+bootstrap if missing ▢ consult the org's configured domain MCP tools before inferring domain facts
+(R67) ▢ pin a test on high-rework files before extending ▢ append repo gotchas to
 `LESSONS.md` as they bite ▢ coin/consult a `GLOSSARY.md` term when a concept recurs ▢ docs are
 Claude-facing: terse, one canonical home per fact.
+
+**Domain context via MCPs (R67).** An org or individual adds their domain context by wiring their
+own systems (wiki, tickets, schemas, design system, services) as MCP servers through Claude Code's
+**native** config — companion adds no machinery and names no systems (R9/N6). The reflex: when a
+configured MCP tool covers a domain, **consult it before inferring** — context from the org's own
+systems beats a guess, and a decompose-park interview (R65) should say when an answer likely lives
+behind one. Direction of truth is inward (R67): external systems are *inputs*; what proves
+load-bearing is **materialized into the repo's own record** (ledger · flows · invariants) by the
+existing machinery — the repo's contract stays the single source of truth, never an external system.
 
 Gate substantive work on the project being self-describing: a map (file→responsibility,
 for blast radius), the requirements ledger, quality attributes, stack notes. Bootstrap them
