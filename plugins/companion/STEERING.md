@@ -34,6 +34,18 @@ on the in-progress task so a crash resumes mid-task, not from the top. `tq repor
 whole queue, and it fires automatically on every `add`/`doing`/`done` — so the CLI always
 shows what's in progress and what's next as the queue moves.
 
+**The open queue stays minimal-blast (R65).** A plain `📋 open` task is *pre-cleared*: routine,
+reversible, verifiable — safe to drain unattended. When decomposition surfaces a task whose blast
+radius is high because **context is missing** (ambiguous scope, an unknown constraint, a fork only
+the owner can see), don't queue it as-is — and don't park it as an option-pick either: options
+invented *without* the missing context are premature. **Decompose-park it**:
+`❓ [parked] decompose: <task> — risk: <why the blast is high>; need: <the specific context
+questions>`. The owner's answers re-enter the **whole loop** — propose → queue → drain — closing the
+original (`tq done` + breadcrumb) and **replacing it with minimal-blast children**. Irreducibly
+high-blast work (a push, a migration, a payment) can't be decomposed into safety: after the
+interview the owner may **bless it through** (queued with the blessing recorded in the subject) or
+keep it as their own `⏳`. Never auto-drain a task still carrying `decompose:`.
+
 **Run in auto.** Queue the work and proceed. Pause for sign-off (AskUserQuestion, options
 with your recommended one first) **only on real signal**: the change is consequential
 (irreversible / externally binding), visual (show a wireframe first), architecturally
@@ -139,7 +151,7 @@ of routine, reversible tasks → **offer `/companion:autopilot on`** ▢ a coher
 verified → **offer `/companion:ship-it`** rather than letting work pile up unshipped. ▢ a
 **load-bearing decision just got made** (a default reversed, a boundary/pattern chosen on purpose,
 an ordering/encoding others depend on) → **offer to log its *why* now** — tiered (check › 🔒 › 🔓,
-provenance `stated`), the just-in-time inline twin of `/companion:document`: capture the why while
+provenance `stated`), the just-in-time inline twin of `/companion:docs`: capture the why while
 it's fresh, don't wait for a batch sweep to reconstruct it.
 
 These are **recommendation-first offers** (the same pick-from-options shape), not actions you take
@@ -162,7 +174,7 @@ The goal is a **UX/NFR/quality contract that's accurate at any moment**, not jus
 layers carry it, split the usual way (R28): **capture** is a hook (`bin/capture.sh` banks every
 prompt, write-only, zero injection) — raw material, no judgment; the **reflex above** is steering —
 the judgment of *which* change touches the contract and moving the doc first (the continuous twin of
-`/companion:document`'s batch sweep); the **backstop** is a check (`bin/contract-drift.sh`, run by
+`/companion:docs`'s batch sweep); the **backstop** is a check (`bin/contract-drift.sh`, run by
 `check.sh` + `ship-it`) that surfaces behaviour changed without a contract doc — detection, because
 "does this change the contract" is a judgment a gate can't make without false-positiving. Prevention
 is the reflex; the check is the net. `/companion:cover` is the test arm of the same contract — it
@@ -231,7 +243,10 @@ full payload, not a one-liner:** a parked `❓` owes the *same* recommendation c
 asked live — `❓ [parked] <the choice> — options: A) … (cost) B) … (cost) C) … (cost); rec: <pick> +
 one-line why`. It all goes **in the subject** (that's what the parked-pile review reads back, via the
 non-truncating `tq list`), so keep each option terse but real. A `❓` holding a thin guess instead of
-the options makes the review a rubber-stamp — the exact failure parking exists to prevent. If an unparkable decision blocks everything, take
+the options makes the review a rubber-stamp — the exact failure parking exists to prevent. **One
+exception to the options contract:** a task that's high-blast because context is *missing* takes the
+**decompose-park** shape instead (R65 — risk + questions, no premature options); the review turns
+the answers into minimal-blast children. If an unparkable decision blocks everything, take
 the safest reversible default, record it, leave a `❓` to override — never stall. A human playtest
 needs a person, so don't try it: capture it as a `⏳ [blocked] playtest: <what>` and keep draining.
 The owner reviews the parked `❓`/`⏳` pile whenever they check in — there's no "they're back" moment

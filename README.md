@@ -31,7 +31,7 @@ Bash + `jq`, zero build, one install.
   as a cleanliness sweep (size · debt · blast-radius · perf). Critique only — never edits.
 - **`/companion:redesign`** *(experimental)* — a contract-preserving rebuild of the whole app from
   your logged UX + quality-attribute contract, as bounded, check-gated passes. It runs
-  **`/companion:document` first** to log the contract, applies on a branch, stays gated on your
+  **`/companion:docs` first** to log the contract, applies on a branch, stays gated on your
   safety checks, auto-reverts on red, and confirms each step. A single bounded target is just one
   pass (this absorbed the former `/companion:regen`).
 - **`/companion:autopilot on|off`** — keep working the queue without stopping — keep it on and keep queuing tasks.
@@ -62,7 +62,7 @@ commits ahead/behind upstream. *(`⇡⇣` are tokens; `↑↓` are git — two a
 The full design lives under [`docs/`](docs/) — the contract a rebuild must preserve, plus the map
 and ledger. `/companion:ship-it` keeps this index current (R57).
 
-- **[docs/flows/](docs/flows/)** — the user-experience contract: one readable page per user flow (happy path + tests + quality bar + change-log), with shared [conventions](docs/flows/_patterns.md) and a global [quality bar](docs/flows/_quality-bar.md).
+- **[docs/flows/](docs/flows/)** — the user-experience contract: one dense spec per user flow (`when · why · steps · quality · tests · changes` — machine shape, R66), with shared [conventions](docs/flows/_patterns.md) and a global [quality bar](docs/flows/_quality-bar.md).
 - **[docs/INVARIANTS.md](docs/INVARIANTS.md)** — the safety/correctness net: the must-holds, each tied to an executable check.
 - **[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)** — the requirements ledger (🔒 locked / 🔓 open / ⚰️ retired), the source of truth for durable decisions.
 - **[docs/MAP.md](docs/MAP.md)** — the code map: every file and what it does.

@@ -2,22 +2,22 @@
 description: Scan an existing repo and record its load-bearing, undocumented decisions — as checks where possible, honestly-graded ledger entries otherwise — so advise stops guessing and can't reverse a critical choice that was never written down
 ---
 
-Run a **document**: excavate the decisions an existing repo *depends on but never wrote down*,
+Run a **docs sweep**: excavate the decisions an existing repo *depends on but never wrote down*,
 and record them in the doc `advise` already reads — so `/companion:advise` stops guessing and
 stops proposing to remove or redesign something critical that simply wasn't communicated.
 
-`document` is the **producer** side of advise (R41): advise (R29) *consumes* `REQUIREMENTS.md`;
-`document` *populates* it. It is judgment + workflow, not enforcement — it proposes, you choose, it
+`docs` is the **producer** side of advise (R41): advise (R29) *consumes* `REQUIREMENTS.md`;
+`docs` *populates* it. It is judgment + workflow, not enforcement — it proposes, you choose, it
 records (R28). It's owner-present by nature (it asks questions), so it's meant for when autopilot is
 **off**. It reuses the `/companion:advise` recommendation-first loop (R29) — don't build a second
 machine.
 
-**`document` is the batch backstop; the just-in-time twin is a STEERING nudge.** The preferred path
+**`docs` is the batch backstop; the just-in-time twin is a STEERING nudge.** The preferred path
 is to capture a decision's *why* **the moment it's made** during normal work (the "load-bearing
-decision just made → log the why now" nudge — provenance `stated`, the why still fresh). `document`
+decision just made → log the why now" nudge — provenance `stated`, the why still fresh). `docs`
 then earns its place for what JIT can't catch: decisions made **before** the record existed, and
 **autopilot runs** where no one was present to answer. Batch is reconstruction; JIT is recording —
-prefer JIT, run `document` to sweep up the rest.
+prefer JIT, run `docs` to sweep up the rest.
 
 **The governing idea — record for the agent that will consume it.** Rank every finding by
 *reliability to Claude*, and record it at the highest tier it can reach:
@@ -42,7 +42,7 @@ lands in**:
 
 > **safety-invariant** → `docs/INVARIANTS.md` (+ a check — a must-hold the user never sees) ·
 > **UX-contract** → `docs/flows/<flow>.md` (a flow page — what the user sees/does) · **agreed
-> quality attribute** → `docs/flows/_quality-bar.md` (or the flow's own Quality bar) ·
+> quality attribute** → `docs/flows/_quality-bar.md` (or the flow's own `quality:` field) ·
 > **incidental-implementation** → *not contract* (a 🔓 ledger note at most, or dropped — a regen may
 > change it freely).
 
@@ -50,13 +50,16 @@ lands in**:
 `_quality-bar.md`) and `INVARIANTS.md` — plus the ledger (`REQUIREMENTS.md`) and map (`MAP.md`) — all
 sit under a single `docs/` folder at the repo root, so a reviewer finds the whole contract in one
 place and `ship-it` can keep a README index pointing at it (R57). If a repo has no `docs/`, create it;
-don't scatter contract docs across the tree.
+don't scatter contract docs across the tree. **Never create a file at the repo root (R64)** — the
+only root file the companion touches is the README (its docs-index section, R57); a gate this
+command creates goes to `.companion/check.sh`, beside the portable queue (R60), so it rides the same
+commits between machines.
 
 The anti-laundering rule applies **doubly** to `agreed-NFR`: only a quality attribute the owner
 *actively agreed* is contract; an inferred one the owner didn't pick is `incidental`, not NFR. This
 pillar routing is what lets `advise` **regenerate against the contract** (R54), not just read the ledger.
 
-**For a redesign contract, log only UX + quality attributes (R55).** When `document` is feeding a
+**For a redesign contract, log only UX + quality attributes (R55).** When `docs` is feeding a
 `/companion:redesign`, the two pillars the owner *logs* are **UX** (`docs/flows/` pages) + **quality
 attributes** (`docs/flows/_quality-bar.md`). **Safety-invariants** route to a **check**
 (`docs/INVARIANTS.md` + `check.sh`) — not a prose catalogue you maintain — and **technical
@@ -114,12 +117,14 @@ a technical-requirements catalogue.
    rationale gets thought through, not waved through; if the owner can't stand behind it, it's a 🔓.
 
    Then **record at the highest reliable tier**: if the confirmed constraint is *mechanizable* (a
-   boundary, budget, forbidden pattern, an invariant a test could assert), also emit a `check.sh`
+   boundary, budget, forbidden pattern, an invariant a test could assert), also emit a gate
    assertion / lint — the tier Claude can't ignore — alongside the ledger entry.
 
 4. **Record each pick at its tier — in the docs advise already reads.**
-   - **Executable check** → add the assertion to `check.sh` (or the project's lint), plus a one-line
-     ledger pointer to it. Verify it passes on the current tree before moving on.
+   - **Executable check** → add the assertion to the project's own gate wherever it lives (its
+     `check.sh` / lint / test script); if the repo has none, create **`.companion/check.sh`** (R64 —
+     plugin-generated files never land at the repo root). Add a one-line ledger pointer to it.
+     Verify it passes on the current tree before moving on.
    - **🔒 / 🔓 judgment constraint** → a **terse** `REQUIREMENTS.md` entry (R3 — dense, not an essay):
      the constraint · its **status** (🔒/🔓) · **provenance** (stated/inferred/unknown) · the **why**
      (or an explicit "why unknown"). If a decision touches an existing locked requirement, cite the
@@ -128,11 +133,11 @@ a technical-requirements catalogue.
      the ledger. Keep the ledger to *requirements*.
    - **Route by R54 pillar** (the second axis): a confirmed **safety-invariant** → `docs/INVARIANTS.md`
      as an enumerated row + its check; a **UX-contract** item → the right **`docs/flows/<flow>.md`**
-   page (R62) — a **Happy-path** step (what the user walks through, in order), tagged in **Tests** as
+   spec (R66 machine shape) — a `steps:` line (what the user walks through, in order), tagged in `tests:` as
    `[E]` (a resolving test name) or `[S]` (👁 eyeball-only); if it exercises a recurring **convention**,
    add it to `docs/flows/_patterns.md` **once** and reference it by name from the flow (restating
    drifts). Keep the flows index `Slash commands (N)` count honest. An **owner-agreed quality
-   attribute** → `docs/flows/_quality-bar.md` (or the flow's own Quality bar; "would a redesign build
+   attribute** → `docs/flows/_quality-bar.md` (or the flow's own `quality:` field; "would a redesign build
    differently?" filter); an **incidental** one → left disposable (a regen may change it), a 🔓 ledger
    pointer at most. Keep each fact in **one** canonical pillar doc (R2), cross-referenced by name.
 

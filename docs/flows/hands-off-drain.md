@@ -1,24 +1,25 @@
-# Hands-off drain
+# flow:hands-off-drain
+when: keep working the queue without stopping to ask (autopilot; optional ship-mode)
+why: idle hours → finished reviewable work with zero unsupervised decisions [R26 R59 R65]
 
-**When:** you want Claude to keep working the queue without stopping to ask — autopilot, optionally shipping as it goes.
+steps:
+- `/companion:autopilot on` → drain continues; asking is BLOCKED (enforced: ask-guard deny + Stop auto-continue)
+- ship on → each turn auto-commits to `autopilot/*` (never default branch, never pushed) → review + `/companion:ship-it` [pattern:guardrails-default-on]
+- `decisive on` → auto-picks recommended option for reversible decisions (taste included), records each, parks only irreversible-critical; shown ✈️⚡ [R59]
 
-## Happy path
-1. `/companion:autopilot on` — Claude keeps draining the queue without stopping to ask.
-2. While on, asking is **blocked** and the drain auto-continues each turn.
-3. With ship-mode on, each turn's work auto-commits to an `autopilot/*` branch (never main, never pushed) for later review + `/companion:ship-it`. *(uses [guardrails default-on](./_patterns.md))*
-4. `/companion:autopilot decisive on` — auto-picks the recommended option for **reversible** decisions (design/wording included), records each, and parks only the irreversible-critical (R59); shown as `✈️⚡`.
+quality:
+- no-progress cap — cannot spin forever (productive drain keeps going)
+- ship-mode NEVER touches default branch, never pushes
+- decisive safety = auditability (every auto-pick is a recorded breadcrumb; irreversible still parks)
+- drain touches only minimal-blast tasks; a `decompose:`-flagged task is never auto-drained [R65]
 
-## Quality bar
-- Autopilot can't spin forever — it yields after a no-progress cap (a productive drain keeps going).
-- Ship-mode **never** commits to the default branch and **never** pushes — reversible checkpoints only.
-- Decisive mode's safety is **auditability**: every auto-pick is a recorded breadcrumb, and the irreversible still parks.
-
-## Tests
+tests:
 - [E] `autopilot: toggle persists, and is enforced (ask-guard deny + Stop auto-continue)` ✅
 - [E] `autopilot: Stop yields after the no-progress cap (can't spin forever)` ✅
 - [E] `ship-mode (R34): toggle, and Stop auto-commits work to an autopilot/* branch — NEVER main` ✅
 - [E] `ship-mode never commits to the default branch, even from detached HEAD` ✅
 - [E] `autopilot decisive (R59): toggle persists, and flips the ask-guard guidance park→decide` ✅
 
-## Changes
-- 2026-07-20 — migrated from UX.md Path 3 into a flow page (R62).
+changes:
+- 2026-07-22 machine shape [R66; reverses R62] · decompose-park [R65] · why-line provenance
+- 2026-07-20 from UX.md P3 [R62]

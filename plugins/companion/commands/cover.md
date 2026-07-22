@@ -14,14 +14,14 @@ test written without that buy-in is noise — so cover **asks before it writes**
 recommendation-first. On a pick it then **scaffolds the test** (was: queued a "write this later"
 task): a **black-box, happy-path/golden test in the project's OWN runner** (R9 — detect the runner
 generically, never a companion-specific harness), driving the *user-visible* surface described in the
-flow's **Happy path**, and **named so the flow's `Tests` line resolves** — the test's `@test`/it
+flow's `steps:`, and **named so the flow's `Tests` line resolves** — the test's `@test`/it
 title is exactly the backtick name the flow page's `- [E] `<name>`` line carries, which the anti-drift
 gate (R61) matches to a real title. It's judgment + workflow, not enforcement (R28) — it proposes, you
 choose, it writes what you chose. Owner-present by nature (it asks): run it with autopilot **off**. It
 reuses the `/companion:advise` recommendation-first loop — don't build a second machine.
 
 **Golden mechanics — native-first, generic (R61).** A scaffolded golden test *drives* the flow
-through the entry point in its **Happy path**, captures the **user-visible output**, writes it to a
+through the entry point in its `steps:`, captures the **user-visible output**, writes it to a
 golden fixture (`goldens/<flow>.*` or the runner's own snapshot idiom) on first run, and **diffs** on
 later runs; refresh via the project's own update flow (`jest -u`, `--snapshot-update`, etc. — delegate
 to the model, don't invent one). There is **no separate ID** — the link IS the test's title (the flow
@@ -39,9 +39,9 @@ silence.
 
 0. **Clear autopilot first.** If autopilot is on, run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off`
    before anything else — the ask-guard blocks `AskUserQuestion` while it's on, and this command
-   asks. (Mirrors `/companion:advise` / `/companion:document`.)
+   asks. (Mirrors `/companion:advise` / `/companion:docs`.)
 
-1. **Read the contract + the current net.** Read the `docs/flows/` pages (each flow's Happy path +
+1. **Read the contract + the current net.** Read the `docs/flows/` pages (each flow's `steps:` +
    its `Tests` lines — `[E]` with a resolving test name, `[S]` eyeball-only) and `docs/INVARIANTS.md`
    (the executable checks that already exist). Detect the repo's **test setup generically** (R9 — no
    framework allowlist: delegate recognition to the model, find the test runner/idiom by structure).
@@ -73,7 +73,7 @@ silence.
 
 4. **Scaffold the picks — in the project's own runner (R61).** For each chosen test, `tq add` it
    (smallest-blast first, `--done "<the assertion that must hold>"`) **and then write it**: a
-   black-box happy-path/golden test that drives the flow's Happy-path entry point, asserts the
+   black-box happy-path/golden test that drives the flow's `steps:` entry point, asserts the
    user-visible result (snapshot to a golden where the output is large/structured, an inline
    assertion where it's small), and whose **title is exactly the name the flow's `- [E] `<name>`` line
    references** (R61 gate). Use the repo's own runner + idiom (R9) — detect it, don't impose one. Add

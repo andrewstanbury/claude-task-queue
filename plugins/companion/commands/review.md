@@ -18,7 +18,7 @@ this.
    before anything else — while the persisted flag is on, the ask-guard blocks `AskUserQuestion` and
    this review can't ask a single question. (The `/companion:autopilot off` command already does
    this; on the plain-conversation "turn it off" path, do it here. Mirrors `/companion:advise` /
-   `/companion:document` / `/companion:cover`.)
+   `/companion:docs` / `/companion:cover`.)
 
 1. **Gather the pile — parked + blocked only.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/tq" list` (**not
    `report`** — the report truncates each subject to ~72 chars, and a parked item carries its options
@@ -34,6 +34,12 @@ this.
      trade-off / what it changes (cite an R-ID if an option touches or reverses a ledger requirement
      — 🔒 needs explicit sign-off). Always include a **"Defer — keep parked, ask me later"** option so
      a large pile never becomes a forced march.
+   - **❓ decompose-park (R65, subject carries `decompose:`)** — the payload is a risk analysis +
+     context questions, *not* options (options invented without the missing context would be
+     premature). Run it as a short **interview**: ask the recorded questions (free-text answers are
+     the expected path), then propose the decomposition — the minimal-blast children — as a
+     recommendation-first menu. If the task is irreducibly high-blast, offer *bless it through as-is*
+     (queued with the blessing recorded in the subject) or *keep it yours (⏳)*.
    - **⏳ blocked** — present the owner action and offer *Done (unblocked) / Still blocked / Drop it*,
      recommended by your read of whether it's actionable now.
 
@@ -46,6 +52,10 @@ this.
      `tq add "<the concrete decided task>" --done "<acceptance>"` (a fresh actionable task, no ❓
      prefix) and `tq done <id>` (or `tq cancel <id>` if the decision was "don't"). If the decision
      *is* the whole resolution, just `tq done <id>`.
+   - **Decompose-park answered (R65)** → `tq note <id> "context: <the answers>"`, then `tq add` each
+     minimal-blast child (`--done` acceptance on each) and `tq done <id>` — the original never
+     survives as a high-blast open task. Blessed through instead → re-`add` it *without* the
+     `decompose:` flag, blessing in the subject, and `done` the original.
    - **⏳ Done** → `tq add` the now-doable task (or `tq done <id>` if it's finished) and `done`/`cancel`
      the placeholder. **Still blocked** → leave it (optionally `tq note` the latest status). **Drop** →
      `tq cancel <id>`.

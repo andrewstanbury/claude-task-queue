@@ -6,8 +6,8 @@ Take verified work from the working tree to shipped. Pushing and merging are ext
 visible, so be careful and confirm the irreversible steps.
 
 1. **Verify FIRST.** Run the project's own gate — its test/check script (`./check.sh`,
-   `make test`, `npm test`, whatever the project uses). If it fails, **STOP** and report; do
-   not ship broken work.
+   `.companion/check.sh` (the companion-generated home, R64), `make test`, `npm test`, whatever
+   the project uses). If it fails, **STOP** and report; do not ship broken work.
 2. **State the case before you commit (the challenge slot, R30·d6).** In one short block, name:
    **risks** (what could this break, or what would you regret?), **what it changes** (behavior /
    interface / requirements — cite the R-IDs it touches or would reverse), and **why it's still
@@ -23,12 +23,12 @@ visible, so be careful and confirm the irreversible steps.
    - **Name the contract impact.** Read the diff and identify which R54 pillar it touches — **UX**
      (a command / flow / output the user sees), **NFR** (a quality attribute), or an **invariant**
      (a must-hold). Pull the *relevant logged design* for what changed — the affected
-     `docs/flows/<flow>.md` page (Happy path + Tests + Quality bar), the invariant — and fold it into
+     `docs/flows/<flow>.md` spec (steps + tests + quality, R66 machine shape), the invariant — and fold it into
      the commit body (and the PR body), **called out loudest for UX changes** so a reviewer sees the
      *experience* delta, not just the code.
    - **Propose the flow-page update, recommendation-first — the contract stays owner-governed.** If the
      change alters UX (a command added / removed / renamed, a flow or output changed), **draft the
-     `docs/flows/<flow>.md` edit** — the Happy-path steps to add / change / remove and the Tests +
+     `docs/flows/<flow>.md` edit** — the `steps:` lines to add / change / remove and the `tests:` +
      Changes lines, keeping each test line's `[E]`/`[S]` kind — and present it recommendation-first
      for the owner to confirm or adjust (the same `AskUserQuestion` shape; under autopilot, park it as
      a `❓` carrying the drafted edit). On approval, **stage the flow-page edit *with* the code** so

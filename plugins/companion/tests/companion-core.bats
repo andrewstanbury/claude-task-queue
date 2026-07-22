@@ -288,7 +288,7 @@ _ux_flow_check() {
   grep -q "Never force-push"               "$C/ship-it.md"      # never rewrite published history
   grep -q "Sync the contract"              "$C/ship-it.md"      # R57 contract-sync step
   grep -q "Propose the flow-page update"   "$C/ship-it.md"      # R57/R62 flow-page proposal (owner-governed, not silent)
-  grep -q "anti-laundering"                "$C/document.md"     # only the owner's pick records a 🔒
+  grep -q "anti-laundering"                "$C/docs.md"     # only the owner's pick records a 🔒
   grep -q "autopilot"                      "$C/resume.md"       # resume respects/clears autopilot
   grep -q "resume.sh"                       "$C/resume.md"       # resume runs the session-pickup re-surface (R39)
   grep -q "companion:review"               "$C/resume.md"       # pickup hands off to review (R39 re-split)
@@ -672,7 +672,7 @@ _ux_flow_check() {
   [ "$r" = "block" ]   # without the reset this 3rd stop would YIELD; it blocks because a task completed
 }
 
-# ---- decisions surfaced + recorded by /companion:document (R41) ----
+# ---- decisions surfaced + recorded by /companion:docs (R41; renamed from document 2026-07-22) ----
 
 @test "secret gate: covers NotebookEdit's new_source — key blocked, clean cell passes (R43)" {
   local k="AKIA""ABCDEFGHIJKLMNOP"                          # split so THIS file isn't a secret

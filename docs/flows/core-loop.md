@@ -1,31 +1,34 @@
-# The core loop
+# flow:core-loop
+when: request → work → done → shipped (the everyday cycle)
+why: work survives crashes/compactions only as small verified steps with own acceptance; owner attention goes to decisions, not keeping work alive [R52 R65]
 
-**When:** the everyday cycle — you make a request, it becomes work, it gets done, it ships.
+steps:
+- every prompt captured to local write-only store (zero injection) [R58·a]
+- UX/quality-attribute change → move the flow page FIRST, code queued against it [pattern:living-contract]
+- request → `tq` tasks, smallest-blast-first, each `--done "<acceptance>"` [pattern:queue-one-at-a-time]
+- high-blast-for-missing-context task → decompose-park (`❓ decompose:` risk+questions, not options); answers re-enter loop as minimal-blast children — open queue always safe to drain [R65]
+- worked one at a time, breadcrumb on active task
+- decisions → pick-from-CLI menus; every reply ends with one-line brutal-honest verdict [pattern:recommendation-first]
+- context nudges are offers, not actions [pattern:offer-not-act]
+- visual change → wireframe first [pattern:wireframe-first]; clean-as-you-go [pattern:clean-as-you-go]
+- credential write → BLOCKED [pattern:guardrails-default-on]
+- verify by exercising; recap one line
+- ship via `/companion:ship-it`: verify → sync flows → commit → push → merge
 
-## Happy path
-1. Every prompt is captured to a local write-only store (raw material for the living contract; nothing injected, no token cost).
-2. A change to what the user sees/does — or a quality attribute — **moves the flow page first** (recommendation-first), with the code queued against it. *(uses [recommendation-first](./_patterns.md), [living-contract](./_patterns.md))*
-3. The request becomes `tq` tasks — smallest-blast-first, each with a done-when. *(uses [queue-one-at-a-time](./_patterns.md))*
-4. Worked one at a time, with a breadcrumb on the active task.
-5. Decisions surface as pick-from-CLI menus, and every reply closes with a one-line brutal-honest verdict.
-6. Context nudges *offer* next moves (debt · big blast · repetition · finished chunk) — offers, not actions. *(uses [offer-not-act nudges](./_patterns.md))*
-7. Visual changes get a wireframe before code; work stays clean-as-you-go. *(uses [wireframe-first](./_patterns.md), [clean-as-you-go](./_patterns.md))*
-8. A write that would commit a real credential is **blocked** with a message. *(uses [guardrails default-on](./_patterns.md))*
-9. Verified by exercising, not asserting; recapped in one line.
-10. A finished chunk ships with `/companion:ship-it`: verify → sync the flow pages → commit → push → merge.
+quality:
+- capture is write-only — zero runtime tokens [N1]
+- credential block is prevention, on by default [N7]
 
-## Quality bar
-- Prompt capture is **write-only** — injects nothing, zero runtime token cost ([`_quality-bar.md`](./_quality-bar.md) N1).
-- The credential block is **prevention, not detection** (N7) and **on by default** (opt-out only).
-
-## Tests
+tests:
 - [E] `capture: banks the prompt, injects nothing` ✅
 - [E] `contract-drift: warns when behaviour changed without a contract doc` ✅
 - [E] `tq: done-when — --done on add + the done-when subcommand STORE it` ✅
 - [E] `parked/blocked (❓/⏳) is a prefix-view over pending, NOT a status value` ✅
 - [E] `secret gate: blocks a real AWS key (exit 2)` ✅
-- [S] Decisions surface recommendation-first + brutal-honest verdict — judgment, eyeball only. 👁
-- [S] Wireframe-before-code; clean-as-you-go; one-line recap — judgment, eyeball only. 👁
+- [S] recommendation-first + brutal verdict — judgment 👁
+- [S] decompose-park routing (high-blast never sits open; answers → minimal-blast children) — judgment 👁
+- [S] wireframe-first · clean-as-you-go · one-line recap — judgment 👁
 
-## Changes
-- 2026-07-20 — migrated from UX.md Path 2 into a flow page (R62). "Sync the contract docs" step now reads "sync the flow pages."
+changes:
+- 2026-07-22 machine shape [R66; reverses R62] · decompose-park [R65] · why-line provenance
+- 2026-07-20 from UX.md P2 [R62]; "sync contract docs" → "sync flow pages"

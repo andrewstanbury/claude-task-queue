@@ -1,5 +1,5 @@
 ---
-description: Whole-application contract-preserving redesign — rebuild the app to satisfy the logged UX + quality-attribute contract, as a sequence of bounded, check-gated passes (runs document first)
+description: Whole-application contract-preserving redesign — rebuild the app to satisfy the logged UX + quality-attribute contract, as a sequence of bounded, check-gated passes (runs docs first)
 ---
 
 Run a **redesign** (R55): rebuild the **whole application** from the logged contract, as a
@@ -23,16 +23,16 @@ D0. **Verify the invariant net covers the app BEFORE the first pass (R54 sequenc
     isn't recognized per-module — gets silently deleted while `check.sh` stays green. That is the exact
     R54 footgun. Before starting: confirm **every** invariant in `docs/INVARIANTS.md` has a green check
     (or is an explicitly owner-acknowledged G3/G4 manual-preserve). **If any invariant is uncovered,
-    STOP** — add the check first (`/companion:document` or by hand). Do not begin a whole-app redesign
+    STOP** — add the check first (`/companion:docs` or by hand). Do not begin a whole-app redesign
     on an incomplete net; per-module R3 recognition is a backstop, not the gate.
 
-D1. **Log the contract first — `/companion:document` is a REQUIRED first step (R41/R55).** The
+D1. **Log the contract first — `/companion:docs` is a REQUIRED first step (R41/R55).** The
     redesign rebuilds against the *logged* UX + quality attributes, so those must exist and be current
-    before a single module is touched. **Run `/companion:document` first** to record/refresh
+    before a single module is touched. **Run `/companion:docs` first** to record/refresh
     `docs/flows/` (the experience) + `docs/flows/_quality-bar.md` (the quality attributes) — **just those two**, not a
     technical-requirements catalogue (the safety net is the checks from D0, not prose). **Refuse to
     proceed** if the contract is missing or stale and the owner declines to log it: a redesign with no
-    contract to preserve is an unbounded rewrite, exactly what this command forbids. `document` stays
+    contract to preserve is an unbounded rewrite, exactly what this command forbids. `docs` stays
     its own command (it also feeds `/companion:advise`); redesign *requires* it, doesn't replace it.
 
 D2. **Enumerate the app as bounded targets.** Break the application into bounded modules
@@ -48,7 +48,8 @@ D3. **Redesign each module as a bounded, check-gated pass (the inlined engine, R
       reproduce), `docs/flows/_quality-bar.md` (the quality attributes to meet — *and* what's explicitly
       **incidental**, so fair to change), and `docs/INVARIANTS.md` (the must-holds touching it).
     - **R3 · Checks first, or stop (R54, non-negotiable).** Identify every invariant check touching
-      the module and run `./check.sh`. **Refuse to regenerate** the module if any relevant invariant
+      the module and run the project's gate (`./check.sh` or `.companion/check.sh`, wherever it
+      lives — R64). **Refuse to regenerate** the module if any relevant invariant
       check is **missing or red** — an unpinned invariant is exactly what a rebuild silently deletes;
       add the check first, don't proceed. List the **manual-preserve** items (G3 `tq` atomicity /
       G4 never-commit-default — no full check) and require the owner to acknowledge them; do not let
@@ -60,13 +61,13 @@ D3. **Redesign each module as a bounded, check-gated pass (the inlined engine, R
       the rebuilt module + a diff + which contract item each part satisfies + your brutal-honest read
       — including *"this module already satisfies the contract — skip,"* an allowed, encouraged verdict.
     - **R5 · Confirm, apply on a branch, re-check.** Only on the owner's explicit pick: apply on a
-      branch (never the default in place), then **re-run `./check.sh`. If ANY check reddens, STOP,
+      branch (never the default in place), then **re-run the gate. If ANY check reddens, STOP,
       auto-revert that module on the branch, and report** — never present red work as done, never
       leave red work for the owner to clean up. Then drive the module's real behavior to confirm the
       UX is *reproduced*. **A reddened check STOPS that pass**; ask the owner whether to continue the
       run or halt.
 
-D4. **Whole-run safety.** All passes land on a branch, never the default in place; `check.sh` stays
+D4. **Whole-run safety.** All passes land on a branch, never the default in place; the gate stays
     green between passes; the owner reviews. When the run completes, drive the app's real behavior to
     confirm the **UX is reproduced end-to-end** (not just green tests), then hand off to
     `/companion:ship-it`. Never silent, never without the owner's go.

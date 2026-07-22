@@ -1,24 +1,24 @@
-# Pick up where you left off
+# flow:pick-up-where-you-left-off
+when: return to a repo after an earlier session → resume, then clear decisions waiting on owner
+why: parked decisions are only trustworthy if they reliably reach the owner later — resume+review make the human half as dependable as the drain [R38 R39]
 
-**When:** you return to a repo after an earlier session and want to resume, then clear the decisions waiting on you.
+steps:
+- `/companion:resume` — autopilot OFF first (resumed decisions go to the owner, not the next drain), then re-surface earlier tasks preserving ❓/⏳/📋 class [pattern:recommendation-first]
+- `/companion:review` — walk ❓+⏳ pile one at a time, recommendation-first; each pick written back BEFORE new work; `decompose:` parks run as context interviews → minimal-blast children [R65]; this is also the autopilot-off trigger
 
-## Happy path
-1. `/companion:resume` — turns autopilot **off** first (so resumed decisions come back to *you*, not the next drain), then re-surfaces this repo's earlier-session tasks, preserving each item's ❓/⏳/📋 class. *(uses [recommendation-first](./_patterns.md))*
-2. `/companion:review` — walk the parked (❓) + blocked (⏳) backlog one at a time, recommendation-first; each pick is written back to the queue **before** any new work. This is also what the autopilot-off switch triggers.
+quality:
+- resume never promotes a parked ❓ into plain open (would let the next drain decide it)
+- autopilot-off arms the review — one gesture
+- carried queue survives repo move (per-worktree identity, not abspath); worktrees/clones stay isolated [R63]
 
-## Quality bar
-- Resume never **promotes a parked decision into a plain open task** (that would let the next drain autopilot the answer instead of asking you).
-- Turning autopilot off is what *arms* the review — the two are one gesture.
-- Your carried queue **survives the repo being moved** — scoping keys on a per-worktree identity (a tag in the tree's git dir), not the absolute path — while git **worktrees/clones stay isolated** (no cross-tree bleed) (R63).
-
-## Tests
+tests:
 - [E] `manual resume: turns autopilot OFF first, announced when on and quiet when off` ✅
 - [E] `manual resume: lists THIS repo's open tasks on demand (and says so when none)` ✅
 - [E] `resume: carried tasks render the done-when + LATEST note sub-lines` ✅
 - [E] `resume survives a repo MOVE — scoping keys on a per-worktree identity` ✅
 - [E] `resume ISOLATES git worktrees — same history, separate trees, separate queues` ✅
-- [S] `/companion:review` walks the pile recommendation-first, one at a time — judgment, eyeball only. 👁
+- [S] review walks pile recommendation-first, one at a time — judgment 👁
 
-## Changes
-- 2026-07-20 — migrated from UX.md Path 4 into a flow page (R62). The "carry the queue to another machine" step moved to its own flow: [Carry tasks to another machine](./carry-tasks-to-another-machine.md).
-- 2026-07-20 — resume now keys on a per-worktree identity, so a moved repo keeps its queue *and* worktrees/clones stay isolated (R63; corrected from an initial root-SHA design that would have merged worktree queues).
+changes:
+- 2026-07-22 machine shape [R66; reverses R62] · why-line provenance
+- 2026-07-20 from UX.md P4 [R62]; carry-queue split to own flow; per-worktree scoping [R63, corrected from root-SHA design that would merge worktree queues]

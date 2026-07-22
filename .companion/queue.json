@@ -1,0 +1,23 @@
+[
+  {
+    "subject": "capture.sh grows unbounded — add a size cap / rotation (and consider a note that pasted secrets land in plaintext locally). R58 follow-up, flagged by ship devil's-advocate.",
+    "status": "pending",
+    "done_when": "prompts.jsonl is bounded (cap or rotation); behavior documented",
+    "description": "",
+    "notes": []
+  },
+  {
+    "subject": "contract-drift.sh is noisy by design (warns on every code-only check run) — consider a quieter default or a scope config so it isn't tuned out. R58 follow-up.",
+    "status": "pending",
+    "done_when": "drift warning is actionable, not reflexively ignored",
+    "description": "",
+    "notes": []
+  },
+  {
+    "subject": "Ship the session: R64–R66 + docs rename + decompose-park + exec deck + machine contract + ledger compaction",
+    "status": "in_progress",
+    "done_when": "verified (check.sh green), contract synced, committed with review-optimized message(s), pushed, on default branch",
+    "description": "",
+    "notes": []
+  }
+]

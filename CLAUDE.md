@@ -57,9 +57,9 @@ it governs how you work here too.**
     critique of a target as recommendation-first options you pick one at a time, then queued — it
     *only* critiques), `/companion:redesign` (R54/R55 —
     whole-app contract-preserving rebuild against the logged UX+QA contract, in bounded check-gated
-    passes; **runs `/companion:document` first**, and the per-module rebuild engine is inlined — a
+    passes; **runs `/companion:docs` first**, and the per-module rebuild engine is inlined — a
     single bounded target is one pass, absorbing the former `/companion:regen`, R55 amended 2026-07-18),
-    `/companion:document` (R41 — the producer side of advise: scan an existing repo for
+    `/companion:docs` (R41 — the producer side of advise: scan an existing repo for
     load-bearing, undocumented decisions and record them tiered check › 🔒 › 🔓, with
     strength-of-why + provenance, so advise stops guessing and can't reverse an undocumented choice).
     *(The `/companion:features` toggle CLI was removed 2026-07-18, R50 — per-repo secret/steering are
