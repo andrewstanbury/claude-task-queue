@@ -6,8 +6,9 @@
 # (move the contract doc in the same turn as the change); this is the DETECTION net for when that
 # judgment was skipped — a backstop, deliberately advisory (a warning, exit 0), NOT a hard gate:
 # most code changes legitimately don't touch the contract, so blocking would false-positive into
-# uselessness and get disabled. `/companion:ship-it` and a repo's `check.sh` call it; the model
-# reads the warning and confirms the contract still holds.
+# uselessness and get disabled. `/companion:ship-it` calls it at the ship boundary — deliberately
+# NOT every gate run (tune-out; R58 amended 2026-07-22). The model reads the warning and confirms
+# the contract still holds.
 #
 # Generic (N2/R9): no language/framework allowlist. "Behaviour" = any changed tracked/untracked
 # file that is NOT documentation (not under a docs/ dir) and not release noise. "Contract" = the

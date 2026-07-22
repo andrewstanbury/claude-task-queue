@@ -175,7 +175,9 @@ layers carry it, split the usual way (R28): **capture** is a hook (`bin/capture.
 prompt, write-only, zero injection) — raw material, no judgment; the **reflex above** is steering —
 the judgment of *which* change touches the contract and moving the doc first (the continuous twin of
 `/companion:docs`'s batch sweep); the **backstop** is a check (`bin/contract-drift.sh`, run by
-`check.sh` + `ship-it`) that surfaces behaviour changed without a contract doc — detection, because
+`ship-it` at the ship boundary — deliberately *not* every gate run, where drift is the normal
+intermediate state and a constant warning trains its own tune-out) that surfaces behaviour changed
+without a contract doc — detection, because
 "does this change the contract" is a judgment a gate can't make without false-positiving. Prevention
 is the reflex; the check is the net. `/companion:cover` is the test arm of the same contract — it
 ranks flows by coverage gap, recommends the ideal test, and (buy-in first — it asks before it writes)

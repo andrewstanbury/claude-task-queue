@@ -20,6 +20,10 @@ visible, so be careful and confirm the irreversible steps.
      objection from one is worth a lot — if it lands a real one, fix or reconsider before you push.
 3. **Sync the contract + docs before you commit (R57).** A ship that changes what the user *sees or
    does* must not leave the recorded contract a commit behind. Before committing:
+   - **Run the drift backstop.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/contract-drift.sh"` and read its
+     output — it lists behaviour files that changed without a contract doc moving. This is the ONE
+     place it runs (R58 amended: not per-check-run — a warning firing on every mid-work run trains
+     its own tune-out); the ship boundary is where drift is real and still actionable.
    - **Name the contract impact.** Read the diff and identify which R54 pillar it touches — **UX**
      (a command / flow / output the user sees), **NFR** (a quality attribute), or an **invariant**
      (a must-hold). Pull the *relevant logged design* for what changed — the affected

@@ -26,6 +26,6 @@ Safety on by default, opt-out only; disabled gate is loud.
 - [E] `status line: 🛡✗ when the secret gate is disabled` ✅
 
 ## living-contract [E/S]
-Contract stays accurate continuously [R58]: prompts captured (write-only hook, zero injection) · UX/QA change moves the flow spec FIRST (steering reflex) · drift backstop (`check.sh`/`ship-it`) flags behaviour that outran the contract · `/companion:cover` = test-scaffolding arm.
+Contract stays accurate continuously [R58]: prompts captured (write-only hook, zero injection; redacted at rest + rotated, R68) · UX/QA change moves the flow spec FIRST (steering reflex) · drift backstop runs at the SHIP boundary only (`ship-it`; not per-gate-run — tune-out, R58 amended 2026-07-22) · `/companion:cover` = test-scaffolding arm.
 - [E] `capture: banks the prompt, injects nothing` ✅
 - [E] `contract-drift: warns when behaviour changed without a contract doc` ✅

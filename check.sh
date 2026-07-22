@@ -70,14 +70,10 @@ for f in "${scripts[@]}"; do
 done
 [ "$size_fail" -eq 0 ] && echo "  ok"
 
-section "Contract drift (advisory — R58)"
-# Backstop for the living contract: warns when behaviour changed locally without a contract doc
-# (docs/flows/·INVARIANTS.md) moving. Advisory by design — NOT a fail (most changes don't
-# touch the contract; a hard gate here would false-positive into being disabled). The STEERING
-# "contract reflex" is the prevention; this is the visibility net. Silent (clean) in CI, where the
-# tree matches HEAD.
-drift="$(plugins/companion/bin/contract-drift.sh 2>/dev/null || true)"
-if [ -n "$drift" ]; then printf '%s\n' "$drift" | sed 's/^/  /'; else echo "  ok — no unrecorded contract drift"; fi
+# NOTE: the contract-drift backstop (bin/contract-drift.sh) deliberately does NOT run here
+# (R58 amended 2026-07-22): a warning on every mid-work gate run — where drift is the normal
+# intermediate state — trains its own tune-out, and CI is a clean-tree no-op anyway. It runs at
+# the ONE boundary where drift is real and actionable: /companion:ship-it's contract-sync step.
 
 section "Tests (bats)"
 if have bats; then
