@@ -5,19 +5,5 @@
     "done_when": "drift warning is actionable, not reflexively ignored",
     "description": "",
     "notes": []
-  },
-  {
-    "subject": "R68: hook admission criteria codified (local, single-shot, bounded blast)",
-    "status": "in_progress",
-    "done_when": "R68 ledger row: local-only, short-lived single-shot, bounded blast radius, best-effort; sanctioned shapes named; audit result recorded; gate green",
-    "description": "",
-    "notes": []
-  },
-  {
-    "subject": "capture.sh: redact PII/credentials before banking + size cap/rotation (closes R58 follow-up)",
-    "status": "pending",
-    "done_when": "anchored generic patterns (keys, private-key blocks, card/SSN shapes) redacted before write; store rotates at cap; best-effort (never breaks the prompt); bats test proves redaction+cap; core-loop flow updated; 3.13.0; gate green",
-    "description": "",
-    "notes": []
   }
 ]
