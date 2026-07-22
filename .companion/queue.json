@@ -12,12 +12,5 @@
     "done_when": "drift warning is actionable, not reflexively ignored",
     "description": "",
     "notes": []
-  },
-  {
-    "subject": "Ship the session: R64–R66 + docs rename + decompose-park + exec deck + machine contract + ledger compaction",
-    "status": "in_progress",
-    "done_when": "verified (check.sh green), contract synced, committed with review-optimized message(s), pushed, on default branch",
-    "description": "",
-    "notes": []
   }
 ]
