@@ -1,0 +1,1160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Night Shift — Queue it, sleep on it, review it</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="How the companion task-queue plugin lets AI work the night shift on autopilot — and the honest ROI of reviewing in the morning.">
+<style>
+  /* minimal reset */
+  *,*::before,*::after{box-sizing:border-box}
+  img,svg,canvas{max-width:100%}
+  :root{
+    --ground:#0D1017; --ground-2:#12161F; --panel:#171C27; --panel-2:#1D2431;
+    --line:#262D3A; --line-soft:#1E2531;
+    --ink:#E9E7E1; --ink-dim:#9AA1AE; --ink-faint:#6A717E;
+    --accent:#F2A03D; --accent-soft:rgba(242,160,61,.14); --accent-line:rgba(242,160,61,.34);
+    --open:#6E97D6; --parked:#B08BE0; --blocked:#D97B5A; --done:#7FB87A;
+    --shadow:0 1px 0 rgba(255,255,255,.02), 0 18px 40px -22px rgba(0,0,0,.7);
+    --mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,"Helvetica Neue",Arial,sans-serif;
+    --maxw:1080px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{
+      --ground:#FAF7F1; --ground-2:#F2EEE5; --panel:#FFFFFF; --panel-2:#F6F2EA;
+      --line:#E3DCCF; --line-soft:#ECE6DA;
+      --ink:#1E2129; --ink-dim:#5C6270; --ink-faint:#8A8F9B;
+      --accent:#BE721D; --accent-soft:rgba(190,114,29,.10); --accent-line:rgba(190,114,29,.28);
+      --open:#3D6BB0; --parked:#7E56C4; --blocked:#B85536; --done:#4E8A4A;
+      --shadow:0 1px 0 rgba(255,255,255,.6), 0 16px 34px -24px rgba(60,40,10,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0D1017; --ground-2:#12161F; --panel:#171C27; --panel-2:#1D2431;
+    --line:#262D3A; --line-soft:#1E2531;
+    --ink:#E9E7E1; --ink-dim:#9AA1AE; --ink-faint:#6A717E;
+    --accent:#F2A03D; --accent-soft:rgba(242,160,61,.14); --accent-line:rgba(242,160,61,.34);
+    --open:#6E97D6; --parked:#B08BE0; --blocked:#D97B5A; --done:#7FB87A;
+    --shadow:0 1px 0 rgba(255,255,255,.02), 0 18px 40px -22px rgba(0,0,0,.7);
+  }
+  :root[data-theme="light"]{
+    --ground:#FAF7F1; --ground-2:#F2EEE5; --panel:#FFFFFF; --panel-2:#F6F2EA;
+    --line:#E3DCCF; --line-soft:#ECE6DA;
+    --ink:#1E2129; --ink-dim:#5C6270; --ink-faint:#8A8F9B;
+    --accent:#BE721D; --accent-soft:rgba(190,114,29,.10); --accent-line:rgba(190,114,29,.28);
+    --open:#3D6BB0; --parked:#7E56C4; --blocked:#B85536; --done:#4E8A4A;
+    --shadow:0 1px 0 rgba(255,255,255,.6), 0 16px 34px -24px rgba(60,40,10,.35);
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--sans); font-size:17px; line-height:1.6;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+
+  /* ---- type ---- */
+  h1,h2,h3{text-wrap:balance; margin:0; line-height:1.08; letter-spacing:-.02em}
+  h1{font-size:clamp(2.5rem,7vw,4.6rem); font-weight:800}
+  h2{font-size:clamp(1.7rem,3.6vw,2.7rem); font-weight:750}
+  h3{font-size:1.16rem; font-weight:700; letter-spacing:-.01em}
+  p{margin:0}
+  .lede{font-size:clamp(1.05rem,1.7vw,1.32rem); color:var(--ink-dim); line-height:1.55; max-width:60ch}
+  .eyebrow{
+    font-family:var(--mono); font-size:.72rem; font-weight:600; letter-spacing:.22em;
+    text-transform:uppercase; color:var(--accent); display:inline-flex; align-items:center; gap:.6em;
+  }
+  .eyebrow::before{content:""; width:26px; height:1px; background:var(--accent-line)}
+  .mono{font-family:var(--mono)}
+  .dim{color:var(--ink-dim)}
+  strong{color:var(--ink); font-weight:700}
+
+  /* ---- section rhythm ---- */
+  section{padding:clamp(64px,9vw,120px) 0; border-top:1px solid var(--line-soft)}
+  section:first-of-type{border-top:none}
+  .head{display:flex; flex-direction:column; gap:16px; margin-bottom:clamp(36px,5vw,60px); max-width:64ch}
+
+  /* ---- hero ---- */
+  .hero{
+    position:relative; overflow:hidden; border-top:none;
+    padding-top:clamp(40px,7vw,72px); padding-bottom:clamp(56px,8vw,96px);
+  }
+  .hero-grid{display:grid; grid-template-columns:1.05fr .95fr; gap:clamp(32px,5vw,64px); align-items:center}
+  @media (max-width:900px){.hero-grid{grid-template-columns:1fr; gap:40px}}
+  .hero h1 span{color:var(--accent)}
+  .hero .lede{margin-top:22px; max-width:44ch}
+  .kicker{display:flex; gap:10px; flex-wrap:wrap; margin-top:30px}
+  .chip{
+    font-family:var(--mono); font-size:.78rem; padding:7px 13px; border-radius:999px;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink-dim); white-space:nowrap;
+  }
+  .chip b{color:var(--ink); font-weight:600}
+
+  /* ---- the console (always-dark device, both themes) ---- */
+  .console{
+    background:linear-gradient(180deg,#12161F,#0C0F16);
+    border:1px solid #232B39; border-radius:18px; padding:20px;
+    box-shadow:0 30px 60px -30px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.03);
+    color:#E9E7E1;
+  }
+  .console-bar{display:flex; align-items:center; gap:8px; padding:0 4px 14px; border-bottom:1px solid #212836; margin-bottom:8px}
+  .dot{width:11px; height:11px; border-radius:50%}
+  .console-title{font-family:var(--mono); font-size:.74rem; color:#8A93A3; margin-left:8px; letter-spacing:.02em}
+  #flywheel{display:block; width:100%; height:auto}
+  .console-legend{display:flex; justify-content:space-between; gap:12px; font-family:var(--mono); font-size:.72rem; color:#8A93A3; padding:6px 6px 0; flex-wrap:wrap}
+  .console-legend span{display:inline-flex; align-items:center; gap:6px}
+  .sw{width:9px; height:9px; border-radius:2px; display:inline-block}
+
+  /* ---- cards ---- */
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px; box-shadow:var(--shadow)}
+  .grid{display:grid; gap:18px}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  @media (max-width:820px){.g3,.g4{grid-template-columns:1fr 1fr}}
+  @media (max-width:560px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+  .num{font-family:var(--mono); font-size:.82rem; color:var(--accent); font-weight:600}
+  .card h3{margin:12px 0 8px}
+  .card p{color:var(--ink-dim); font-size:.98rem}
+
+  /* ---- state pills ---- */
+  .state{display:grid; grid-template-columns:auto 1fr; gap:16px 18px; align-items:start}
+  .pill{
+    font-family:var(--mono); font-size:.85rem; font-weight:600; padding:8px 12px; border-radius:9px;
+    display:inline-flex; gap:8px; align-items:center; white-space:nowrap; border:1px solid transparent;
+  }
+  .pill.open{color:var(--open); background:color-mix(in srgb,var(--open) 13%,transparent); border-color:color-mix(in srgb,var(--open) 30%,transparent)}
+  .pill.parked{color:var(--parked); background:color-mix(in srgb,var(--parked) 13%,transparent); border-color:color-mix(in srgb,var(--parked) 30%,transparent)}
+  .pill.blocked{color:var(--blocked); background:color-mix(in srgb,var(--blocked) 13%,transparent); border-color:color-mix(in srgb,var(--blocked) 30%,transparent)}
+  .pill.done{color:var(--done); background:color-mix(in srgb,var(--done) 13%,transparent); border-color:color-mix(in srgb,var(--done) 30%,transparent)}
+  .staterow{display:flex; flex-direction:column; gap:22px}
+  .staterow .r{display:grid; grid-template-columns:150px 1fr; gap:20px; align-items:baseline; padding-bottom:22px; border-bottom:1px solid var(--line-soft)}
+  .staterow .r:last-child{border-bottom:none; padding-bottom:0}
+  .staterow .r p{color:var(--ink-dim); font-size:1rem}
+  .staterow .r .who{font-family:var(--mono); font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); margin-top:6px; display:block}
+  @media (max-width:620px){.staterow .r{grid-template-columns:1fr; gap:10px}}
+
+  /* ---- comparison ---- */
+  .vs{display:grid; grid-template-columns:1fr 1fr; gap:0; border:1px solid var(--line); border-radius:16px; overflow:hidden}
+  @media (max-width:720px){.vs{grid-template-columns:1fr}}
+  .vs > div{padding:28px}
+  .vs .a{background:var(--panel-2); border-right:1px solid var(--line)}
+  .vs .b{background:var(--panel); position:relative}
+  @media (max-width:720px){.vs .a{border-right:none; border-bottom:1px solid var(--line)}}
+  .vs h3{margin-bottom:16px; display:flex; align-items:center; gap:10px}
+  .vs ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:14px}
+  .vs li{display:grid; grid-template-columns:20px 1fr; gap:12px; font-size:1rem; color:var(--ink-dim); line-height:1.45}
+  .vs li b{color:var(--ink); font-weight:650}
+  .mk{font-family:var(--mono); font-weight:700; line-height:1.4}
+  .mk.bad{color:var(--blocked)}
+  .mk.good{color:var(--done)}
+  .tag{font-family:var(--mono); font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; padding:4px 9px; border-radius:6px; border:1px solid var(--line)}
+  .tag.a{color:var(--ink-faint)}
+  .tag.b{color:var(--accent); border-color:var(--accent-line); background:var(--accent-soft)}
+
+  /* ---- overnight timeline ---- */
+  .night{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:26px 26px 18px; box-shadow:var(--shadow)}
+  .night-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:18px; flex-wrap:wrap; gap:8px}
+  .night-head .t{font-family:var(--mono); font-size:.74rem; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint)}
+  #timeline{display:block; width:100%; height:auto}
+  .tl-legend{display:flex; gap:20px; flex-wrap:wrap; font-family:var(--mono); font-size:.74rem; color:var(--ink-dim); margin-top:14px; padding-top:14px; border-top:1px solid var(--line-soft)}
+  .tl-legend span{display:inline-flex; align-items:center; gap:7px}
+
+  /* ---- contrast: linear path vs flywheel ---- */
+  .contrast-card{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:22px 22px 16px; box-shadow:var(--shadow); margin-bottom:26px}
+  #contrast{display:block; width:100%; height:auto}
+  .contrast-legend{display:flex; gap:22px; flex-wrap:wrap; font-family:var(--mono); font-size:.73rem; color:var(--ink-dim); margin-top:12px; padding-top:14px; border-top:1px solid var(--line-soft)}
+  .contrast-legend span{display:inline-flex; align-items:center; gap:7px}
+
+  /* ---- ROI stat tiles ---- */
+  .stat{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px; box-shadow:var(--shadow)}
+  .stat .big{font-family:var(--mono); font-size:clamp(2rem,4vw,2.7rem); font-weight:750; letter-spacing:-.02em; color:var(--ink); font-variant-numeric:tabular-nums}
+  .stat .big em{font-style:normal; color:var(--accent)}
+  .stat .lab{font-size:.92rem; color:var(--ink-dim); margin-top:8px}
+  .illus{font-family:var(--mono); font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); margin-top:14px; display:inline-flex; gap:6px; align-items:center}
+
+  /* ---- honest / caveats ---- */
+  .honest{background:var(--ground-2); border:1px solid var(--line); border-left:3px solid var(--blocked); border-radius:12px; padding:22px 24px}
+  .honest h3{color:var(--ink); display:flex; align-items:center; gap:10px; margin-bottom:14px}
+  .honest ul{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:16px}
+  .honest li{display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:start}
+  .honest li .k{font-family:var(--mono); font-size:.8rem; color:var(--blocked); font-weight:700; white-space:nowrap; padding-top:2px}
+  .honest li p{color:var(--ink-dim); font-size:.99rem}
+  .honest li b{color:var(--ink)}
+
+  /* ---- flow steps ---- */
+  .flow{display:grid; grid-template-columns:1fr auto 1fr auto 1fr; align-items:stretch; gap:0}
+  @media (max-width:760px){.flow{grid-template-columns:1fr; gap:14px}}
+  .flow .step{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:24px; box-shadow:var(--shadow)}
+  .flow .arrow{display:flex; align-items:center; justify-content:center; color:var(--accent); font-family:var(--mono); font-size:1.5rem; padding:0 14px}
+  @media (max-width:760px){.flow .arrow{transform:rotate(90deg); padding:2px 0}}
+  .flow .step .n{font-family:var(--mono); font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:600}
+  .flow .step h3{margin:12px 0 10px}
+  .flow .step p{color:var(--ink-dim); font-size:.96rem}
+  .flow .step code{font-family:var(--mono); font-size:.82rem; background:var(--ground-2); border:1px solid var(--line); padding:2px 7px; border-radius:6px; color:var(--ink)}
+
+  /* ---- verdict ---- */
+  .verdict{background:linear-gradient(180deg,var(--panel),var(--panel-2)); border:1px solid var(--accent-line); border-radius:18px; padding:clamp(28px,4vw,48px); text-align:center}
+  .verdict .eyebrow{justify-content:center}
+  .verdict p{max-width:60ch; margin:20px auto 0; font-size:1.12rem; color:var(--ink-dim)}
+  .verdict .q{font-size:clamp(1.4rem,2.6vw,2rem); font-weight:750; letter-spacing:-.02em; margin-top:12px; text-wrap:balance}
+  .verdict .q em{font-style:normal; color:var(--accent)}
+
+  footer{padding:48px 0 64px; color:var(--ink-faint); font-family:var(--mono); font-size:.78rem; text-align:center; border-top:1px solid var(--line-soft)}
+  footer .disc{max-width:60ch; margin:0 auto; line-height:1.6}
+
+  /* reveal */
+  .rise{opacity:0; transform:translateY(18px); transition:opacity .7s ease, transform .7s ease}
+  .rise.in{opacity:1; transform:none}
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    .rise{opacity:1; transform:none; transition:none}
+  }
+
+  ::selection{background:var(--accent-soft); color:var(--ink)}
+  a{color:var(--accent); text-decoration:none}
+  .toggle{position:fixed; top:16px; right:16px; z-index:40; font-family:var(--mono); font-size:.72rem;
+    background:var(--panel); border:1px solid var(--line); color:var(--ink-dim); padding:8px 12px; border-radius:9px; cursor:pointer}
+  .toggle:hover{color:var(--ink); border-color:var(--accent-line)}
+</style>
+</head>
+<body>
+
+<button class="toggle" id="themeBtn" aria-label="Toggle light and dark theme">◐ theme</button>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">companion · a Claude Code plugin</span>
+      <h1 style="margin-top:22px">The AI works<br>the <span>night shift.</span></h1>
+      <p class="lede">You already have an AI that writes code turn by turn — ask, wait, approve, repeat. This turns that into a queue you fill once and leave running. It works the whole list while you sleep, sets aside only the calls that are genuinely yours, and hands you a review in the morning.</p>
+      <div class="kicker">
+        <span class="chip"><b>Queue</b> the work</span>
+        <span class="chip"><b>Sleep</b> on it</span>
+        <span class="chip"><b>Review</b> in 20 min</span>
+      </div>
+    </div>
+
+    <div class="console rise">
+      <div class="console-bar">
+        <span class="dot" style="background:#E06C5A"></span>
+        <span class="dot" style="background:#E0B24B"></span>
+        <span class="dot" style="background:#6FB86F"></span>
+        <span class="console-title">autopilot — draining the queue</span>
+      </div>
+      <canvas id="flywheel" width="760" height="560" role="img"
+        aria-label="A rotating flywheel showing the propose, queue, drain loop. Tasks travel around the wheel; finished work is flung to a Done pile, decisions only you can make are set aside in a Parked tray."></canvas>
+      <div class="console-legend">
+        <span><i class="sw" style="background:var(--accent)"></i> in&nbsp;flight</span>
+        <span><i class="sw" style="background:var(--done)"></i> done&nbsp;→&nbsp;branch</span>
+        <span><i class="sw" style="background:var(--parked)"></i> parked&nbsp;→&nbsp;you</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE SHIFT ============ -->
+<section>
+  <div class="wrap">
+    <div class="head rise">
+      <span class="eyebrow">the difference</span>
+      <h2>Two ways an AI can move work.</h2>
+      <p class="lede">On the left, the loop you already know: every step of progress passes back through you — a prompt, then work, then a prompt again. On the right, the flywheel: the AI drives itself and keeps spinning, breaking out to you <em>only</em> when it hits a decision it shouldn't make alone.</p>
+    </div>
+
+    <div class="contrast-card rise">
+      <canvas id="contrast" width="1000" height="600" role="img"
+        aria-label="A comparison. Top: a linear prompt path where a work token stops at your icon at every stage, waiting on you — your inputs climb quickly. Bottom: an AI flywheel that spins on its own; work loops continuously and only occasionally a decision is punted out to a single you icon — your inputs climb rarely."></canvas>
+      <div class="contrast-legend">
+        <span><i class="sw" style="background:var(--accent)"></i> AI working</span>
+        <span><i class="sw" style="background:var(--parked)"></i> you (a human touch)</span>
+        <span><i class="sw" style="background:var(--done)"></i> shipped</span>
+        <span style="margin-left:auto; color:var(--ink-faint)">◐ same elapsed time on both — watch the input counters diverge</span>
+      </div>
+    </div>
+
+    <div class="vs rise">
+      <div class="a">
+        <h3><span class="tag a">today</span> Turn-by-turn</h3>
+        <ul>
+          <li><span class="mk bad">→</span><span>You give <b>one</b> instruction, then wait for it to finish.</span></li>
+          <li><span class="mk bad">→</span><span>It <b>stops at every fork</b> — even the trivial, reversible ones — and asks you.</span></li>
+          <li><span class="mk bad">→</span><span>Progress moves at <b>your</b> speed. Step away and it goes idle.</span></li>
+          <li><span class="mk bad">→</span><span>The bottleneck is <b>your attention</b>, spent on typing "yes, continue".</span></li>
+        </ul>
+      </div>
+      <div class="b">
+        <h3><span class="tag b">companion</span> Queue &amp; drain</h3>
+        <ul>
+          <li><span class="mk good">✓</span><span>You dump a <b>batch</b> of work into a list, once.</span></li>
+          <li><span class="mk good">✓</span><span>It decides the <b>routine, reversible</b> calls itself and keeps moving.</span></li>
+          <li><span class="mk good">✓</span><span>It runs <b>unattended</b> — overnight, over lunch, while you're in a meeting.</span></li>
+          <li><span class="mk good">✓</span><span>Your attention is spent <b>only</b> on the decisions that are actually yours.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE LOOP ============ -->
+<section>
+  <div class="wrap">
+    <div class="head rise">
+      <span class="eyebrow">how it works · one loop</span>
+      <h2>Propose. Queue. Drain.</h2>
+      <p class="lede">The whole system is a single loop with a shared to-do list at the center. You describe outcomes; it turns them into concrete tasks — each with its own "done when…" test — then works them one at a time, smallest and safest first.</p>
+    </div>
+
+    <div class="flow rise">
+      <div class="step">
+        <span class="n">01 — propose</span>
+        <h3>You describe the outcome</h3>
+        <p>Plain language: "add dark mode", "fix the checkout bug", "clean up the settings page". No tickets, no ceremony.</p>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step">
+        <span class="n">02 — queue</span>
+        <h3>It breaks the work down</h3>
+        <p>Each request becomes concrete tasks with an acceptance test attached — <code>done when…</code> — so nothing drifts, even if the AI's memory resets mid-run.</p>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step">
+        <span class="n">03 — drain</span>
+        <h3>It works the list</h3>
+        <p>One task at a time, verifying each by actually running it. Finished work leaves the queue; anything needing <em>your</em> judgment gets set aside, not skipped.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOUR STATES ============ -->
+<section>
+  <div class="wrap">
+    <div class="head rise">
+      <span class="eyebrow">the queue · where a human touches it</span>
+      <h2>Every task is in one of four states.</h2>
+      <p class="lede">This is the entire interface — a labelled list. The labels are the point: they mark exactly which items the machine owns and which ones are waiting on you. Nothing hides.</p>
+    </div>
+
+    <div class="card rise">
+      <div class="staterow">
+        <div class="r">
+          <div><span class="pill open">📋 open</span><span class="who">machine owns it</span></div>
+          <p><b>Queued work, waiting its turn.</b> The AI picks these up and completes them without asking. You never have to touch an open task — that's the whole point.</p>
+        </div>
+        <div class="r">
+          <div><span class="pill done">✓ done</span><span class="who">left the queue · verified</span></div>
+          <p><b>Finished and checked.</b> The task was completed and exercised to confirm it works. Under autopilot, the change is committed to a review branch so you can see exactly what happened.</p>
+        </div>
+        <div class="r">
+          <div><span class="pill parked">❓ parked</span><span class="who">pushed out → your decision</span></div>
+          <p><b>A judgment call the machine won't make for you.</b> A design direction, a wording choice, a new dependency, anything ambiguous or hard to undo. It's set aside <em>with the full set of options and a recommendation</em> — ready for you to pick, not re-explain.</p>
+        </div>
+        <div class="r">
+          <div><span class="pill blocked">⏳ blocked</span><span class="who">pushed out → your hands</span></div>
+          <p><b>Something only a person can do.</b> A playtest, a login, a credential, approving a payment. The machine can't do it, so it flags it and moves on to everything else instead of stalling.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHY TASKS LEAVE ============ -->
+<section>
+  <div class="wrap">
+    <div class="head rise">
+      <span class="eyebrow">the flywheel · why work leaves the queue</span>
+      <h2>A task exits for exactly two reasons.</h2>
+      <p class="lede">Think of the queue as a spinning wheel. Work goes in; the wheel throws each piece into one of two bins. That sorting — done vs. yours — is the mechanism that lets it run alone safely.</p>
+    </div>
+
+    <div class="grid g2 rise">
+      <div class="card" style="border-color:color-mix(in srgb,var(--done) 34%,var(--line))">
+        <span class="pill done">✓ It finished the job</span>
+        <h3 style="margin-top:16px">Reversible, routine, verifiable</h3>
+        <p>The machine did the work, ran it, confirmed it, and moved on. This is most of the list — and all of it happens without you. The more decomposable and reversible your work is, the more falls into this bin.</p>
+      </div>
+      <div class="card" style="border-color:color-mix(in srgb,var(--parked) 34%,var(--line))">
+        <span class="pill parked">❓ It hit your judgment</span>
+        <h3 style="margin-top:16px">Irreversible, tasteful, or ambiguous</h3>
+        <p>Instead of guessing — or worse, stopping the whole run to ask — it <b>parks</b> the decision with its options laid out, and keeps draining everything else. Momentum never stops for one fork in the road.</p>
+      </div>
+    </div>
+
+    <p class="lede rise" style="margin-top:28px; max-width:72ch">
+      <strong>This is the honest heart of the thing.</strong> The AI is <em>not</em> trusted to decide what only you should decide. It's trusted to recognise the difference and route accordingly — do the safe work, set aside the rest. That boundary is what makes "leave it running overnight" a responsible sentence instead of a reckless one.
+    </p>
+  </div>
+</section>
+
+<!-- ============ AUTOPILOT / OVERNIGHT ============ -->
+<section>
+  <div class="wrap">
+    <div class="head rise">
+      <span class="eyebrow">autopilot · the overnight run</span>
+      <h2>Turn it on, fill the queue, walk away.</h2>
+      <p class="lede">Autopilot is one switch. While it's on, the AI is not allowed to stop and wait — it keeps draining. Every turn's finished work is committed to its own review branch (never to your main code, never pushed anywhere). Decisions pile up quietly in the parked tray. This is the compounding part: eight idle hours become eight working hours.</p>
+    </div>
+
+    <div class="night rise">
+      <div class="night-head">
+        <span class="t">◐ one overnight run — illustrative</span>
+        <span class="t" style="color:var(--accent)">10:40 PM → 7:00 AM</span>
+      </div>
+      <canvas id="timeline" width="1000" height="360" role="img"
+        aria-label="A timeline from late evening to morning. A rising curve shows tasks completing steadily through the night, ending at 34 done. Four parked-decision markers drop out along the way into a morning tray."></canvas>
+      <div class="tl-legend">
+        <span><i class="sw" style="background:var(--done)"></i> tasks completed (cumulative)</span>
+        <span><i class="sw" style="background:var(--parked)"></i> decision parked for you</span>
+        <span><i class="sw" style="background:var(--blocked)"></i> blocked — needs your hands</span>
+      </div>
+    </div>
+
+    <div class="grid g3 rise" style="margin-top:24px">
+      <div class="card">
+        <span class="num">safe by construction</span>
+        <h3>It can't ship on its own</h3>
+        <p>Work lands on a throwaway branch, never your main line and never pushed live. Nothing irreversible happens while you sleep — that's a rule, not a hope.</p>
+      </div>
+      <div class="card">
+        <span class="num">self-checking</span>
+        <h3>It verifies as it goes</h3>
+        <p>Each task carries its own "done when…". The AI runs the thing to confirm, rather than declaring victory. Real tests get written where they earn their keep.</p>
+      </div>
+      <div class="card">
+        <span class="num">never stalls</span>
+        <h3>One fork can't freeze the run</h3>
+        <p>Hit a decision? Park it and keep going. The whole list doesn't wait on one question — a stuck item never blocks the other thirty-nine.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MORNING REVIEW ============ -->
+<section>
+  <div class="wrap">
+    <div class="head rise">
+      <span class="eyebrow">the payoff · your morning review</span>
+      <h2>You wake up to decisions, not a blank prompt.</h2>
+      <p class="lede">Turn autopilot off and it flips into review mode. It walks you through the parked pile one item at a time — each as a short multiple-choice with a recommended answer already marked. You're arrow-keying through calls, not re-reading the codebase. Then you look over the branch of finished work and merge what's good.</p>
+    </div>
+
+    <div class="grid g2 rise" style="align-items:start">
+      <div class="card" style="padding:0; overflow:hidden">
+        <div style="background:var(--panel-2); border-bottom:1px solid var(--line); padding:14px 20px; font-family:var(--mono); font-size:.76rem; color:var(--ink-dim)">
+          ❓ parked decision · 2 of 4
+        </div>
+        <div style="padding:22px 24px">
+          <h3 style="margin-bottom:6px">Empty-state for the dashboard?</h3>
+          <p class="dim" style="font-size:.94rem; margin-bottom:18px">The AI built the page but the "no data yet" screen is a taste call — so it stopped short and asked you.</p>
+          <div style="display:flex; flex-direction:column; gap:10px; font-family:var(--mono); font-size:.9rem">
+            <div style="padding:12px 14px; border-radius:9px; border:1px solid var(--accent-line); background:var(--accent-soft); color:var(--ink)">
+              <b style="color:var(--accent)">▸ A — friendly illustration + CTA</b> &nbsp;<span class="dim">recommended</span><br>
+              <span class="dim" style="font-size:.82rem">warmest; a little more work</span>
+            </div>
+            <div style="padding:12px 14px; border-radius:9px; border:1px solid var(--line); color:var(--ink-dim)">
+              B — one plain line of helper text<br><span style="font-size:.82rem">cheapest; feels unfinished</span>
+            </div>
+            <div style="padding:12px 14px; border-radius:9px; border:1px solid var(--line); color:var(--ink-dim)">
+              C — hide the panel entirely until data<br><span style="font-size:.82rem">cleanest; can confuse new users</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:18px">
+        <div class="card">
+          <h3>Recommendation-first, always</h3>
+          <p class="dim">Every parked item comes with the options <em>and</em> the AI's honest pick — including "don't do this at all". You confirm or override in seconds. No item is a blank "what do you want?"</p>
+        </div>
+        <div class="card">
+          <h3>The full context travelled with it</h3>
+          <p class="dim">A parked decision carries the same reasoning it would have shown you live — so a decision made at 7 AM is as informed as one made in the moment, not a stub you have to reconstruct.</p>
+        </div>
+        <div class="card">
+          <h3>Then: review the branch, merge the good</h3>
+          <p class="dim">Finished work sits on a review branch with clean, curated commits. You read the diff, keep what's right, and ship it — or send a fix back into the queue for the next run.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ROI ============ -->
+<section>
+  <div class="wrap">
+    <div class="head rise">
+      <span class="eyebrow">the ROI · what actually changes</span>
+      <h2>It doesn't make you faster. It moves your time.</h2>
+      <p class="lede">The win isn't that the AI types quicker — it already does. It's that the hours it spends stop needing to be <em>your</em> hours. Your judgment is the scarce resource; this spends it only where it counts, and lets the clock do the rest.</p>
+    </div>
+
+    <div class="grid g3 rise">
+      <div class="stat">
+        <div class="big"><em>~8</em> hrs</div>
+        <div class="lab">of unattended work per overnight run — happening while you're not at the keyboard.</div>
+        <span class="illus">◐ illustrative, not measured</span>
+      </div>
+      <div class="stat">
+        <div class="big">40 → <em>4</em></div>
+        <div class="lab">queued tasks that reach you as decisions. The other ~90% were done and verified without you.</div>
+        <span class="illus">◐ illustrative, not measured</span>
+      </div>
+      <div class="stat">
+        <div class="big"><em>~20</em> min</div>
+        <div class="lab">to clear a morning: pick the parked decisions, skim the branch, merge. Then queue the next night.</div>
+        <span class="illus">◐ illustrative, not measured</span>
+      </div>
+    </div>
+
+    <p class="lede rise" style="margin-top:28px; max-width:70ch">
+      Run it nightly and the effect compounds: each morning's decisions seed the next night's work. You become the <strong>editor of a tireless team of one</strong> — setting direction and making calls — instead of its typist.
+    </p>
+  </div>
+</section>
+
+<!-- ============ BRUTAL HONESTY ============ -->
+<section>
+  <div class="wrap">
+    <div class="head rise">
+      <span class="eyebrow">brutally honest · read this part twice</span>
+      <h2>Where this helps — and where it won't.</h2>
+      <p class="lede">This is not autonomous software that replaces you, and anyone selling it that way is lying. It concentrates your judgment; it does not remove it. Here's the unflattering truth.</p>
+    </div>
+
+    <div class="honest rise">
+      <h3>⚠ The real limits</h3>
+      <ul>
+        <li><span class="k">GARBAGE&nbsp;IN</span><p><b>A vague queue at midnight is a wasted branch at 7 AM.</b> An AI that never stops will build the wrong thing efficiently. The quality of your morning is set by the quality of what you queued — this rewards clear thinking, it doesn't replace it.</p></li>
+        <li><span class="k">"VERIFIED"&nbsp;≠&nbsp;CORRECT</span><p><b>Self-checking is not proof.</b> It runs the code and confirms it does what the task said — but if the task was subtly wrong, so is the "done". You still review. Real safety comes from tests, and tests only exist where you asked for them.</p></li>
+        <li><span class="k">STALLS&nbsp;HAPPEN</span><p><b>Parking is a feature with a cost.</b> If ten tasks all depend on one design decision you didn't pre-answer, the AI parks the decision and everything behind it waits. A great overnight run needs the big forks decided <em>before</em> you sleep.</p></li>
+        <li><span class="k">NOT&nbsp;A&nbsp;GUI</span><p><b>The entire interface is a text list and a status line.</b> If you love Cursor for the polished editor, know that this lives in the terminal. The trade is deliberate — less to look at, more that runs itself — but it is a trade.</p></li>
+        <li><span class="k">WRONG&nbsp;FOR&nbsp;SOME&nbsp;WORK</span><p><b>Big, ambiguous, one-shot judgment calls don't decompose.</b> If the whole task <em>is</em> the decision, there's nothing safe to drain in the background. This shines on batches of reversible, well-scoped work — and adds little to a single hard call.</p></li>
+      </ul>
+    </div>
+
+    <p class="lede rise" style="margin-top:24px; max-width:70ch">
+      None of these are hidden. The parked pile, the review branch, the "done when…" tests, the refusal to touch your main code — they exist <em>because</em> an AI running alone overnight is exactly as trustworthy as its guardrails. That's the honest pitch: not "trust the machine", but "trust the fence around it".
+    </p>
+  </div>
+</section>
+
+<!-- ============ VERDICT ============ -->
+<section>
+  <div class="wrap">
+    <div class="verdict rise">
+      <span class="eyebrow">the bottom line</span>
+      <p class="q">If your work is a <em>list</em>, this runs the list overnight and hands you the decisions.<br>If your work is <em>one hard call</em>, you're still the one making it.</p>
+      <p>The ROI is real and specific: it converts idle hours into finished, reviewable work, and converts your attention from "keep it going" into "decide what matters". Fill the queue, flip autopilot on, and spend tomorrow morning editing — not typing.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="disc">
+    companion — a Claude Code plugin · propose → queue → drain<br>
+    Figures marked "illustrative" describe how the workflow behaves, not a benchmark. Your mileage depends entirely on how well you decompose the work you queue.
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---- theme toggle ---- */
+  var btn = document.getElementById("themeBtn");
+  function current(){
+    var explicit = document.documentElement.getAttribute("data-theme");
+    if(explicit) return explicit;
+    return (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark":"light";
+  }
+  btn.addEventListener("click", function(){
+    var next = current()==="dark" ? "light":"dark";
+    document.documentElement.setAttribute("data-theme", next);
+  });
+
+  function cssv(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+  /* ---- reveal on scroll ---- */
+  var rises = [].slice.call(document.querySelectorAll(".rise"));
+  if(reduce || !("IntersectionObserver" in window)){
+    rises.forEach(function(e){ e.classList.add("in"); });
+  } else {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add("in"); io.unobserve(en.target); } });
+    }, {threshold:.12});
+    rises.forEach(function(e){ io.observe(e); });
+  }
+
+  /* ============ FLYWHEEL ============ */
+  (function(){
+    var c = document.getElementById("flywheel");
+    if(!c) return;
+    var ctx = c.getContext("2d");
+    var W = c.width, H = c.height;
+    function fit(){
+      var dpr = Math.min(window.devicePixelRatio||1, 2);
+      var cssW = c.clientWidth || 760;
+      var cssH = cssW * (H/W);
+      c.width = Math.round(cssW*dpr); c.height = Math.round(cssH*dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      return {w:cssW, h:cssH};
+    }
+    var dim = fit();
+    window.addEventListener("resize", function(){ dim = fit(); });
+
+    var cx = function(){ return dim.w/2; };
+    var cy = function(){ return dim.h*0.44; };
+    var R  = function(){ return Math.min(dim.w, dim.h)*0.30; };
+
+    // three loop nodes
+    var nodes = [
+      {a:-Math.PI/2,        label:"PROPOSE"},
+      {a:-Math.PI/2+2.094,  label:"QUEUE"},
+      {a:-Math.PI/2+4.188,  label:"DRAIN"}
+    ];
+
+    // particles travelling around the ring
+    var parts = [];
+    var spawnT = 0;
+    function spawn(){
+      parts.push({ t: -Math.PI/2, life:0, ejected:false, kind:null, ex:0, ey:0, evx:0, evy:0, ealpha:1 });
+    }
+    for(var i=0;i<6;i++){ parts.push({ t: -Math.PI/2 + i*1.0, life:0, ejected:false, kind:null }); }
+
+    var angle = 0;
+    var last = 0;
+    var doneCount = 0, parkCount = 0;
+    // deterministic pseudo-random (no Math.random dependency issues)
+    var seed = 20260721;
+    function rnd(){ seed = (seed*1103515245 + 12345) & 0x7fffffff; return seed/0x7fffffff; }
+
+    function draw(ts){
+      var dt = last ? Math.min((ts-last)/1000, .05) : 0; last = ts;
+      var accent = cssv("--accent") || "#F2A03D";
+      var done = cssv("--done") || "#7FB87A";
+      var parked = cssv("--parked") || "#B08BE0";
+      var line = "#2A3342";
+      var ink = "#E9E7E1", dimc="#8A93A3";
+
+      ctx.clearRect(0,0,dim.w,dim.h);
+      var X=cx(), Y=cy(), r=R();
+
+      angle += dt*0.55;
+
+      // ---- outer glow ring ----
+      var g = ctx.createRadialGradient(X,Y,r*0.4, X,Y,r*1.5);
+      g.addColorStop(0,"rgba(242,160,61,0.07)");
+      g.addColorStop(1,"rgba(242,160,61,0)");
+      ctx.fillStyle=g; ctx.fillRect(0,0,dim.w,dim.h);
+
+      // ---- the wheel: dashed rotating track ----
+      ctx.save();
+      ctx.translate(X,Y); ctx.rotate(angle);
+      ctx.strokeStyle = line; ctx.lineWidth = 2;
+      ctx.setLineDash([2, 12]); ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2); ctx.stroke();
+      ctx.restore();
+
+      // solid faint ring
+      ctx.setLineDash([]);
+      ctx.strokeStyle="rgba(255,255,255,0.06)"; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(X,Y,r,0,Math.PI*2); ctx.stroke();
+
+      // ---- spokes ----
+      ctx.save(); ctx.translate(X,Y); ctx.rotate(angle*0.6);
+      for(var s=0;s<3;s++){
+        ctx.rotate(Math.PI*2/3);
+        ctx.strokeStyle="rgba(255,255,255,0.05)"; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(r,0); ctx.stroke();
+      }
+      ctx.restore();
+
+      // hub
+      ctx.fillStyle="rgba(242,160,61,0.10)";
+      ctx.beginPath(); ctx.arc(X,Y,r*0.20,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=accent; ctx.font="600 "+Math.round(r*0.11)+"px "+cssv("--mono");
+      ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText("tq", X, Y);
+
+      // ---- node markers + labels ----
+      nodes.forEach(function(n){
+        var nx = X + Math.cos(n.a)*r, ny = Y + Math.sin(n.a)*r;
+        ctx.fillStyle = "#0C0F16"; ctx.strokeStyle = accent; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(nx,ny,7,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = dimc; ctx.font="600 12px "+cssv("--mono");
+        ctx.textAlign="center";
+        var lx = X + Math.cos(n.a)*(r+30), ly = Y + Math.sin(n.a)*(r+30);
+        ctx.fillText(n.label, lx, ly);
+      });
+
+      // ---- bins ----
+      var doneX = dim.w*0.86, doneY = dim.h*0.90;
+      var parkX = dim.w*0.14, parkY = dim.h*0.90;
+      function bin(bx,by,color,glyph,label,count){
+        ctx.fillStyle = color; ctx.font="600 22px "+cssv("--mono"); ctx.textAlign="center";
+        ctx.fillText(glyph, bx, by-6);
+        ctx.fillStyle = dimc; ctx.font="600 11px "+cssv("--mono");
+        ctx.fillText(label, bx, by+16);
+        ctx.fillStyle = color; ctx.font="700 15px "+cssv("--mono");
+        ctx.fillText(String(count), bx, by+34);
+      }
+      bin(doneX,doneY,done,"✓","DONE → branch",doneCount);
+      bin(parkX,parkY,parked,"❓","PARKED → you",parkCount);
+
+      // ---- particles ----
+      spawnT += dt;
+      if(spawnT>0.9 && !reduce){ spawnT=0; spawn(); }
+
+      for(var p=parts.length-1;p>=0;p--){
+        var pt = parts[p];
+        if(!pt.ejected){
+          if(!reduce) pt.t += dt*0.55; // travel with wheel
+          pt.life += dt;
+          var px = X + Math.cos(pt.t)*r, py = Y + Math.sin(pt.t)*r;
+          // eject when passing the DRAIN node region
+          var drainA = nodes[2].a;
+          var da = Math.atan2(Math.sin(pt.t-drainA), Math.cos(pt.t-drainA));
+          if(Math.abs(da) < 0.05 && pt.life>1.2){
+            pt.ejected = true;
+            // ~78% done, ~22% parked
+            pt.kind = (rnd() < 0.78) ? "done" : "parked";
+            pt.ex = px; pt.ey = py;
+            var tx = pt.kind==="done" ? doneX : parkX;
+            var ty = pt.kind==="done" ? doneY : parkY;
+            var d = Math.hypot(tx-px, ty-py);
+            pt.evx = (tx-px)/d * 260; pt.evy=(ty-py)/d*260;
+            pt.tx=tx; pt.ty=ty;
+            if(pt.kind==="done") doneCount++; else parkCount++;
+          }
+          ctx.fillStyle = accent;
+          ctx.globalAlpha = 1;
+          ctx.beginPath(); ctx.arc(px,py,4.5,0,Math.PI*2); ctx.fill();
+          // little trail
+          ctx.globalAlpha = .25;
+          ctx.beginPath(); ctx.arc(X+Math.cos(pt.t-0.12)*r, Y+Math.sin(pt.t-0.12)*r,3,0,Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        } else {
+          pt.ex += pt.evx*dt; pt.ey += pt.evy*dt;
+          pt.ealpha -= dt*0.9;
+          var col = pt.kind==="done" ? done : parked;
+          ctx.globalAlpha = Math.max(pt.ealpha,0);
+          ctx.fillStyle = col;
+          ctx.beginPath(); ctx.arc(pt.ex,pt.ey,4.5,0,Math.PI*2); ctx.fill();
+          ctx.globalAlpha=1;
+          // recycle
+          var reached = Math.hypot(pt.tx-pt.ex, pt.ty-pt.ey) < 14 || pt.ealpha<=0;
+          if(reached){
+            parts.splice(p,1);
+            if(!reduce) parts.push({ t:-Math.PI/2, life:0, ejected:false, kind:null });
+          }
+        }
+      }
+
+      if(!reduce) requestAnimationFrame(draw);
+    }
+
+    if(reduce){
+      // static frame: draw once with a few placed particles
+      doneCount=27; parkCount=4;
+      requestAnimationFrame(function(t){ draw(t); });
+    } else {
+      requestAnimationFrame(draw);
+    }
+  })();
+
+  /* ============ CONTRAST: LINEAR PATH vs FLYWHEEL ============ */
+  (function(){
+    var c = document.getElementById("contrast");
+    if(!c) return;
+    var ctx = c.getContext("2d");
+    var BW=1000, BH=600;
+    function fit(){
+      var dpr = Math.min(window.devicePixelRatio||1, 2);
+      var cssW = c.clientWidth || 1000;
+      var cssH = cssW*(BH/BW);
+      c.width=Math.round(cssW*dpr); c.height=Math.round(cssH*dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      return {w:cssW,h:cssH};
+    }
+    var d = fit();
+    window.addEventListener("resize", function(){ d=fit(); });
+
+    function person(x,y,s,color,alpha){
+      ctx.globalAlpha = alpha==null?1:alpha; ctx.fillStyle=color;
+      ctx.beginPath(); ctx.arc(x, y-s*0.62, s*0.34, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x-s*0.55, y+s*0.5);
+      ctx.quadraticCurveTo(x-s*0.55, y-s*0.08, x, y-s*0.08);
+      ctx.quadraticCurveTo(x+s*0.55, y-s*0.08, x+s*0.55, y+s*0.5);
+      ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=1;
+    }
+    function mono(px){ return px+"px "+cssv("--mono"); }
+
+    // linear timing
+    var W=1.0, T=1.25, endPause=0.8;         // wait, travel, end
+    var stops=[0.10,0.37,0.63,0.90,1.0];     // 4 human gates + ship
+    var perGate = W+T;
+    var cycle = 4*perGate + endPause;
+
+    // flywheel punt cadence
+    var PUNT = 6.0;
+
+    var t0=null;
+    // ejected flywheel particles: {a, ejecting, ex,ey,vx,vy,alpha}
+    var orbit=[]; for(var i=0;i<7;i++){ orbit.push({a: i*(Math.PI*2/7), ej:false, alpha:1}); }
+    var ejected=[];
+    var lastPunt=-1;
+
+    function draw(ts){
+      if(t0===null) t0=ts;
+      var el=(ts-t0)/1000;
+      var accent=cssv("--accent"), human=cssv("--parked"), done=cssv("--done"),
+          line=cssv("--line"), ink=cssv("--ink"), dimc=cssv("--ink-dim"), faint=cssv("--ink-faint");
+      var deviceGrid = "rgba(150,160,180,0.10)";
+
+      ctx.clearRect(0,0,d.w,d.h);
+      var padX=d.w*0.06, usable=d.w-2*padX;
+      function LX(f){ return padX + f*usable; }
+
+      /* ---------- divider ---------- */
+      ctx.strokeStyle=line; ctx.globalAlpha=.7; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(padX*0.6, d.h*0.46); ctx.lineTo(d.w-padX*0.6, d.h*0.46); ctx.stroke();
+      ctx.globalAlpha=1;
+
+      /* ================= LINEAR LANE (top) ================= */
+      var lyBase = d.h*0.24;
+      // title
+      ctx.textAlign="left"; ctx.textBaseline="alphabetic";
+      ctx.fillStyle=ink; ctx.font="700 "+mono(15);
+      ctx.fillText("PROMPT-BY-PROMPT", padX, d.h*0.065);
+      ctx.fillStyle=faint; ctx.font=mono(12);
+      ctx.fillText("you're in every loop — progress waits on you at each step", padX, d.h*0.11);
+
+      // track baseline
+      ctx.strokeStyle=line; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(LX(stops[0]), lyBase); ctx.lineTo(LX(stops[4]), lyBase); ctx.stroke();
+
+      // determine token state
+      var lt = el % cycle;
+      var tokenX, working=false, waitGate=-1;
+      var passed=false;
+      if(lt >= 4*perGate){
+        tokenX = LX(stops[4]); // ship
+      } else {
+        var gi = Math.floor(lt/perGate);
+        var within = lt - gi*perGate;
+        if(within < W){ tokenX=LX(stops[gi]); waitGate=gi; }
+        else { var f=(within-W)/T; tokenX=LX(stops[gi] + (stops[gi+1]-stops[gi])*f); working=true; }
+      }
+
+      // completed-progress fill (amber up to token)
+      ctx.strokeStyle=accent; ctx.lineWidth=3; ctx.lineCap="round";
+      ctx.beginPath(); ctx.moveTo(LX(stops[0]), lyBase); ctx.lineTo(tokenX, lyBase); ctx.stroke();
+      ctx.lineCap="butt";
+
+      // human gates
+      var pulse = 0.5+0.5*Math.sin(el*6);
+      for(var g=0; g<4; g++){
+        var gx=LX(stops[g]);
+        var active = (g===waitGate);
+        // gate node
+        ctx.fillStyle = cssv("--panel"); ctx.strokeStyle=human; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(gx, lyBase, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        // person above
+        person(gx, lyBase-30, 15, human, active? (0.6+0.4*pulse):0.9);
+        // "waiting on you" cue on active
+        if(active){
+          ctx.fillStyle=human; ctx.font=mono(10.5); ctx.textAlign="center";
+          ctx.globalAlpha=0.6+0.4*pulse;
+          ctx.fillText("waiting on you…", gx, lyBase+22);
+          ctx.globalAlpha=1;
+        }
+        ctx.textAlign="left";
+      }
+      // ship flag
+      var sx=LX(stops[4]);
+      ctx.fillStyle=done; ctx.font=mono(18); ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText("✓", sx, lyBase);
+      ctx.fillStyle=faint; ctx.font=mono(10); ctx.textBaseline="alphabetic";
+      ctx.fillText("ship", sx, lyBase+26); ctx.textAlign="left";
+
+      // token
+      if(!(lt>=4*perGate)){
+        ctx.fillStyle=working?accent:human;
+        ctx.beginPath(); ctx.arc(tokenX, lyBase, 6.5, 0, Math.PI*2); ctx.fill();
+        if(working){
+          ctx.fillStyle=accent; ctx.font=mono(10.5); ctx.textAlign="center";
+          ctx.globalAlpha=.85; ctx.fillText("AI working", tokenX, lyBase-16); ctx.globalAlpha=1; ctx.textAlign="left";
+        }
+      }
+
+      // linear counter
+      var linInputs = Math.floor(el/perGate)+1;
+      counterChip(d.w-padX-172, d.h*0.045, "your inputs", linInputs, human, "climbing fast");
+
+      /* ================= FLYWHEEL LANE (bottom) ================= */
+      var fx=d.w*0.40, fy=d.h*0.76, fr=Math.min(d.w*0.135, d.h*0.20);
+      ctx.textAlign="left"; ctx.textBaseline="alphabetic";
+      ctx.fillStyle=ink; ctx.font="700 "+mono(15);
+      ctx.fillText("AUTOPILOT FLYWHEEL", padX, d.h*0.55);
+      ctx.fillStyle=faint; ctx.font=mono(12);
+      ctx.fillText("AI drives itself — it only breaks out to punt a decision to you", padX, d.h*0.595);
+
+      // rotating dashed wheel
+      var spin = el*0.7;
+      ctx.save(); ctx.translate(fx,fy); ctx.rotate(spin);
+      ctx.strokeStyle=line; ctx.lineWidth=2; ctx.setLineDash([2,11]);
+      ctx.beginPath(); ctx.arc(0,0,fr,0,Math.PI*2); ctx.stroke(); ctx.restore();
+      ctx.setLineDash([]);
+      ctx.strokeStyle="rgba(150,160,180,0.14)"; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(fx,fy,fr,0,Math.PI*2); ctx.stroke();
+      // spokes
+      ctx.save(); ctx.translate(fx,fy); ctx.rotate(spin*0.6);
+      for(var sp=0;sp<3;sp++){ ctx.rotate(Math.PI*2/3);
+        ctx.strokeStyle="rgba(150,160,180,0.10)"; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(fr,0); ctx.stroke(); }
+      ctx.restore();
+      // hub
+      ctx.fillStyle=hexA2(accent,.12); ctx.beginPath(); ctx.arc(fx,fy,fr*0.32,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=accent; ctx.font="700 "+mono(fr*0.22); ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText("AI", fx, fy-fr*0.02);
+      ctx.fillStyle=faint; ctx.font=mono(9.5); ctx.fillText("never waits", fx, fy+fr*0.42);
+
+      // punt detection
+      var puntIdx = Math.floor(el/PUNT);
+      if(puntIdx>lastPunt && el>1.2){
+        lastPunt=puntIdx;
+        // eject from a point on the wheel toward the human
+        var ea = -Math.PI/2 + (puntIdx*1.7);
+        ejected.push({ x:fx+Math.cos(ea)*fr, y:fy+Math.sin(ea)*fr, alpha:1 });
+      }
+
+      // human recipient (to the right)
+      var hx=d.w*0.82, hy=d.h*0.72;
+      person(hx, hy, 20, human, 0.95);
+      ctx.fillStyle=human; ctx.font=mono(11); ctx.textAlign="center"; ctx.textBaseline="alphabetic";
+      ctx.fillText("you", hx, hy+34);
+      ctx.fillStyle=faint; ctx.font=mono(10);
+      ctx.fillText("decide the punts", hx, hy+50);
+      // dotted intake arrow from wheel toward human
+      ctx.strokeStyle=hexA2(human,.28); ctx.lineWidth=1.5; ctx.setLineDash([3,5]);
+      ctx.beginPath(); ctx.moveTo(fx+fr+8, fy-fr*0.4); ctx.lineTo(hx-30, hy); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle=human; ctx.font=mono(11); ctx.textAlign="center";
+      ctx.fillText("❓ parked", (fx+fr+hx)/2, fy-fr*0.55);
+
+      // orbiting dots (continuous)
+      orbit.forEach(function(o){
+        o.a += 0.012;
+        var ox=fx+Math.cos(o.a)*fr, oy=fy+Math.sin(o.a)*fr;
+        ctx.fillStyle=accent; ctx.beginPath(); ctx.arc(ox,oy,4.5,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=.22; ctx.beginPath();
+        ctx.arc(fx+Math.cos(o.a-0.14)*fr, fy+Math.sin(o.a-0.14)*fr,3,0,Math.PI*2); ctx.fill();
+        ctx.globalAlpha=1;
+      });
+      // ejected punts fly to human
+      for(var e=ejected.length-1;e>=0;e--){
+        var p=ejected[e];
+        p.x += (hx-p.x)*0.045; p.y += (hy-p.y)*0.045;
+        p.alpha -= 0.004;
+        ctx.globalAlpha=Math.max(p.alpha,0); ctx.fillStyle=human;
+        ctx.beginPath(); ctx.arc(p.x,p.y,5,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+        if(Math.hypot(hx-p.x,hy-p.y)<18 || p.alpha<=0) ejected.splice(e,1);
+      }
+
+      // flywheel counter
+      var whInputs = Math.floor(el/PUNT);
+      counterChip(d.w-padX-172, d.h*0.535, "your inputs", whInputs, human, "climbing rarely");
+
+      function counterChip(x,y,label,val,col,note){
+        var w=172, h=54;
+        ctx.fillStyle=cssv("--ground-2"); ctx.strokeStyle=line; ctx.lineWidth=1;
+        roundRect(x,y,w,h,10); ctx.fill(); ctx.stroke();
+        ctx.textAlign="left"; ctx.textBaseline="alphabetic";
+        ctx.fillStyle=faint; ctx.font=mono(9.5); ctx.fillText(label.toUpperCase(), x+12, y+18);
+        ctx.fillStyle=col; ctx.font="700 "+mono(22); ctx.fillText(String(val), x+12, y+42);
+        ctx.fillStyle=dimc; ctx.font=mono(9.5); ctx.textAlign="right";
+        ctx.fillText(note, x+w-12, y+42); ctx.textAlign="left";
+      }
+      function roundRect(x,y,w,h,r){ ctx.beginPath();
+        ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+        ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+      if(!reduce) requestAnimationFrame(draw);
+    }
+    function hexA2(hex,a){ hex=(hex||"").replace("#","");
+      if(hex.length===3) hex=hex.split("").map(function(x){return x+x;}).join("");
+      var r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
+      if(isNaN(r)) return "rgba(176,139,224,"+a+")"; return "rgba("+r+","+g+","+b+","+a+")"; }
+
+    if(reduce){
+      // static representative frame
+      t0=0; requestAnimationFrame(function(){ ejected.push({x:0,y:0,alpha:0}); draw(3200); });
+    } else {
+      requestAnimationFrame(draw);
+    }
+  })();
+
+  /* ============ OVERNIGHT TIMELINE ============ */
+  (function(){
+    var c = document.getElementById("timeline");
+    if(!c) return;
+    var ctx = c.getContext("2d");
+    var BW=1000, BH=360;
+    function fit(){
+      var dpr = Math.min(window.devicePixelRatio||1, 2);
+      var cssW = c.clientWidth || 1000;
+      var cssH = cssW*(BH/BW);
+      c.width=Math.round(cssW*dpr); c.height=Math.round(cssH*dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      return {w:cssW,h:cssH};
+    }
+    var d = fit();
+    window.addEventListener("resize", function(){ d=fit(); render(progress); });
+
+    // hours 10:40pm(0) -> 7:00am(1). cumulative completions curve.
+    var hours = ["11p","12a","1a","2a","3a","4a","5a","6a","7a"];
+    // cumulative done at each label point (illustrative, monotonic, tapering)
+    var cum = [0, 5, 10, 15, 19, 23, 27, 31, 34];
+    var maxCum = 34;
+    // parked/blocked markers at fractional positions {x:0..1, type}
+    var marks = [
+      {x:0.18, type:"parked"},
+      {x:0.42, type:"parked"},
+      {x:0.55, type:"blocked"},
+      {x:0.78, type:"parked"},
+      {x:0.90, type:"parked"}
+    ];
+
+    var padL=48, padR=120, padT=26, padB=42;
+
+    function render(prog){
+      var accent=cssv("--accent"), done=cssv("--done"), parked=cssv("--parked"),
+          blocked=cssv("--blocked"), line=cssv("--line"), ink=cssv("--ink"),
+          dimc=cssv("--ink-dim"), faint=cssv("--ink-faint");
+      ctx.clearRect(0,0,d.w,d.h);
+      var x0=padL, x1=d.w-padR, y0=padT, y1=d.h-padB;
+      var plotW=x1-x0, plotH=y1-y0;
+
+      function X(t){ return x0 + t*plotW; }         // t 0..1
+      function Y(v){ return y1 - (v/maxCum)*plotH; }
+
+      // grid
+      ctx.strokeStyle=line; ctx.lineWidth=1; ctx.font="11px "+cssv("--mono");
+      ctx.fillStyle=faint; ctx.textAlign="right"; ctx.textBaseline="middle";
+      for(var gv=0; gv<=maxCum; gv+=maxCum/4){
+        var gy=Y(gv);
+        ctx.globalAlpha=.5; ctx.beginPath(); ctx.moveTo(x0,gy); ctx.lineTo(x1,gy); ctx.stroke(); ctx.globalAlpha=1;
+        ctx.fillText(Math.round(gv), x0-8, gy);
+      }
+      // x labels
+      ctx.textAlign="center"; ctx.textBaseline="top"; ctx.fillStyle=faint;
+      for(var h=0; h<hours.length; h++){
+        var hx = X(h/(hours.length-1));
+        ctx.fillText(hours[h], hx, y1+10);
+      }
+
+      // build smoothed points across full range
+      var N = hours.length;
+      function curveVal(t){ // t 0..1 -> interpolated cumulative
+        var f = t*(N-1); var i=Math.floor(f); var frac=f-i;
+        if(i>=N-1) return cum[N-1];
+        return cum[i] + (cum[i+1]-cum[i])*frac;
+      }
+
+      var tEnd = prog; // 0..1 reveal
+      // area fill
+      ctx.beginPath();
+      ctx.moveTo(X(0), Y(0));
+      var steps=120;
+      for(var s=0;s<=steps;s++){
+        var t=(s/steps)*tEnd;
+        ctx.lineTo(X(t), Y(curveVal(t)));
+      }
+      ctx.lineTo(X(tEnd), y1); ctx.lineTo(X(0), y1); ctx.closePath();
+      var ag=ctx.createLinearGradient(0,y0,0,y1);
+      ag.addColorStop(0, hexA(done,.28)); ag.addColorStop(1, hexA(done,.02));
+      ctx.fillStyle=ag; ctx.fill();
+
+      // line
+      ctx.beginPath();
+      for(var s2=0;s2<=steps;s2++){
+        var t2=(s2/steps)*tEnd;
+        var xx=X(t2), yy=Y(curveVal(t2));
+        if(s2===0) ctx.moveTo(xx,yy); else ctx.lineTo(xx,yy);
+      }
+      ctx.strokeStyle=done; ctx.lineWidth=2.5; ctx.lineJoin="round"; ctx.stroke();
+
+      // endpoint emphasis
+      var ex=X(tEnd), ey=Y(curveVal(tEnd));
+      ctx.fillStyle=done; ctx.beginPath(); ctx.arc(ex,ey,5,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=hexA(done,.3); ctx.lineWidth=6; ctx.beginPath(); ctx.arc(ex,ey,5,0,Math.PI*2); ctx.stroke();
+      // endpoint label
+      ctx.fillStyle=ink; ctx.font="700 15px "+cssv("--mono"); ctx.textAlign="left"; ctx.textBaseline="middle";
+      if(tEnd>0.9){ ctx.fillText(maxCum+" done", ex+14, ey-2);
+        ctx.fillStyle=dimc; ctx.font="11px "+cssv("--mono"); ctx.fillText("committed to branch", ex+14, ey+14); }
+
+      // parked/blocked markers dropping to a tray line near bottom
+      var trayY = y1 - 4;
+      marks.forEach(function(m){
+        if(m.x > tEnd) return;
+        var mx=X(m.x);
+        var col = m.type==="blocked" ? blocked : parked;
+        var glyph = m.type==="blocked" ? "⏳" : "❓";
+        var topY = Y(curveVal(m.x));
+        // drop line
+        ctx.strokeStyle=hexA(col,.35); ctx.lineWidth=1.5; ctx.setLineDash([2,4]);
+        ctx.beginPath(); ctx.moveTo(mx, topY); ctx.lineTo(mx, trayY-10); ctx.stroke(); ctx.setLineDash([]);
+        // marker
+        ctx.fillStyle=col; ctx.font="15px "+cssv("--mono"); ctx.textAlign="center"; ctx.textBaseline="middle";
+        ctx.fillText(glyph, mx, trayY-2);
+      });
+      // tray label
+      ctx.fillStyle=faint; ctx.font="10px "+cssv("--mono"); ctx.textAlign="left"; ctx.textBaseline="middle";
+      ctx.fillText("morning tray →", x0, trayY-2);
+    }
+
+    function hexA(hex, a){
+      hex = hex.replace("#","");
+      if(hex.length===3){ hex = hex.split("").map(function(x){return x+x;}).join(""); }
+      var r=parseInt(hex.substr(0,2),16), g=parseInt(hex.substr(2,2),16), b=parseInt(hex.substr(4,2),16);
+      if(isNaN(r)) return "rgba(127,184,122,"+a+")";
+      return "rgba("+r+","+g+","+b+","+a+")";
+    }
+
+    var progress = reduce ? 1 : 0;
+    function render0(){ render(progress); }
+    render0();
+
+    if(!reduce){
+      var started=false;
+      var io = new IntersectionObserver(function(entries){
+        entries.forEach(function(en){
+          if(en.isIntersecting && !started){
+            started=true;
+            var t0=null;
+            function step(ts){
+              if(t0===null) t0=ts;
+              var e=(ts-t0)/2200;
+              progress = e<1 ? (1-Math.pow(1-e,3)) : 1;
+              render(progress);
+              if(e<1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+          }
+        });
+      }, {threshold:.3});
+      io.observe(c);
+    }
+  })();
+
+})();
+</script>
+</body>
+</html>
