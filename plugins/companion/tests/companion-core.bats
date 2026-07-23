@@ -419,6 +419,24 @@ _ux_flow_check() {
   [[ "$output" == *"GOTCHA_MARKER"* ]]         # this repo's LESSONS surfaced
 }
 
+@test "session start: injects the STEERING CORE only — rationale below the marker excluded; missing marker fails OPEN (R69)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s69\"}" | "$2" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$SS"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Working agreement"* ]]        # the core is injected…
+  [[ "$output" == *"Posture"* ]]                   # …through its last section
+  [[ "$output" != *"Rationale (not injected"* ]]   # the below-marker half NEVER ships
+  [[ "$output" != *"injection stops here"* ]]      # the marker line itself is excluded too
+  # Fail-open (R7): a STEERING with no marker (old copy, botched edit) injects the WHOLE doc —
+  # degraded-but-working beats silently steering-less. Build a marker-less plugin dir to prove it.
+  local plug; plug="$(mktemp -d)"; mkdir -p "$plug/bin" "$plug/lib"
+  cp "$SS" "$plug/bin/session-start.sh"; cp "$ROOT/lib/companion.sh" "$plug/lib/"
+  sed '/injection stops here/d' "$ROOT/STEERING.md" > "$plug/STEERING.md"
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s69b\"}" | "$2/bin/session-start.sh" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$plug"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Rationale (not injected"* ]]   # no marker → whole doc (fail-open, not fail-silent)
+}
+
 @test "session start: re-anchors on a compaction with queue+pointer, NOT the full STEERING — R30·d2 / R32" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/xc"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/xc/.root"
@@ -529,6 +547,21 @@ _ux_flow_check() {
   run bash -c 'cd "$1" && "$2" report' _ "$ROOT" "$TQ"
   [[ "$output" == *"▸1"* ]]                 # 1 in-progress, counted
   [[ "$output" == *"→ next: #2"* ]]         # the in-progress task becomes next
+}
+
+@test "tq delta (R69): add/doing print a one-line counts delta, NOT the full queue; done prints the full report" {
+  run bash -c 'cd "$1" && "$2" add "first task" "second task"' _ "$ROOT" "$TQ"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"added #1"* ]] && [[ "$output" == *"added #2"* ]]   # per-add lines stay
+  [[ "$output" == *"📋"* ]] && [[ "$output" == *"◻2"* ]]              # counts delta present…
+  [[ "$output" == *"→ next: #1"* ]]                                    # …with the next pointer
+  # delta ≠ full report: subjects are NOT read back on a mutation (the token-spend R69 removes)
+  last="$(printf '%s\n' "$output" | tail -1)"
+  [[ "$last" != *"first task"* ]] && [[ "$last" != *"second task"* ]]
+  run bash -c 'cd "$1" && "$2" doing 1' _ "$ROOT" "$TQ"
+  [[ "$output" == *"▸1"* ]] && [[ "$output" != *"first task"* ]]       # doing: delta only
+  run bash -c 'cd "$1" && "$2" done 1' _ "$ROOT" "$TQ"
+  [[ "$output" == *"second task"* ]]                                    # done: FULL report (boundary)
 }
 
 @test "tq note: appends to .notes[] cumulatively, never overwrites (R56 G4 — PR #126)" {

@@ -20,14 +20,15 @@ DIR="$STORE/$SID"
 
 usage() { cat >&2 <<'EOF'
 tq — fallback task queue (native task tools gated off)
-  tq add "<subject>" [more...] [--done "<acceptance>"]   queue pending task(s) + report
-  tq doing <id> ["<breadcrumb>"] mark in progress (opt. crash-resume note) + report
+  tq add "<subject>" [more...] [--done "<acceptance>"]   queue pending task(s) + delta line
+  tq doing <id> ["<breadcrumb>"] mark in progress (opt. crash-resume note) + delta line
   tq note  <id> "<breadcrumb>"   update the in-progress breadcrumb
   tq done-when <id> "<accept>"   set/replace a task's done-when (survives compaction)
-  tq done  <id>                  mark completed + print the report
+  tq done  <id>                  mark completed + print the FULL report (completion boundary)
   tq cancel <id>                 retract a mis-queued task (cancelled; kept for audit, uncounted)
   tq list                        terse one-line-each queue
-  tq report                      full grouped status report (also fires on add/doing/done)
+  tq report                      full grouped status report (also fires on done/import; other
+                                 mutations print a one-line counts delta, R69)
   tq export [file]               write this repo's OPEN queue to a git-committable file
                                  (default .companion/queue.json) to carry between machines
   tq import [file]               re-materialize a carried queue under THIS machine's root stamp
@@ -107,6 +108,27 @@ report() {
   ' "${files[@]}" 2>/dev/null || printf '📋 Task queue — (unreadable)\n'
 }
 
+# Delta line (R69): mutations print ONE line — glyph counts + → next — not the full queue. The
+# model just wrote the op; reading the whole queue back on every add/doing was linear-in-queue-size
+# token spend for no new information. The full report still fires at the boundaries that anchor:
+# `done` (a completion re-orients), `import`, explicit `report`, and session-start/compact (lib).
+delta() {
+  local files=("$DIR"/*.json); [ -e "${files[0]}" ] || { printf '📋 (empty)\n'; return 0; }
+  jq -rs '
+    def pk: ((.subject//"")|sub("^\\s+";"")|startswith("❓")); def bl: ((.subject//"")|sub("^\\s+";"")|startswith("⏳"));
+    (map(select(.status=="in_progress"))|sort_by(.id|tonumber)) as $ip
+    |(map(select(.status=="pending" and (pk|not) and (bl|not)))|sort_by(.id|tonumber)) as $op
+    |([ (if($ip|length)>0 then "▸\($ip|length)" else empty end),
+        (if($op|length)>0 then "◻\($op|length)" else empty end),
+        ((map(select(.status=="pending" and pk))|length) as $n | if $n>0 then "❓\($n)" else empty end),
+        ((map(select(.status=="pending" and bl))|length) as $n | if $n>0 then "⏳\($n)" else empty end),
+        ((map(select(.status=="completed"))|length) as $n | if $n>0 then "✔\($n)" else empty end)]|join(" ")) as $h
+    |(($ip[0] // $op[0]) as $nx
+      | "📋 " + (if $h=="" then "(all clear)" else $h end)
+        + (if $nx then "  → next: #\($nx.id)" else "" end))
+  ' "${files[@]}" 2>/dev/null || printf '📋 (unreadable)\n'
+}
+
 cmd="${1:-list}"; shift || true
 case "$cmd" in
   add) mkdir -p "$DIR" || exit 1
@@ -124,13 +146,13 @@ case "$cmd" in
     for s in "${subs[@]}"; do [ -n "$s" ] || continue
       jq -n --arg id "$id" --arg s "$s" --arg dw "$dw" '{id:$id,subject:$s,status:"pending",done_when:$dw,blocks:[],blockedBy:[]}' >"$DIR/.$id.tmp" && mv "$DIR/.$id.tmp" "$DIR/$id.json"
       echo "added #$id  $s${dw:+  (done when: $dw)}"; id=$((id+1)); done
-    echo; report ;;
-  doing) { [ "$#" -ge 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" in_progress "${2:-}"; echo "#$1 → in_progress"; echo; report ;;
+    delta ;;
+  doing) { [ "$#" -ge 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" in_progress "${2:-}"; echo "#$1 → in_progress"; delta ;;
   done) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" completed ""; echo "#$1 → completed"; echo; report ;;
-  cancel) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" cancelled ""; echo "#$1 → cancelled (retracted; kept for audit, excluded from counts)"; echo; report ;;
+  cancel) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" cancelled ""; echo "#$1 → cancelled (retracted; kept for audit, excluded from counts)"; delta ;;
   note) { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }; append_note "$1" "$2"; echo "#$1 note added" ;;
   done-when|dw) { [ "$#" -eq 2 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: usage: tq done-when <id> \"<acceptance>\"" >&2; exit 1; }
-    f="$DIR/$1.json"; t="$DIR/.$1.tmp"; jq --arg d "$2" '.done_when=$d' "$f" >"$t" && mv "$t" "$f"; echo "#$1 done-when set"; echo; report ;;
+    f="$DIR/$1.json"; t="$DIR/.$1.tmp"; jq --arg d "$2" '.done_when=$d' "$f" >"$t" && mv "$t" "$f"; echo "#$1 done-when set" ;;   # no delta: counts can't change (R69)
   export) root="$(repo_root)"; out="${1:-$root/.companion/queue.json}"
     mf=(); while IFS= read -r _f; do mf+=("$_f"); done < <(matching_files "$root")  # bash 3.2 has no array-read builtin (macOS CI)
     mkdir -p "$(dirname "$out")" || { echo "tq export: cannot create $(dirname "$out")" >&2; exit 1; }

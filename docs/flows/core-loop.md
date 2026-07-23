@@ -17,6 +17,7 @@ steps:
 
 quality:
 - capture is write-only — zero runtime tokens [N1]
+- queue mutations echo a one-line delta; full report only at done/report/session start [N1 R69]
 - credential block is prevention, on by default [N7]
 
 tests:
@@ -24,6 +25,7 @@ tests:
 - [E] `capture: redacts anchored credentials/PII at rest + rotates at the size cap (R68)` ✅
 - [E] `contract-drift: warns when behaviour changed without a contract doc` ✅
 - [E] `tq: done-when — --done on add + the done-when subcommand STORE it` ✅
+- [E] `tq delta (R69): add/doing print a one-line counts delta, NOT the full queue; done prints the full report` ✅
 - [E] `parked/blocked (❓/⏳) is a prefix-view over pending, NOT a status value` ✅
 - [E] `secret gate: blocks a real AWS key (exit 2)` ✅
 - [S] recommendation-first + brutal verdict — judgment 👁
@@ -31,6 +33,7 @@ tests:
 - [S] wireframe-first · clean-as-you-go · one-line recap — judgment 👁
 
 changes:
+- 2026-07-23 delta reports: mutations one-line, full report at boundaries [R69; amends R47 cadence]
 - 2026-07-22 capture hardened: at-rest redaction + rotation [R68; closes the R58 follow-up]
 - 2026-07-22 machine shape [R66; reverses R62] · decompose-park [R65] · why-line provenance
 - 2026-07-20 from UX.md P2 [R62]; "sync contract docs" → "sync flow pages"

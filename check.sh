@@ -70,6 +70,27 @@ for f in "${scripts[@]}"; do
 done
 [ "$size_fail" -eq 0 ] && echo "  ok"
 
+section "Token budget (injected artifacts stay capped — R69)"
+# Every byte here is paid EVERY session in EVERY installed repo; the budget is enforced, not
+# advisory (the pre-R69 STEERING silently grew to 2.5x its documented token size — a doc-only
+# budget demonstrably fails). BSD wc pads output — strip whitespace before numeric use (LESSONS).
+tok_fail=0
+core_b="$(awk '/injection stops here/{exit} {print}' plugins/companion/STEERING.md | wc -c | tr -d '[:space:]')"
+marker_n="$(grep -c 'injection stops here' plugins/companion/STEERING.md || true)"
+# Marker must appear EXACTLY once: zero → the whole doc gets injected; two+ → the awk cut
+# silently truncates the core at the first occurrence while this gate keeps reading green.
+if [ "${marker_n:-0}" -ne 1 ]; then
+  echo "  FAIL STEERING.md: 'injection stops here' marker count is ${marker_n:-0}, must be exactly 1"; tok_fail=1; fail=1
+elif [ "${core_b:-0}" -gt 12288 ]; then
+  echo "  FAIL STEERING.md injected core: ${core_b}B > 12288B"; tok_fail=1; fail=1
+fi
+for spec in "CLAUDE.md:4096" "docs/LESSONS.md:6144"; do
+  f="${spec%%:*}"; cap="${spec##*:}"; [ -f "$f" ] || continue
+  b="$(wc -c < "$f" | tr -d '[:space:]')"
+  if [ "${b:-0}" -gt "$cap" ]; then echo "  FAIL $f: ${b}B > ${cap}B (auto-loaded/injected every session)"; tok_fail=1; fail=1; fi
+done
+[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/12288B)"
+
 # NOTE: the contract-drift backstop (bin/contract-drift.sh) deliberately does NOT run here
 # (R58 amended 2026-07-22): a warning on every mid-work gate run — where drift is the normal
 # intermediate state — trains its own tune-out, and CI is a clean-tree no-op anyway. It runs at

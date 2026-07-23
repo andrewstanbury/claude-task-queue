@@ -4,7 +4,7 @@
 Decision-shaped → pick-from-CLI menu, recommended option marked; every reply ends with a one-line brutal-honest verdict. 👁
 
 ## queue-one-at-a-time [S/E]
-Requests → `tq` tasks, smallest-blast-first, each with done-when; one at a time + breadcrumb. Companion owns the store (never native tasks). CLI: add·doing·note·done·cancel·list·report; report reprints on every change.
+Requests → `tq` tasks, smallest-blast-first, each with done-when; one at a time + breadcrumb. Companion owns the store (never native tasks). CLI: add·doing·note·done·cancel·list·report; mutations echo a one-line delta, full report at done/report/session start [R69].
 - [E] `tq: done-when — --done on add + the done-when subcommand STORE it` ✅
 - [E] `tq: add/doing/done write the companion store + stamp the repo root` ✅
 

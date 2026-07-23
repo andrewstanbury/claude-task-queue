@@ -24,9 +24,10 @@ root="$(companion_root "$cwd")"
 
 # SessionStart fires on startup/resume AND after a context compaction (source=compact) — so this
 # hook IS the post-compaction re-anchor (R30·d2). On compact it re-injects the live queue (each
-# task's done-when) + LESSONS — the real cross-compaction memory — but NOT the whole ~2.4k-token
-# STEERING (R32): the agreement from session start still applies and the summarizer largely
-# preserves it, so re-pasting static prose every compaction was the biggest repeatable token waste.
+# task's done-when) + LESSONS — the real cross-compaction memory — but NOT the STEERING core
+# (~2.5k tokens injected, R69; the doc's rationale half is never injected at all) (R32): the
+# agreement from session start still applies and the summarizer largely preserves it, so
+# re-pasting static prose every compaction was the biggest repeatable token waste.
 # Per-repo `steering` toggle (R50): when off, this repo opts out of the working-agreement
 # injection (the one SessionStart output with real token cost) — resume + LESSONS still fire, since
 # those are cheap and repo-specific. A `steering=off` line in the per-repo flag file sets it (the
@@ -42,7 +43,10 @@ elif [ "$steering_off" = 1 ]; then
   msg=""
 else
   msg="Read the working agreement below — it governs how you queue, decide, and keep this repo clean for the whole session."$'\n\n'
-  [ -f "$PLUGIN_DIR/STEERING.md" ] && msg="$msg$(cat "$PLUGIN_DIR/STEERING.md")"
+  # R69: inject only the CORE — the doc's rationale section sits below an "injection stops
+  # here" marker and is on-demand reading, not a per-session tax. awk fails open: no marker
+  # (or an old STEERING) → the whole file, exactly the pre-R69 behavior.
+  [ -f "$PLUGIN_DIR/STEERING.md" ] && msg="$msg$(awk '/injection stops here/{exit} {print}' "$PLUGIN_DIR/STEERING.md" 2>/dev/null || cat "$PLUGIN_DIR/STEERING.md")"
 fi
 carry="$(companion_open_tasks "$root")"
 [ -n "$carry" ] && msg="$msg"$'\n\n'"── Open tasks carried over from an earlier session (reinstate before new work) ──"$'\n'"$carry"
