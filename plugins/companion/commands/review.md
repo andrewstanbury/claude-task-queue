@@ -1,5 +1,5 @@
 ---
-description: Review the backlog of tasks waiting on you — the parked (❓) decisions and blocked (⏳) owner-actions — one at a time, recommendation-first, writing each pick back to the queue before any new work
+description: Walk the parked (❓) + blocked (⏳) backlog one at a time, recommendation-first, writing picks back to the queue
 ---
 
 Run a **review**: walk the backlog of tasks that need *you* — the **parked (❓) decisions** and the
@@ -62,6 +62,7 @@ this.
    - **Defer** → leave the item as-is (optionally `tq note <id> "deferred <what you're waiting on>"`).
 
 4. **Close the loop.** Recap the picks in a short table (item → decision → what's now queued), then
-   confirm the queue state with `tq report`. Only **after** the review do you resume normal work —
-   and only if the owner says go. If a decision would touch a locked requirement, offer to draft the
-   ledger entry (per R5).
+   confirm the queue state with `tq report`. The picks **are** the go — flow straight into the newly
+   queued work in order (the STEERING pause triggers still govern: stop only on a genuinely
+   consequential item, not for a blanket second confirmation). If a decision would touch a locked
+   requirement, offer to draft the ledger entry (per R5).

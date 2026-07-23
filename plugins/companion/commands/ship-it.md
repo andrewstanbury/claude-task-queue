@@ -12,9 +12,10 @@ instead of improvising**; each nonzero exit hands a specific problem back to you
 Judgment stays yours: the case, the devil's-advocate, the contract impact, the flow-page
 proposal, the commit message, the history curation.
 
-1. **Preflight — Verify FIRST, one call.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/ship.sh" preflight` (append the
-   project's own gate command if the repo has no `./check.sh` / `.companion/check.sh` — its
-   `make test`, `npm test`, whatever it uses; recognizing that is your job, R9). This runs the
+1. **Preflight — Verify FIRST, one call.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/ship.sh" preflight`
+   (if the repo has no `./check.sh` / `.companion/check.sh`, append its gate as trailing args —
+   `preflight make test`, `preflight npm test`, whatever it uses; recognizing that is your job, R9.
+   Remember the same command — step 5's `land` needs it as `--gate <cmd…>`). This runs the
    gate, the contract-drift backstop (R58 — read its output), `tq export` (R60 — the queue
    snapshot rides the ship), and prints the branch/upstream summary + `git status` + diff stat
    you'd otherwise gather by hand. **Gate failed (exit 4) → STOP and report; do not ship broken
@@ -77,21 +78,19 @@ proposal, the commit message, the history curation.
    being shipped, stages everything, refuses staged credential shapes, commits, **ff-only** merges
    to the default branch, pushes, and prunes the shipped branch (`-d` only, local + remote). It
    never force-pushes, never deletes the default, and its merged-branch sweep is **list-only**.
-   Handle its bails:
-   - **exit 4** gate failed on the final tree (often a doc edit tripping a cap) → fix, re-land.
-   - **exit 7** merge isn't fast-forward → the default moved; rebase or curate (judgment), re-land
-     (the retry path ships your existing commits).
-   - **exit 8** push failed → the commit/merge are safe locally; resolve the remote issue, push.
-   - **exit 6/9** nothing to ship / an unsafe state it refused — read the message, fix, decide.
+   **On a nonzero exit the rail prints the specific problem AND its remedy** — read that line and act
+   on it (gate-fail → fix + re-land; non-ff → rebase/curate then re-land, the retry path ships your
+   existing commits; push-fail → the commit is safe locally, resolve the remote; nothing/refused →
+   read + decide). Don't pre-guess the failure; the bail text is authoritative.
    - **PR flow instead:** if the owner wants review first, skip `land`, push the branch, and open
      a PR with `gh` (structured body: one-line summary · changes grouped by area · requirement IDs
      · test plan + result); without `gh`, print the compare URL.
 6. **Sweep merged branches (R35) — owner-confirmed.** `land` printed any *other* branches already
    merged into the default (list-only by design — deleting a teammate's branch needs a human yes).
-   If the repo is yours alone, or the owner confirms the list, re-run
-   `"${CLAUDE_PLUGIN_ROOT}/bin/ship.sh" land --prune-all -F <msgfile>` on the *next* ship — or
-   prune by hand now: `git branch -d` each (never `-D`), `git push origin --delete` for confirmed
-   remote ones, `git fetch --prune`. Never mass-delete remote branches silently.
+   If the repo is yours alone, or the owner confirms the list, prune now by hand: `git branch -d`
+   each (never `-D`), `git push origin --delete` for confirmed remote ones, `git fetch --prune`. (Or
+   pass `--prune-all` to a future `land` call to have the rail do it.) Never mass-delete remote
+   branches silently.
 7. **Confirm** in one plain line what shipped and what was cleaned up (branch / commit / PR URL +
    which branches were deleted), so the owner can install or review.
 

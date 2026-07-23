@@ -1,5 +1,5 @@
 ---
-description: Wire the companion status line into your settings.json (one-time)
+description: Wire the companion status line into your settings.json (once per machine)
 ---
 
 Wire the companion's status line into the user's Claude Code settings so it renders in the
@@ -17,6 +17,11 @@ Do this:
    If a `statusLine` already exists, show the current value and confirm before replacing it.
 4. Write it back (valid JSON, preserving other keys). Confirm in one line that it's wired and
    will appear on the next render.
+
+**Once *per machine*, not once ever.** `settings.json` is machine-local and the stored path is
+absolute, so a repo carried to another machine (`/companion:resume`) has **no** status line until
+`/companion:setup` runs there too — nothing else surfaces its absence. If the plugin cache path
+moves on a version bump, the stored path rots silently (the line just stops rendering); re-run this.
 
 `refreshInterval: 3` (seconds, R32) — the beacon animates only when there's work in motion, so it
 needs *a* timer, but not a per-second one: at 3s it still advances (nobody reads a spinner at 1 Hz)

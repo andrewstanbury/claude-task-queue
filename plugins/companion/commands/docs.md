@@ -1,5 +1,5 @@
 ---
-description: Scan an existing repo and record its load-bearing, undocumented decisions — as checks where possible, honestly-graded ledger entries otherwise — so advise stops guessing and can't reverse a critical choice that was never written down
+description: Record a repo's undocumented load-bearing decisions as checks or graded ledger entries (feeds advise/redesign)
 ---
 
 Run a **docs sweep**: excavate the decisions an existing repo *depends on but never wrote down*,
@@ -36,56 +36,33 @@ Two honesty rules make this safe rather than a fabrication machine:
   records one** — an unchosen assumption never becomes a 🔒. A labeled **`unknown → 🔓`** is *better*
   than a confident-but-wrong 🔒; confident-and-wrong is the worst possible input to an agent.
 
-**Two axes, not one (R54).** The tier above is *reliability*. Each recorded item also has a
-**contract pillar** — which part of the R54 contract it belongs to — and that decides **which doc it
-lands in**:
+**Two axes, not one (R54).** The tier above is *reliability*. Each item also has a **contract
+pillar** that decides **which doc it lands in** — the routing (safety-invariant → `INVARIANTS.md` +
+check · UX → `docs/flows/` · quality → `_quality-bar.md` · incidental → dropped) is enumerated once,
+canonically, in **step 4**. Three rules govern that routing:
+- **A why is mandatory at contract tier (R70).** A quality attribute enters `_quality-bar.md` (or a
+  `quality:` field) only with a stated/owner-confirmed *why* — "fast" with no why is a vibe, not a
+  contract a rebuild can honor; no why → incidental/🔓, never quality-bar. Anti-laundering applies
+  **doubly** to `agreed-NFR`: only an *actively agreed* attribute is contract; an inferred one is incidental.
+- **Swap-survivability (R70).** A contract item is stack-independent only when its `[E]` test is
+  **black-box at the boundary** — invoke the surface, assert the observable output, never import
+  internals — so the suite runs unchanged against a reimplementation (`/companion:cover` mechanizes it).
+  Honesty ceiling (Hyrum's law): the *complete* contract is unenumerable — the claim is "the *agreed*
+  contract survives, the rest is *declared* disposable," never "swapping is risk-free."
+- **Redesign logs UX + quality ONLY (R55).** Feeding a `/companion:redesign`: log UX + quality
+  attributes; safety-invariants route to a **check** (not a prose catalogue); technical/incidental is
+  disposable. Don't build a technical-requirements catalogue.
 
-> **safety-invariant** → `docs/INVARIANTS.md` (+ a check — a must-hold the user never sees) ·
-> **UX-contract** → `docs/flows/<flow>.md` (a flow page — what the *consumer* sees/does; the
-> consumer may be a human **or a program/agent**, R70 — a machine-facing interface at the boundary
-> (a file/store format, exit codes, a CLI or hook I/O shape) is a flow page too, same shape, same
-> gate, never a new doc kind) · **agreed
-> quality attribute** → `docs/flows/_quality-bar.md` (or the flow's own `quality:` field) ·
-> **incidental-implementation** → *not contract* (a 🔓 ledger note at most, or dropped — a regen may
-> change it freely).
-
-**Generated contract docs live in `docs/` (the default home).** The `docs/flows/` pages (+ their
-`_quality-bar.md`) and `INVARIANTS.md` — plus the ledger (`REQUIREMENTS.md`) and map (`MAP.md`) — all
-sit under a single `docs/` folder at the repo root, so a reviewer finds the whole contract in one
-place and `ship-it` can keep a README index pointing at it (R57). If a repo has no `docs/`, create it;
-don't scatter contract docs across the tree. **Never create a file at the repo root (R64)** — the
-only root file the companion touches is the README (its docs-index section, R57); a gate this
-command creates goes to `.companion/check.sh`, beside the portable queue (R60), so it rides the same
-commits between machines.
-
-The anti-laundering rule applies **doubly** to `agreed-NFR`: only a quality attribute the owner
-*actively agreed* is contract; an inferred one the owner didn't pick is `incidental`, not NFR.
-**And a why is mandatory at contract tier (R70):** a quality attribute enters `_quality-bar.md` (or a
-`quality:` field) only with a stated or owner-confirmed *why* attached — "fast" with no why is not a
-contract a rebuild can honor, it's a vibe; no why → incidental/🔓, never quality-bar. This
-pillar routing is what lets `advise` **regenerate against the contract** (R54), not just read the ledger.
-
-**For a redesign contract, log only UX + quality attributes (R55).** When `docs` is feeding a
-`/companion:redesign`, the two pillars the owner *logs* are **UX** (`docs/flows/` pages) + **quality
-attributes** (`docs/flows/_quality-bar.md`). **Safety-invariants** route to a **check**
-(`docs/INVARIANTS.md` + `check.sh`) — not a prose catalogue you maintain — and **technical
-requirements / incidental** are **disposable** (a regen may change them), not catalogued. Don't build
-a technical-requirements catalogue.
-
-**The swap-survivability criterion (R70).** A contract item counts as *stack-independent* only when
-its `[E]` test is **black-box at the boundary** — invoke the surface (run the CLI, feed the input,
-read the file), assert the observable output; never import internals. That is the mechanical test of
-the whole exercise: *the suite runs unchanged against a reimplementation.* `/companion:cover` is the
-mechanizing arm. **Honesty ceiling (Hyrum's law):** the *complete* observable contract of a real
-system is unenumerable — the claim recorded here is "the **agreed** contract survives a swap, and
-everything outside it is **declared** disposable," never "swapping is risk-free." Chasing
-completeness just rebuilds the forbidden catalogue above.
+This routing is what lets `advise`/`redesign` **regenerate against the contract** (R54), not just read
+the ledger. Homes (R64): all contract docs live under `docs/`; a generated gate goes to
+`.companion/check.sh`, never the repo root — detailed in step 4.
 
 ---
 
 0. **Clear autopilot first.** If autopilot is on, run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off`
    before anything else — while the flag is on, the ask-guard blocks `AskUserQuestion` and this
-   command can't ask a single question. (Mirrors `/companion:resume` step 0.)
+   command can't ask a single question. This is a **mechanical unblock** — **defer the R38 parked-pile
+   review** until after this command; just note the ❓/⏳ count in one line, don't walk the pile first.
 
 1. **Scan — read-only, no questions.** Detect the repo's structure **generically** (R9 — no
    language/framework allowlists; delegate recognition to the model, detect structure generically).

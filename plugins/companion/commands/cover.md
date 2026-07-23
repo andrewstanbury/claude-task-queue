@@ -1,5 +1,5 @@
 ---
-description: Recommend then scaffold the ideal tests for the flow contract — rank critical user flows by criticality × coverage gap, propose the test for each (one at a time, recommendation-first), and write the picks as golden/happy-path tests in the project's own runner, named so each flow's Tests line resolves through the anti-drift gate.
+description: Rank critical flows by coverage gap, then scaffold owner-picked golden tests in the project's own runner (R61)
 ---
 
 Run a **cover**: decide which user experiences are critical enough to deserve a durable safety net,
@@ -11,12 +11,11 @@ name, or free-text scope); with none, cover the **whole flow contract** (`docs/f
 **cover recommends *which* experiences deserve a test, then writes the ones you pick (R61).** The
 buy-in still comes first — which experiences are worth a durable test is the owner's judgment, and a
 test written without that buy-in is noise — so cover **asks before it writes**, one at a time,
-recommendation-first. On a pick it then **scaffolds the test** (was: queued a "write this later"
-task): a **black-box, happy-path/golden test in the project's OWN runner** (R9 — detect the runner
-generically, never a companion-specific harness), driving the *user-visible* surface described in the
-flow's `steps:`, and **named so the flow's `Tests` line resolves** — the test's `@test`/it
-title is exactly the backtick name the flow page's `- [E] `<name>`` line carries, which the anti-drift
-gate (R61) matches to a real title. It's judgment + workflow, not enforcement (R28) — it proposes, you
+recommendation-first. On a pick it then **scaffolds the test**: a **black-box, happy-path/golden test
+in the project's OWN runner** (R9 — detect the runner generically, never a companion-specific harness),
+driving the *user-visible* surface described in the flow's `steps:`, and **named so the flow's `Tests`
+line resolves the R61 gate** (the title-matches-the-`[E]`-line mechanics are in step 4). It's judgment
++ workflow, not enforcement (R28) — it proposes, you
 choose, it writes what you chose. Owner-present by nature (it asks): run it with autopilot **off**. It
 reuses the `/companion:advise` recommendation-first loop — don't build a second machine.
 
@@ -39,7 +38,8 @@ silence.
 
 0. **Clear autopilot first.** If autopilot is on, run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off`
    before anything else — the ask-guard blocks `AskUserQuestion` while it's on, and this command
-   asks. (Mirrors `/companion:advise` / `/companion:docs`.)
+   asks. A **mechanical unblock** — **defer the R38 parked-pile review** until after this command;
+   note the ❓/⏳ count in one line, don't walk the pile first.
 
 1. **Read the contract + the current net.** Read the `docs/flows/` pages (each flow's `steps:` +
    its `Tests` lines — `[E]` with a resolving test name, `[S]` eyeball-only) and `docs/INVARIANTS.md`
@@ -71,17 +71,19 @@ silence.
    State, per flow, *why this test and not more* — the one durable behaviour it pins that nothing
    else guards.
 
-4. **Scaffold the picks — in the project's own runner (R61).** For each chosen test, `tq add` it
-   (smallest-blast first, `--done "<the assertion that must hold>"`) **and then write it**: a
-   black-box happy-path/golden test that drives the flow's `steps:` entry point, asserts the
+4. **Scaffold the picks — in the project's own runner (R61).** For each chosen test, **write it
+   directly** (no queue-then-write churn — a test you write this turn doesn't need a `tq` breadcrumb):
+   a black-box happy-path/golden test that drives the flow's `steps:` entry point, asserts the
    user-visible result (snapshot to a golden where the output is large/structured, an inline
    assertion where it's small), and whose **title is exactly the name the flow's `- [E] `<name>`` line
-   references** (R61 gate). Use the repo's own runner + idiom (R9) — detect it, don't impose one. Add
-   (or flip to green) that `- [E]` line on the flow page once the test passes; if you only queued the
-   test, leave the flow's Tests unchanged so coverage isn't overstated. If a flow's ideal guard is
-   actually an **executable check** (a boundary an `INVARIANTS.md` row + `check.sh` assertion could
-   hold), route it there instead — the tier Claude can't ignore. **Run the new test before moving on**
-   (a scaffolded test that doesn't pass on today's code isn't coverage, it's a false alarm).
+   references** (R61 gate — this is the canonical statement of the title-resolution rule). Use the
+   repo's own runner + idiom (R9) — detect it, don't impose one. **Run the new test**, then add (or
+   flip to green) that `- [E]` line on the flow page (a scaffolded test that doesn't pass on today's
+   code isn't coverage, it's a false alarm). If a flow's ideal guard is actually an **executable
+   check** (a boundary an `INVARIANTS.md` row + `check.sh` assertion could hold), route it there
+   instead — the tier Claude can't ignore. **Only if a pick can't be written this session** (blocked,
+   or too large) `tq add` it (`--done "<the assertion that must hold>"`) and leave the flow's Tests
+   line unchanged until it's written — so coverage is never overstated.
 
 5. **Close the loop.** Recap in a short table — *flow → criticality × gap → recommended test (or
    "already covered" / "eyeball only") → where queued*. Then state plainly which critical flows remain

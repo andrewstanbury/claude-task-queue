@@ -1,5 +1,5 @@
 ---
-description: Resume an earlier session — re-surface this repo's carried-over tasks (preserving their ❓/⏳/📋 class) and reinstate them, so you pick up where you left off before starting new work
+description: Re-surface and reinstate an earlier session's carried-over tasks, ❓/⏳/📋 class intact
 ---
 
 Run a **session resume**: re-surface this repo's tasks carried over from an earlier session and
@@ -14,21 +14,30 @@ owner-present by nature (the review it hands off to asks questions), so it's mea
 is **off** — and it turns autopilot off itself, first, so a re-surfaced decision comes back to *you*,
 not to the next autopilot drain (R39).
 
-0. **Clear the flag first (conversational path).** If you got here because the owner asked in plain
-   language to turn autopilot off (not via `/companion:autopilot off`, which already does this), the
-   `resume.sh` in step 1 clears the persisted flag for you — but if you need it clear *before* running
-   anything else, run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off`.
+0. **Autopilot** — step 1 clears it (early, before the handoff-checkout offer; `resume.sh` also
+   clears it). Nothing to do up here.
 
-**Carrying the queue between machines (R60).** The task store is machine-local, so to pick up on a
-*different* machine, carry the queue over git: on the first machine run `"${CLAUDE_PLUGIN_ROOT}/bin/tq"
-export` (writes this repo's open tasks to `.companion/queue.json`) and commit that file; on the other
-machine `git pull`, then run this command — step 1's `resume.sh` imports the carried file first,
-re-stamping each task under *this* machine's path so it surfaces regardless of where the repo was
-cloned. Import is idempotent and dedups by subject, so a task already completed here is never
-resurrected. (Linear handoff is the supported flow; two machines editing the same queue concurrently
-is last-export-wins — status changes don't merge back.)
+**Carrying the queue between machines (R60/R72).** The task store is machine-local, so the queue
+travels over git. **Sending side:** mid-flight work → `/companion:handoff` (one call — commits the
+working tree + queue to a pushed branch, R72); finished work → `/companion:ship-it` (exports at
+preflight). *(Manual fallback: `"${CLAUDE_PLUGIN_ROOT}/bin/tq" export` + commit `.companion/queue.json`
+yourself.)* **Receiving side (this command):** step 1's `resume.sh` imports the carried
+`.companion/queue.json`, re-stamping each task under *this* machine's path so it surfaces regardless
+of clone location. Import is idempotent and dedups by subject, so a task already completed here is
+never resurrected. (Linear handoff is the supported flow; two machines editing the same queue
+concurrently is last-export-wins — status changes don't merge back.)
 
-1. **Re-surface earlier-session tasks (session pickup, R39).** Run
+1. **Re-surface earlier-session tasks (session pickup, R39).** **First, check for a waiting handoff
+   (R72)** — but **clear autopilot before you might ask**: if it's on, run
+   `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off` (announced) so the checkout offer below isn't
+   blocked by the ask-guard (`resume.sh` clears it too, but that runs *after* this offer). Then
+   `git fetch` and look for a waiting handoff branch not checked out locally: a **`wip/*`** branch
+   (a handoff made *on the default branch*) **or** the **named branch the sending machine relayed**
+   (a handoff made on a feature branch commits in place, so it keeps its own name — `ship.sh handoff`
+   printed that name; `git branch -r` ahead of the default is the general signal). If one exists,
+   surface it and offer to check it out **before** importing — it carries the other machine's
+   mid-flight tree + queue, and importing on the default branch instead would silently strand it.
+   Then run
    `"${CLAUDE_PLUGIN_ROOT}/bin/resume.sh"`: it **imports any carried `.companion/queue.json` first**
    (R60 — relay the one-line import notice when it added tasks), then turns **autopilot off first** — announced in one line
    when it was on (relay that notice; never a silent clobber of a persisted intent — re-arm is a

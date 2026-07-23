@@ -1,5 +1,5 @@
 ---
-description: Whole-application contract-preserving redesign — rebuild the app to satisfy the logged UX + quality-attribute contract, as a sequence of bounded, check-gated passes (runs docs first)
+description: Whole-app contract-preserving rebuild in bounded, check-gated passes (runs docs first)
 ---
 
 Run a **redesign** (R55): rebuild the **whole application** from the logged contract, as a
@@ -7,16 +7,21 @@ Run a **redesign** (R55): rebuild the **whole application** from the logged cont
 regeneration the owner asked for. It **edits**, so every guardrail is mandatory. **Prototype until
 proven on a real rebuild — say so.**
 
+**Disclose the shape up front (informed consent).** This is the longest command in the suite. Before
+D0, tell the owner in one line what the run costs: *`docs` sweep (itself a triage) → invariant-net
+gate → plan → N per-module passes.* The owner should see the ~N-interruption shape **before**
+committing, not discover it at pass 12.
+
 The **logged** contract is `docs/flows/` (experience) + `docs/flows/_quality-bar.md` (quality attributes). The
 **safety invariants are the executable checks** (`docs/INVARIANTS.md` + `check.sh`) every pass must
 keep green — not a prose catalogue the owner maintains. The **per-module rebuild engine is inlined
-below** (D3) — it was the standalone `/companion:regen`, folded into redesign 2026-07-18 (owner
-sign-off): a bounded single-target rebuild only ever ran as one redesign pass, so it lives here now.
+below** (D3): a bounded single-target rebuild is just one redesign pass.
 
 0. **Clear autopilot first.** This edits code and rests on the owner's explicit picks. If autopilot
    is on, run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off` first — the ask-guard would otherwise
    block every confirmation this flow depends on. (Never leave a code-editing gate resting on
-   advisory prose + a side-effect of another hook.)
+   advisory prose + a side-effect of another hook.) A **mechanical unblock** — **defer the R38
+   parked-pile review** until after this command; note the ❓/⏳ count in one line, don't walk it first.
 
 D0. **Verify the invariant net covers the app BEFORE the first pass (R54 sequencing — non-negotiable).**
     A whole-app redesign regenerates *every* module, so any safety invariant that lacks a check — and
@@ -35,9 +40,20 @@ D1. **Log the contract first — `/companion:docs` is a REQUIRED first step (R41
     contract to preserve is an unbounded rewrite, exactly what this command forbids. `docs` stays
     its own command (it also feeds `/companion:advise`); redesign *requires* it, doesn't replace it.
 
-D2. **Enumerate the app as bounded targets.** Break the application into bounded modules
-    (file/subsystem, generically per R9). Order **lowest-blast / fewest-dependents first** so an early
-    failure is cheap. Present the plan (the ordered target list) before starting.
+D2. **Enumerate the app as bounded targets, then negotiate the run mode (one question).** Break the
+    application into bounded modules (file/subsystem, generically per R9). Order **lowest-blast /
+    fewest-dependents first** so an early failure is cheap. Present the plan (the ordered target list,
+    with a count), then ask **one** `AskUserQuestion` for how to run it — converting N interruptions
+    into one governed choice:
+    - **Confirm each module** (default, `(Recommended)` for a first/high-stakes run) — every pass
+      stops at R5 for the owner's pick.
+    - **Bless the low-blast modules** — auto-apply the passes whose checks stay green and which touch
+      no invariant / no flagged-high-blast module, interrupting **only** on a red check, a contract
+      ambiguity, or a module the owner flags. (Reversible-work autonomy, R59 spirit — the checks +
+      auto-revert are the safety, every auto-applied pass still logged for review.)
+
+    Either way **the owner can halt the run at any pass**; completed passes stay applied on the branch
+    with the gate green. A whole-app run without an exit ramp is a forced march.
 
 D3. **Redesign each module as a bounded, check-gated pass (the inlined engine, R1–R5).** For each
     target in order, drive the full per-module flow — never a single unbounded whole-app rewrite:

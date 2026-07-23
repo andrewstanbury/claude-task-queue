@@ -6,6 +6,7 @@ steps:
 - leaving machine, work FINISHED: `/companion:ship-it` — preflight runs `tq export`, the ship carries the queue
 - leaving machine, work MID-FLIGHT: `/companion:handoff` → one call (`ship.sh handoff`): `tq export` → stage → refuse credential shapes → commit WIP (`wip/<stamp>` branch when on default — WIP never lands on default; in place on a feature branch) → `push -u`; NO gate required (checkpoint, not ship — the gate fires at `land`) [R72]
 - new machine: `git pull` (+ check out the handoff branch if mid-flight) → `/companion:resume` — imports + re-stamps to local identity; ❓/⏳/📋 classes + breadcrumbs intact
+- new machine, FIRST time: `/companion:setup` — the status line is machine-local (settings.json, absolute path), absent until wired here [R72 seam]
 
 quality:
 - import idempotent; dedup by (subject, done_when) across ALL statuses — finished tasks never resurrect

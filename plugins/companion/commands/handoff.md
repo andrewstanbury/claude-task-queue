@@ -1,5 +1,5 @@
 ---
-description: Hand mid-flight work to another machine — one call that checkpoints the working tree + queue to a pushed branch (no gate; the gate fires when the work ships)
+description: Checkpoint mid-flight work — tree + queue — to a pushed branch for another machine (no gate; gate fires at ship)
 ---
 
 Hand the current state of this machine to another one, using git as the transport (R72). This is

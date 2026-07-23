@@ -3,9 +3,9 @@ description: Turn autopilot on or off (keep working the queue autonomously, with
 ---
 
 Toggle autopilot for this repo by running the toggle script, passing the argument the user
-gave (`on`, `off`, `status`, or `ship on|off|status`):
+gave (`on`, `off`, `status`, `ship on|off|status`, or `decisive on|off|status`):
 
-`"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" <on|off|status | ship on|off|status>`
+`"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" <on|off|status | ship on|off|status | decisive on|off|status>`
 
 - **on** — **keep going without stopping** (R36) — *not* "the owner is away"; they may be present,
   queuing up more tasks and keeping it on deliberately. Run autonomous: keep draining the `tq`
@@ -21,5 +21,11 @@ gave (`on`, `off`, `status`, or `ship on|off|status`):
   hook auto-commits each turn's work to an `autopilot/*` branch (reversible; **never the default
   branch, never a push**), so completed work is captured for the owner to review + `/companion:ship-it`
   on return. Shown as 📦 on the status line.
+- **decisive on|off** — toggle **decisive mode** (R59). While decisive *and* autopilot are on,
+  instead of parking *every* decision, autopilot auto-picks its own recommended option for
+  **reversible** choices (design / wording / direction included — overrides R33), records each pick
+  as a `tq note`, and keeps going; it still parks (`❓`) / blocks (`⏳`) only the irreversible,
+  externally-binding, or data-destructive. The audit trail is the safety — `/companion:review` reads
+  the picks back. Shown as ✈️⚡ on the status line.
 
 Relay the script's one-line confirmation to the user.

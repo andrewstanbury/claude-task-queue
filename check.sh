@@ -89,7 +89,16 @@ for spec in "CLAUDE.md:4096" "docs/LESSONS.md:6144"; do
   b="$(wc -c < "$f" | tr -d '[:space:]')"
   if [ "${b:-0}" -gt "$cap" ]; then echo "  FAIL $f: ${b}B > ${cap}B (auto-loaded/injected every session)"; tok_fail=1; fail=1; fi
 done
-[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/12288B)"
+# Command `description:` frontmatter is ALSO always-loaded injection (the whole command list rides
+# every session), yet R69 never capped it — the same silent-growth class. Cap each at 140B (a label,
+# not a summary of the body); ceiling with working room over the current max (116B, handoff.md), not
+# reverse-engineered. Prevention > detection (N7) — keeps a paragraph from creeping back in.
+for f in plugins/companion/commands/*.md; do
+  d="$(awk -F'description: ' '/^description: /{print $2; exit}' "$f")"
+  db="$(printf '%s' "$d" | wc -c | tr -d '[:space:]')"
+  if [ "${db:-0}" -gt 140 ]; then echo "  FAIL $(basename "$f") description: ${db}B > 140B (per-session command-list injection)"; tok_fail=1; fail=1; fi
+done
+[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/12288B; command descriptions ≤140B)"
 
 # NOTE: the contract-drift backstop (bin/contract-drift.sh) deliberately does NOT run here
 # (R58 amended 2026-07-22): a warning on every mid-work gate run — where drift is the normal
