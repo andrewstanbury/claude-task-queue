@@ -19,9 +19,11 @@ tests grammar (R61 gate, enforced by check.sh):
 - [improve-the-design](./improve-the-design.md) — advise → docs → redesign → cover
 - [patterns](./_patterns.md) · [quality-bar](./_quality-bar.md)
 
-## Slash commands (9)
+## Slash commands (10)
 `/companion:setup` (wire status line) · `/companion:autopilot` (keep-draining, enforced when on) ·
-`/companion:ship-it` (verify→sync flows→commit→push→merge) · `/companion:resume` (session pickup) ·
+`/companion:ship-it` (verify→sync flows→commit→push→merge, on the `ship.sh` rail R71) ·
+`/companion:handoff` (mid-flight checkpoint → pushed `wip/*` branch + queue, no gate, R72) ·
+`/companion:resume` (session pickup) ·
 `/companion:review` (walk ❓+⏳ backlog recommendation-first; autopilot-off trigger; `decompose:`
 parks run as context interviews, R65) · `/companion:advise` (critique-only options) ·
 `/companion:redesign` (contract-preserving rebuild, check-gated passes; runs `docs` first) ·

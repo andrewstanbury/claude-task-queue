@@ -35,7 +35,11 @@ read-only critique it grew out of.
    with many dependents), and performance hot paths (realtime/hot-loop code — judgment, no engine
    allowlist). Give each the target + goal; ask each for an honest assessment and a list of **deltas**
    (current → recommended), where each delta is a crisp problem, 2-4 concrete options, and a
-   recommended option **with the one-line reason why**. If sub-agents aren't available, do it
+   recommended option **with the one-line reason why**. **Run the panel in the background (R71):**
+   spawn the critics as background sub-agents, announce in one line that the panel is running and
+   the owner can keep working, and end the turn — synthesize when the results arrive. (A tiny
+   target one inline read can critique honestly doesn't need a panel at all — don't orchestrate
+   for orchestration's sake.) If sub-agents aren't available, do it
    inline but adopt each lens explicitly in turn. **License every critic to conclude "this is
    already right — no change":** an advise that manufactures deltas just to have something to
    present trains exactly the fake pushback the steering doc forbids. Say so plainly when a

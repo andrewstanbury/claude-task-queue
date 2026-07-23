@@ -13,7 +13,7 @@ steps:
 - visual change → wireframe first [pattern:wireframe-first]; clean-as-you-go [pattern:clean-as-you-go]
 - credential write → BLOCKED [pattern:guardrails-default-on]
 - verify by exercising; recap one line
-- ship via `/companion:ship-it`: verify → sync flows → commit → push → merge
+- ship via `/companion:ship-it`: `ship.sh preflight` (gate+drift+export+summary, one call) → judgment (case · DA · contract sync · message) → `ship.sh land` (stage·commit·ff-merge·push·prune, one call; bails hand back) [R71]
 
 quality:
 - capture is write-only — zero runtime tokens [N1]
@@ -28,11 +28,14 @@ tests:
 - [E] `tq delta (R69): add/doing print a one-line counts delta, NOT the full queue; done prints the full report` ✅
 - [E] `parked/blocked (❓/⏳) is a prefix-view over pending, NOT a status value` ✅
 - [E] `secret gate: blocks a real AWS key (exit 2)` ✅
+- [E] `ship.sh land: happy path — commit, ff-merge to default, push, prune shipped branch (local+remote)` ✅
+- [E] `ship.sh land: non-ff merge bails (exit 7), hands back ON the feature branch, default untouched` ✅
 - [S] recommendation-first + brutal verdict — judgment 👁
 - [S] decompose-park routing (high-blast never sits open; answers → minimal-blast children) — judgment 👁
 - [S] wireframe-first · clean-as-you-go · one-line recap — judgment 👁
 
 changes:
+- 2026-07-23 ship rail: preflight/land collapse the mechanical spine to two calls, judgment stays live [R71]
 - 2026-07-23 delta reports: mutations one-line, full report at boundaries [R69; amends R47 cadence]
 - 2026-07-22 capture hardened: at-rest redaction + rotation [R68; closes the R58 follow-up]
 - 2026-07-22 machine shape [R66; reverses R62] · decompose-park [R65] · why-line provenance

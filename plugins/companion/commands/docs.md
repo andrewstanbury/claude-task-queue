@@ -41,7 +41,10 @@ Two honesty rules make this safe rather than a fabrication machine:
 lands in**:
 
 > **safety-invariant** → `docs/INVARIANTS.md` (+ a check — a must-hold the user never sees) ·
-> **UX-contract** → `docs/flows/<flow>.md` (a flow page — what the user sees/does) · **agreed
+> **UX-contract** → `docs/flows/<flow>.md` (a flow page — what the *consumer* sees/does; the
+> consumer may be a human **or a program/agent**, R70 — a machine-facing interface at the boundary
+> (a file/store format, exit codes, a CLI or hook I/O shape) is a flow page too, same shape, same
+> gate, never a new doc kind) · **agreed
 > quality attribute** → `docs/flows/_quality-bar.md` (or the flow's own `quality:` field) ·
 > **incidental-implementation** → *not contract* (a 🔓 ledger note at most, or dropped — a regen may
 > change it freely).
@@ -56,7 +59,10 @@ command creates goes to `.companion/check.sh`, beside the portable queue (R60), 
 commits between machines.
 
 The anti-laundering rule applies **doubly** to `agreed-NFR`: only a quality attribute the owner
-*actively agreed* is contract; an inferred one the owner didn't pick is `incidental`, not NFR. This
+*actively agreed* is contract; an inferred one the owner didn't pick is `incidental`, not NFR.
+**And a why is mandatory at contract tier (R70):** a quality attribute enters `_quality-bar.md` (or a
+`quality:` field) only with a stated or owner-confirmed *why* attached — "fast" with no why is not a
+contract a rebuild can honor, it's a vibe; no why → incidental/🔓, never quality-bar. This
 pillar routing is what lets `advise` **regenerate against the contract** (R54), not just read the ledger.
 
 **For a redesign contract, log only UX + quality attributes (R55).** When `docs` is feeding a
@@ -65,6 +71,15 @@ attributes** (`docs/flows/_quality-bar.md`). **Safety-invariants** route to a **
 (`docs/INVARIANTS.md` + `check.sh`) — not a prose catalogue you maintain — and **technical
 requirements / incidental** are **disposable** (a regen may change them), not catalogued. Don't build
 a technical-requirements catalogue.
+
+**The swap-survivability criterion (R70).** A contract item counts as *stack-independent* only when
+its `[E]` test is **black-box at the boundary** — invoke the surface (run the CLI, feed the input,
+read the file), assert the observable output; never import internals. That is the mechanical test of
+the whole exercise: *the suite runs unchanged against a reimplementation.* `/companion:cover` is the
+mechanizing arm. **Honesty ceiling (Hyrum's law):** the *complete* observable contract of a real
+system is unenumerable — the claim recorded here is "the **agreed** contract survives a swap, and
+everything outside it is **declared** disposable," never "swapping is risk-free." Chasing
+completeness just rebuilds the forbidden catalogue above.
 
 ---
 
@@ -76,14 +91,23 @@ a technical-requirements catalogue.
    language/framework allowlists; delegate recognition to the model, detect structure generically).
    Spawn a small panel of scanner sub-agents, each a distinct lens for what is **load-bearing *and*
    likely-undocumented**:
+   - **the boundary, outside-in (R70)** — enumerate every input the system accepts and every
+     output it emits at its edge: CLI surfaces + exit codes, file/store formats read or written,
+     wire/injection shapes, env contracts — anything an external consumer (human *or* program)
+     could depend on. This lens starts from the edge and works inward, where the others start
+     from the code; it's what makes the recorded contract survive a full stack swap.
    - **invariants / constraints** the code clearly relies on (a single-writer, a dependency
      boundary, an ordering/idempotency assumption, an encoding that must match across readers);
    - **architectural / design choices** (why it's structured this way — a pattern chosen on purpose);
    - **technical requirements** (performance budgets, size limits, compatibility targets, data-safety);
    - **landmines** — code that *looks* removable or refactorable but is actually holding something
-     up: the exact thing advise would delete. Weight these highest.
+     up: the exact thing advise would delete. Weight these and the boundary lens highest.
 
-   Give each lens the repo + the goal. **Each must first read the existing ledger + `docs/` and skip
+   Give each lens the repo + the goal. **Run the panel in the background (R71):** spawn the
+   scanners as background sub-agents, announce in one line that the scan is running and the owner
+   can keep working, and end the turn — build the Pass-1 report when the results arrive (the
+   triage in Pass 2 is the only part that needs the owner live). **Each must first read the
+   existing ledger + `docs/` and skip
    anything already recorded** — this command adds to ground truth, it doesn't restate it. Each
    candidate returns: the observed fact · evidence (`file:line`) · estimated **blast-radius** · a
    confidence · and an *inferred* why **explicitly marked as inference, never as fact.** License each
@@ -133,8 +157,11 @@ a technical-requirements catalogue.
      the ledger. Keep the ledger to *requirements*.
    - **Route by R54 pillar** (the second axis): a confirmed **safety-invariant** → `docs/INVARIANTS.md`
      as an enumerated row + its check; a **UX-contract** item → the right **`docs/flows/<flow>.md`**
-   spec (R66 machine shape) — a `steps:` line (what the user walks through, in order), tagged in `tests:` as
-   `[E]` (a resolving test name) or `[S]` (👁 eyeball-only); if it exercises a recurring **convention**,
+   spec (R66 machine shape) — a `steps:` line (what the consumer walks through, in order; for a
+   machine-facing interface flow the steps ARE the I/O sequence — input accepted → output emitted →
+   exit code), tagged in `tests:` as
+   `[E]` (a resolving test name — black-box at the boundary for interface flows, R70) or `[S]`
+   (👁 eyeball-only); if it exercises a recurring **convention**,
    add it to `docs/flows/_patterns.md` **once** and reference it by name from the flow (restating
    drifts). Keep the flows index `Slash commands (N)` count honest. An **owner-agreed quality
    attribute** → `docs/flows/_quality-bar.md` (or the flow's own `quality:` field; "would a redesign build
