@@ -204,10 +204,15 @@ _repo() {  # $1=default-branch name
 
 @test "ship.sh preflight: gate + drift + export + summary in one call; no gate -> exit 3" {
   _repo main
+  "$ROOT/bin/tq" add "carry me via preflight" >/dev/null   # a queue for the R60 export to carry
+  printf 'dirty\n' > dirty.txt                             # so the summary's git status has content
   run "$SHIP" preflight
   [ "$status" -eq 0 ]
   [[ "$output" == *"preflight OK"* ]]
   [[ "$output" == *"branch: main"* ]]
+  [[ "$output" == *"dirty.txt"* ]]                         # the summary step ran `git status`
+  [ -f .companion/queue.json ]                             # the R60 export step ran...
+  grep -q "carry me via preflight" .companion/queue.json   # ...and actually carried the open task
   rm check.sh
   run "$SHIP" preflight
   [ "$status" -eq 3 ]
