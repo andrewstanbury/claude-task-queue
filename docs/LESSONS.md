@@ -41,3 +41,8 @@ ledger) and not in-flight work (that's the queue) — just "watch out for X here
 ## CI
 - macOS is a **required** lane (bash 3.2 — the strictest environment). Test hooks for *silence*
   under missing tooling, not for their happy-path effect.
+- **`gitleaks` + `shellcheck` are SKIPped locally when absent but RUN on CI** — so a local
+  `check.sh` PASS is not a CI PASS for those two. The linuxbrew `shellcheck` build additionally
+  **under-reports `SC2015`** (`A && B || C`) that CI's build flags — this shipped a red CI twice
+  (3.16.0, 3.17.0). **Never use `test && test || cmd` for a guard; write `if [ … ]; then cmd; fi`.**
+  When touching `bin/`, trust CI's shellcheck over local, or grep for `\] && \[ .* \] || ` before shipping.

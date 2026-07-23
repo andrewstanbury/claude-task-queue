@@ -102,10 +102,10 @@ land() {
       *) die 2 "unknown argument: $1" ;;
     esac
   done
-  [ -n "$msgfile" ] && [ -s "$msgfile" ] || die 2 "land requires -F <non-empty message file>"
+  if [ -z "$msgfile" ] || [ ! -s "$msgfile" ]; then die 2 "land requires -F <non-empty message file>"; fi
 
   cur="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-  [ -n "$cur" ] && [ "$cur" != "HEAD" ] || die 9 "detached HEAD — check out a branch first"
+  if [ -z "$cur" ] || [ "$cur" = "HEAD" ]; then die 9 "detached HEAD — check out a branch first"; fi
   def="$(default_branch)" || die 9 "cannot determine the default branch (no remote HEAD / config / main / master)"
 
   # Re-run the gate on the exact tree being shipped (contract-doc edits staged since preflight
@@ -192,7 +192,7 @@ land() {
 handoff() {
   local cur def branch
   cur="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-  [ -n "$cur" ] && [ "$cur" != "HEAD" ] || die 9 "detached HEAD — check out a branch first"
+  if [ -z "$cur" ] || [ "$cur" = "HEAD" ]; then die 9 "detached HEAD — check out a branch first"; fi
   git remote get-url origin >/dev/null 2>&1 || die 8 "no remote — git is the transport (R72); add one first"
   printf '== ship.sh: queue export (R60)\n'
   "$here/tq" export || printf 'ship.sh: warn: tq export failed (continuing)\n' >&2
