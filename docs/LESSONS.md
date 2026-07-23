@@ -18,6 +18,10 @@ ledger) and not in-flight work (that's the queue) — just "watch out for X here
   (single-quoted). A literal `'` in the message (e.g. `owner's`) terminates the quote → the program
   breaks at runtime AND shellcheck trips (SC1036/SC2026). Reword to avoid apostrophes
   (`the owner's call` → `belongs to the owner`).
+- **BSD `wc` pads with leading whitespace:** `wc -c < f` on macOS emits `"  1200000"`, so a
+  digits-only guard (`case … *[!0-9]*`) reads it as garbage and zeroes the value — the 3.13.0
+  capture-rotation bug (green locally on GNU, red on macOS CI). Strip first:
+  `wc -c < f | tr -d '[:space:]'`.
 - **Tab-joined `read` needs `IFS=$'\t'`:** any `read` splitting a tab-joined `jq` line whose last
   field is free text (a task subject) must set `IFS=$'\t'` — the trailing subject can carry spaces
   and a default-IFS split corrupts it (the confirmed R32·1 status-line bug). Readers: `statusline.sh`,
