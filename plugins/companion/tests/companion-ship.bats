@@ -11,7 +11,26 @@ setup() {
   export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"
   export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"
   export CLAUDE_COMPANION_SESSION_ID="s1"
+  export SHIP_CI_WATCH=0        # R74: default the CI watch OFF for the fixture (no GitHub remote);
+                                # the R74 tests re-enable it with a stubbed gh. Keeps land tests fast.
   WORK="$(mktemp -d)"
+}
+
+# Stub `gh` on PATH so watch_ci resolves it before any real gh: `run list` yields a run id,
+# `run view` yields $1 (e.g. completed/success). Re-enables the watch with tiny timeouts.
+_gh_stub() {  # $1 = what `gh run view` reports
+  mkdir -p "$WORK/stub"
+  cat > "$WORK/stub/gh" <<STUB
+#!/usr/bin/env bash
+case "\$1 \$2" in
+  "run list") echo 999 ;;
+  "run view") echo "$1" ;;
+  *) exit 0 ;;
+esac
+STUB
+  chmod +x "$WORK/stub/gh"
+  export PATH="$WORK/stub:$PATH"
+  export SHIP_CI_WATCH=1 SHIP_CI_APPEAR=1 SHIP_CI_POLL=1 SHIP_CI_TIMEOUT=2
 }
 teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR" "$WORK"; }
 
@@ -154,6 +173,33 @@ _repo() {  # $1=default-branch name
   run "$SHIP" land -F "$WORK/msg.txt" --gate env true                           # two-word gate, last
   [ "$status" -eq 0 ]                                                           # DA #1: not a spurious exit 4
   [ "$(git rev-parse --abbrev-ref HEAD)" = "main" ]
+}
+
+@test "ship.sh land: ENFORCES the CI watch — GREEN run exits 0 (R74)" {
+  _repo main
+  _gh_stub completed/success
+  printf 'b\n' > b.txt
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"CI GREEN"* ]]
+}
+
+@test "ship.sh land: CI RED after a successful push exits 10 — SHIPPED, fix-forward not un-shipped (R74)" {
+  _repo main
+  _gh_stub completed/failure
+  printf 'b\n' > b.txt
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 10 ]
+  [[ "$output" == *"CI RED"* ]]
+  [ "$(git -C "$WORK/remote.git" log --format=%s -1 main)" = "msg subject" ]   # commit still landed
+}
+
+@test "ship.sh land: SHIP_CI_WATCH=0 opts out of the watch (R74)" {
+  _repo main
+  printf 'b\n' > b.txt
+  run "$SHIP" land -F "$WORK/msg.txt"            # setup() already exports SHIP_CI_WATCH=0
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"CI watch off"* ]]
 }
 
 @test "ship.sh preflight: gate + drift + export + summary in one call; no gate -> exit 3" {

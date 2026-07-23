@@ -184,6 +184,45 @@ land() {
     fi
   fi
   printf '== ship.sh: shipped %s on %s\n' "$(git rev-parse --short "$def")" "$def"
+  # ENFORCE the CI watch (R74): a green local gate is NOT a green CI (gitleaks/shellcheck SKIP
+  # locally when absent; a shellcheck build can miss a lint CI flags — the SC2015 that shipped red
+  # twice). So after the push, watch the run to conclusion. Best-effort + bounded: the ship already
+  # landed, so no watch problem un-ships — only a genuine CI-RED gets a distinct exit (10).
+  if [ "$had_remote" -eq 1 ]; then watch_ci; return $?; fi
+}
+
+# Watch the CI run the push just triggered, to conclusion (R74). Bounded + best-effort:
+#   no gh / no run appears / timeout  → reported, exit 0 (a watch gap must never un-ship a landed
+#   commit); CI concluded RED → exit 10 (SHIPPED — fix forward, the commit is already on default).
+# Opt out with SHIP_CI_WATCH=0; tune SHIP_CI_APPEAR / SHIP_CI_POLL / SHIP_CI_TIMEOUT (seconds).
+watch_ci() {
+  case "${SHIP_CI_WATCH:-1}" in 0) printf '== ship.sh: CI watch off (SHIP_CI_WATCH=0)\n'; return 0 ;; esac
+  command -v gh >/dev/null 2>&1 || { printf '== ship.sh: gh not found — CI UNWATCHED (a local PASS is not a CI PASS)\n'; return 0; }
+  local sha short appear poll timeout run_id tries max st
+  sha="$(git rev-parse HEAD 2>/dev/null || true)"; short="$(git rev-parse --short HEAD 2>/dev/null || true)"
+  appear="${SHIP_CI_APPEAR:-90}"; poll="${SHIP_CI_POLL:-10}"; timeout="${SHIP_CI_TIMEOUT:-300}"
+  printf '== ship.sh: watching CI for %s (opt out: SHIP_CI_WATCH=0) …\n' "$short"
+  # 1) wait for the run to register against this commit
+  run_id=""; tries=0; max=$(( appear / 5 + 1 ))
+  while [ "$tries" -lt "$max" ]; do
+    run_id="$(gh run list --limit 20 --json databaseId,headSha \
+      -q "map(select(.headSha==\"$sha\"))[0].databaseId // empty" 2>/dev/null || true)"
+    [ -n "$run_id" ] && break
+    tries=$((tries + 1)); sleep 5
+  done
+  [ -n "$run_id" ] || { printf '== ship.sh: no CI run appeared for %s — UNWATCHED (check: gh run list)\n' "$short"; return 0; }
+  # 2) poll to conclusion (check-then-sleep: an already-finished run costs no wait)
+  tries=0; max=$(( timeout / poll + 1 ))
+  while [ "$tries" -lt "$max" ]; do
+    st="$(gh run view "$run_id" --json status,conclusion -q '.status + "/" + (.conclusion // "")' 2>/dev/null || true)"
+    case "$st" in
+      completed/success) printf '== ship.sh: CI GREEN (run %s)\n' "$run_id"; return 0 ;;
+      completed/*)       printf 'ship.sh: CI RED (run %s: %s) — SHIPPED; fix forward: gh run view %s --log-failed\n' "$run_id" "$st" "$run_id" >&2; return 10 ;;
+    esac
+    tries=$((tries + 1)); sleep "$poll"
+  done
+  printf '== ship.sh: CI still running after %ss — not failed; check: gh run watch %s\n' "$timeout" "$run_id"
+  return 0
 }
 
 # Cross-machine handoff (R72): checkpoint the WIP + queue for another machine — NOT a ship.

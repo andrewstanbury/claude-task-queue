@@ -82,6 +82,13 @@ proposal, the commit message, the history curation.
    on it (gate-fail → fix + re-land; non-ff → rebase/curate then re-land, the retry path ships your
    existing commits; push-fail → the commit is safe locally, resolve the remote; nothing/refused →
    read + decide). Don't pre-guess the failure; the bail text is authoritative.
+   - **After the push, land ENFORCES a CI watch (R74)** — a green local gate is *not* a green CI
+     (gitleaks/shellcheck skip locally when absent; a shellcheck build can miss a lint CI catches).
+     Land blocks until the run concludes, so **give this Bash call a long timeout** (the watch is
+     bounded by `SHIP_CI_TIMEOUT`, default 300s). **exit 10 = SHIPPED but CI RED** → the commit is
+     already on the default, so **fix forward** (read `gh run view <id> --log-failed`, fix, land the
+     fix), don't try to un-ship. `gh` absent / no run / timeout → land says so and exits 0 (unwatched,
+     not failed). Opt out only when you must with `SHIP_CI_WATCH=0`.
    - **PR flow instead:** if the owner wants review first, skip `land`, push the branch, and open
      a PR with `gh` (structured body: one-line summary · changes grouped by area · requirement IDs
      · test plan + result); without `gh`, print the compare URL.
