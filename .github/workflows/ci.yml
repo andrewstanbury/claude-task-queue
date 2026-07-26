@@ -43,3 +43,20 @@ jobs:
           GIT_CONFIG_GLOBAL: /dev/null
           GIT_CONFIG_NOSYSTEM: "1"
         run: ./check.sh
+
+  # A green suite proves the tests pass, not that they CAN fail. This job applies each declared
+  # mutation to the enforced core and requires the suite to go RED for every one; a mutation that
+  # stays green is a hole — a test that cannot fail. Kept OFF the `check` job on purpose: it costs
+  # a full suite run per mutation, and the default gate has to stay fast enough to run constantly.
+  # Linux-only: it is asserting test sensitivity, not platform behaviour, which `check` covers.
+  mutate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y bats
+      - name: Mutation gate
+        env:
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_CONFIG_NOSYSTEM: "1"
+        run: ./check.sh --mutate

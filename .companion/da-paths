@@ -1,0 +1,5 @@
+# Paths whose change requires a devil's-advocate pass before `ship.sh land` (R78).
+# One extended-regex per line, matched against changed paths. No file ⇒ no gate.
+# For THIS repo the critical set is the enforced core: code that blocks, injects or controls flow.
+^plugins/[^/]+/(bin|lib)/
+^check\.sh$

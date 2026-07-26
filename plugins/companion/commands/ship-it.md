@@ -85,7 +85,10 @@ proposal, the commit message, the history curation.
    - If a version/marketplace manifest is part of the change, make sure it's bumped **before** land
      (the gate re-runs there and checks version match).
 5. **Land — one call.** *(Invoked with `pr`? Skip straight to the PR-flow bullet — don't call
-   `land`.)* Run `"${CLAUDE_PLUGIN_ROOT}/bin/ship.sh" land -F <msgfile>` (with the same gate step 1
+   `land`.)* **If the diff touches `plugins/*/bin|lib` or `check.sh`, `land` REFUSES without
+   `--da "<what the devil's-advocate attacked, or: clean>"` (exit 11, R78)** — step 2's pass is
+   required there, not optional, and the note rides the commit as a `Devil-advocate:` trailer.
+   Don't write "clean" unless one actually ran and found nothing. Run `"${CLAUDE_PLUGIN_ROOT}/bin/ship.sh" land -F <msgfile>` (with the same gate step 1
    used — passed via `--gate` or recognized — append `--gate <cmd…>` **last** — it slurps the rest
    of the line as the gate command, so a multi-word gate like `--gate make test` works, matching
    the positional `preflight <cmd…>` form). The rail re-runs the gate on the exact tree

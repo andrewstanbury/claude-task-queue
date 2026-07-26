@@ -6,7 +6,7 @@
 # mechanical spine those steps sandwich, collapsing ~8-12 model round-trips into two calls:
 #
 #   ship.sh preflight [gate-cmd...]      verify gate -> drift backstop -> tq export -> summary
-#   ship.sh land -F <msgfile> [--gate <cmd>] [--prune-all]
+#   ship.sh land -F <msgfile> [--da <finding>] [--prune-all] [--gate <cmd>]
 #                                        re-verify -> stage -> commit -> ff-only merge to the
 #                                        default branch -> push -> prune the shipped branch
 #
@@ -19,7 +19,7 @@
 #   0 ok · 2 usage · 3 no gate found · 4 gate failed · 5 not a git repo · 6 nothing to commit
 #   7 merge is not fast-forward (curate/rebase, then retry) · 8 push failed (local state is
 #   committed+merged — safe, report it) · 9 refused an unsafe state (detached HEAD, staged
-#   secret, delete-guard)
+#   secret, delete-guard) · 11 enforced-core diff shipped with no --da <finding> (R78)
 set -uo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -90,10 +90,16 @@ preflight() {
 }
 
 land() {
-  local msgfile="" prune_all=0 gate_cmd=() gate cur def had_remote=0
+  local msgfile="" prune_all=0 gate_cmd=() gate cur def had_remote=0 da="" core=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
       -F) shift; msgfile="${1:-}"; shift || true ;;
+      # --da <one line>: the devil's-advocate finding, or "clean". Required for the paths in
+      # .companion/da-paths (gate below); harmless everywhere else.
+      --da) shift; da="${1:-}"
+            case "${da}" in -*) die 2 "--da needs a finding, not a flag ($da)" ;; esac
+            [ -n "${da// /}" ] || die 2 "--da needs a non-empty finding (or the word: clean)"
+            shift || true ;;
       # --gate slurps EVERYTHING after it as the gate command+args, so a multi-word gate
       # (`--gate make test`) works the same as preflight's trailing varargs — no per-flag
       # asymmetry. It must therefore come LAST (after -F / --prune-all).
@@ -114,6 +120,24 @@ land() {
   [ "${#gate[@]}" -gt 0 ] || die 3 "no gate found — pass one: --gate <cmd>"
   run_gate "${gate[@]}"
 
+  # A devil's-advocate pass is REQUIRED for paths this repo declares critical (R78) — prose said
+  # to run one and prose is skippable; the defects that reached `land` here were invisible to a
+  # green gate. WHICH paths is the REPO's to declare (R9/R1 — this ships to strangers): one
+  # extended-regex per line in `.companion/da-paths`, no file ⇒ no gate. Runs after the gate re-run
+  # (a red gate stays exit 4) and before staging. It cannot verify a pass happened — only make
+  # skipping deliberate and auditable. NOTE: ship.sh is AT the 300-line cap; next addition splits.
+  if [ -s .companion/da-paths ] && [ -z "$da" ]; then
+    # --no-renames so a rename reports BOTH paths (renaming the gate away must not slip through);
+    core="$( { git -c core.quotepath=false diff --name-only --no-renames HEAD 2>/dev/null
+               git -c core.quotepath=false ls-files --others --exclude-standard 2>/dev/null
+               git -c core.quotepath=false log --name-only --pretty=format: "$def..HEAD" 2>/dev/null; } \
+             | grep -Ef .companion/da-paths | sort -u )"
+    if [ -n "$core" ]; then
+      printf '%s\n' "$core" | sed 's/^/    /' >&2
+      die 11 "critical paths above (.companion/da-paths) — re-run with --da \"<what the devil's-advocate attacked, or: clean>\" (R78)."
+    fi
+  fi
+
   git add -A
   if git diff --cached --quiet; then
     # Nothing staged. That's fine IF unmerged commits already exist (the retry path: a previous
@@ -130,7 +154,15 @@ land() {
     if git diff --cached | grep -qE "$(companion_secret_re)"; then
       die 9 "staged diff matches a credential shape — unstage the secret before shipping"
     fi
-    git commit -F "$msgfile" || die 9 "commit failed"
+    # Build the message in a COPY — `-F` is the caller's file and the retry path is first-class,
+    # so appending in place duplicated the trailer. No blank line: that orphans Co-Authored-By.
+    _cmsg="$msgfile"
+    if [ -n "$da" ]; then
+      _cmsg="$(mktemp)"; cat "$msgfile" > "$_cmsg"
+      printf 'Devil-advocate: %s\n' "$da" >> "$_cmsg"
+    fi
+    git commit -F "$_cmsg" || die 9 "commit failed"
+    [ "$_cmsg" = "$msgfile" ] || rm -f "$_cmsg"
     printf '== ship.sh: committed %s on %s\n' "$(git rev-parse --short HEAD)" "$cur"
   fi
 

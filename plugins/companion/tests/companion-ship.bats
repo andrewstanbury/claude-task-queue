@@ -42,8 +42,14 @@ _repo() {  # $1=default-branch name
   git config user.email t@t; git config user.name t
   git checkout -qb "$1" 2>/dev/null || true
   printf '#!/bin/sh\nexit 0\n' > check.sh; chmod +x check.sh
+  # R78: the DA gate is opt-in per repo — declare this fixture's critical paths, and commit them
+  # with the rest so the tree starts CLEAN (an untracked file here broke the exit-6 cases).
+  mkdir -p .companion
+  printf '^plugins/[^/]+/(bin|lib)/\n^check\\.sh$\n' > .companion/da-paths
   printf 'a\n' > a.txt; git add -A; git commit -qm init; git push -qu origin "$1" 2>/dev/null
   printf 'msg subject\n\nmsg body\n' > "$WORK/msg.txt"
+  # R78: the DA gate is opt-in per repo. Declare this fixture's critical paths so the gate is live
+  # (a repo with no .companion/da-paths must be unaffected — that is its own case below).
 }
 
 @test "ship.sh land: happy path — commit, ff-merge to default, push, prune shipped branch (local+remote)" {
@@ -170,7 +176,7 @@ _repo() {  # $1=default-branch name
   _repo main
   rm check.sh                                                                   # force an explicit gate
   git checkout -qb feature/x; printf 'b\n' > b.txt
-  run "$SHIP" land -F "$WORK/msg.txt" --gate env true                           # two-word gate, last
+  run "$SHIP" land -F "$WORK/msg.txt" --da "gate-parsing fixture, not a real change" --gate env true                           # two-word gate, last
   [ "$status" -eq 0 ]                                                           # DA #1: not a spurious exit 4
   [ "$(git rev-parse --abbrev-ref HEAD)" = "main" ]
 }
@@ -216,4 +222,136 @@ _repo() {  # $1=default-branch name
   rm check.sh
   run "$SHIP" preflight
   [ "$status" -eq 3 ]
+}
+
+# ── enforced-core diffs require a devil's-advocate pass (R78) ──────────────────────────────────
+# ship-it.md always *said* to run one on a consequential change; prose is skippable, and the two
+# defects that reached `land` here — a predicate that selected the set it existed to exclude, and a
+# termination claim that was false — were invisible to a green gate and caught only by that pass.
+
+@test "ship.sh land: an enforced-core diff is REFUSED without --da (exit 11, R78)" {
+  _repo main
+  git checkout -qb feature/x
+  mkdir -p plugins/companion/bin; printf 'echo changed\n' > plugins/companion/bin/x.sh
+  before="$(git rev-parse HEAD)"
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 11 ]
+  [ "$(git rev-parse HEAD)" = "$before" ]              # nothing committed
+  [[ "$output" == *"plugins/companion/bin/x.sh"* ]]    # names the file that triggered it
+  [[ "$output" == *"--da"* ]]
+}
+
+@test "ship.sh land: --da lets an enforced-core diff ship and records the trailer (R78)" {
+  _repo main
+  git checkout -qb feature/x
+  mkdir -p plugins/companion/bin; printf 'echo changed\n' > plugins/companion/bin/x.sh
+  git push -qu origin feature/x 2>/dev/null
+  run "$SHIP" land -F "$WORK/msg.txt" --da "attacked the arg parser and the exit codes; clean"
+  [ "$status" -eq 0 ]
+  run git log -1 --format=%B main
+  [[ "$output" == *"Devil-advocate: attacked the arg parser"* ]]   # auditable later
+}
+
+@test "ship.sh land: a NON-core diff still ships with no --da (R78 stays narrow)" {
+  _repo main
+  git checkout -qb feature/x; printf 'docs\n' > README.md
+  git push -qu origin feature/x 2>/dev/null
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 0 ]
+  run git log -1 --format=%B main
+  [[ "$output" != *"Devil-advocate"* ]]
+}
+
+@test "ship.sh land: lib/ counts as enforced core too (R78)" {
+  # `bin/` and `check.sh` were covered; without this, narrowing the pattern to bin-only passed.
+  _repo main
+  git checkout -qb feature/x
+  mkdir -p plugins/companion/lib; printf 'helper() { :; }\n' > plugins/companion/lib/y.sh
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 11 ]
+  [[ "$output" == *"plugins/companion/lib/y.sh"* ]]
+}
+
+@test "ship.sh land: check.sh itself counts as enforced core (R78)" {
+  _repo main
+  git checkout -qb feature/x; printf '#!/bin/sh\n# tweak\nexit 0\n' > check.sh
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 11 ]
+  [[ "$output" == *"check.sh"* ]]
+}
+
+@test "ship.sh land: rename bypasses are closed — both sides of a rename count (R78)" {
+  # `git status --porcelain` prints `old -> new` for a rename, which a naive path grep misses.
+  # The worst case was renaming check.sh AWAY — removing the project's gate — and shipping clean.
+  _repo main
+  # The core file must already exist ON MAIN: committing it on the branch would surface the path
+  # through `log def..HEAD` and mask the very bypass under test.
+  mkdir -p plugins/companion/bin docs
+  printf 'x\n' > plugins/companion/bin/x.sh; git add -A; git commit -qm "add core file"
+  git push -q origin main 2>/dev/null
+  git checkout -qb feature/x
+  # Rename a critical file OUT of the critical set. With rename DETECTION on, `--name-only` reports
+  # only the destination (`docs/x.sh`), which matches nothing — the change to the enforced core
+  # becomes invisible. `--no-renames` reports both sides, so the departing path is still seen.
+  git mv plugins/companion/bin/x.sh docs/x.sh
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 11 ]
+  [[ "$output" == *"plugins/companion/bin/x.sh"* ]]   # the path it LEFT, not just where it landed
+}
+
+@test "ship.sh land: paths with spaces and non-ASCII are still seen (R78)" {
+  _repo main
+  git checkout -qb feature/x
+  mkdir -p plugins/companion/bin
+  printf 'x\n' > "plugins/companion/bin/my script.sh"
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 11 ]
+  [[ "$output" == *"my script.sh"* ]]
+  rm -f "plugins/companion/bin/my script.sh"
+  printf 'x\n' > "plugins/companion/bin/café.sh"
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 11 ]
+  [[ "$output" == *"café.sh"* ]]        # quotepath off — not \303\251
+}
+
+@test "ship.sh land: NO .companion/da-paths means NO gate — a stranger's repo is untouched (R78/R9)" {
+  # The gate must never assume the companion's own layout. A third-party repo with a root check.sh
+  # (the name this project itself recommends) would otherwise be permanently unable to ship.
+  _repo main
+  rm -f .companion/da-paths
+  git add -A; git commit -qm "drop da-paths"
+  git checkout -qb feature/x
+  mkdir -p plugins/companion/bin; printf 'x\n' > plugins/companion/bin/x.sh
+  printf '#!/bin/sh\n# edited\nexit 0\n' > check.sh
+  git push -qu origin feature/x 2>/dev/null
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 0 ]                    # ships freely: this repo declared nothing critical
+}
+
+@test "ship.sh land: --da rejects a flag or a whitespace-only value (R78)" {
+  _repo main
+  git checkout -qb feature/x
+  mkdir -p plugins/companion/bin; printf 'x\n' > plugins/companion/bin/x.sh
+  run "$SHIP" land -F "$WORK/msg.txt" --da --prune-all
+  [ "$status" -eq 2 ]                    # would have eaten the flag and recorded it as the finding
+  run "$SHIP" land -F "$WORK/msg.txt" --da "   "
+  [ "$status" -eq 2 ]                    # would have recorded an empty trailer
+}
+
+@test "ship.sh land: the trailer does not orphan Co-Authored-By, and retries don't duplicate (R78)" {
+  _repo main
+  git checkout -qb feature/x
+  mkdir -p plugins/companion/bin; printf 'x\n' > plugins/companion/bin/x.sh
+  printf 'subject\n\nbody\n\nCo-Authored-By: Someone <s@s>\n' > "$WORK/msg.txt"
+  git push -qu origin feature/x 2>/dev/null
+  run "$SHIP" land -F "$WORK/msg.txt" --da "attacked the arg parser; clean"
+  [ "$status" -eq 0 ]
+  run git log -1 --format=%B main
+  [[ "$output" == *"Co-Authored-By: Someone"* ]]        # still present...
+  [[ "$output" == *"Devil-advocate: attacked"* ]]
+  run git log -1 --format=%B main
+  run bash -c 'git log -1 --format=%B main | git interpret-trailers --parse'
+  [[ "$output" == *"Co-Authored-By: Someone"* ]]        # ...and still a RECOGNISED trailer
+  run grep -c 'Devil-advocate' "$WORK/msg.txt"
+  [ "$output" = "0" ]                                    # caller's file never mutated
 }

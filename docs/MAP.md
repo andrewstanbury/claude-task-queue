@@ -15,7 +15,8 @@ the secret gate guards every write (see ROADMAP "The loop").
 | `docs/ROADMAP.md` | Direction and backlog. |
 | `docs/MAP.md` | This file. |
 | `docs/GLOSSARY.md` | The companion's **coined vocabulary** — a *term → meaning* index (R37). Claude-facing, terse, **loaded on demand** (not injected each session); vocabulary only (gotchas → LESSONS, decisions → ledger). |
-| `check.sh` | One-command gate: JSON valid · `claude plugin validate` · **version match (each `plugin.json` == its marketplace entry)** · ShellCheck · secret scan · 300-line size guard · bats. CI runs this. |
+| `plugins/companion/tests/mutations.txt` | Declared mutations for `./check.sh --mutate` (R78) — one per line, `<file>::<sed>::<what it breaks>`. Each must turn the suite RED; one that stays green is a **hole** (a test that cannot fail), and a pattern that no longer matches is reported as a hole too, so the set can't rot. |
+| `check.sh` | One-command gate: JSON valid · `claude plugin validate` · **version match (each `plugin.json` == its marketplace entry)** · ShellCheck · secret scan · 300-line size guard · bats. CI runs this. Also **`--mutate`** (R78, CI-only job): applies each declared mutation to the enforced core and requires the suite to redden. Frontmatter is validated as a **strict flat `key: value` map** — the host parses it as YAML and drops the whole block on a throw, which a line-grep can't see (R75/R78) — and a ledger row stating a hard measurement must name where it was measured. |
 | `.claude-plugin/marketplace.json` | Marketplace manifest (the one `companion` plugin). |
 
 ## plugins/companion — the whole system

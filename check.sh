@@ -1,4 +1,53 @@
 #!/usr/bin/env bash
+
+# ── ./check.sh --mutate (R78) ──────────────────────────────────────────────────────────────────
+# A green suite proves the tests pass, not that they CAN fail. Three fixtures in one session were
+# vacuous — each masked by another rule it also tripped — and every one hid a real defect. This
+# mode applies each declared mutation to the enforced core and asserts the suite goes RED. A
+# mutation that stays green is a hole: a test that cannot fail. CI-only by design; it costs a full
+# suite run per mutation, so it is never part of the default gate.
+if [ "${1:-}" = "--mutate" ]; then
+  mfile="plugins/companion/tests/mutations.txt"
+  [ -f "$mfile" ] || { echo "no $mfile"; exit 2; }
+  command -v bats >/dev/null 2>&1 || { echo "  SKIP — bats not installed"; exit 0; }
+  # RESTORE ON ANY EXIT. This mutates the live working tree — including `secret-guard.sh`, a hook
+  # that is ACTIVE in this repo. Without a trap, one Ctrl-C leaves the secret gate disabled and a
+  # mutated file staged by the next `git add -A` (R7 must never fail open). Belt and braces: the
+  # trap restores, and `.gitignore` covers `*.mutbak` so a stray one can never be committed.
+  # shellcheck disable=SC2329  # invoked via the trap below, not by name
+  _mut_restore() {
+    find plugins -name '*.mutbak' -print0 2>/dev/null |
+      while IFS= read -r -d '' b; do mv -f "$b" "${b%.mutbak}"; done
+  }
+  trap '_mut_restore' EXIT INT TERM HUP
+  holes=0; ran=0
+  while IFS= read -r line; do
+    case "$line" in ''|'#'*) continue ;; esac
+    tgt="${line%%::*}"; tmp="${line#*::}"; sedscript="${tmp%%::*}"; what="${tmp#*::}"
+    [ -f "$tgt" ] || { echo "  SKIP (missing) $tgt"; continue; }
+    cp "$tgt" "$tgt.mutbak"
+    if ! sed -i.bak "$sedscript" "$tgt" 2>/dev/null; then
+      mv "$tgt.mutbak" "$tgt"; rm -f "$tgt.bak"
+      echo "  FAIL mutation did not apply — the sed script is stale: $what"; holes=$((holes+1)); continue
+    fi
+    rm -f "$tgt.bak"
+    if cmp -s "$tgt" "$tgt.mutbak"; then
+      mv "$tgt.mutbak" "$tgt"
+      echo "  FAIL mutation matched NOTHING (stale pattern): $what"; holes=$((holes+1)); continue
+    fi
+    ran=$((ran+1))
+    if bats plugins/companion/tests >/dev/null 2>&1; then
+      echo "  HOLE  suite stayed GREEN with: $what"; holes=$((holes+1))
+    else
+      echo "  ok    caught: $what"
+    fi
+    mv "$tgt.mutbak" "$tgt"
+  done < "$mfile"
+  echo
+  if [ "$holes" -gt 0 ]; then printf '== Mutation result ==\n  %s HOLE(S) of %s — a test that cannot fail is not coverage\n' "$holes" "$ran"; exit 1; fi
+  echo "== Mutation result =="; echo "  all $ran mutations caught"; exit 0
+fi
+
 # One-command check — the single source of truth for what this repo enforces.
 #
 # CI (.github/workflows/ci.yml) provisions every tool and runs THIS script, so
@@ -121,21 +170,28 @@ for f in plugins/companion/commands/*.md; do
   hraw="$(printf '%s\n' "$fm" | awk -F'argument-hint: ' '/^argument-hint: /{print $2; exit}')"
   d="$(unquote "$draw")"; hint="$(unquote "$hraw")"
 
-  # FRONTMATTER MUST PARSE (R75). check.sh line-greps the frontmatter; the HOST parses it as YAML and
-  # silently drops the WHOLE block on a throw — description and argument-hint together — behind a
-  # debug-level warning. A params-first `description: [target] …` opens a YAML flow sequence and does
-  # exactly that. Two rules keep an unquoted scalar safe; anything else must be quoted.
-  for spec in "description:$draw" "argument-hint:$hraw"; do
-    key="${spec%%:*}"; raw="${spec#*:}"
-    [ -n "$raw" ] || continue
-    case "$raw" in \"*\") continue ;; esac                  # quoted: the indicators are inert
-    case "$raw" in
-      [\[\{\*\&\!%@\`\>\|,\#]*)
-        echo "  FAIL $(basename "$f") $key starts with a YAML indicator and is unquoted — the host drops the ENTIRE frontmatter (R75)"; tok_fail=1; fail=1 ;;
-    esac
-    case "$raw" in
-      *": "*)
-        echo "  FAIL $(basename "$f") $key contains ': ' and is unquoted — YAML reads it as a nested mapping (R75)"; tok_fail=1; fail=1 ;;
+  # FRONTMATTER SANITY for the two keys this gate reads (R75/R78). The host parses frontmatter as
+  # YAML and drops the WHOLE block on a throw — description and argument-hint together — behind a
+  # debug-level warning, which a line-grep can never see. This is a LINT ON KNOWN-BAD SHAPES, not a
+  # YAML validator, and it is scoped to `description:`/`argument-hint:` on purpose: an earlier
+  # whole-block whitelist rejected `allowed-tools:` block/flow sequences and single-quoted scalars,
+  # all of which the host accepts happily — a gate that breaks valid commands is worse than none.
+  # It does NOT catch every throw (duplicate keys, a `? ` indicator); the ledger says so plainly.
+  for fmkey in description argument-hint; do
+    fmn="$(printf '%s\n' "$fm" | grep -c "^$fmkey:" || true)"
+    if [ "${fmn:-0}" -gt 1 ]; then
+      echo "  FAIL $(basename "$f") duplicate \`$fmkey:\` key — YAML throws and the host drops the ENTIRE block (R78)"; tok_fail=1; fail=1
+    fi
+    fmv="$(printf '%s\n' "$fm" | sed -n "s/^$fmkey: *//p" | head -1)"
+    [ -n "$fmv" ] || continue
+    case "$fmv" in
+      \"*\"|\'*\') : ;;                                       # properly closed quotes: fine
+      \"*|\'*)
+        echo "  FAIL $(basename "$f") \`$fmkey\` opens a quote it never closes — the host drops the ENTIRE block (R78)"; tok_fail=1; fail=1 ;;
+      [\[\{\*\&\!%@\`\>\|,\#?-]*)
+        echo "  FAIL $(basename "$f") \`$fmkey\` starts with a YAML indicator and is unquoted — the host drops the ENTIRE block (R75)"; tok_fail=1; fail=1 ;;
+      *": "*|*:)
+        echo "  FAIL $(basename "$f") \`$fmkey\` contains a colon and is unquoted — YAML reads it as a nested mapping (R75)"; tok_fail=1; fail=1 ;;
     esac
   done
 
@@ -193,6 +249,27 @@ $dp
 EOF
   fi
 done
+# A ledger MEASUREMENT must name where it came from (R78). "The no-progress cap remains the
+# backstop" shipped in an R-cell and was simply false; three byte figures in another were wrong.
+# Neither is mechanically checkable — but *asserting a number without saying how you got it* is,
+# and that is the habit that produced both. Hard units only (bytes / tokens / N-of-N): a rhetorical
+# "~90% of the value" is a judgement, not a measurement, and must not trip this. Calibrated against
+# the existing ledger before landing: 5 rows carry a hard measurement, 0 lacked evidence.
+led_fail=0
+if [ -f docs/REQUIREMENTS.md ]; then
+  while IFS= read -r row; do
+    case "$row" in '| **R'*) : ;; *) continue ;; esac
+    if printf '%s' "$row" | grep -qE '(^|[^~])[0-9][0-9,]* ?(B[^a-zA-Z]|bytes|tokens?)|(^|[^~])[0-9]+/[0-9]+'; then
+      # shellcheck disable=SC2016  # backticks are literal here — they delimit a filename in the prose
+      if ! printf '%s' "$row" | grep -qiE 'measured|verified|reproduc|exercis|mutation-tested|bats|check\.sh|`[^`]*\.(sh|md|json|bats)`'; then
+        rid="$(printf '%s' "$row" | sed -n 's/^| \*\*\(R[0-9]*\)\*\*.*/\1/p')"
+        echo "  FAIL docs/REQUIREMENTS.md $rid states a measurement with no evidence — say where it was measured (R78)"; led_fail=1; fail=1
+      fi
+    fi
+  done < docs/REQUIREMENTS.md
+fi
+[ "$led_fail" -eq 0 ] && echo "  ok (ledger measurements cite their evidence)"
+
 [ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/12288B; command descriptions ≤140B; arg-taking commands hinted)"
 
 # NOTE: the contract-drift backstop (bin/contract-drift.sh) deliberately does NOT run here
