@@ -35,6 +35,15 @@ Bash + `jq`, zero build, one install.
   **`/companion:docs` first** to log the contract, applies on a branch, stays gated on your
   safety checks, auto-reverts on red, and confirms each step. **Name a module** and it runs exactly
   one such pass on that target (this absorbed the former `/companion:regen`).
+- **`/companion:docs [scope]`** — excavates the decisions your repo **depends on but never wrote
+  down** and records each at the strongest tier it can reach: an executable check, a 🔒 locked
+  requirement, or a 🔓 open one. It asks *you* for the "why" rather than inventing one — an
+  assumption you never picked never becomes a 🔒. This is what stops `/companion:advise` from
+  proposing to delete something load-bearing that simply wasn't communicated.
+- **`/companion:cover [scope]`** — ranks your critical flows by **criticality × coverage gap**, then
+  recommends the ideal test for each and writes the ones you pick, in your project's own test
+  runner. It's licensed to conclude "these paths are already covered — write nothing," and it says
+  plainly which critical flows you left unguarded by choice.
 - **`/companion:autopilot [on|off|status]`** — keep working the queue without stopping — keep it on and keep queuing tasks.
   Add **`autopilot ship on`** to auto-commit completed work to an `autopilot/*` branch (reversible,
   never main, no push) for you to review + ship on return. Add **`autopilot decisive on`** to have it
@@ -44,6 +53,10 @@ Bash + `jq`, zero build, one install.
   (turning autopilot off first, preserving each task's ❓/⏳/📋 class). Session pickup only; it hands
   off to `/companion:review` for anything waiting on your input. Name the branch a
   `/companion:handoff` pushed to pick that up on this machine; without one it auto-detects.
+- **`/companion:handoff`** — switching machines **mid-task**: commits your working tree *and* the
+  task queue to a pushed branch, so the other machine picks up exactly where you stopped with
+  `/companion:resume <branch>`. It's a checkpoint, not a ship — your gate deliberately doesn't run
+  (a red tree mid-work is normal) and nothing lands on your main branch.
 - **`/companion:review`** — walks the backlog that needs *you* — parked ❓ decisions + blocked ⏳
   owner-actions — one at a time, recommendation-first, recording each pick before new work.
   **Runs automatically when you turn autopilot off** — so decisions deferred while it ran get your
@@ -72,6 +85,8 @@ and ledger. `/companion:ship-it` keeps this index current (R57).
 - **[docs/MAP.md](docs/MAP.md)** — the code map: every file and what it does.
 - **[docs/ROADMAP.md](docs/ROADMAP.md)** — where it's heading.
 - **[docs/GLOSSARY.md](docs/GLOSSARY.md)** — the coined vocabulary.
+- **[docs/CONFIG.md](docs/CONFIG.md)** — the configuration reference (there is deliberately very little of it).
+- **[docs/LESSONS.md](docs/LESSONS.md)** — repo-specific gotchas, injected each session so they aren't re-discovered.
 
 ## Requirements
 
