@@ -50,6 +50,16 @@ companion_ship_on()   { [ -n "${1:-}" ] && [ -f "$(companion_ship_flag "$1")" ];
 companion_decisive_flag() { printf '%s/decisive/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_decisive_on()   { [ -n "${1:-}" ] && [ -f "$(companion_decisive_flag "$1")" ]; }
 
+# SWEEP mode (R77) — decisive, but reaching BACKWARDS into the pile that is already parked.
+# Decisive stops new reversible decisions from being parked; sweep additionally stops the drain
+# treating a ❓-only queue as finished, so an unattended run works the existing options-parks using
+# each one's recorded `rec:`. Deliberately narrow in code: the ENFORCED part is only "don't stop".
+# WHICH parks are safe stays judgment (STEERING) — a park may exist precisely because it is
+# irreversible, and those must never be auto-applied; they get reclassified ⏳ so the loop ends.
+# `⏳` blocked and `decompose:` parks (R65) are NEVER eligible, in any mode.
+companion_sweep_flag()    { printf '%s/sweep/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
+companion_sweep_on()      { [ -n "${1:-}" ] && [ -f "$(companion_sweep_flag "$1")" ]; }
+
 # Per-repo feature OFF flags (R50) — a single per-repo file storing only OFF overrides, one
 # `<feature>=off` line each. Absence of a line ⇒ the feature's default (secret/steering
 # default ON). Read by every enforced-core reader (session-start steering, statusline shield);

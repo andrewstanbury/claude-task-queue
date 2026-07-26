@@ -1,13 +1,13 @@
 ---
-description: "on|off|status (empty=status) · ship on|off · decisive on|off — drain the queue autonomously, without stopping to ask"
-argument-hint: "[on|off|status | ship on|off|status | decisive on|off|status]"
+description: "on|off|status (empty=status) · ship on|off · decisive on|off · sweep on|off — drain the queue autonomously, without stopping"
+argument-hint: "[on|off|status | ship|decisive|sweep on|off|status]"
 ---
 
 Toggle autopilot for this repo by running the toggle script, passing `$ARGUMENTS` through verbatim
-(`on`, `off`, `status`, `ship on|off|status`, or `decisive on|off|status`; **empty → `status`**, the
+(`on`, `off`, `status`, or `ship`/`decisive`/`sweep` + `on|off|status`; **empty → `status`**, the
 script's own default — never assume `on`):
 
-`"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" <on|off|status | ship on|off|status | decisive on|off|status>`
+`"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" <on|off|status | ship|decisive|sweep on|off|status>`
 
 - **on** — **keep going without stopping** (R36) — *not* "the owner is away"; they may be present,
   queuing up more tasks and keeping it on deliberately. Run autonomous: keep draining the `tq`
@@ -29,5 +29,19 @@ script's own default — never assume `on`):
   as a `tq note`, and keeps going; it still parks (`❓`) / blocks (`⏳`) only the irreversible,
   externally-binding, or data-destructive. The audit trail is the safety — `/companion:review` reads
   the picks back. Shown as ✈️⚡ on the status line.
+
+- **sweep on|off** — toggle **sweep mode** (R77). The Stop hook stops treating a `❓`-only queue as
+  finished, so autopilot works the parks that were **marked reversible when they were set aside** —
+  `❓ [parked] rev: <choice> … ; rec: <pick>` — applying each recorded `rec:`. **Eligibility is that
+  marker, not a judgement made now:** no `rev:` ⇒ treated as irreversible ⇒ never swept (the safe
+  default for every park written before this existed), and the same for `⏳` (blocked *on the owner*
+  acting in the world — no mode can clear it) and `decompose:` parks (R65 — questions, not options).
+  It pairs with **plain autopilot**, which is what parks taste calls (R33); **decisive** parks only
+  the irreversible and must never mark those `rev:`. Scope is this session's parks. The run is
+  bounded by its own counter — the no-progress cap can't bound a sweep, since completing a swept
+  park resets it. Every pick is a `tq note`, so `/companion:review` still walks them. Shown as 🧹.
+  **Say the trade-off plainly when turning it on:** it reverses R33 for marked parks — a reversible
+  taste call is normally the owner's even when trivially undoable — and by the time autopilot goes
+  off, the pile the R38 review exists to walk is empty by construction.
 
 Relay the script's one-line confirmation to the user.

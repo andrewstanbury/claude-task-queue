@@ -36,5 +36,13 @@ case "$cmd" in
       status) companion_decisive_on "$root" && echo on || echo off ;;
       *) echo "usage: autopilot decisive on|off|status" >&2; exit 1 ;;
     esac ;;
-  *) echo "usage: autopilot on|off|status | ship on|off|status | decisive on|off|status" >&2; exit 1 ;;
+  sweep) sub="${2:-status}"; wflag="$(companion_sweep_flag "$root")"
+    case "$sub" in
+      on)  mkdir -p "$(dirname "$wflag")" 2>/dev/null && : > "$wflag" \
+           && echo "🧹 sweep mode ON for $root — while autopilot is on I'll also work the ALREADY-parked ❓ pile, applying each item's recorded recommendation. Only reversible options-parks: anything irreversible becomes ⏳ for you, and decompose: parks + ⏳ are never touched. Every pick is a tq note — walk them with /companion:review." ;;
+      off) rm -f "$wflag" 2>/dev/null; echo "sweep mode OFF for $root — the parked ❓ pile waits for you again (autopilot stops when only ❓/⏳ remain)." ;;
+      status) companion_sweep_on "$root" && echo on || echo off ;;
+      *) echo "usage: autopilot sweep on|off|status" >&2; exit 1 ;;
+    esac ;;
+  *) echo "usage: autopilot on|off|status | ship on|off|status | decisive on|off|status | sweep on|off|status" >&2; exit 1 ;;
 esac

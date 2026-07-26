@@ -58,25 +58,57 @@ files=("$dir"/*.json); [ -e "${files[0]}" ] || allow
 # IFS=$'\t' on the read is load-bearing (R46): the fields are tab-joined and the subject (NEXT) can
 # carry spaces — a default-IFS split would corrupt it the moment a field order changes (the R32·1
 # space-in-value bug the status line already hit; keep the two parses consistent).
-IFS=$'\t' read -r OPEN DONE NEXT NID DONEWHEN < <(jq -rs '
-  def pk: ((.subject//"")|sub("^\\s+";"")|(startswith("❓") or startswith("⏳")));
+# SWEEP (R77): with the flag on, an already-parked ❓ stops counting as "deferred" and the drain
+# keeps going instead of declaring the run finished. Eligibility is a POSITIVE MARKER the parker
+# wrote, never an inference over prose: `rev:` means *reversible, but the owner's call* (a taste /
+# design / wording choice — R33), which is the only class an unattended run may decide for them.
+# A park is irreversible whenever it lacks `rev:`, which is the safe default for every park written
+# before this existed. `rec:` must be anchored — an unanchored substring matched subjects like
+# "no rec: recorded, this one is yours", i.e. exactly the opposite of what it claims to detect.
+# NEVER eligible in any mode: `⏳` (blocked ON THE OWNER acting in the world — no mode clears it)
+# and `decompose:` parks (R65 — questions, not options), matched case-insensitively.
+sweep=false; companion_sweep_on "$root" && sweep=true
+IFS=$'\t' read -r OPEN PLAIN DONE NEXT NID DONEWHEN < <(jq -rs --argjson sw "$sweep" '
+  def subj: ((.subject//"")|sub("^\\s+";""));
+  def parked: (subj|startswith("❓"));
+  def sweepable: parked
+    and ((subj|ascii_downcase|contains("decompose:"))|not)
+    and (subj|test("^❓\\s*\\[parked\\]\\s*rev:"))   # the parker marked it reversible-but-yours
+    and (subj|test("[;—-]\\s*rec:"));         # ...and recorded a pick to apply
+  def pk: (subj|startswith("⏳")) or (parked and (($sw and sweepable)|not));
   ([.[]|select((.status=="pending" or .status=="in_progress") and (pk|not))]) as $o
-  | "\($o|length)\t\([.[]|select(.status=="completed")]|length)\t\(($o[0].subject // "")|gsub("\t";" "))\t\($o[0].id // "")\t\(($o[0].done_when // "")|gsub("\t";" "))"' "${files[@]}" 2>/dev/null)
-OPEN="${OPEN:-0}"; DONE="${DONE:-0}"; NID="${NID:-}"; DONEWHEN="${DONEWHEN:-}"
+  | ([$o[]|select((subj|startswith("❓"))|not)]) as $plain
+  | "\($o|length)\t\($plain|length)\t\([.[]|select(.status=="completed")]|length)\t\(($o[0].subject // "")|gsub("\t";" "))\t\($o[0].id // "")\t\(($o[0].done_when // "")|gsub("\t";" "))"' "${files[@]}" 2>/dev/null)
+OPEN="${OPEN:-0}"; PLAIN="${PLAIN:-0}"; DONE="${DONE:-0}"; NID="${NID:-}"; DONEWHEN="${DONEWHEN:-}"
 case "$OPEN" in ''|*[!0-9]*) OPEN=0 ;; esac
+case "$PLAIN" in ''|*[!0-9]*) PLAIN=0 ;; esac
 case "$DONE" in ''|*[!0-9]*) DONE=0 ;; esac
 
 cfile="$(companion_state_dir)/autopilot/continue-$(printf '%s' "${sid:-x}" | sed 's:/:-:g')"
-if [ "$OPEN" -eq 0 ]; then rm -f "$cfile" 2>/dev/null; allow; fi   # only ❓/⏳ left → genuinely done
+if [ "$OPEN" -eq 0 ]; then rm -f "$cfile" 2>/dev/null; allow; fi   # nothing workable left → genuinely done
 
 # No-progress cap: reset the stall counter whenever a task completed since last stop.
-last=0; stall=0
-[ -f "$cfile" ] && read -r last stall < "$cfile" 2>/dev/null
-case "$last" in ''|*[!0-9]*) last=0 ;; esac; case "$stall" in ''|*[!0-9]*) stall=0 ;; esac
+last=0; stall=0; swept=0
+[ -f "$cfile" ] && read -r last stall swept < "$cfile" 2>/dev/null
+case "$last"  in ''|*[!0-9]*) last=0 ;;  esac; case "$stall" in ''|*[!0-9]*) stall=0 ;; esac
+case "$swept" in ''|*[!0-9]*) swept=0 ;; esac
 if [ "$DONE" -gt "$last" ]; then stall=0; else stall=$((stall+1)); fi
 max="$(printf '%s' "${CLAUDE_COMPANION_AUTOPILOT_MAX:-8}" | tr -dc '0-9')"; max="${max:-8}"
 if [ "$stall" -ge "$max" ]; then rm -f "$cfile" 2>/dev/null; allow; fi   # stuck → yield
-{ mkdir -p "$(dirname "$cfile")" 2>/dev/null && printf '%s %s' "$DONE" "$stall" > "$cfile"; } 2>/dev/null || true
+# SWEEP TERMINATOR (R77) — the stall cap CANNOT bound a sweep: closing a swept park advances DONE,
+# which resets stall to 0, so a run that closes one park and opens another blocks forever (measured:
+# 25/25 turns against a cap of 8). Sweep also removes `OPEN==0 → allow`, previously the only
+# model-independent terminator. So count the turns that continue SOLELY because of sweep — no plain
+# work left, only eligible parks — in a counter nothing resets, and yield at the same cap.
+if [ "$sweep" = true ] && [ "$PLAIN" -eq 0 ] && [ "$OPEN" -gt 0 ]; then
+  swept=$((swept+1))
+  if [ "$swept" -ge "$max" ]; then rm -f "$cfile" 2>/dev/null; allow; fi   # swept enough → yield
+fi
+{ mkdir -p "$(dirname "$cfile")" 2>/dev/null && printf '%s %s %s' "$DONE" "$stall" "$swept" > "$cfile"; } 2>/dev/null || true
 
-jq -cn --arg n "$NEXT" --arg c "$OPEN" --arg id "$NID" --arg dw "$DONEWHEN" '{decision:"block", reason:
-  ("✈️ Autopilot: \($c) task(s) still open — next: #\($id) “\($n)”\(if $dw != "" then " (done when: \($dw))" else "" end). Keep going (autopilot means do not stop): DO NOT stop and DO NOT ask. Take task #\($id), do it, verify your own work (you have a shell), `tq done \($id)` it, and continue. PARK what genuinely needs the owner — `❓ [parked]` for a decision or a visual/design/direction choice, `⏳ [blocked]` for an owner-only action — and decide the routine, low-stakes rest yourself. Keep going until only ❓/⏳ items remain.")}'
+SWEEPNOTE=""
+if [ "$sweep" = true ]; then
+  SWEEPNOTE=" SWEEP (R77) is on, so the next item may itself be a \`❓ [parked]\` one. If it is: apply its recorded \`rec:\` pick ONLY when the action is reversible — \`tq note\` the decision, \`tq add\` the concrete task, \`tq done\` the park. If it is irreversible, externally-binding or destructive, do NOT decide it — \`tq cancel\` it and re-\`tq add\` it as \`⏳ [blocked] <the owner action>\`, which takes it out of the sweep and leaves it for the owner. Never touch a \`decompose:\` park."
+fi
+jq -cn --arg n "$NEXT" --arg c "$OPEN" --arg id "$NID" --arg dw "$DONEWHEN" --arg sw "$SWEEPNOTE" '{decision:"block", reason:
+  ("✈️ Autopilot: \($c) task(s) still open — next: #\($id) “\($n)”\(if $dw != "" then " (done when: \($dw))" else "" end). Keep going (autopilot means do not stop): DO NOT stop and DO NOT ask. Take task #\($id), do it, verify your own work (you have a shell), `tq done \($id)` it, and continue. PARK what genuinely needs the owner — `❓ [parked]` for a decision or a visual/design/direction choice, `⏳ [blocked]` for an owner-only action — and decide the routine, low-stakes rest yourself. Keep going until nothing workable remains.\($sw)")}'

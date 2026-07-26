@@ -128,6 +128,12 @@ questions while the flag is on) → **immediately run `/companion:review`**: wal
 pile one at a time, recommendation-first, write each pick back to `tq` before any new work
 (defer/bail allowed; clean no-op when empty).
 
+**Sweep mode (R77) — `/companion:autopilot sweep on`:** also work the parks **you marked
+reversible**, applying each recorded `rec:`. Park a reversible-but-owner's-call choice as
+`❓ [parked] rev: …`; **without `rev:` a park is treated as irreversible and never swept** —
+so is `⏳`, and so is any `decompose:` park. Sweep pairs with plain autopilot (which parks
+taste calls, R33); decisive parks only the irreversible, which must never be marked `rev:`.
+
 **Decisive mode (R59) — `/companion:autopilot decisive on`, opt-in on top of autopilot:**
 don't park a reversible decision — **decide it**: run the full recommendation reasoning, take
 your own `(Recommended)` pick — including visual/design/direction/wording (overrides R33 *for

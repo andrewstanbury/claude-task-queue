@@ -156,6 +156,8 @@ AP=""
 if [ "$APON" = 1 ]; then
   AP=" ${Y}✈️${X}"
   companion_decisive_on "$ROOT" && AP=" ${Y}${B}✈️⚡${X}"
+  # 🧹 sweep (R77) — a louder state still: autopilot is also working the already-parked pile.
+  companion_sweep_on "$ROOT" && AP="${AP%"${X}"}🧹${X}"
 fi
 
 # ⠋ health beacon — animates ONLY while there's work in motion (autopilot draining or a task

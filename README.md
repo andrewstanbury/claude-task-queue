@@ -18,7 +18,7 @@ reads once per session. The only things that are code are the things that must a
 | **Resume / Review** | `/companion:resume [branch]` re-surfaces this repo's unfinished tasks (session pickup; also automatic at session start). `/companion:review` walks the backlog waiting on you — parked ❓ decisions + blocked ⏳ actions — one at a time, and runs when you turn autopilot off. |
 | **Ship** | `/companion:ship-it [pr] [--gate <cmd>]` — verify your gate, commit, push, and merge (or `pr` to open a pull request instead). |
 | **`tq`** | The task queue — self-owned, so it works everywhere (including the newest models where Claude's built-in task tracking is switched off) and doesn't depend on Claude Code internals. It reprints the queue on every change, so the CLI always shows what's in progress and next. |
-| **Autopilot** | `/companion:autopilot on` — Claude keeps working the queue **without stopping**, parking decisions it shouldn't make alone. It's "keep going," *not* "you're away": keep it on and keep queuing tasks while you watch. Enforced (won't stop or ask while on), persists across restarts. `ship on` also auto-commits work to an `autopilot/*` branch; `decisive on` auto-picks the recommended option for reversible decisions (recording each) and parks only the irreversible. |
+| **Autopilot** | `/companion:autopilot on` — Claude keeps working the queue **without stopping**, parking decisions it shouldn't make alone. It's "keep going," *not* "you're away": keep it on and keep queuing tasks while you watch. Enforced (won't stop or ask while on), persists across restarts. `ship on` also auto-commits work to an `autopilot/*` branch; `decisive on` auto-picks the recommended option for reversible decisions (recording each) and parks only the irreversible; `sweep on` goes further and works the **already-parked** pile too. |
 | **Status line** | One glance line, grouped with `:` dividers: ⠋ beacon · `v<x.y.z>` · `:` active features `:` (each shown only when relevant — `🛡️✗` only if the gate is off, ✈️ autopilot, 📦 ship-mode; omitted entirely when none) · `:` 📋 ❓ ⏳ `:` (the queue) · `:` 5h▰▰▱▱▱23% 7d▰▰▰▱▱41% `:` (account rate limits) · model · ⇡⇣ tokens · project · ⎇ branch · ↑↓ ahead/behind. Wire it once with `/companion:setup` (legend below). |
 
 Bash + `jq`, zero build, one install.
@@ -49,6 +49,11 @@ Bash + `jq`, zero build, one install.
   never main, no push) for you to review + ship on return. Add **`autopilot decisive on`** to have it
   **pick the recommended option** for reversible decisions (design/wording included) and record each,
   parking only what's irreversible — shown as `✈️⚡`; review the auto-picks any time with `/companion:review`.
+  Add **`autopilot sweep on`** to also work parks that were **marked reversible** when they were
+  set aside (`❓ [parked] rev: …` — a taste or wording call), applying each one's recorded
+  recommendation. Shown as `🧹`. A park with no `rev:` marker counts as irreversible and is never
+  swept; neither are `⏳` blocked items. Worth knowing what you're trading: those parks stop being
+  a list of things waiting for you and become a log of decisions already made on your behalf.
 - **`/companion:resume [branch]`** — **re-surfaces this repo's unfinished tasks** from an earlier session
   (turning autopilot off first, preserving each task's ❓/⏳/📋 class). Session pickup only; it hands
   off to `/companion:review` for anything waiting on your input. Name the branch a

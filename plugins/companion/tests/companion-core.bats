@@ -799,3 +799,104 @@ _ux_flow_check() {
   git -C "$repo" log -1 --pretty=%s | grep -q 'autopilot: checkpoint'  # a checkpoint WAS committed (non-vacuous)
   ! git -C "$repo" cat-file -e main:newfile.txt 2>/dev/null       # …but main NEVER received the work
 }
+
+# ── sweep mode (R77) ───────────────────────────────────────────────────────────────────────────
+# Sweep is the ONE mode that reaches backwards into the already-parked pile, so eligibility is the
+# safety property. It keys on a POSITIVE marker the parker wrote — `rev:` = reversible, but the
+# owner's call — never on inference over prose. An earlier build inferred eligibility as
+# "❓ ∧ rec: ∧ ¬decompose:", which under decisive mode selected EXACTLY the irreversible parks it
+# was meant to protect (decisive parks only the irreversible, and writes `rec:` on them). Every
+# exclusion below is pinned separately, and each fixture carries the OTHER markers so no rule can
+# be masked by another — the masking trap that already hid two of these once.
+
+_sw_task() {  # $1=subject $2=id
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sw"
+  jq -n --arg s "$1" --arg i "$2" '{id:$i,subject:$s,status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sw/$2.json"
+}
+_sw_decision() {  # -> "block" when the drain keeps going, "" when it lets the session stop
+  printf '{"session_id":"sw","cwd":"%s"}' "$1" | bash "$STOP" | jq -r '.decision // ""' 2>/dev/null
+}
+_sw_repo() {
+  local r; r="$(mktemp -d)"; git -C "$r" init -q
+  git -C "$r" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
+  ( cd "$r" && "$AP" on ) >/dev/null; printf '%s' "$r"
+}
+
+@test "autopilot sweep: flag persists per-repo and is independent of ship/decisive (R77)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  run bash -c 'cd "$1" && "$2" sweep status' _ "$repo" "$AP"; [ "$output" = "off" ]
+  ( cd "$repo" && "$AP" sweep on ) >/dev/null
+  run bash -c 'cd "$1" && "$2" sweep status' _ "$repo" "$AP"; [ "$output" = "on" ]
+  run bash -c 'cd "$1" && "$2" decisive status' _ "$repo" "$AP"; [ "$output" = "off" ]
+  ( cd "$repo" && "$AP" sweep off ) >/dev/null
+  run bash -c 'cd "$1" && "$2" sweep status' _ "$repo" "$AP"; [ "$output" = "off" ]
+}
+
+@test "autopilot sweep: OFF stops on a parked-only queue, ON works a rev: park (R77)" {
+  local repo; repo="$(_sw_repo)"
+  _sw_task "❓ [parked] rev: colour scheme — options: A) dark B) light; rec: A + matches the app" 1
+  ( cd "$repo" && "$AP" sweep off ) >/dev/null
+  [ "$(_sw_decision "$repo")" = "" ]          # parked-only -> done, session may stop
+  # Assert the note's ABSENCE where a nudge is actually emitted: with sweep off and plain work
+  # present the hook blocks, so the text exists to be checked. Asserting it on the parked-only
+  # queue above passes vacuously — the hook prints nothing at all there (a mutation that emitted
+  # the note unconditionally slipped through exactly that way).
+  _sw_task "plain work that keeps the drain going" 9
+  run bash -c 'printf "{\"session_id\":\"sw\",\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$repo" "$STOP"
+  [[ "$output" == *"Autopilot:"* ]]           # a nudge really was emitted...
+  [[ "$output" != *"SWEEP (R77)"* ]]          # ...and carries no sweep note while the flag is off
+  rm -f "$CLAUDE_COMPANION_TASKS_DIR/sw/9.json"
+  ( cd "$repo" && "$AP" sweep on ) >/dev/null
+  [ "$(_sw_decision "$repo")" = "block" ]     # sweep -> the rev: park is work
+  run bash -c 'printf "{\"session_id\":\"sw\",\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$repo" "$STOP"
+  [[ "$output" == *"colour scheme"* ]]
+  [[ "$output" == *"SWEEP (R77)"* ]]          # ...and present while it is on
+}
+
+@test "autopilot sweep: an IRREVERSIBLE park (no rev: marker) is never eligible (R77/R59)" {
+  # The case that killed the first design: decisive mode parks ONLY the irreversible and writes
+  # `rec:` on it, so a rec-based filter selected precisely the set it had to protect.
+  local repo; repo="$(_sw_repo)"; ( cd "$repo" && "$AP" sweep on ) >/dev/null
+  _sw_task "❓ [parked] force-push the rewrite to origin/main — options: A) force B) PR; rec: A + why" 1
+  [ "$(_sw_decision "$repo")" = "" ]
+  _sw_task "❓ [parked] delete the staging bucket and its snapshots — options: A) delete B) keep; rec: A + cost" 2
+  [ "$(_sw_decision "$repo")" = "" ]          # still nothing sweepable
+  _sw_task "❓ [parked] rev: button copy — options: A) Save B) Done; rec: A + clearer" 3
+  [ "$(_sw_decision "$repo")" = "block" ]     # only the marked-reversible one is work
+  run bash -c 'printf "{\"session_id\":\"sw\",\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$repo" "$STOP"
+  [[ "$output" == *"button copy"* ]]
+  [[ "$output" != *"force-push"* ]]
+  [[ "$output" != *"delete the staging bucket"* ]]
+}
+
+@test "autopilot sweep: ⏳, decompose:, unrecorded and prose-only markers stay excluded (R77/R65)" {
+  local repo; repo="$(_sw_repo)"; ( cd "$repo" && "$AP" sweep on ) >/dev/null
+  # each fixture carries EVERY other marker, so it can only be excluded by the rule it targets
+  _sw_task "⏳ [blocked] rev: delete the production bucket; rec: yes do it" 1
+  _sw_task "❓ [parked] rev: Decompose: migrate the store — need: which fields; rec: split by table" 2
+  _sw_task "❓ [parked] rev: drop the legacy table? — A) drop B) keep; no rec: recorded, this one is yours" 3
+  _sw_task "❓ [parked] mentions rev: only in prose here; rec: A + why" 4
+  [ "$(_sw_decision "$repo")" = "" ]          # not one of them is eligible
+  _sw_task "❓ [parked] rev: wording — options: A) terse B) chatty; rec: A + the voice" 5
+  [ "$(_sw_decision "$repo")" = "block" ]
+  run bash -c 'printf "{\"session_id\":\"sw\",\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$repo" "$STOP"
+  [[ "$output" == *"wording"* ]]
+  [[ "$output" != *"production bucket"* ]]
+  [[ "$output" != *"migrate the store"* ]]
+  [[ "$output" != *"legacy table"* ]]
+}
+
+@test "autopilot sweep TERMINATES: bounded by a counter no completion resets (R77)" {
+  # The stall cap cannot bound a sweep — closing a swept park advances DONE, which resets stall.
+  # Measured before the fix: 25/25 turns blocked against a cap of 8. Plain work must stay unbounded.
+  local repo; repo="$(_sw_repo)"; ( cd "$repo" && "$AP" sweep on ) >/dev/null
+  local i turns=0
+  for i in 1 2 3 4 5 6 7 8 9 10 11 12; do            # close one rev: park, open the next
+    _sw_task "❓ [parked] rev: choice $i — options: A) x B) y; rec: A + why" "$i"
+    [ "$i" -gt 1 ] && jq -n --arg d "$((i-1))" '{id:$d,subject:"done",status:"completed"}'       > "$CLAUDE_COMPANION_TASKS_DIR/sw/$((i-1)).json"
+    [ "$(_sw_decision "$repo")" = "block" ] || break
+    turns=$((turns+1))
+  done
+  [ "$turns" -le 8 ]                                  # yields at the cap instead of forever
+  [ "$turns" -ge 1 ]                                  # ...but does sweep before yielding
+}

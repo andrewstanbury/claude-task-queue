@@ -1,14 +1,15 @@
 # flow:hands-off-drain
 when: keep working the queue without stopping to ask (autopilot; optional ship-mode)
-why: idle hours → finished reviewable work with zero unsupervised decisions [R26 R59 R65]
+why: idle hours → finished reviewable work; unsupervised decisions only where the owner opted in — decisive for new reversible ones (R59), sweep for parks the parker marked `rev:` (R77); the irreversible always reaches the owner [R26 R59 R65 R77]
 
 steps:
 - `/companion:autopilot on` → drain continues; asking is BLOCKED (enforced: ask-guard deny + Stop auto-continue)
 - ship on → each turn auto-commits to `autopilot/*` (never default branch, never pushed) → review + `/companion:ship-it` [pattern:guardrails-default-on]
+- sweep on → the drain ALSO works parks the parker MARKED `rev:` (reversible, owner's-call), applying each recorded `rec:`; no marker ⇒ irreversible ⇒ never swept, same for ⏳ and `decompose:`; bounded by a counter no completion resets [R77]
 - `decisive on` → auto-picks recommended option for reversible decisions (taste included), records each, parks only irreversible-critical; shown ✈️⚡ [R59]
 
 quality:
-- no-progress cap — cannot spin forever (productive drain keeps going)
+- no-progress cap — cannot spin forever (productive drain keeps going); a SWEEP cannot be bounded by it (closing a swept park resets the stall counter), so sweep carries its own counter that no completion resets [R77]
 - ship-mode NEVER touches default branch, never pushes
 - decisive safety = auditability (every auto-pick is a recorded breadcrumb; irreversible still parks)
 - drain touches only minimal-blast tasks; a `decompose:`-flagged task is never auto-drained [R65]
@@ -19,7 +20,12 @@ tests:
 - [E] `ship-mode (R34): toggle, and Stop auto-commits work to an autopilot/* branch — NEVER main` ✅
 - [E] `ship-mode never commits to the default branch, even from detached HEAD` ✅
 - [E] `autopilot decisive (R59): toggle persists, and flips the ask-guard guidance park→decide` ✅
+- [E] `autopilot sweep: OFF stops on a parked-only queue, ON works a rev: park (R77)` ✅
+- [E] `autopilot sweep: an IRREVERSIBLE park (no rev: marker) is never eligible (R77/R59)` ✅
+- [E] `autopilot sweep: ⏳, decompose:, unrecorded and prose-only markers stay excluded (R77/R65)` ✅
+- [E] `autopilot sweep TERMINATES: bounded by a counter no completion resets (R77)` ✅
 
 changes:
+- 2026-07-26 sweep mode: work parks marked `rev:`, positive-marker eligibility, own terminator [R77; amends R33/R38/R59]
 - 2026-07-22 machine shape [R66; reverses R62] · decompose-park [R65] · why-line provenance
 - 2026-07-20 from UX.md P3 [R62]
