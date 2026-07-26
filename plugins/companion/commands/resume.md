@@ -1,5 +1,5 @@
 ---
-description: Re-surface and reinstate an earlier session's carried-over tasks, ❓/⏳/📋 class intact
+description: "[branch] — re-surface and reinstate an earlier session's tasks, ❓/⏳/📋 class intact; names a handoff branch, else auto-detects"
 argument-hint: "[branch — the handoff branch; default auto-detect]"
 ---
 

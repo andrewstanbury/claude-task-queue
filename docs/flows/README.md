@@ -20,8 +20,11 @@ tests grammar (R61 gate, enforced by check.sh):
 - [patterns](./_patterns.md) · [quality-bar](./_quality-bar.md)
 
 ## Slash commands (10)
-*Every argument-taking command declares an `argument-hint` — it renders in the `/` autocomplete and
-costs zero injected tokens, unlike `description:` (capped at 140B). `check.sh` enforces both [R75].*
+*Parameters are stated **twice, on purpose**: the `description` is what you read while BROWSING the
+`/` menu, the `argument-hint` appears once you've picked the command. Descriptions lead with the
+argument shape (or `(no args)`) and stay under the 140B injection cap; hints stay under 80 chars.
+`check.sh` enforces the caps, that every arg-taking command has a hint, and that the two **name the
+same parameters** [R75, amended 2026-07-26].*
 
 `/companion:setup` (wire status line) · `/companion:autopilot [on|off|status | ship … | decisive …]`
 (keep-draining, enforced when on; empty → status) ·

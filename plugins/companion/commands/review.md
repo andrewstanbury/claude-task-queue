@@ -1,5 +1,5 @@
 ---
-description: Walk the parked (❓) + blocked (⏳) backlog one at a time, recommendation-first, writing picks back to the queue
+description: "(no args) — walk the parked (❓) + blocked (⏳) backlog one at a time, recommendation-first, writing picks back to the queue"
 ---
 
 Run a **review**: walk the backlog of tasks that need *you* — the **parked (❓) decisions** and the

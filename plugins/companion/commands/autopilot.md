@@ -1,5 +1,5 @@
 ---
-description: Autopilot on/off/status, or toggle ship-mode + decisive mode — drain the queue autonomously, without stopping to ask
+description: "on|off|status (empty=status) · ship on|off · decisive on|off — drain the queue autonomously, without stopping to ask"
 argument-hint: "[on|off|status | ship on|off|status | decisive on|off|status]"
 ---
 

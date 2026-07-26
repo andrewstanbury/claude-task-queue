@@ -48,6 +48,16 @@ ledger) and not in-flight work (that's the queue) — just "watch out for X here
 - Tests live in `plugins/companion/tests/*.bats`, split by concern (core · hud). The 300-line size
   gate covers only `bin/`+`lib/`, not tests.
 
+## Frontmatter (commands / skills)
+- **Quote any YAML value that starts with `[`, `{`, `*`, `&`, `!`, `>`, `|`, `,` or `#`.** An
+  unquoted `description: [target] …` opens a **flow sequence**: the host's js-yaml throws, discards
+  the **whole frontmatter** (description *and* argument-hint), and logs it at *debug* level — the
+  command just quietly loses both. Six commands were one `land` away from shipping that.
+- **`check.sh` line-greps frontmatter, so it can never see a parse failure.** Any assertion about a
+  frontmatter *value* is validating a string the host may never have loaded. Verify with a real YAML
+  parser (`python3 -m venv` + pyyaml is enough) before trusting an `awk -F'key: '` extraction —
+  checking with the same naive reader that introduced the bug proves nothing.
+
 ## CI
 - macOS is a **required** lane (bash 3.2 — the strictest environment). Test hooks for *silence*
   under missing tooling, not for their happy-path effect.

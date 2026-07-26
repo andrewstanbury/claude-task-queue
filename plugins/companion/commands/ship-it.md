@@ -1,5 +1,5 @@
 ---
-description: Ship finished work — verify, sync the contract docs, commit, push, and merge to the default branch
+description: "[pr] [--gate <cmd>] — verify, sync contract docs, commit, push, merge to the default branch; pr opens a PR instead"
 argument-hint: "[pr] [--gate <cmd>]"
 ---
 

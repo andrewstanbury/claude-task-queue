@@ -93,32 +93,104 @@ done
 # every session), yet R69 never capped it — the same silent-growth class. Cap each at 140B (a label,
 # not a summary of the body); ceiling with working room over the current max (116B, handoff.md), not
 # reverse-engineered. Prevention > detection (N7) — keeps a paragraph from creeping back in.
+# Parameter names declared in a description or an argument-hint, one per line. Within each `[...]`
+# group: cut the descriptive tail at the first em-dash or `: `, drop `<placeholders>`, then split on
+# `|` and whitespace so an enum group names EVERY alternative (`[a|b | ship c]` -> a, b, ship) rather
+# than only its first token — that blind spot let two thirds of autopilot's surface drift unnoticed.
+# `[-- goal: …]` names `goal`; `[--gate <cmd>]` names `--gate`; a bare ledger id `[R55]` is ignored.
+cmd_params() {
+  printf '%s' "$1" | awk '{
+    while (match($0, /\[[^]]*\]/)) {
+      g = substr($0, RSTART + 1, RLENGTH - 2); $0 = substr($0, RSTART + RLENGTH)
+      sub(/ —.*$/, "", g); sub(/:[ \t].*$/, "", g); gsub(/<[^>]*>/, "", g)
+      gsub(/\|/, " ", g)
+      n = split(g, w, /[ \t]+/)
+      for (i = 1; i <= n; i++) {
+        t = w[i]; sub(/[:,;.]$/, "", t)
+        if (t ~ /^R[0-9]+$/) continue                       # a ledger citation, not a parameter
+        if (t ~ /^--?[A-Za-z][A-Za-z0-9_-]*$/ || t ~ /^[A-Za-z][A-Za-z0-9_-]*$/) print t
+      }
+    }
+  }' | sort -u
+}
+# Strip one layer of YAML double-quoting so caps are measured on the value the host actually loads.
+unquote() { local v="$1"; case "$v" in \"*\") v="${v#\"}"; v="${v%\"}" ;; esac; printf '%s' "$v"; }
 for f in plugins/companion/commands/*.md; do
-  d="$(awk -F'description: ' '/^description: /{print $2; exit}' "$f")"
+  fm="$(awk 'NR==1&&$0=="---"{inf=1;next} inf&&$0=="---"{exit} inf{print}' "$f")"
+  draw="$(printf '%s\n' "$fm" | awk -F'description: '   '/^description: /{print $2; exit}')"
+  hraw="$(printf '%s\n' "$fm" | awk -F'argument-hint: ' '/^argument-hint: /{print $2; exit}')"
+  d="$(unquote "$draw")"; hint="$(unquote "$hraw")"
+
+  # FRONTMATTER MUST PARSE (R75). check.sh line-greps the frontmatter; the HOST parses it as YAML and
+  # silently drops the WHOLE block on a throw — description and argument-hint together — behind a
+  # debug-level warning. A params-first `description: [target] …` opens a YAML flow sequence and does
+  # exactly that. Two rules keep an unquoted scalar safe; anything else must be quoted.
+  for spec in "description:$draw" "argument-hint:$hraw"; do
+    key="${spec%%:*}"; raw="${spec#*:}"
+    [ -n "$raw" ] || continue
+    case "$raw" in \"*\") continue ;; esac                  # quoted: the indicators are inert
+    case "$raw" in
+      [\[\{\*\&\!%@\`\>\|,\#]*)
+        echo "  FAIL $(basename "$f") $key starts with a YAML indicator and is unquoted — the host drops the ENTIRE frontmatter (R75)"; tok_fail=1; fail=1 ;;
+    esac
+    case "$raw" in
+      *": "*)
+        echo "  FAIL $(basename "$f") $key contains ': ' and is unquoted — YAML reads it as a nested mapping (R75)"; tok_fail=1; fail=1 ;;
+    esac
+  done
+
   db="$(printf '%s' "$d" | wc -c | tr -d '[:space:]')"
   if [ "${db:-0}" -gt 140 ]; then echo "  FAIL $(basename "$f") description: ${db}B > 140B (per-session command-list injection)"; tok_fail=1; fail=1; fi
-  # `argument-hint:` and `$ARGUMENTS` must agree, BOTH ways (R75). The hint is the only place the
-  # owner sees a command's parameters — it renders in the / autocomplete and, unlike `description:`,
-  # costs ZERO runtime tokens (it does not ride the command-list injection). Two drifts to catch:
-  # a body that reads args with no hint (guess-what-I-take), and a hint promising params the body
-  # ignores (a lie in the menu — the worse one). The hint must be in the FRONTMATTER with a
-  # NON-EMPTY value; a body line or a bare key renders nothing. Prevention > detection (N7).
-  fm="$(awk 'NR==1&&$0=="---"{inf=1;next} inf&&$0=="---"{exit} inf{print}' "$f")"
-  hint="$(printf '%s\n' "$fm" | awk -F'argument-hint: ' '/^argument-hint: /{print $2; exit}')"
+
+  # A body that reads $ARGUMENTS must declare a hint; a hint must not promise params the body ignores.
   takes_args=0
   # shellcheck disable=SC2016  # the literal string "$ARGUMENTS" is the target; expansion is wrong here
   grep -qF '$ARGUMENTS' "$f" && takes_args=1
-  if [ "$takes_args" = 1 ] && [ -z "${hint//[\"[:space:]]/}" ]; then
+  if [ "$takes_args" = 1 ] && [ -z "${hint// /}" ]; then
     echo "  FAIL $(basename "$f") reads \$ARGUMENTS but has no non-empty frontmatter argument-hint: (R75 — params must be visible in the / menu)"; tok_fail=1; fail=1
   fi
-  if [ "$takes_args" = 0 ] && [ -n "${hint//[\"[:space:]]/}" ]; then
+  if [ "$takes_args" = 0 ] && [ -n "${hint// /}" ]; then
     echo "  FAIL $(basename "$f") declares argument-hint: but the body never reads \$ARGUMENTS (R75 — the / menu would promise params the command ignores)"; tok_fail=1; fail=1
   fi
-  # The hint renders in the input box with `truncate-end`: too long and the tail — usually the
-  # second parameter — is the part that silently disappears. 80 chars is generous (current max 61).
-  hb="${#hint}"
-  if [ "$hb" -gt 80 ]; then
-    echo "  FAIL $(basename "$f") argument-hint: ${hb} chars > 80 (truncates in the / input box — name the params, don't document them)"; tok_fail=1; fail=1
+  # The hint renders with `truncate-end`, so the tail — usually the second parameter — is what
+  # silently disappears. 80 chars is generous.
+  if [ "${#hint}" -gt 80 ]; then
+    echo "  FAIL $(basename "$f") argument-hint: ${#hint} chars > 80 (truncates in the / input box — name the params, don't document them)"; tok_fail=1; fail=1
+  fi
+
+  # description <-> argument-hint AGREEMENT, BOTH directions (R75 amended). The description is what
+  # you read while BROWSING the / menu; the hint appears only once the command is already chosen. Two
+  # places now state one fact, so neither may name a parameter the other doesn't.
+  hp="$(cmd_params "$hint")"; dp="$(cmd_params "$d")"
+  if [ -n "${hint// /}" ] && [ -z "$hp" ]; then
+    echo "  FAIL $(basename "$f") argument-hint names no parameter in [brackets] — the agreement check cannot see it (R75)"; tok_fail=1; fail=1
+  fi
+  if [ -z "${hint// /}" ] && [ -n "$dp" ]; then
+    echo "  FAIL $(basename "$f") description promises $(echo "$dp" | tr '\n' ' ')but there is no argument-hint (R75 — agree, or say '(no args)')"; tok_fail=1; fail=1
+  fi
+  if [ -n "$hp" ]; then
+    while IFS= read -r p; do
+      [ -n "$p" ] || continue
+      # Set-compare when the description uses brackets. A substring test alone is too loose: renaming
+      # `[branch]` to `[ref]` passed because the word "branch" survived in the prose. An enum-style
+      # description (autopilot) has no bracket group, so it falls back to substring rather than being
+      # forced into notation it reads worse in.
+      if [ -n "$dp" ]; then
+        case "$(printf '\n%s\n' "$dp")" in *"$(printf '\n%s\n' "$p")"*) continue ;; esac
+      else
+        case "$d" in *"$p"*) continue ;; esac
+      fi
+      echo "  FAIL $(basename "$f") argument-hint names \`$p\` but the description does not (R75 — the / menu and the autocomplete must agree)"; tok_fail=1; fail=1
+    done <<EOF
+$hp
+EOF
+    while IFS= read -r p; do
+      [ -n "$p" ] || continue
+      case "$(printf '\n%s\n' "$hp")" in *"$(printf '\n%s\n' "$p")"*) continue ;; esac
+      echo "  FAIL $(basename "$f") description names \`$p\` but the argument-hint does not (R75 — agreement is both ways)"; tok_fail=1; fail=1
+    done <<EOF
+$dp
+EOF
   fi
 done
 [ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/12288B; command descriptions ≤140B; arg-taking commands hinted)"

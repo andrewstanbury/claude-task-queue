@@ -1,5 +1,5 @@
 ---
-description: Whole-app contract-preserving rebuild in bounded, check-gated passes (runs docs first)
+description: "[module] — contract-preserving rebuild in bounded check-gated passes, runs docs first; a module = ONE pass, none = whole app"
 argument-hint: "[module — one bounded pass; default whole app]"
 ---
 

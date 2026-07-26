@@ -1,5 +1,5 @@
 ---
-description: Rank critical flows by coverage gap, then scaffold owner-picked golden tests in the project's own runner (R61)
+description: "[scope] — rank critical flows by coverage gap, then scaffold owner-picked golden tests in the project's own runner (R61)"
 argument-hint: "[scope: path|flow name — default all flows]"
 ---
 

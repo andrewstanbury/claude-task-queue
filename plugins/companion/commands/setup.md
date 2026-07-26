@@ -1,5 +1,5 @@
 ---
-description: Wire the companion status line into your settings.json (once per machine)
+description: "(no args) — wire the companion status line into your settings.json; once per machine, not once ever"
 ---
 
 Wire the companion's status line into the user's Claude Code settings so it renders in the

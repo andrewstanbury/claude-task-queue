@@ -1,5 +1,5 @@
 ---
-description: Record a repo's undocumented load-bearing decisions as checks or graded ledger entries (feeds advise/redesign)
+description: "[scope] — record undocumented load-bearing decisions as checks or graded ledger entries; none = whole repo (feeds advise/redesign)"
 argument-hint: "[scope: path|subsystem — default whole repo]"
 ---
 

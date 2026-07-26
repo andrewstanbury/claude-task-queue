@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "subject": "R75 amendment + version bump + docs sync for params-first descriptions",
+    "status": "in_progress",
+    "done_when": "R75 amended (reverses its own 'argument-hint not description' clause, with the measured 58 tok/session); 3.20.1->3.21.0; MAP/flows/README consistent; check.sh green",
+    "description": "",
+    "notes": []
+  }
+]

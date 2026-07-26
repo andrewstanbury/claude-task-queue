@@ -1,5 +1,5 @@
 ---
-description: Checkpoint mid-flight work — tree + queue — to a pushed branch for another machine (no gate; gate fires at ship)
+description: "(no args) — checkpoint mid-flight work (tree + queue) to a pushed branch for another machine; the gate fires at ship, not here"
 ---
 
 Hand the current state of this machine to another one, using git as the transport (R72). This is

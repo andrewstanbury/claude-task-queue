@@ -1,5 +1,5 @@
 ---
-description: Brutally-honest critique of a target as recommendation-first options, picked one at a time then queued
+description: "[target] [-- goal: X] — brutally-honest critique as recommendation-first options, one at a time then queued; none = whole project"
 argument-hint: "[target] [-- goal: <what to optimise for>]"
 ---
 
