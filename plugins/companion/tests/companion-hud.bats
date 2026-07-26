@@ -180,3 +180,157 @@ _feature_off() {  # $1=feature  $2=repo-dir
   run bash -c 'printf "%s" "$1" | env -u NO_COLOR TERM=xterm "$2"' _ "$p" "$SL"
   [[ "$output" == $'\033[33m'* ]]          # output starts yellow → the beacon is yellow-tinted under autopilot
 }
+
+# ── account rate-limit bars (R76) ──────────────────────────────────────────────────────────────
+# `.rate_limits` is the ONLY account-scoped input the line has, and it is optional in three
+# different ways (API-key users, pre-first-response, per-window). Every one of those must render
+# nothing rather than a zero or a placeholder, so each absence shape gets a case.
+
+@test "status line: 5h + 7d usage bars render both windows from .rate_limits (R76)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRL",cwd:$c,
+    rate_limits:{five_hour:{used_percentage:23.5},seven_day:{used_percentage:41.2}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"5h"* ]] && [[ "$output" == *"23%"* ]]   # float truncated to int, not rounded
+  [[ "$output" == *"7d"* ]] && [[ "$output" == *"41%"* ]]
+  [[ "$output" == *"▰"* ]] && [[ "$output" == *"▱"* ]]      # partially-filled bar
+}
+
+@test "status line: no .rate_limits (API-key user / pre-first-response) renders NO bar (R76)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRL2",cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"5h"* ]]; [[ "$output" != *"7d"* ]]
+  [[ "$output" != *"▰"* ]]; [[ "$output" != *"▱"* ]]
+  [[ "$output" != *"0%"* ]]     # never invent a zero for a number we were not given
+  [[ "$output" == *"Opus"* ]]   # the rest of the line still renders
+}
+
+@test "status line: one window absent renders ONLY the other — no field shift (R76)" {
+  # Regression pin: `IFS=$'\t' read` collapses consecutive tabs (tab is IFS whitespace), which
+  # would slide 7d's percentage into the 5h slot whenever five_hour was missing. The reader uses
+  # a non-whitespace separator so an empty field stays empty in place.
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRL3",cwd:$c,
+    rate_limits:{seven_day:{used_percentage:41.2}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"5h"* ]]      # absent window is silent...
+  [[ "$output" == *"7d"* ]]      # ...and the present one keeps its own label
+  [[ "$output" == *"41%"* ]]     # and its own value — NOT re-labelled as 5h
+}
+
+@test "status line: usage bar clamps >100, keeps 87% distinguishable from 100% (R76)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRL4",cwd:$c,
+    rate_limits:{five_hour:{used_percentage:87},seven_day:{used_percentage:130}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"87%"* ]]
+  [[ "$output" == *"100%"* ]]        # 130 clamped, never "130%"
+  [[ "$output" != *"130%"* ]]
+  [[ "$output" == *"5h▰▰▰▰▱87%"* ]]  # floor: 87% is NOT a full bar
+  [[ "$output" == *"7d▰▰▰▰▰100%"* ]] # only a truly exhausted window fills
+}
+
+@test "status line: usage bar severity colors — green <60, yellow 60-84, red >=85 (R76)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  _bar_sgr() {  # $1 = used_percentage → the SGR code applied to the bar
+    local p="$1" out
+    out="$(printf '%s' "$(jq -nc --arg c "$repo" --argjson p "$p" \
+      '{model:{display_name:"Opus"},session_id:"sRL5",cwd:$c,rate_limits:{five_hour:{used_percentage:$p}}}')" \
+      | env -u NO_COLOR TERM=xterm "$SL" | cat -v)"
+    printf '%s' "$out" | grep -o '5h\^\[\[0m\^\[\[3[0-9]m' | grep -o '3[0-9]m$'
+  }
+  [ "$(_bar_sgr 30)" = "32m" ]   # green
+  [ "$(_bar_sgr 59)" = "32m" ]   # green, just under the line
+  [ "$(_bar_sgr 60)" = "33m" ]   # yellow
+  [ "$(_bar_sgr 84)" = "33m" ]   # yellow, just under the line
+  [ "$(_bar_sgr 85)" = "31m" ]   # red
+  [ "$(_bar_sgr 100)" = "31m" ]  # red
+}
+
+@test "status line: reset countdown appears only once a window is tight (R76)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  # Deliberately NOT an exact multiple of a minute: the script reads its own clock a beat after the
+  # test builds the payload, so "now + 42m" floors to 41m whenever a second elapses in between.
+  # Assert the countdown's PRESENCE and unit, never a specific remaining count.
+  local soon; soon=$(( $(date +%s) + 2700 ))     # ~45 min out
+  # low usage + a reset time → no countdown (width is spent only when it's actionable)
+  local low; low="$(jq -nc --arg c "$repo" --argjson r "$soon" '{model:{display_name:"Opus"},session_id:"sRL6",cwd:$c,
+    rate_limits:{five_hour:{used_percentage:20,resets_at:$r}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$low" "$SL"
+  [[ "$output" != *"↻"* ]]
+  # high usage + the same reset time → countdown shown, in minutes
+  local high; high="$(jq -nc --arg c "$repo" --argjson r "$soon" '{model:{display_name:"Opus"},session_id:"sRL7",cwd:$c,
+    rate_limits:{five_hour:{used_percentage:90,resets_at:$r}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$high" "$SL"
+  [[ "$output" =~ ↻[0-9]+m ]]
+  # a multi-day window reports days, not thousands of minutes
+  local far; far="$(jq -nc --arg c "$repo" --argjson r "$(( $(date +%s) + 300000 ))" '{model:{display_name:"Opus"},session_id:"sRL8",cwd:$c,
+    rate_limits:{seven_day:{used_percentage:95,resets_at:$r}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$far" "$SL"
+  [[ "$output" =~ ↻3d ]]
+  # an already-elapsed reset time prints no countdown rather than a negative one
+  local past; past="$(jq -nc --arg c "$repo" --argjson r "$(( $(date +%s) - 60 ))" '{model:{display_name:"Opus"},session_id:"sRL9",cwd:$c,
+    rate_limits:{five_hour:{used_percentage:95,resets_at:$r}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$past" "$SL"
+  [[ "$output" == *"95%"* ]]; [[ "$output" != *"↻"* ]]; [[ "$output" != *"-"* ]]
+}
+
+@test "status line: a control character in the payload cannot truncate the line (R76)" {
+  # `@tsv` used to escape \n\r\t for us; a plain join does not. A newline in a path or model name
+  # would split jq's record so `read` took only the first line — silently dropping the tokens,
+  # both bars and the git segment. The reader neutralises framing characters before joining.
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local weird="$repo/we
+ird"; mkdir -p "$weird"
+  local payload; payload="$(jq -nc --arg c "$weird" '{model:{display_name:"Opus"},session_id:"sRLc",cwd:$c,
+    context_window:{total_input_tokens:5000,total_output_tokens:200},
+    rate_limits:{five_hour:{used_percentage:23.5},seven_day:{used_percentage:41.2}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [ "$status" -eq 0 ]
+  [ "${#lines[@]}" -eq 1 ]        # ONE line out, whatever went in
+  [[ "$output" == *"Opus"* ]]     # fields after the newline survive intact...
+  [[ "$output" == *"⇡5.0k"* ]]
+  [[ "$output" == *"23%"* ]]
+  [[ "$output" == *"41%"* ]]      # ...including the LAST one, the far side of the break
+}
+
+@test "status line: usage bars sit between the queue and the model (R34 order, R76)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRLo",cwd:$c,
+    rate_limits:{five_hour:{used_percentage:23.5},seven_day:{used_percentage:41.2}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [ "$status" -eq 0 ]
+  # queue → 5h → 7d → model → branch, in that order (R76 claims to compose R34; pin it)
+  [[ "$output" =~ 📋.*5h.*7d.*Opus.*⎇ ]]
+}
+
+@test "status line: an absurd percentage is clamped with NO stderr spew (R7/R68, R76)" {
+  # The line repaints every ~3s; a value that overflows the shell's integer compare would emit a
+  # `[: integer expression expected` to stderr on every repaint AND print the raw number.
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRLh",cwd:$c,
+    rate_limits:{five_hour:{used_percentage:99999999999999999999999}}}')"
+  local err; err="$(mktemp)"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2" 2>"$3"' _ "$payload" "$SL" "$err"
+  [ "$status" -eq 0 ]
+  [ ! -s "$err" ]                      # stderr completely empty
+  [[ "$output" == *"100%"* ]]
+  [[ "$output" != *"99999"* ]]
+  rm -f "$err"
+}
+
+@test "status line: a sub-1% window is distinguishable from an idle one (R76)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRLz",cwd:$c,
+    rate_limits:{five_hour:{used_percentage:0.4},seven_day:{used_percentage:0}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"5h▰▱▱▱▱0%"* ]]   # in use, just barely → one cell lit
+  [[ "$output" == *"7d▱▱▱▱▱0%"* ]]   # genuinely idle → none
+}

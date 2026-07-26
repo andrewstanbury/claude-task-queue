@@ -8,7 +8,7 @@ steps:
 - earlier-session open tasks re-surface, scoped to THIS repo (no cross-repo bleed)
 - repo `LESSONS.md` gotchas surface if present [R30·d7]
 - post-compaction: re-anchor with queue + next-pointer only, NOT full STEERING [R32]
-- status line: beacon · version · feature icons (🛡✗ only when gate off, ✈️/✈️⚡, 📦) · 📋/❓/⏳ · model · tokens · project · branch
+- status line: beacon · version · feature icons (🛡✗ only when gate off, ✈️/✈️⚡, 📦) · 📋/❓/⏳ · 5h/7d account rate-limit bars (absent for API-key users and before the first response; rolling windows, NOT a billing cycle) [R76] · model · tokens · project · branch
 
 quality:
 - steering loads once/session, never per-turn [N1]
@@ -20,8 +20,12 @@ tests:
 - [E] `session start: re-anchors on a compaction with queue+pointer, NOT the full STEERING` ✅
 - [E] `status line: renders version · model · tokens · task count · project · branch (no shield when gate on)` ✅
 - [E] `steering off (per-repo flag): SessionStart drops the working agreement` ✅
+- [E] `status line: 5h + 7d usage bars render both windows from .rate_limits (R76)` ✅
+- [E] `status line: no .rate_limits (API-key user / pre-first-response) renders NO bar (R76)` ✅
+- [E] `status line: one window absent renders ONLY the other — no field shift (R76)` ✅
 
 changes:
+- 2026-07-25 status line gains 5h/7d ACCOUNT rate-limit bars — free from the payload; rolling windows, not a billing cycle [R76]
 - 2026-07-23 two-tier steering: core-only injection, budget enforced in check.sh [R69; partially reverses R66's trim-declined]
 - 2026-07-22 machine shape [R66; reverses R62 human-first] — content preserved, prose dropped; why-line kept as provenance
 - 2026-07-20 from UX.md P1 [R62]

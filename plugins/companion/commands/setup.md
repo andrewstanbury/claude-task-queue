@@ -4,8 +4,18 @@ description: Wire the companion status line into your settings.json (once per ma
 
 Wire the companion's status line into the user's Claude Code settings so it renders in the
 CLI. The status line shows, grouped: ⠋ beacon · │ 🛡️ secret gate · ✈️ autopilot · 📦 ship-mode │
-(active features) · │ 📋 open · ❓ parked · ⏳ blocked │ (the queue) · model · ⇡ input ⇣ output
+(active features) · │ 📋 open · ❓ parked · ⏳ blocked │ (the queue) · │ 5h▰▰▱▱▱23% 7d▰▰▰▱▱41% │
+(**account** rate-limit usage) · model · ⇡ input ⇣ output
 tokens · project · branch (+ *changes · ↑ahead ↓behind).
+
+**The usage bars (R76)** read `.rate_limits` out of the payload Claude Code already pipes to the
+status line — **no API call, no network, no token cost**. Green under 60%, yellow 60–84%, red at
+85% and above, with a `↻` reset countdown once a window reaches 80%. They are **rolling windows, not a
+billing cycle** (the plans meter on 5-hour and 7-day windows, so there is no monthly percentage to
+show), and they cover the whole **account**, not this repo. The field only exists for Claude.ai
+Pro/Max and only after the session's first API response — each window independently — so on an API
+key, or on the very first render, that section simply isn't there. Say so if the owner asks why
+they can't see it; it isn't a wiring fault.
 
 Do this:
 
