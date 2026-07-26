@@ -89,6 +89,18 @@ Demand-driven only. Near-term: the enforced core is thin by design — extend it
 behavior genuinely needs to *execute or block* (everything else is a steering-doc edit). No
 new layers planned.
 
+**Parked exploration — `claude-only-redesign` (branch, not merged).** One commit (`aa17539`,
+2026-07-20, forked pre-R63) prototypes a **repo-identity queue**: `bin/q` over an append-only
+`.companion/queue.jsonl` *committed in the repo*, replayed to state on read — deleting the whole
+R60 export/import + machine-local-store layer on the theory that **the repo is the identity and
+git is the transport**, so cross-machine resume is a plain `git pull` with no re-stamping (the
+commit claims a clone-to-a-different-path test). It is **not mergeable** — it predates R63 and
+main has since built R63–R75 on top of the current model, including the `ship.sh` rail (R71) and
+handoff (R72) that branch never had. Kept as a **design record only**: the live question it poses
+is whether R60/R63's export/import + per-worktree identity is more machinery than
+commit-the-queue would need. Pushed to origin so it survives this machine; delete the branch only
+together with this pointer.
+
 ## Build history
 
 The full dated build-log is `git log` (commit messages carry the detail); this file keeps
