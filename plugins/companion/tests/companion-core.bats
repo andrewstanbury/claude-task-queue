@@ -900,3 +900,73 @@ _sw_repo() {
   [ "$turns" -le 8 ]                                  # yields at the cap instead of forever
   [ "$turns" -ge 1 ]                                  # ...but does sweep before yielding
 }
+
+# ── doc-lint (R78) ─────────────────────────────────────────────────────────────────────────────
+# These two checks used to live inline in check.sh, which the suite cannot invoke without recursion
+# (check.sh runs bats) — so they had no behavioural case and no mutation, a gap R78 had to record
+# rather than close. Extracted to bin/doc-lint.sh precisely so these cases can exist.
+
+@test "doc-lint frontmatter: accepts shapes the HOST accepts (no false positives) (R78)" {
+  # An earlier whole-block whitelist rejected all three of these, which would have broken valid
+  # user commands — worse than having no check at all.
+  local d; d="$(mktemp -d)"
+  printf -- '---\ndescription: "plain"\nallowed-tools:\n  - Bash\n  - Read\n---\nbody\n' > "$d/a.md"
+  printf -- '---\ndescription: "plain"\nallowed-tools: [Bash, Read]\n---\nbody\n' > "$d/b.md"
+  printf -- "---\ndescription: 'a: b'\nmodel: inherit\n---\nbody\n" > "$d/c.md"
+  # UNQUOTED but perfectly valid — without this every fixture was quoted, so a doc-lint that
+  # rejected all unquoted values passed all three cases AND left check.sh green (every real
+  # command already quotes). The "must not break valid commands" contract had no coverage.
+  printf -- '---\ndescription: walk the parked backlog one at a time\n---\nbody\n' > "$d/d.md"
+  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/a.md" "$d/b.md" "$d/c.md" "$d/d.md"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "doc-lint frontmatter: rejects shapes the HOST throws on (R75/R78)" {
+  local d; d="$(mktemp -d)"
+  printf -- '---\ndescription: [target] — leading indicator\n---\nbody\n' > "$d/ind.md"
+  printf -- '---\ndescription: wire this: the thing\n---\nbody\n'          > "$d/colon.md"
+  printf -- '---\ndescription: "never closed\n---\nbody\n'                 > "$d/quote.md"
+  printf -- '---\ndescription: "one"\ndescription: "two"\n---\nbody\n'     > "$d/dup.md"
+  for c in ind colon quote dup; do
+    run "$ROOT/bin/doc-lint.sh" frontmatter "$d/$c.md"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"FAIL"* ]]
+  done
+  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/ind.md"
+  [[ "$output" == *"YAML indicator"* ]]
+  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/quote.md"
+  [[ "$output" == *"never closes"* ]]
+  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/dup.md"
+  [[ "$output" == *"duplicate"* ]]
+}
+
+@test "doc-lint ledger: a hard measurement needs evidence; a rhetorical figure does not (R78)" {
+  local d; d="$(mktemp -d)"
+  printf '| **R1** | 🔓 | Grew by 512B and blocked 25/25 turns. | 2026-01-01, no evidence. |\n' > "$d/bad.md"
+  run "$ROOT/bin/doc-lint.sh" ledger "$d/bad.md"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"R1 states a measurement with no evidence"* ]]
+
+  printf '| **R2** | 🔓 | Grew by 512B, measured with check.sh. | 2026-01-01. |\n' > "$d/good.md"
+  run "$ROOT/bin/doc-lint.sh" ledger "$d/good.md"
+  [ "$status" -eq 0 ]
+
+  # a rhetorical estimate is a judgement, not a measurement — it must NOT trip the rule (this
+  # false-positived on R40's "~90% of the value" during calibration)
+  printf '| **R3** | 🔓 | Roughly ~90%% of the value, and version 3.22.0. | 2026-01-01. |\n' > "$d/rhet.md"
+  run "$ROOT/bin/doc-lint.sh" ledger "$d/rhet.md"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "check.sh actually INVOKES doc-lint for both subcommands (R78 wiring guard)" {
+  # Extracting the logic made it testable but created a new untested failure mode: the CALL. With
+  # both invocations stubbed out the whole suite stayed green while the gate silently checked
+  # nothing. bats cannot run check.sh (check.sh runs bats), so this is a structural guard — the
+  # same shape as the R56·P3 guard over command prose.
+  run grep -c 'doc-lint\.sh" frontmatter' "$ROOT/../../check.sh"
+  [ "$output" -ge 1 ]
+  run grep -c 'doc-lint\.sh ledger' "$ROOT/../../check.sh"
+  [ "$output" -ge 1 ]
+}

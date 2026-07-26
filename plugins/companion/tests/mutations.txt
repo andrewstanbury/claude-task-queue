@@ -9,3 +9,9 @@ plugins/companion/bin/secret-guard.sh::s|exit 2|exit 0|::the secret gate stops b
 plugins/companion/bin/ship.sh::s@if \[ -s .companion/da-paths \] \&\& \[ -z "$da" \]@if false@::the devil's-advocate gate never fires
 plugins/companion/bin/ship.sh::s@ls-files --others --exclude-standard@ls-files --cached@::untracked critical-path files stop being seen
 plugins/companion/bin/ship.sh::s@--name-only --no-renames HEAD@--name-only HEAD@::a rename hides one side of a critical-path change
+plugins/companion/bin/doc-lint.sh::s@\\"\*|\\'\*)@\\"ZZZ*)@::frontmatter stops rejecting an unterminated quote
+plugins/companion/bin/doc-lint.sh::s@-gt 1 @-gt 99 @::frontmatter stops rejecting a duplicate key
+plugins/companion/bin/doc-lint.sh::s@^        \[.*\]\*)$@        ZZZNEVERMATCH)@::frontmatter stops rejecting a leading YAML indicator (logic, not the message)
+plugins/companion/bin/doc-lint.sh::s@measured (R78)"; rc=1@measured (R78)"; rc=0@::ledger stops FAILING on an unevidenced measurement
+check.sh::s@doc-lint.sh" frontmatter@doc-lint.sh" ZZZfrontmatter@::check.sh stops invoking the frontmatter lint
+check.sh::s@doc-lint.sh ledger@doc-lint.sh ZZZledger@::check.sh stops invoking the ledger lint

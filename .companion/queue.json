@@ -1,9 +1,1 @@
-[
-  {
-    "subject": "extract check.sh's frontmatter lint + ledger rule into a callable script so bats can exercise them",
-    "status": "pending",
-    "done_when": "both live in a script check.sh calls and bats can invoke directly; each gains a bats case and a mutation; R78's named gap closes",
-    "description": "",
-    "notes": []
-  }
-]
+[]

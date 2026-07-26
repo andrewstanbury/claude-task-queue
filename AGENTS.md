@@ -93,6 +93,8 @@ Formatting is now a steering nudge, not enforced. The remaining hooks all *block
                     # · strict command-frontmatter parse · ledger measurements cite evidence (R78)
 ./check.sh --mutate # CI-only: every declared mutation MUST turn the suite red. A mutation that
                     # stays green is a hole — a test that cannot fail (R78)
+# The two document checks live in plugins/companion/bin/doc-lint.sh so bats can exercise them —
+# anything inline in check.sh is untestable, since check.sh is what runs bats.
 ```
 
 `check.sh` skips locally-missing tools (with a note) and is authoritative in CI.

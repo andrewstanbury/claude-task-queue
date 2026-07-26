@@ -18,7 +18,9 @@ if [ "${1:-}" = "--mutate" ]; then
   # BOTH codes: local shellcheck 0.11 flags SC2329, CI's older build flags SC2317 for the same
   # function — a version split that has now shipped red CI twice (cf. SC2015 in LESSONS).
   _mut_restore() {
-    find plugins -name '*.mutbak' -print0 2>/dev/null |
+    # NOT `find plugins` — mutations target check.sh at the repo root too, and scoping the restore
+    # to plugins/ left check.sh mutated after an interrupted run (found by a real timeout).
+    find . -name '*.mutbak' -print0 2>/dev/null |
       while IFS= read -r -d '' b; do mv -f "$b" "${b%.mutbak}"; done
   }
   trap '_mut_restore' EXIT INT TERM HUP
@@ -172,30 +174,11 @@ for f in plugins/companion/commands/*.md; do
   hraw="$(printf '%s\n' "$fm" | awk -F'argument-hint: ' '/^argument-hint: /{print $2; exit}')"
   d="$(unquote "$draw")"; hint="$(unquote "$hraw")"
 
-  # FRONTMATTER SANITY for the two keys this gate reads (R75/R78). The host parses frontmatter as
-  # YAML and drops the WHOLE block on a throw — description and argument-hint together — behind a
-  # debug-level warning, which a line-grep can never see. This is a LINT ON KNOWN-BAD SHAPES, not a
-  # YAML validator, and it is scoped to `description:`/`argument-hint:` on purpose: an earlier
-  # whole-block whitelist rejected `allowed-tools:` block/flow sequences and single-quoted scalars,
-  # all of which the host accepts happily — a gate that breaks valid commands is worse than none.
-  # It does NOT catch every throw (duplicate keys, a `? ` indicator); the ledger says so plainly.
-  for fmkey in description argument-hint; do
-    fmn="$(printf '%s\n' "$fm" | grep -c "^$fmkey:" || true)"
-    if [ "${fmn:-0}" -gt 1 ]; then
-      echo "  FAIL $(basename "$f") duplicate \`$fmkey:\` key — YAML throws and the host drops the ENTIRE block (R78)"; tok_fail=1; fail=1
-    fi
-    fmv="$(printf '%s\n' "$fm" | sed -n "s/^$fmkey: *//p" | head -1)"
-    [ -n "$fmv" ] || continue
-    case "$fmv" in
-      \"*\"|\'*\') : ;;                                       # properly closed quotes: fine
-      \"*|\'*)
-        echo "  FAIL $(basename "$f") \`$fmkey\` opens a quote it never closes — the host drops the ENTIRE block (R78)"; tok_fail=1; fail=1 ;;
-      [\[\{\*\&\!%@\`\>\|,\#?-]*)
-        echo "  FAIL $(basename "$f") \`$fmkey\` starts with a YAML indicator and is unquoted — the host drops the ENTIRE block (R75)"; tok_fail=1; fail=1 ;;
-      *": "*|*:)
-        echo "  FAIL $(basename "$f") \`$fmkey\` contains a colon and is unquoted — YAML reads it as a nested mapping (R75)"; tok_fail=1; fail=1 ;;
-    esac
-  done
+  # Frontmatter lint lives in bin/doc-lint.sh so the SUITE can exercise it (R78) — check.sh runs
+  # bats, so anything inline here is untestable by construction and was a named gap.
+  if ! out="$("$PWD/plugins/companion/bin/doc-lint.sh" frontmatter "$f")"; then
+    printf '%s\n' "$out"; tok_fail=1; fail=1
+  fi
 
   db="$(printf '%s' "$d" | wc -c | tr -d '[:space:]')"
   if [ "${db:-0}" -gt 140 ]; then echo "  FAIL $(basename "$f") description: ${db}B > 140B (per-session command-list injection)"; tok_fail=1; fail=1; fi
@@ -251,24 +234,10 @@ $dp
 EOF
   fi
 done
-# A ledger MEASUREMENT must name where it came from (R78). "The no-progress cap remains the
-# backstop" shipped in an R-cell and was simply false; three byte figures in another were wrong.
-# Neither is mechanically checkable — but *asserting a number without saying how you got it* is,
-# and that is the habit that produced both. Hard units only (bytes / tokens / N-of-N): a rhetorical
-# "~90% of the value" is a judgement, not a measurement, and must not trip this. Calibrated against
-# the existing ledger before landing: 5 rows carry a hard measurement, 0 lacked evidence.
+# Ledger evidence lint — also in bin/doc-lint.sh, same reason (R78).
 led_fail=0
-if [ -f docs/REQUIREMENTS.md ]; then
-  while IFS= read -r row; do
-    case "$row" in '| **R'*) : ;; *) continue ;; esac
-    if printf '%s' "$row" | grep -qE '(^|[^~])[0-9][0-9,]* ?(B[^a-zA-Z]|bytes|tokens?)|(^|[^~])[0-9]+/[0-9]+'; then
-      # shellcheck disable=SC2016  # backticks are literal here — they delimit a filename in the prose
-      if ! printf '%s' "$row" | grep -qiE 'measured|verified|reproduc|exercis|mutation-tested|bats|check\.sh|`[^`]*\.(sh|md|json|bats)`'; then
-        rid="$(printf '%s' "$row" | sed -n 's/^| \*\*\(R[0-9]*\)\*\*.*/\1/p')"
-        echo "  FAIL docs/REQUIREMENTS.md $rid states a measurement with no evidence — say where it was measured (R78)"; led_fail=1; fail=1
-      fi
-    fi
-  done < docs/REQUIREMENTS.md
+if ! out="$(plugins/companion/bin/doc-lint.sh ledger docs/REQUIREMENTS.md)"; then
+  printf '%s\n' "$out"; led_fail=1; fail=1
 fi
 [ "$led_fail" -eq 0 ] && echo "  ok (ledger measurements cite their evidence)"
 
