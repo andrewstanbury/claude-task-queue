@@ -3,10 +3,10 @@ when: critique, document, rebuild, or add coverage to what's built
 why: improvements run against a written contract, not memory — else they silently reverse undocumented choices [R29 R41 R54]
 
 steps:
-- `/companion:advise` — brutal-honest critique as options picked one at a time, then queued; critiques ONLY, never edits; critic panel runs in the BACKGROUND (owner keeps working, synthesis on arrival) [pattern:recommendation-first; R71]
-- `/companion:docs` — record load-bearing decisions tiered check › 🔒 › 🔓, routed by contract pillar; scan includes the outside-in boundary lens (every input/output at the edge); machine-facing interfaces land as flow pages (consumer = program), black-box [E] tests = swap-survivability [R70]; scanner panel runs in the BACKGROUND, only the Pass-2 triage is live [R71]; produces flow specs (this contract) + ledger entries
-- `/companion:redesign` — whole-app contract-preserving rebuild, bounded check-gated passes; runs `docs` first; single target = one pass (absorbed `regen`) [pattern:contract-preserving-rebuild; experimental]
-- `/companion:cover` — rank flows by criticality × coverage gap → recommend then SCAFFOLD picked tests (black-box golden/happy-path, project's own runner, named to resolve the R61 gate) [pattern:recommendation-first, living-contract]
+- `/companion:advise [target] [-- goal: X]` — brutal-honest critique as options picked one at a time, then queued; critiques ONLY, never edits; critic panel runs in the BACKGROUND (owner keeps working, synthesis on arrival); no target = whole project [pattern:recommendation-first; R71 R75]
+- `/companion:docs [scope]` — record load-bearing decisions tiered check › 🔒 › 🔓, routed by contract pillar; scan includes the outside-in boundary lens (every input/output at the edge); machine-facing interfaces land as flow pages (consumer = program), black-box [E] tests = swap-survivability [R70]; scanner panel runs in the BACKGROUND, only the Pass-2 triage is live [R71]; scope bounds the scan, recap must name what was left out [R75]; produces flow specs (this contract) + ledger entries
+- `/companion:redesign [module]` — contract-preserving rebuild in bounded check-gated passes; runs `docs` first; a named module runs exactly ONE pass: D2 skipped, D0/D1 narrowed to that module (weaker than the whole-app invariant net, by construction), D3/D4 identical; no argument rebuilds the whole app (absorbed `regen`) [pattern:contract-preserving-rebuild; experimental; R75]
+- `/companion:cover [scope]` — rank flows by criticality × coverage gap → recommend then SCAFFOLD picked tests (black-box golden/happy-path, project's own runner, named to resolve the R61 gate) [pattern:recommendation-first, living-contract]
 
 quality:
 - judgment + workflow, not enforcement — propose · owner picks · record
@@ -20,6 +20,7 @@ tests:
 - [S] cover recommends-then-scaffolds, gap-honest — judgment 👁
 
 changes:
+- 2026-07-25 arguments declared + visible: advise target/goal · docs scope · redesign single-module pass [R75]
 - 2026-07-23 advise/docs panels backgrounded — owner keeps working during the scan [R71]
 - 2026-07-23 docs sharpened: boundary lens · machine-consumer flows · mandatory QA-why [R70]
 - 2026-07-22 machine shape [R66; reverses R62] · why-line provenance

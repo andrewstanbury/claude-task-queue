@@ -97,8 +97,31 @@ for f in plugins/companion/commands/*.md; do
   d="$(awk -F'description: ' '/^description: /{print $2; exit}' "$f")"
   db="$(printf '%s' "$d" | wc -c | tr -d '[:space:]')"
   if [ "${db:-0}" -gt 140 ]; then echo "  FAIL $(basename "$f") description: ${db}B > 140B (per-session command-list injection)"; tok_fail=1; fail=1; fi
+  # `argument-hint:` and `$ARGUMENTS` must agree, BOTH ways (R75). The hint is the only place the
+  # owner sees a command's parameters — it renders in the / autocomplete and, unlike `description:`,
+  # costs ZERO runtime tokens (it does not ride the command-list injection). Two drifts to catch:
+  # a body that reads args with no hint (guess-what-I-take), and a hint promising params the body
+  # ignores (a lie in the menu — the worse one). The hint must be in the FRONTMATTER with a
+  # NON-EMPTY value; a body line or a bare key renders nothing. Prevention > detection (N7).
+  fm="$(awk 'NR==1&&$0=="---"{inf=1;next} inf&&$0=="---"{exit} inf{print}' "$f")"
+  hint="$(printf '%s\n' "$fm" | awk -F'argument-hint: ' '/^argument-hint: /{print $2; exit}')"
+  takes_args=0
+  # shellcheck disable=SC2016  # the literal string "$ARGUMENTS" is the target; expansion is wrong here
+  grep -qF '$ARGUMENTS' "$f" && takes_args=1
+  if [ "$takes_args" = 1 ] && [ -z "${hint//[\"[:space:]]/}" ]; then
+    echo "  FAIL $(basename "$f") reads \$ARGUMENTS but has no non-empty frontmatter argument-hint: (R75 — params must be visible in the / menu)"; tok_fail=1; fail=1
+  fi
+  if [ "$takes_args" = 0 ] && [ -n "${hint//[\"[:space:]]/}" ]; then
+    echo "  FAIL $(basename "$f") declares argument-hint: but the body never reads \$ARGUMENTS (R75 — the / menu would promise params the command ignores)"; tok_fail=1; fail=1
+  fi
+  # The hint renders in the input box with `truncate-end`: too long and the tail — usually the
+  # second parameter — is the part that silently disappears. 80 chars is generous (current max 61).
+  hb="${#hint}"
+  if [ "$hb" -gt 80 ]; then
+    echo "  FAIL $(basename "$f") argument-hint: ${hb} chars > 80 (truncates in the / input box — name the params, don't document them)"; tok_fail=1; fail=1
+  fi
 done
-[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/12288B; command descriptions ≤140B)"
+[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/12288B; command descriptions ≤140B; arg-taking commands hinted)"
 
 # NOTE: the contract-drift backstop (bin/contract-drift.sh) deliberately does NOT run here
 # (R58 amended 2026-07-22): a warning on every mid-work gate run — where drift is the normal

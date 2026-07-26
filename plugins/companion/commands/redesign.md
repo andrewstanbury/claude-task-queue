@@ -1,16 +1,29 @@
 ---
 description: Whole-app contract-preserving rebuild in bounded, check-gated passes (runs docs first)
+argument-hint: "[module — one bounded pass; default whole app]"
 ---
 
-Run a **redesign** (R55): rebuild the **whole application** from the logged contract, as a
-**sequence of bounded, check-gated passes** — **never** one unbounded rewrite. The intent-driven
-regeneration the owner asked for. It **edits**, so every guardrail is mandatory. **Prototype until
-proven on a real rebuild — say so.**
+Run a **redesign** (R55): rebuild from the logged contract as a **sequence of bounded, check-gated
+passes** — **never** one unbounded rewrite. The intent-driven regeneration the owner asked for. It
+**edits**, so every guardrail is mandatory. **Prototype until proven on a real rebuild — say so.**
 
-**Disclose the shape up front (informed consent).** This is the longest command in the suite. Before
-D0, tell the owner in one line what the run costs: *`docs` sweep (itself a triage) → invariant-net
-gate → plan → N per-module passes.* The owner should see the ~N-interruption shape **before**
-committing, not discover it at pass 12.
+**Scope: `$ARGUMENTS` picks single-pass or whole-app.** With a **module** named (a file or
+subsystem), run **exactly one** D3 pass on that target — the bounded rebuild `/companion:advise`
+points at. With **no arguments**, redesign the **whole application**: every step below, in order.
+
+**What differs, stated exactly — a single pass is *narrower*, never *laxer*.** D3's R1–R5 engine and
+D4's safety are **identical**. D2 is **skipped** (the named module *is* the plan). D0 and D1 are
+**narrowed to the module** — its invariants must have green checks, its flows + quality attributes
+must be current — which is a **weaker gate than the whole-app one**, and honestly so: it substitutes
+your judgment about *which invariants touch this module* for D0's enumerable whole-net check. That
+is the R56 footgun in miniature, so D3·R3 re-asserts it at the pass itself and **refuses to
+regenerate** on a missing or red check. If you can't tell which invariants touch the target, you
+don't have a bounded target — run the whole-app D0 instead.
+
+**Disclose the shape up front (informed consent).** The whole-app run is the longest command in the
+suite. Before D0, tell the owner in one line what the run costs: *`docs` sweep (itself a triage) →
+invariant-net gate → plan → N per-module passes* (single-pass: *contract check → gate → one pass*).
+The owner should see the ~N-interruption shape **before** committing, not discover it at pass 12.
 
 The **logged** contract is `docs/flows/` (experience) + `docs/flows/_quality-bar.md` (quality attributes). The
 **safety invariants are the executable checks** (`docs/INVARIANTS.md` + `check.sh`) every pass must
@@ -30,17 +43,27 @@ D0. **Verify the invariant net covers the app BEFORE the first pass (R54 sequenc
     (or is an explicitly owner-acknowledged G3/G4 manual-preserve). **If any invariant is uncovered,
     STOP** — add the check first (`/companion:docs` or by hand). Do not begin a whole-app redesign
     on an incomplete net; per-module R3 recognition is a backstop, not the gate.
+    **Single-pass (`$ARGUMENTS` given):** narrowed, and **weaker by construction** — every invariant
+    *touching the named module* needs a green check before the pass, but "touching" is your judgment,
+    not an enumeration. D3·R3 re-asserts it at the pass; when the boundary is unclear, fall back to
+    the full whole-app net rather than guessing the module's edge.
 
 D1. **Log the contract first — `/companion:docs` is a REQUIRED first step (R41/R55).** The
     redesign rebuilds against the *logged* UX + quality attributes, so those must exist and be current
-    before a single module is touched. **Run `/companion:docs` first** to record/refresh
+    before a single module is touched. **Run `/companion:docs` first** (on a single-pass run, pass
+    the module as its scope — `/companion:docs <module>`) to record/refresh
     `docs/flows/` (the experience) + `docs/flows/_quality-bar.md` (the quality attributes) — **just those two**, not a
     technical-requirements catalogue (the safety net is the checks from D0, not prose). **Refuse to
     proceed** if the contract is missing or stale and the owner declines to log it: a redesign with no
     contract to preserve is an unbounded rewrite, exactly what this command forbids. `docs` stays
     its own command (it also feeds `/companion:advise`); redesign *requires* it, doesn't replace it.
+    **Single-pass:** required just the same, but scoped — the flows + quality attributes covering
+    *that module's* behavior must exist and be current. A rebuild with no contract to preserve is an
+    unbounded rewrite at any size.
 
-D2. **Enumerate the app as bounded targets, then negotiate the run mode (one question).** Break the
+D2. **Enumerate the app as bounded targets, then negotiate the run mode (one question).**
+    **Whole-app only — skip this step for a single-pass run** (the named module *is* the plan, and
+    D3·R5 already stops for the owner's pick; go straight to D3). Break the
     application into bounded modules (file/subsystem, generically per R9). Order **lowest-blast /
     fewest-dependents first** so an early failure is cheap. Present the plan (the ordered target list,
     with a count), then ask **one** `AskUserQuestion` for how to run it — converting N interruptions
@@ -58,8 +81,11 @@ D2. **Enumerate the app as bounded targets, then negotiate the run mode (one que
 D3. **Redesign each module as a bounded, check-gated pass (the inlined engine, R1–R5).** For each
     target in order, drive the full per-module flow — never a single unbounded whole-app rewrite:
 
-    - **R1 · Bound it.** The pass target is one module (file / subsystem) from D2 — never the whole
-      repo at once; the blast radius must stay isolable by the checks.
+    - **R1 · Bound it.** The pass target is one module (file / subsystem) — from D2's list, or the
+      one named in `$ARGUMENTS` on a single-pass run — never the whole
+      repo at once; the blast radius must stay isolable by the checks. If the named target is too
+      big to be one pass (a whole directory, "the CLI"), say so and decompose it into ordered
+      sub-targets first — a single-pass invocation is not a licence to widen the bound.
     - **R2 · Load the contract.** Read `docs/flows/` (the user-facing behavior this module must
       reproduce), `docs/flows/_quality-bar.md` (the quality attributes to meet — *and* what's explicitly
       **incidental**, so fair to change), and `docs/INVARIANTS.md` (the must-holds touching it).
@@ -83,7 +109,8 @@ D3. **Redesign each module as a bounded, check-gated pass (the inlined engine, R
       UX is *reproduced*. **A reddened check STOPS that pass**; ask the owner whether to continue the
       run or halt.
 
-D4. **Whole-run safety.** All passes land on a branch, never the default in place; the gate stays
+D4. **Whole-run safety — a single pass gets the same treatment, scoped to its module.** All passes
+    land on a branch, never the default in place; the gate stays
     green between passes; the owner reviews. When the run completes, drive the app's real behavior to
     confirm the **UX is reproduced end-to-end** (not just green tests), then hand off to
     `/companion:ship-it`. Never silent, never without the owner's go.

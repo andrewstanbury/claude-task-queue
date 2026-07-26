@@ -1,9 +1,11 @@
 ---
-description: Turn autopilot on or off (keep working the queue autonomously, without stopping to ask)
+description: Autopilot on/off/status, or toggle ship-mode + decisive mode — drain the queue autonomously, without stopping to ask
+argument-hint: "[on|off|status | ship on|off|status | decisive on|off|status]"
 ---
 
-Toggle autopilot for this repo by running the toggle script, passing the argument the user
-gave (`on`, `off`, `status`, `ship on|off|status`, or `decisive on|off|status`):
+Toggle autopilot for this repo by running the toggle script, passing `$ARGUMENTS` through verbatim
+(`on`, `off`, `status`, `ship on|off|status`, or `decisive on|off|status`; **empty → `status`**, the
+script's own default — never assume `on`):
 
 `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" <on|off|status | ship on|off|status | decisive on|off|status>`
 

@@ -1,9 +1,21 @@
 ---
 description: Ship finished work — verify, sync the contract docs, commit, push, and merge to the default branch
+argument-hint: "[pr] [--gate <cmd>]"
 ---
 
 Take verified work from the working tree to shipped. Pushing and merging are externally
 visible, so be careful and confirm the irreversible steps.
+
+**`$ARGUMENTS` sets two things, both optional:**
+- **`pr`** — take the **PR flow** (step 5's alternative) instead of merging to the default branch:
+  everything through step 4 is identical, then push the branch and open the PR rather than calling
+  `land`. Decided up front so you don't discover it mid-flow. **It leaves the rail** — step 5's PR
+  bullet enumerates the four `land` guarantees it forgoes, two of them safety. Read them before
+  offering `pr` as the easy option.
+- **`--gate <cmd>`** — the project's gate command, when it isn't a `./check.sh` / `.companion/check.sh`
+  the rail can find on its own (`--gate npm test`, `--gate make test`). Pass it through **verbatim**
+  to *both* rail calls — `preflight <cmd…>` positionally and `land --gate <cmd…>` last. With none,
+  recognize the gate yourself (R9) as before; **never ship without one** (exit 3 means stop).
 
 **The mechanical spine runs on the rail (R71):** `"${CLAUDE_PLUGIN_ROOT}/bin/ship.sh"` executes
 the deterministic steps in two calls — `preflight` before your judgment, `land` after it — so
@@ -13,8 +25,9 @@ Judgment stays yours: the case, the devil's-advocate, the contract impact, the f
 proposal, the commit message, the history curation.
 
 1. **Preflight — Verify FIRST, one call.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/ship.sh" preflight`
-   (if the repo has no `./check.sh` / `.companion/check.sh`, append its gate as trailing args —
-   `preflight make test`, `preflight npm test`, whatever it uses; recognizing that is your job, R9.
+   (if `--gate <cmd…>` was passed, or the repo has no `./check.sh` / `.companion/check.sh`, append
+   the gate as trailing args — `preflight make test`, `preflight npm test`, whatever it uses;
+   recognizing an unpassed one is your job, R9.
    Remember the same command — step 5's `land` needs it as `--gate <cmd…>`). This runs the
    gate, the contract-drift backstop (R58 — read its output), `tq export` (R60 — the queue
    snapshot rides the ship), and prints the branch/upstream summary + `git status` + diff stat
@@ -71,8 +84,9 @@ proposal, the commit message, the history curation.
      **Tasks** it closes (the `tq`/tracker items), and the **Test result** (`check.sh` green, N tests).
    - If a version/marketplace manifest is part of the change, make sure it's bumped **before** land
      (the gate re-runs there and checks version match).
-5. **Land — one call.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/ship.sh" land -F <msgfile>` (if the repo
-   has no `./check.sh`/`.companion/check.sh`, append `--gate <cmd…>` **last** — it slurps the rest
+5. **Land — one call.** *(Invoked with `pr`? Skip straight to the PR-flow bullet — don't call
+   `land`.)* Run `"${CLAUDE_PLUGIN_ROOT}/bin/ship.sh" land -F <msgfile>` (with the same gate step 1
+   used — passed via `--gate` or recognized — append `--gate <cmd…>` **last** — it slurps the rest
    of the line as the gate command, so a multi-word gate like `--gate make test` works, matching
    the positional `preflight <cmd…>` form). The rail re-runs the gate on the exact tree
    being shipped, stages everything, refuses staged credential shapes, commits, **ff-only** merges
@@ -89,9 +103,17 @@ proposal, the commit message, the history curation.
      already on the default, so **fix forward** (read `gh run view <id> --log-failed`, fix, land the
      fix), don't try to un-ship. `gh` absent / no run / timeout → land says so and exits 0 (unwatched,
      not failed). Opt out only when you must with `SHIP_CI_WATCH=0`.
-   - **PR flow instead:** if the owner wants review first, skip `land`, push the branch, and open
+   - **PR flow instead (the `pr` argument, or the owner asks mid-flow for review first):** skip
+     `land`, push the branch, and open
      a PR with `gh` (structured body: one-line summary · changes grouped by area · requirement IDs
-     · test plan + result); without `gh`, print the compare URL.
+     · test plan + result); without `gh`, print the compare URL. **Name the full trade-off — `pr`
+     leaves the rail, so it forgoes all four of `land`'s guarantees:** (1) the **gate re-run on the
+     exact tree being shipped**, (2) the **staged-credential refusal** at the commit boundary,
+     (3) the **ff-only merge**, and (4) the **enforced R74 CI watch** (CI runs on the PR and the
+     merge is a later, separate act, so nothing here blocks on it). (1) and (2) are *safety*, not
+     convenience: you are hand-committing without the rail, so **re-run the gate yourself and eyeball
+     `git diff --staged` for credential shapes before you push.** Step 6's sweep doesn't apply either
+     (nothing merged yet).
 6. **Sweep merged branches (R35) — owner-confirmed.** `land` printed any *other* branches already
    merged into the default (list-only by design — deleting a teammate's branch needs a human yes).
    If the repo is yours alone, or the owner confirms the list, prune now by hand: `git branch -d`

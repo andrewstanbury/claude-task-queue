@@ -1,10 +1,17 @@
 ---
 description: Record a repo's undocumented load-bearing decisions as checks or graded ledger entries (feeds advise/redesign)
+argument-hint: "[scope: path|subsystem — default whole repo]"
 ---
 
 Run a **docs sweep**: excavate the decisions an existing repo *depends on but never wrote down*,
 and record them in the doc `advise` already reads — so `/companion:advise` stops guessing and
 stops proposing to remove or redesign something critical that simply wasn't communicated.
+
+**Scope is `$ARGUMENTS`** (a path, subsystem, or free-text area) — with none, sweep the **whole
+repo**. A scope bounds *what the panel scans and triages*, not how it records: the tiers, the
+provenance rules, and the routing are identical. Say the scope back in one line, and when you
+finish, name what was **out of scope** — a scoped sweep leaves the rest of the repo just as
+undocumented as before, and the recap must not read as whole-repo coverage.
 
 `docs` is the **producer** side of advise (R41): advise (R29) *consumes* `REQUIREMENTS.md`;
 `docs` *populates* it. It is judgment + workflow, not enforcement — it proposes, you choose, it
@@ -64,7 +71,8 @@ the ledger. Homes (R64): all contract docs live under `docs/`; a generated gate 
    command can't ask a single question. This is a **mechanical unblock** — **defer the R38 parked-pile
    review** until after this command; just note the ❓/⏳ count in one line, don't walk the pile first.
 
-1. **Scan — read-only, no questions.** Detect the repo's structure **generically** (R9 — no
+1. **Scan — read-only, no questions.** Resolve the scope first (`$ARGUMENTS`, else the whole repo)
+   and restate it in one line. Detect the repo's structure **generically** (R9 — no
    language/framework allowlists; delegate recognition to the model, detect structure generically).
    Spawn a small panel of scanner sub-agents, each a distinct lens for what is **load-bearing *and*
    likely-undocumented**:
@@ -80,7 +88,7 @@ the ledger. Homes (R64): all contract docs live under `docs/`; a generated gate 
    - **landmines** — code that *looks* removable or refactorable but is actually holding something
      up: the exact thing advise would delete. Weight these and the boundary lens highest.
 
-   Give each lens the repo + the goal. **Run the panel in the background (R71):** spawn the
+   Give each lens **the scope** (`$ARGUMENTS`, else the whole repo) + the goal. **Run the panel in the background (R71):** spawn the
    scanners as background sub-agents, announce in one line that the scan is running and the owner
    can keep working, and end the turn — build the Pass-1 report when the results arrive (the
    triage in Pass 2 is the only part that needs the owner live). **Each must first read the
@@ -150,4 +158,5 @@ the ledger. Homes (R64): all contract docs live under `docs/`; a generated gate 
    constraints with no real why) and **what's incidental** (disposable — a regen may redesign it):
    advise is now free to challenge the 🔓s and redesign the incidental, must not silently reverse the
    🔒s, and must reproduce the contract pillars. Only after this is advise standing on documented
-   ground instead of guessing.
+   ground instead of guessing — **for the scope you swept**: on a scoped run, name what was left
+   out in the same breath, so nobody reads the recap as whole-repo coverage.

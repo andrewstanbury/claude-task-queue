@@ -20,15 +20,22 @@ tests grammar (R61 gate, enforced by check.sh):
 - [patterns](./_patterns.md) · [quality-bar](./_quality-bar.md)
 
 ## Slash commands (10)
-`/companion:setup` (wire status line) · `/companion:autopilot` (keep-draining, enforced when on) ·
-`/companion:ship-it` (verify→sync flows→commit→push→merge, on the `ship.sh` rail R71) ·
+*Every argument-taking command declares an `argument-hint` — it renders in the `/` autocomplete and
+costs zero injected tokens, unlike `description:` (capped at 140B). `check.sh` enforces both [R75].*
+
+`/companion:setup` (wire status line) · `/companion:autopilot [on|off|status | ship … | decisive …]`
+(keep-draining, enforced when on; empty → status) ·
+`/companion:ship-it [pr] [--gate <cmd>]` (verify→sync flows→commit→push→merge, on the `ship.sh` rail
+R71; `pr` opens a PR instead, leaving the rail — forgoes the gate re-run, the staged-credential refusal, the ff-merge and the enforced CI watch) ·
 `/companion:handoff` (mid-flight checkpoint → pushed `wip/*` branch + queue, no gate, R72) ·
-`/companion:resume` (session pickup) ·
+`/companion:resume [branch]` (session pickup; named branch is authoritative) ·
 `/companion:review` (walk ❓+⏳ backlog recommendation-first; autopilot-off trigger; `decompose:`
-parks run as context interviews, R65) · `/companion:advise` (critique-only options) ·
-`/companion:redesign` (contract-preserving rebuild, check-gated passes; runs `docs` first) ·
-`/companion:docs` (record load-bearing decisions by pillar) · `/companion:cover` (recommend →
-scaffold flow tests).
+parks run as context interviews, R65) · `/companion:advise [target] [-- goal: X]` (critique-only
+options) ·
+`/companion:redesign [module]` (contract-preserving rebuild, check-gated passes; runs `docs` first;
+a named module = one pass) ·
+`/companion:docs [scope]` (record load-bearing decisions by pillar) · `/companion:cover [scope]`
+(recommend → scaffold flow tests).
 
 ## config
 - autopilot/ship/decisive via `/companion:autopilot` (`on|off`, `ship on|off`, `decisive on|off` [R59]) [E]

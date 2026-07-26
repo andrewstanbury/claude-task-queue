@@ -13,7 +13,7 @@ steps:
 - visual change → wireframe first [pattern:wireframe-first]; clean-as-you-go [pattern:clean-as-you-go]
 - credential write → BLOCKED [pattern:guardrails-default-on]
 - verify by exercising; recap one line
-- ship via `/companion:ship-it`: `ship.sh preflight` (gate+drift+export+summary, one call) → judgment (case · DA · contract sync · message) → `ship.sh land` (stage·commit·ff-merge·push·prune, one call; bails hand back) [R71]; land then ENFORCES a bounded CI watch — RED → exit 10 SHIPPED-fix-forward [R74]
+- ship via `/companion:ship-it [pr] [--gate <cmd>]`: `ship.sh preflight` (gate+drift+export+summary, one call) → judgment (case · DA · contract sync · message) → `ship.sh land` (stage·commit·ff-merge·push·prune, one call; bails hand back) [R71]; land then ENFORCES a bounded CI watch — RED → exit 10 SHIPPED-fix-forward [R74]. `--gate` supplies a non-`check.sh` gate to both calls; `pr` takes the PR path instead of `land` — no ff-merge, no enforced CI watch [R75]
 
 quality:
 - capture is write-only — zero runtime tokens [N1]

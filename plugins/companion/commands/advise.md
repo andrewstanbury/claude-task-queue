@@ -1,11 +1,14 @@
 ---
 description: Brutally-honest critique of a target as recommendation-first options, picked one at a time then queued
+argument-hint: "[target] [-- goal: <what to optimise for>]"
 ---
 
 Run an **advise**: an independent, brutally-honest critique of a target — its current state vs.
 what a ground-up redesign would recommend — decomposed into decisions you pick **one at a time**,
-then queued. The target is `$ARGUMENTS` (a file, subsystem, decision, or free-text topic); with
-none, advise on the **whole project**.
+then queued. `$ARGUMENTS` carries **two** parameters: the **target** (a file, subsystem, decision, or
+free-text topic — with none, advise on the **whole project**) and, after a `—` / `--` separator, an
+optional **goal** to critique against (e.g. `bin/tq — goal: token cost`). No separator → it's all
+target, and the default goal in step 1 applies.
 
 This is judgment + workflow, not enforcement — it never blocks or edits on its own; it proposes,
 you choose (R28).

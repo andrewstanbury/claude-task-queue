@@ -14,8 +14,9 @@ normal), and nothing lands on the default branch.
    **exit 8** no remote / push failed (the checkpoint is safe locally — resolve the remote, push)
    · **exit 9** a credential shape is staged (unstage/redact it first — never hand off a secret).
 3. Relay its final lines to the owner in one line: the branch that was pushed, and the pickup —
-   on the other machine `git fetch && git checkout <branch> && /companion:resume` (imports the
-   queue, classes + breadcrumbs intact).
+   on the other machine **`/companion:resume <branch>`**, naming the branch just pushed (it
+   fetches, checks that branch out, and imports the queue, classes + breadcrumbs intact).
+   Naming it beats a bare `/companion:resume`, which has to guess which branch is waiting.
 
 **Two honest limits (name them if relevant).** (a) handoff runs **no gate** and stages the whole
 tree (`git add -A`) — the only content guard is the standard anchored-credential backstop, which

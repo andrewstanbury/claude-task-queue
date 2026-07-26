@@ -3,7 +3,7 @@ when: return to a repo after an earlier session → resume, then clear decisions
 why: parked decisions are only trustworthy if they reliably reach the owner later — resume+review make the human half as dependable as the drain [R38 R39]
 
 steps:
-- `/companion:resume` — autopilot OFF first (resumed decisions go to the owner, not the next drain), then re-surface earlier tasks preserving ❓/⏳/📋 class [pattern:recommendation-first]
+- `/companion:resume [branch]` — autopilot OFF first (resumed decisions go to the owner, not the next drain), then re-surface earlier tasks preserving ❓/⏳/📋 class; a named handoff branch is authoritative (missing → say so, skip the checkout, still do the local pickup; never guess another branch), no argument auto-detects [R75] [pattern:recommendation-first]
 - `/companion:review` — walk ❓+⏳ pile one at a time, recommendation-first; each pick written back BEFORE new work; `decompose:` parks run as context interviews → minimal-blast children [R65]; this is also the autopilot-off trigger
 
 quality:
@@ -20,5 +20,6 @@ tests:
 - [S] review walks pile recommendation-first, one at a time — judgment 👁
 
 changes:
+- 2026-07-25 `resume [branch]` — explicit handoff pickup, auto-detect is the fallback [R75]
 - 2026-07-22 machine shape [R66; reverses R62] · why-line provenance
 - 2026-07-20 from UX.md P4 [R62]; carry-queue split to own flow; per-worktree scoping [R63, corrected from root-SHA design that would merge worktree queues]

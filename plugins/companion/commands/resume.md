@@ -1,5 +1,6 @@
 ---
 description: Re-surface and reinstate an earlier session's carried-over tasks, ❓/⏳/📋 class intact
+argument-hint: "[branch — the handoff branch; default auto-detect]"
 ---
 
 Run a **session resume**: re-surface this repo's tasks carried over from an earlier session and
@@ -31,10 +32,22 @@ concurrently is last-export-wins — status changes don't merge back.)
    (R72)** — but **clear autopilot before you might ask**: if it's on, run
    `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off` (announced) so the checkout offer below isn't
    blocked by the ask-guard (`resume.sh` clears it too, but that runs *after* this offer). Then
-   `git fetch` and look for a waiting handoff branch not checked out locally: a **`wip/*`** branch
-   (a handoff made *on the default branch*) **or** the **named branch the sending machine relayed**
-   (a handoff made on a feature branch commits in place, so it keeps its own name — `ship.sh handoff`
-   printed that name; `git branch -r` ahead of the default is the general signal). If one exists,
+   `git fetch` and find the waiting handoff branch.
+
+   **`$ARGUMENTS` names it, if you know it** (the sending machine's `ship.sh handoff` printed the
+   branch): take that branch as authoritative, skip the detection below, and check it out — still
+   *offering* first if the local tree is dirty (a checkout would clobber uncommitted work), straight
+   through if it's clean. If the named branch doesn't exist on the remote, **say so, skip the
+   checkout, and carry on with the local session pickup** — never fall back to guessing a *different*
+   branch (that's how you import the wrong queue), and never abort the whole command: the pickup
+   below is branch-independent and is the main job. Name the likely cause in one line (typo, or the
+   sending machine hasn't pushed yet) so the owner can re-run with the right branch.
+
+   **With no argument, auto-detect** a waiting handoff branch not checked out locally: a **`wip/*`**
+   branch (a handoff made *on the default branch*) **or** a **feature branch ahead of the default**
+   (a handoff made on a feature branch commits in place, so it keeps its own name; `git branch -r`
+   ahead of the default is the general signal — a heuristic, so **pass the branch explicitly when
+   you know it**). If one exists,
    surface it and offer to check it out **before** importing — it carries the other machine's
    mid-flight tree + queue, and importing on the default branch instead would silently strand it.
    Then run
