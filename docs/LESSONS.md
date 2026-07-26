@@ -35,6 +35,16 @@ ledger) and not in-flight work (that's the queue) — just "watch out for X here
   machine.
 - **`--print-output-on-failure`** on the `bats` call is what surfaces a flaky test's real
   `$output` in CI; keep it in `check.sh`.
+- **Never assert on ANSI colour via `cat -v` + `grep`.** BSD/macOS grep does not read a
+  backslash-escaped `^` in a BRE the way GNU grep does, so `grep -o '\^\['…` is green on Linux and
+  red on macOS for a colour that is a fixed string either way (shipped red CI once, 3.20.0).
+  Prefix-match the literal escape in pure bash instead: `esc=$'\033'; case "${out#*label}" in
+  "$esc[0m$esc[32m"*) … esac` — no external tool, no regex dialect.
+- **A colour test must neutralise the caller's env**: `env -u NO_COLOR TERM=xterm` on the
+  invocation, or a maintainer who exports `NO_COLOR` gets a red gate on a correct tree.
+- **Never assert an exact countdown built from `date +%s`.** `now + 42m` floors to `41m` the
+  moment a second passes between building the payload and the script reading the clock. Assert
+  the unit and presence (`↻[0-9]+m`), never the remaining count.
 - Tests live in `plugins/companion/tests/*.bats`, split by concern (core · hud). The 300-line size
   gate covers only `bin/`+`lib/`, not tests.
 

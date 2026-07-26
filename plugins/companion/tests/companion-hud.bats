@@ -237,12 +237,23 @@ _feature_off() {  # $1=feature  $2=repo-dir
 
 @test "status line: usage bar severity colors — green <60, yellow 60-84, red >=85 (R76)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  # Extract the SGR in PURE BASH. `cat -v` + `grep -o '\^\['…` reads the same on GNU but not on
+  # BSD/macOS, where the backslash-escaped `^` in a BRE is not portable — that dialect gap turned
+  # a green local run into a red macOS CI run for a colour that is a fixed string either way.
+  # Prefix-match the literal escape sequence instead: no external tool, no regex dialect.
+  local esc; esc=$'\033'
   _bar_sgr() {  # $1 = used_percentage → the SGR code applied to the bar
-    local p="$1" out
+    local p="$1" out rest
     out="$(printf '%s' "$(jq -nc --arg c "$repo" --argjson p "$p" \
       '{model:{display_name:"Opus"},session_id:"sRL5",cwd:$c,rate_limits:{five_hour:{used_percentage:$p}}}')" \
-      | env -u NO_COLOR TERM=xterm "$SL" | cat -v)"
-    printf '%s' "$out" | grep -o '5h\^\[\[0m\^\[\[3[0-9]m' | grep -o '3[0-9]m$'
+      | env -u NO_COLOR TERM=xterm "$SL")"
+    rest="${out#*5h}"                     # the label is followed by reset, then the bar's colour
+    case "$rest" in
+      "$esc[0m$esc[32m"*) printf '32m' ;;
+      "$esc[0m$esc[33m"*) printf '33m' ;;
+      "$esc[0m$esc[31m"*) printf '31m' ;;
+      *) printf 'none' ;;
+    esac
   }
   [ "$(_bar_sgr 30)" = "32m" ]   # green
   [ "$(_bar_sgr 59)" = "32m" ]   # green, just under the line
