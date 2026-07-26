@@ -66,3 +66,5 @@ ledger) and not in-flight work (that's the queue) — just "watch out for X here
   **under-reports `SC2015`** (`A && B || C`) that CI's build flags — this shipped a red CI twice
   (3.16.0, 3.17.0). **Never use `test && test || cmd` for a guard; write `if [ … ]; then cmd; fi`.**
   When touching `bin/`, trust CI's shellcheck over local, or grep for `\] && \[ .* \] || ` before shipping.
+  **The version split cuts both ways on CODES too:** a trap-invoked function is `SC2329` on local
+  0.11 and `SC2317` on CI's older build — disable **both** or CI reddens on a locally-clean tree.

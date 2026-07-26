@@ -14,7 +14,9 @@ if [ "${1:-}" = "--mutate" ]; then
   # that is ACTIVE in this repo. Without a trap, one Ctrl-C leaves the secret gate disabled and a
   # mutated file staged by the next `git add -A` (R7 must never fail open). Belt and braces: the
   # trap restores, and `.gitignore` covers `*.mutbak` so a stray one can never be committed.
-  # shellcheck disable=SC2329  # invoked via the trap below, not by name
+  # shellcheck disable=SC2329,SC2317  # invoked via the trap below, not by name.
+  # BOTH codes: local shellcheck 0.11 flags SC2329, CI's older build flags SC2317 for the same
+  # function — a version split that has now shipped red CI twice (cf. SC2015 in LESSONS).
   _mut_restore() {
     find plugins -name '*.mutbak' -print0 2>/dev/null |
       while IFS= read -r -d '' b; do mv -f "$b" "${b%.mutbak}"; done
