@@ -970,3 +970,50 @@ _sw_repo() {
   run grep -c 'doc-lint\.sh ledger' "$ROOT/../../check.sh"
   [ "$output" -ge 1 ]
 }
+
+@test "doc-lint: CRLF and BOM do not silently disable the frontmatter lint (R78)" {
+  # The reader compared line 1 to "---"; a CRLF file made it "---\r", so the block came back EMPTY
+  # and EVERY frontmatter check passed vacuously — fail-open on all of them at once, and the exact
+  # route by which the 3.21.0 blocker (an unquoted leading `[`) gets back in.
+  local d; d="$(mktemp -d)"
+  printf -- '---\r\ndescription: "never closed\r\n---\r\nbody\r\n' > "$d/crlf.md"
+  printf -- '\xef\xbb\xbf---\ndescription: [bad]\n---\nbody\n'     > "$d/bom.md"
+  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/crlf.md"
+  [ "$status" -eq 1 ]; [[ "$output" == *"never closes"* ]]
+  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/bom.md"
+  [ "$status" -eq 1 ]; [[ "$output" == *"YAML indicator"* ]]
+  # and the shared reader really returns the block for both
+  run "$ROOT/bin/doc-lint.sh" fm "$d/crlf.md"
+  [[ "$output" == *"description"* ]]
+}
+
+@test "doc-lint: folded and literal block scalars are valid YAML, not indicators (R78)" {
+  local d; d="$(mktemp -d)"
+  printf -- '---\ndescription: >\n  folded and valid\n---\nb\n' > "$d/f.md"
+  printf -- '---\ndescription: |\n  literal and valid\n---\nb\n' > "$d/l.md"
+  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/f.md" "$d/l.md"
+  [ "$status" -eq 0 ]; [ -z "$output" ]
+  printf -- '---\ndescription: [still bad]\n---\nb\n' > "$d/i.md"   # real indicators still caught
+  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/i.md"
+  [ "$status" -eq 1 ]
+}
+
+@test "doc-lint ledger: the ~ exemption works on MULTI-digit numbers (R78)" {
+  # `(^|[^~])[0-9]` could begin matching one digit inside the number, so ~371B tripped while ~9B
+  # did not — the exemption only worked for single digits.
+  local d; d="$(mktemp -d)"
+  printf '| **R9** | 🔓 | Grew by ~371B and ≈1200 tokens. | x. |\n' > "$d/approx.md"
+  run "$ROOT/bin/doc-lint.sh" ledger "$d/approx.md"
+  [ "$status" -eq 0 ]; [ -z "$output" ]
+  printf '| **R9** | 🔓 | Grew by 371B. | x. |\n' > "$d/hard.md"    # a hard figure still needs evidence
+  run "$ROOT/bin/doc-lint.sh" ledger "$d/hard.md"
+  [ "$status" -eq 1 ]
+}
+
+@test "doc-lint ledger: a missing file FAILS loudly instead of reporting ok (R78)" {
+  # It exited 0, and check.sh then printed "ok (ledger measurements cite their evidence)" for a
+  # check that never ran — a gate reporting green on work it did not do.
+  run "$ROOT/bin/doc-lint.sh" ledger /nonexistent/REQUIREMENTS.md
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"not found"* ]]
+}

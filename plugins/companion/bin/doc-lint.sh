@@ -6,10 +6,19 @@
 #
 #   doc-lint.sh frontmatter <file>...   command-prompt frontmatter, known-bad shapes only
 #   doc-lint.sh ledger <file>           a ledger measurement must name where it was measured
+#   doc-lint.sh fm <file>               print the frontmatter block (the one shared reader)
 #
 # Prints one `  FAIL <detail>` line per problem and exits 1 if any fired; silent + exit 0 when clean.
 # Not a hook: dev/ship-time only, like `contract-drift.sh`.
 set -uo pipefail
+
+# THE frontmatter reader — one copy, because check.sh needs the same block for its byte cap and
+# its hint-agreement check, and two copies of this awk meant a fix landed in only one of them.
+# `sub(/\r$/,"")`: a CRLF file made line 1 `---\r`, which never equalled `---`, so the block came
+# back EMPTY and every frontmatter check silently passed — fail-open on all of them at once.
+# `sub(/^[^-]*/,"")` on line 1 strips a UTF-8 BOM the same way (a line with no `-` empties out and
+# is correctly read as "no frontmatter").
+read_fm() { awk '{sub(/\r$/,"")} NR==1{sub(/^[^-]*/,"")} NR==1&&$0=="---"{inf=1;next} inf&&$0=="---"{exit} inf{print}' "$1"; }
 
 # FRONTMATTER — a LINT ON KNOWN-BAD SHAPES, not a YAML validator. The host parses frontmatter as
 # YAML and drops the WHOLE block on a throw (description AND argument-hint together) behind a
@@ -21,7 +30,7 @@ lint_frontmatter() {
   local f rc=0 fm key n v
   for f in "$@"; do
     [ -f "$f" ] || continue
-    fm="$(awk 'NR==1&&$0=="---"{inf=1;next} inf&&$0=="---"{exit} inf{print}' "$f")"
+    fm="$(read_fm "$f")"
     for key in description argument-hint; do
       n="$(printf '%s\n' "$fm" | grep -c "^$key:" || true)"
       if [ "${n:-0}" -gt 1 ]; then
@@ -33,6 +42,7 @@ lint_frontmatter() {
         \"*\"|\'*\') : ;;                                    # properly closed quotes: fine
         \"*|\'*)
           echo "  FAIL $(basename "$f") \`$key\` opens a quote it never closes — the host drops the ENTIRE block (R78)"; rc=1 ;;
+        \>|\||\>-|\|-) : ;;                                 # folded/literal block scalar: valid YAML
         [\[\{\*\&\!%@\`\>\|,\#?-]*)
           echo "  FAIL $(basename "$f") \`$key\` starts with a YAML indicator and is unquoted — the host drops the ENTIRE block (R75)"; rc=1 ;;
         *": "*|*:)
@@ -50,12 +60,16 @@ lint_frontmatter() {
 # value" is a judgement, not a measurement, and must not trip this. A nudge, not a guarantee — the
 # evidence markers are trivially satisfiable, so it prompts the author rather than proving anything.
 lint_ledger() {
-  local f="${1:-}" rc=0 row rid fb
-  [ -f "$f" ] || return 0
+  local f="${1:-}" rc=0 row rid fb bare
+  # A missing file used to exit 0, and check.sh then printed "ok" for a check it never ran.
+  if [ ! -f "$f" ]; then echo "  FAIL ledger file not found: $f — the check did not run (R78)"; return 1; fi
   fb="$(basename "$f")"   # resolved once: computing it inside the loop reads as a write to $f
   while IFS= read -r row; do
     case "$row" in '| **R'*) : ;; *) continue ;; esac
-    printf '%s' "$row" | grep -qE '(^|[^~])[0-9][0-9,]* ?(B[^a-zA-Z]|bytes|tokens?)|(^|[^~])[0-9]+/[0-9]+' || continue
+    # Strip approximations FIRST. Matching `(^|[^~])[0-9]` could begin one digit inside the
+    # number, so `~371B` tripped while `~9B` did not — the exemption only worked on single digits.
+    bare="$(printf '%s' "$row" | sed -e 's/[~≈][0-9][0-9,]*\.\?[0-9]*/ /g')"
+    printf '%s' "$bare" | grep -qE '[0-9][0-9,]* ?(B[^a-zA-Z]|bytes|tokens?)|[0-9]+/[0-9]+' || continue
     # shellcheck disable=SC2016  # backticks are literal — they delimit a filename in the prose
     printf '%s' "$row" | grep -qiE 'measured|verified|reproduc|exercis|mutation-tested|bats|check\.sh|`[^`]*\.(sh|md|json|bats)`' && continue
     rid="$(printf '%s' "$row" | sed -n 's/^| \*\*\(R[0-9]*\)\*\*.*/\1/p')"
@@ -65,7 +79,8 @@ lint_ledger() {
 }
 
 case "${1:-}" in
+  fm)          shift; read_fm "${1:-}" ;;
   frontmatter) shift; lint_frontmatter "$@" ;;
   ledger)      shift; lint_ledger "${1:-}" ;;
-  *) echo "usage: doc-lint.sh frontmatter <file>... | doc-lint.sh ledger <file>" >&2; exit 2 ;;
+  *) echo "usage: doc-lint.sh frontmatter <file>... | ledger <file> | fm <file>" >&2; exit 2 ;;
 esac

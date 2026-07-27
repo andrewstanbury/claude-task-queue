@@ -58,6 +58,13 @@ ledger) and not in-flight work (that's the queue) — just "watch out for X here
   parser (`python3 -m venv` + pyyaml is enough) before trusting an `awk -F'key: '` extraction —
   checking with the same naive reader that introduced the bug proves nothing.
 
+- **Every extraction leaves a second copy — grep for the old shape before calling it done.** Both
+  self-inflicted bugs this session were that: a restore trap globbing only `plugins/` after the
+  mutation set grew to `check.sh`, and a frontmatter `awk` duplicated into `check.sh`.
+- **A reader returning EMPTY on malformed input fails open, silently.** `NR==1&&$0=="---"` returned
+  nothing for a CRLF file and every check on that block passed vacuously. When a parser can say
+  "nothing here", ask what callers do with nothing — usually: succeed.
+
 ## CI
 - macOS is a **required** lane (bash 3.2 — the strictest environment). Test hooks for *silence*
   under missing tooling, not for their happy-path effect.

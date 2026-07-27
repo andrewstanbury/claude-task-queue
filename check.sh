@@ -169,7 +169,7 @@ cmd_params() {
 # Strip one layer of YAML double-quoting so caps are measured on the value the host actually loads.
 unquote() { local v="$1"; case "$v" in \"*\") v="${v#\"}"; v="${v%\"}" ;; esac; printf '%s' "$v"; }
 for f in plugins/companion/commands/*.md; do
-  fm="$(awk 'NR==1&&$0=="---"{inf=1;next} inf&&$0=="---"{exit} inf{print}' "$f")"
+  fm="$(plugins/companion/bin/doc-lint.sh fm "$f")"   # one shared reader — CRLF/BOM safe (R78)
   draw="$(printf '%s\n' "$fm" | awk -F'description: '   '/^description: /{print $2; exit}')"
   hraw="$(printf '%s\n' "$fm" | awk -F'argument-hint: ' '/^argument-hint: /{print $2; exit}')"
   d="$(unquote "$draw")"; hint="$(unquote "$hraw")"
