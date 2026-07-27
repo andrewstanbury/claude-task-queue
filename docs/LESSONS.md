@@ -18,7 +18,10 @@ ledger) and not in-flight work (that's the queue) — just "watch out for X here
   (single-quoted). A literal `'` in the message (e.g. `owner's`) terminates the quote → the program
   breaks at runtime AND shellcheck trips (SC1036/SC2026). Reword to avoid apostrophes
   (`the owner's call` → `belongs to the owner`).
-- **BSD `wc` pads with leading whitespace:** `wc -c < f` on macOS emits `"  1200000"`, so a
+- **BSD is not GNU — this has shipped red CI three times.** `\?`/`\+`/`\|` in `sed`/`grep` are GNU
+  extensions BSD reads as LITERALS, so the expression matches nothing and the check silently
+  passes locally (3.24.1). A backslash-escaped `^` in a BRE differs the same way (3.20.0). And
+  BSD `wc` pads with leading whitespace: `wc -c < f` emits `"  1200000"`, so a
   digits-only guard (`case … *[!0-9]*`) reads it as garbage and zeroes the value — the 3.13.0
   capture-rotation bug (green locally on GNU, red on macOS CI). Strip first:
   `wc -c < f | tr -d '[:space:]'`.
@@ -35,11 +38,8 @@ ledger) and not in-flight work (that's the queue) — just "watch out for X here
   machine.
 - **`--print-output-on-failure`** on the `bats` call is what surfaces a flaky test's real
   `$output` in CI; keep it in `check.sh`.
-- **Never assert on ANSI colour via `cat -v` + `grep`.** BSD/macOS grep does not read a
-  backslash-escaped `^` in a BRE the way GNU grep does, so `grep -o '\^\['…` is green on Linux and
-  red on macOS for a colour that is a fixed string either way (shipped red CI once, 3.20.0).
-  Prefix-match the literal escape in pure bash instead: `esc=$'\033'; case "${out#*label}" in
-  "$esc[0m$esc[32m"*) … esac` — no external tool, no regex dialect.
+- **Never assert on ANSI colour via `cat -v` + `grep`** — prefix-match the literal escape in pure
+  bash: `esc=$'\033'; case "${out#*label}" in "$esc[0m$esc[32m"*) … esac`. No tool, no dialect.
 - **A colour test must neutralise the caller's env**: `env -u NO_COLOR TERM=xterm` on the
   invocation, or a maintainer who exports `NO_COLOR` gets a red gate on a correct tree.
 - **Never assert an exact countdown built from `date +%s`.** `now + 42m` floors to `41m` the

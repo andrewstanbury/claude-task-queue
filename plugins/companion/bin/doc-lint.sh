@@ -68,7 +68,9 @@ lint_ledger() {
     case "$row" in '| **R'*) : ;; *) continue ;; esac
     # Strip approximations FIRST. Matching `(^|[^~])[0-9]` could begin one digit inside the
     # number, so `~371B` tripped while `~9B` did not — the exemption only worked on single digits.
-    bare="$(printf '%s' "$row" | sed -e 's/[~≈][0-9][0-9,]*\.\?[0-9]*/ /g')"
+    # POSIX BRE only: `\?` is a GNU extension that BSD/macOS sed treats as a literal `?`, so the
+    # first version of this silently matched nothing on the macOS lane and reddened CI.
+    bare="$(printf '%s' "$row" | sed -e 's/[~≈][0-9][0-9.,]*/ /g')"
     printf '%s' "$bare" | grep -qE '[0-9][0-9,]* ?(B[^a-zA-Z]|bytes|tokens?)|[0-9]+/[0-9]+' || continue
     # shellcheck disable=SC2016  # backticks are literal — they delimit a filename in the prose
     printf '%s' "$row" | grep -qiE 'measured|verified|reproduc|exercis|mutation-tested|bats|check\.sh|`[^`]*\.(sh|md|json|bats)`' && continue
