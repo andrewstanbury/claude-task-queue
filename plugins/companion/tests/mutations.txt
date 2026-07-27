@@ -17,5 +17,5 @@ check.sh::s@doc-lint.sh" frontmatter@doc-lint.sh" ZZZfrontmatter@::check.sh stop
 check.sh::s@doc-lint.sh ledger@doc-lint.sh ZZZledger@::check.sh stops invoking the ledger lint
 plugins/companion/bin/doc-lint.sh::s@{sub(/\\r$/,"")}@{}@::CRLF stops being stripped, re-opening the fail-open frontmatter hole
 plugins/companion/bin/doc-lint.sh::s@NR==1{sub(/\^\[^-\]\*/,"")}@NR==1{}@::a BOM stops being stripped
-plugins/companion/bin/doc-lint.sh::s@s/\[~≈\]\[0-9\]\[0-9,\]\*@s/ZZZ@::the ~ approximation exemption stops working
+plugins/companion/bin/doc-lint.sh::s@sed -e 's/\[~≈\]@sed -e 's/ZZZ@::the ~ approximation exemption stops working
 plugins/companion/bin/doc-lint.sh::s@echo "  FAIL ledger file not found@return 0; echo "  FAIL ledger file not found@::a missing ledger file goes back to silent success
