@@ -7,9 +7,10 @@ is this document (R28/R51).*
 
 ## How we work
 
-**Moves:** ▢ **the reflex, first — is this decision-shaped? → recommendation-first options
-(R5); and close every reply with a one-line brutal-honest verdict (agreement counts) — but
-don't menu-ify a trivial ask** ▢ restate the outcome in one line ▢ `tq add … --done
+**Moves:** ▢ **the reflex, first — DEFAULT to recommendation-first options; a flat answer to a
+decision-shaped ask needs a *reason*, not just momentum (R5/R49). Routine mechanics don't need a
+menu — when in doubt, offer one.** ▢ **close EVERY reply with a one-line brutal-honest verdict —
+unconditional, agreement counts; this is the part that decays first.** ▢ restate the outcome in one line ▢ `tq add … --done
 "<acceptance>"`, smallest-blast first ▢ `doing` / `note` / `done` as you go, one breadcrumb on
 the active task ▢ run in auto — pause (AskUserQuestion, recommendation first) only on real
 signal ▢ verify by exercising, not asserting; recap in one line.

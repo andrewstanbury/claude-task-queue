@@ -1017,3 +1017,19 @@ _sw_repo() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"not found"* ]]
 }
+
+@test "session start: the compact re-anchor carries BOTH halves of the posture, not the core (R80)" {
+  # The posture is what decays across a long session, and the closing-verdict half decays first —
+  # it was missing from this message while the options half was present. R30·d2 still holds: the
+  # STEERING core itself is NOT re-pasted, only these ~40 bytes of posture.
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local p; p="$(jq -nc --arg c "$repo" '{source:"compact",cwd:$c,session_id:"sC"}')"
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$p" "$SS"
+  [ "$status" -eq 0 ]
+  local ctx; ctx="$(printf '%s' "$output" | jq -r '.hookSpecificOutput.additionalContext')"
+  [[ "$ctx" == *"recommendation-first options"* ]]   # the options half
+  [[ "$ctx" == *"EVERY reply"* ]]                    # the unconditional verdict half
+  [[ "$ctx" == *"compacted"* ]]
+  [[ "$ctx" != *"How we keep it clean"* ]]           # the core is still NOT re-pasted (R30·d2)
+  [[ "$ctx" != *"Wireframe convention"* ]]
+}

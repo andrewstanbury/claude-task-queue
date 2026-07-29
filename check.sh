@@ -9,6 +9,12 @@
 if [ "${1:-}" = "--mutate" ]; then
   mfile="plugins/companion/tests/mutations.txt"
   [ -f "$mfile" ] || { echo "no $mfile"; exit 2; }
+  # Optional file filter: `--mutate <file>...` runs ONLY the mutations targeting those files, so a
+  # ship can afford to check the files it actually touched. The full set is ~9 minutes, which is why
+  # it is CI-only — and that is exactly how a pattern stale-ed by the commit that changed its target
+  # reached main (3.24.2). Bounded per-file, it becomes affordable pre-push.
+  shift $(( $# > 0 ? 1 : 0 )) 2>/dev/null || true
+  mfilter=("$@")
   command -v bats >/dev/null 2>&1 || { echo "  SKIP — bats not installed"; exit 0; }
   # RESTORE ON ANY EXIT. This mutates the live working tree — including `secret-guard.sh`, a hook
   # that is ACTIVE in this repo. Without a trap, one Ctrl-C leaves the secret gate disabled and a
@@ -24,11 +30,15 @@ if [ "${1:-}" = "--mutate" ]; then
       while IFS= read -r -d '' b; do mv -f "$b" "${b%.mutbak}"; done
   }
   trap '_mut_restore' EXIT INT TERM HUP
-  holes=0; ran=0
+  holes=0; ran=0; keep=0; want=""
   while IFS= read -r line; do
     case "$line" in ''|'#'*) continue ;; esac
     tgt="${line%%::*}"; tmp="${line#*::}"; sedscript="${tmp%%::*}"; what="${tmp#*::}"
     [ -f "$tgt" ] || { echo "  SKIP (missing) $tgt"; continue; }
+    if [ "${#mfilter[@]}" -gt 0 ]; then
+      keep=0; for want in "${mfilter[@]}"; do [ "$want" = "$tgt" ] && keep=1; done
+      [ "$keep" = 1 ] || continue
+    fi
     cp "$tgt" "$tgt.mutbak"
     if ! sed -i.bak "$sedscript" "$tgt" 2>/dev/null; then
       mv "$tgt.mutbak" "$tgt"; rm -f "$tgt.bak"

@@ -27,7 +27,9 @@ root="$(companion_root "$cwd")"
 # task's done-when) + LESSONS — the real cross-compaction memory — but NOT the STEERING core
 # (~2.5k tokens injected, R69; the doc's rationale half is never injected at all) (R32): the
 # agreement from session start still applies and the summarizer largely preserves it, so
-# re-pasting static prose every compaction was the biggest repeatable token waste.
+# re-pasting static prose every compaction was the biggest repeatable token waste. What IS
+# re-stated inline is the POSTURE — recommendation-first options AND the unconditional closing
+# verdict — because that is the half that decays first and the half worth its ~40 bytes.
 # Per-repo `steering` toggle (R50): when off, this repo opts out of the working-agreement
 # injection (the one SessionStart output with real token cost) — resume + LESSONS still fire, since
 # those are cheap and repo-specific. A `steering=off` line in the per-repo flag file sets it (the
@@ -37,7 +39,7 @@ if [ "$src" = "compact" ]; then
   if [ "$steering_off" = 1 ]; then
     msg="Your context was just compacted. Re-anchor from your LIVE task queue (each task's done-when is its acceptance test) and this repo's lessons below — resume from the queue, not from memory."$'\n\n'
   else
-    msg="Your context was just compacted. Re-anchor from your LIVE task queue (each task's done-when is its acceptance test) and this repo's lessons below — resume from the queue, not from memory. The working agreement injected at session start still applies (not re-pasted here, to save tokens) — including its core move, which the summarizer must not drop: a decision-shaped request (choose / redesign / compare / evaluate / \"what do you recommend\") is owed recommendation-first options — 2–4 genuinely different, each with its cost, your pick first and marked, plus the brutal-honest read — never a flat one-opinion answer (R49)."$'\n\n'
+    msg="Your context was just compacted. Re-anchor from your LIVE task queue (each task's done-when is its acceptance test) and this repo's lessons below — resume from the queue, not from memory. The working agreement injected at session start still applies (not re-pasted here, to save tokens) — including its core move, which the summarizer must not drop: a decision-shaped request (choose / redesign / compare / evaluate / \"what do you recommend\") is owed recommendation-first options — 2–4 genuinely different, each with its cost, your pick first and marked, plus the brutal-honest read — never a flat one-opinion answer (R49). And the unconditional half, which decays first: close EVERY reply with a one-line brutal-honest verdict — agreement counts; what is banned is manufactured disagreement, not agreement."$'\n\n'
   fi
 elif [ "$steering_off" = 1 ]; then
   msg=""

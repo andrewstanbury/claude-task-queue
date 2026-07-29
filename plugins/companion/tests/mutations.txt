@@ -19,3 +19,6 @@ plugins/companion/bin/doc-lint.sh::s@{sub(/\\r$/,"")}@{}@::CRLF stops being stri
 plugins/companion/bin/doc-lint.sh::s@NR==1{sub(/\^\[^-\]\*/,"")}@NR==1{}@::a BOM stops being stripped
 plugins/companion/bin/doc-lint.sh::s@sed -e 's/\[~≈\]@sed -e 's/ZZZ@::the ~ approximation exemption stops working
 plugins/companion/bin/doc-lint.sh::s@echo "  FAIL ledger file not found@return 0; echo "  FAIL ledger file not found@::a missing ledger file goes back to silent success
+plugins/companion/bin/ci-watch.sh::s@exit 12@exit 0@::a give-up watch goes back to reporting success
+plugins/companion/bin/statusline.sh::s@\[ "$NOPEN"  -gt 0 \] \&\& TASKS=@TASKS=@::the drained queue renders 📋 0 again
+plugins/companion/bin/session-start.sh::s@close EVERY reply with a one-line brutal-honest verdict@close some replies@::the compact re-anchor drops the unconditional verdict clause

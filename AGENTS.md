@@ -91,8 +91,10 @@ Formatting is now a steering nudge, not enforced. The remaining hooks all *block
 ```bash
 ./check.sh          # JSON validity · claude plugin validate · shellcheck · gitleaks · size · bats
                     # · strict command-frontmatter parse · ledger measurements cite evidence (R78)
-./check.sh --mutate # CI-only: every declared mutation MUST turn the suite red. A mutation that
-                    # stays green is a hole — a test that cannot fail (R78)
+./check.sh --mutate # every declared mutation MUST turn the suite red; one that stays green is a
+                    # hole — a test that cannot fail (R78). Full set is CI-only (minutes);
+                    # ./check.sh --mutate <file>... runs just that file's mutations, which is what
+                    # `ship.sh land` does for the paths a ship touches (R79)
 # The two document checks live in plugins/companion/bin/doc-lint.sh so bats can exercise them —
 # anything inline in check.sh is untestable, since check.sh is what runs bats.
 ```

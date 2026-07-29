@@ -183,14 +183,18 @@ fi
 DIVC="${D}:${X}"; DIV=" $DIVC "
 SHIP=""; companion_ship_on "$ROOT" && SHIP=" ${Y}${B}📦${X}"
 FEAT="${SHIELD}${AP}${SHIP}"          # each item carries its own leading space; empty when none active
-# the queue in its own section: 📋 open always; ❓ parked · ⏳ blocked only when present
-TASKS="${C}${B}📋 $NOPEN${X}"
-[ "$NPARK"  -gt 0 ] && TASKS="$TASKS ${Y}${B}❓ $NPARK${X}"
-[ "$NBLOCK" -gt 0 ] && TASKS="$TASKS ${Y}${B}⏳ $NBLOCK${X}"
+# The queue section — shown ONLY when it has something to say, like every other indicator here
+# (🛡✗ only when the gate is off, ✈️/📦 only when armed, ↑↓ only when diverged). `📋 0` used to render
+# permanently, which is the always-on zero that rule exists to prevent; a drained queue now renders
+# no section at all, and the section reappearing IS the signal that there is work.
+TASKS=""
+[ "$NOPEN"  -gt 0 ] && TASKS="${C}${B}📋 $NOPEN${X}"
+[ "$NPARK"  -gt 0 ] && TASKS="${TASKS:+$TASKS }${Y}${B}❓ $NPARK${X}"
+[ "$NBLOCK" -gt 0 ] && TASKS="${TASKS:+$TASKS }${Y}${B}⏳ $NBLOCK${X}"
 out="${BCOL}${B}${BEACON}${X}"
 [ -n "${VERSION:-}" ] && out="$out ${D}v$VERSION${X}"
 [ -n "$FEAT" ] && out="$out $DIVC$FEAT"   # features section only when something's active
-out="$out${DIV}${TASKS}"
+[ -n "$TASKS" ] && out="$out${DIV}${TASKS}"   # omit the divider too when the queue is quiet
 # account usage sits next to the session's own consumption — both bars, or the section is omitted
 RL="$(rlbar "${RL5:-}" 5h "${RL5R:-}")$(rlbar "${RL7:-}" 7d "${RL7R:-}")"
 [ -n "$RL" ] && out="$out $DIVC$RL"

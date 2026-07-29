@@ -355,3 +355,50 @@ _repo() {  # $1=default-branch name
   run grep -c 'Devil-advocate' "$WORK/msg.txt"
   [ "$output" = "0" ]                                    # caller's file never mutated
 }
+
+# ── the CI watch must not report a give-up as a pass (R74 amended, R78) ────────────────────────
+# The timeout returned 0 with a "not failed" line, so a watch that gave up read exactly like one
+# that passed. Adding a ~9min CI job put the run duration either side of the 300s default and two
+# ships reported "not failed" — one of them was RED on macOS, found only by checking manually.
+
+@test "ship.sh land: a run still in flight at timeout exits 12 — SHIPPED but UNWATCHED (R74)" {
+  _repo main
+  _gh_stub in_progress/          # a run EXISTS and never concludes
+  printf 'b\n' > b.txt
+  git push -qu origin main 2>/dev/null || true
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 12 ]
+  [[ "$output" == *"UNWATCHED"* ]]
+  [[ "$output" != *"not failed"* ]]      # the phrasing that made a give-up look like a pass
+  # and it really did ship — 12 is about the watch, never about the commit
+  run git log -1 --format=%s main
+  [ "$output" = "msg subject" ]
+}
+
+@test "ship.sh land: genuinely no CI to watch still exits 0, not 12 (R74)" {
+  # No `gh` at all, and a run that never registers, are different facts from abandoning a live run:
+  # there is nothing to watch, so they must not be reported as an unwatched ship.
+  _repo main
+  mkdir -p "$WORK/nogh"; export PATH="$WORK/nogh:$PATH"   # shadow gh with nothing
+  cat > "$WORK/nogh/gh" <<'NOGH'
+#!/usr/bin/env bash
+exit 127
+NOGH
+  chmod +x "$WORK/nogh/gh"
+  export SHIP_CI_WATCH=1 SHIP_CI_APPEAR=1 SHIP_CI_POLL=1 SHIP_CI_TIMEOUT=2
+  printf 'b\n' > b.txt
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"UNWATCHED"* ]]       # still SAYS so...
+  [[ "$output" != *"CI STILL RUNNING"* ]] # ...but not as an abandoned run
+}
+
+@test "ci-watch.sh is callable standalone and reports its own exit codes (R74/R78)" {
+  _repo main
+  _gh_stub completed/failure
+  run "$ROOT/bin/ci-watch.sh" "$(git rev-parse HEAD)"
+  [ "$status" -eq 10 ]
+  [[ "$output" == *"CI RED"* ]]
+  run "$ROOT/bin/ci-watch.sh"
+  [ "$status" -eq 2 ]                    # usage: needs a sha
+}

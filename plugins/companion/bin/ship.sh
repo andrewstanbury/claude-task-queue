@@ -19,7 +19,7 @@
 #   0 ok · 2 usage · 3 no gate found · 4 gate failed · 5 not a git repo · 6 nothing to commit
 #   7 merge is not fast-forward (curate/rebase, then retry) · 8 push failed (local state is
 #   committed+merged — safe, report it) · 9 refused an unsafe state (detached HEAD, staged
-#   secret, delete-guard) · 11 enforced-core diff shipped with no --da <finding> (R78)
+#   secret, delete-guard) · 11 no --da on a declared critical path (R78) · 12 shipped, CI unwatched
 set -uo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -90,7 +90,7 @@ preflight() {
 }
 
 land() {
-  local msgfile="" prune_all=0 gate_cmd=() gate cur def had_remote=0 da="" core=""
+  local msgfile="" prune_all=0 gate_cmd=() gate cur def had_remote=0 da="" core="" changed=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
       -F) shift; msgfile="${1:-}"; shift || true ;;
@@ -120,23 +120,28 @@ land() {
   [ "${#gate[@]}" -gt 0 ] || die 3 "no gate found — pass one: --gate <cmd>"
   run_gate "${gate[@]}"
 
-  # A devil's-advocate pass is REQUIRED for paths this repo declares critical (R78) — prose said
-  # to run one and prose is skippable; the defects that reached `land` here were invisible to a
-  # green gate. WHICH paths is the REPO's to declare (R9/R1 — this ships to strangers): one
-  # extended-regex per line in `.companion/da-paths`, no file ⇒ no gate. Runs after the gate re-run
-  # (a red gate stays exit 4) and before staging. It cannot verify a pass happened — only make
-  # skipping deliberate and auditable. NOTE: ship.sh is AT the 300-line cap; next addition splits.
+  # Changed paths on the tree being shipped, resolved once for the two gates below. --no-renames so
+  # a rename reports BOTH sides (renaming the gate away must not slip through); ls-files --others
+  # because diff cannot see untracked; quotepath off keeps non-ASCII literal.
+  changed="$( { git -c core.quotepath=false diff --name-only --no-renames HEAD 2>/dev/null
+                git -c core.quotepath=false ls-files --others --exclude-standard 2>/dev/null
+                git -c core.quotepath=false log --name-only --pretty=format: "$def..HEAD" 2>/dev/null; } \
+              | sort -u )"
+
+  # A devil's-advocate pass is REQUIRED for paths this repo declares critical (R78) — prose said to
+  # run one and prose is skippable; the defects that reached `land` here were invisible to a green
+  # gate. WHICH paths is the REPO's to declare (R9/R1 — this ships to strangers): one extended-regex
+  # per line in `.companion/da-paths`, no file ⇒ no gate. Runs after the gate re-run (a red gate
+  # stays exit 4) and before staging. It cannot verify a pass happened — only make skipping
+  # deliberate and auditable.
   if [ -s .companion/da-paths ] && [ -z "$da" ]; then
-    # --no-renames so a rename reports BOTH paths (renaming the gate away must not slip through);
-    core="$( { git -c core.quotepath=false diff --name-only --no-renames HEAD 2>/dev/null
-               git -c core.quotepath=false ls-files --others --exclude-standard 2>/dev/null
-               git -c core.quotepath=false log --name-only --pretty=format: "$def..HEAD" 2>/dev/null; } \
-             | grep -Ef .companion/da-paths | sort -u )"
+    core="$(printf '%s\n' "$changed" | grep -Ef .companion/da-paths | sort -u)"
     if [ -n "$core" ]; then
       printf '%s\n' "$core" | sed 's/^/    /' >&2
       die 11 "critical paths above (.companion/da-paths) — re-run with --da \"<what the devil's-advocate attacked, or: clean>\" (R78)."
     fi
   fi
+
 
   git add -A
   if git diff --cached --quiet; then
@@ -223,39 +228,10 @@ land() {
   if [ "$had_remote" -eq 1 ]; then watch_ci; return $?; fi
 }
 
-# Watch the CI run the push just triggered, to conclusion (R74). Bounded + best-effort:
-#   no gh / no run appears / timeout  → reported, exit 0 (a watch gap must never un-ship a landed
-#   commit); CI concluded RED → exit 10 (SHIPPED — fix forward, the commit is already on default).
-# Opt out with SHIP_CI_WATCH=0; tune SHIP_CI_APPEAR / SHIP_CI_POLL / SHIP_CI_TIMEOUT (seconds).
-watch_ci() {
-  case "${SHIP_CI_WATCH:-1}" in 0) printf '== ship.sh: CI watch off (SHIP_CI_WATCH=0)\n'; return 0 ;; esac
-  command -v gh >/dev/null 2>&1 || { printf '== ship.sh: gh not found — CI UNWATCHED (a local PASS is not a CI PASS)\n'; return 0; }
-  local sha short appear poll timeout run_id tries max st
-  sha="$(git rev-parse HEAD 2>/dev/null || true)"; short="$(git rev-parse --short HEAD 2>/dev/null || true)"
-  appear="${SHIP_CI_APPEAR:-90}"; poll="${SHIP_CI_POLL:-10}"; timeout="${SHIP_CI_TIMEOUT:-300}"
-  printf '== ship.sh: watching CI for %s (opt out: SHIP_CI_WATCH=0) …\n' "$short"
-  # 1) wait for the run to register against this commit
-  run_id=""; tries=0; max=$(( appear / 5 + 1 ))
-  while [ "$tries" -lt "$max" ]; do
-    run_id="$(gh run list --limit 20 --json databaseId,headSha \
-      -q "map(select(.headSha==\"$sha\"))[0].databaseId // empty" 2>/dev/null || true)"
-    [ -n "$run_id" ] && break
-    tries=$((tries + 1)); sleep 5
-  done
-  [ -n "$run_id" ] || { printf '== ship.sh: no CI run appeared for %s — UNWATCHED (check: gh run list)\n' "$short"; return 0; }
-  # 2) poll to conclusion (check-then-sleep: an already-finished run costs no wait)
-  tries=0; max=$(( timeout / poll + 1 ))
-  while [ "$tries" -lt "$max" ]; do
-    st="$(gh run view "$run_id" --json status,conclusion -q '.status + "/" + (.conclusion // "")' 2>/dev/null || true)"
-    case "$st" in
-      completed/success) printf '== ship.sh: CI GREEN (run %s)\n' "$run_id"; return 0 ;;
-      completed/*)       printf 'ship.sh: CI RED (run %s: %s) — SHIPPED; fix forward: gh run view %s --log-failed\n' "$run_id" "$st" "$run_id" >&2; return 10 ;;
-    esac
-    tries=$((tries + 1)); sleep "$poll"
-  done
-  printf '== ship.sh: CI still running after %ss — not failed; check: gh run watch %s\n' "$timeout" "$run_id"
-  return 0
-}
+# The CI watch lives in bin/ci-watch.sh (R74; extracted when ship.sh hit its 300-line cap).
+# Exit codes pass straight through: 10 = SHIPPED but CI RED (fix forward), 12 = SHIPPED but
+# UNWATCHED (a run was in flight and the watch gave up — no longer reported as a pass).
+watch_ci() { "$here/ci-watch.sh" "$(git rev-parse HEAD 2>/dev/null || true)"; }
 
 # Cross-machine handoff (R72): checkpoint the WIP + queue for another machine — NOT a ship.
 # The gate is deliberately not run (a red tree mid-work is normal; the gate fires at `land`),

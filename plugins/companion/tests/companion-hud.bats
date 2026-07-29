@@ -313,6 +313,8 @@ ird"; mkdir -p "$weird"
 @test "status line: usage bars sit between the queue and the model (R34 order, R76)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sRLo"   # an OPEN task, or 📋 is absent by design (R80)
+  jq -n '{id:"1",subject:"work",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sRLo/1.json"
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRLo",cwd:$c,
     rate_limits:{five_hour:{used_percentage:23.5},seven_day:{used_percentage:41.2}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
@@ -344,4 +346,24 @@ ird"; mkdir -p "$weird"
   [ "$status" -eq 0 ]
   [[ "$output" == *"5h▰▱▱▱▱0%"* ]]   # in use, just barely → one cell lit
   [[ "$output" == *"7d▱▱▱▱▱0%"* ]]   # genuinely idle → none
+}
+
+@test "status line: a DRAINED queue renders no queue section at all (R80)" {
+  # 📋 used to render permanently, even at 0 — the always-on zero that this line's own
+  # shown-only-when-relevant rule exists to prevent (cf. 🛡✗, ✈️, 📦, ↑↓). The section reappearing
+  # IS the signal that there is work; its divider goes too, so the line stays clean.
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sDrained"
+  jq -n '{id:"1",subject:"shipped",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/sDrained/1.json"
+  local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sDrained",cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"📋"* ]]           # no count...
+  [[ "$output" != *"📋 0"* ]]         # ...and certainly not a zero
+  [[ "$output" == *"Opus"* ]]         # the rest of the line is untouched
+  # one open task and it comes straight back
+  jq -n '{id:"2",subject:"real work",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sDrained/2.json"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [[ "$output" == *"📋 1"* ]]
 }
