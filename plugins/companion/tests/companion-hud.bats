@@ -11,6 +11,10 @@ setup() {
   export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"
   export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"
   export CLAUDE_COMPANION_SESSION_ID="s1"
+  # Render tests assert on REAL git state, so the git-segment TTL cache is off by default here —
+  # otherwise a test that changes the tree between two runs would read its own stale line. The
+  # cache has its own dedicated tests below, which set the TTL explicitly.
+  export CLAUDE_COMPANION_SL_CACHE_TTL=0
 }
 teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR"; }
 
@@ -366,4 +370,53 @@ ird"; mkdir -p "$weird"
   jq -n '{id:"2",subject:"real work",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sDrained/2.json"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
   [[ "$output" == *"📋 1"* ]]
+}
+
+@test "status line: the git segment is CACHED for its TTL, and a hit skips git entirely (R81)" {
+  # `git status` walks the worktree every refresh — 6ms here, 43ms on a 17k-file repo — and the
+  # line repaints ~1200x/hour per window. A hit must serve from the cache file, not re-run git.
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"s1",cwd:$c}')"
+  # first run: cold — populates the cache
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_COMPANION_SL_CACHE_TTL=60 "$2"' _ "$p" "$SL"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"⎇"* ]]
+  local enc cf; enc="$(printf '%s' "$repo" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  cf="$CLAUDE_COMPANION_STATE_DIR/slcache/$enc"
+  [ -f "$cf" ]
+  # dirty the tree; a WARM run must still show the cached (clean) count — staleness is the deal
+  : > "$repo/newfile"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_COMPANION_SL_CACHE_TTL=60 "$2"' _ "$p" "$SL"
+  [[ "$output" != *"*1"* ]]
+  # ...and with the cache OFF the same tree reports the change immediately
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_COMPANION_SL_CACHE_TTL=0 "$2"' _ "$p" "$SL"
+  [[ "$output" == *"*1"* ]]
+}
+
+@test "status line: a garbled or future-dated cache line falls back to LIVE git, never renders junk" {
+  # Cache-miss is the safe direction (R7/R68). A truncated write, a clock jump, or a hand-edited
+  # file must degrade to reading git — not print a corrupt branch or a negative count.
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  local p enc cf; p="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"s1",cwd:$c}')"
+  enc="$(printf '%s' "$repo" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  cf="$CLAUDE_COMPANION_STATE_DIR/slcache/$enc"; mkdir -p "$CLAUDE_COMPANION_STATE_DIR/slcache"
+  for junk in "garbage" "" "abc def ghi jkl mno" "99999999999 0 0 0 fake-branch"; do
+    printf '%s\n' "$junk" > "$cf"
+    run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_COMPANION_SL_CACHE_TTL=60 "$2"' _ "$p" "$SL"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"fake-branch"* ]]   # a future-dated line is not trusted
+    [[ "$output" == *"Opus"* ]]          # and the line still renders
+  done
+}
+
+@test "status line: an unwritable state dir still renders — the cache is best-effort (R68)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"s1",cwd:$c}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_COMPANION_SL_CACHE_TTL=60 CLAUDE_COMPANION_STATE_DIR=/proc/nonexistent "$2"' _ "$p" "$SL"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Opus"* ]]
+  [[ "$output" == *"⎇"* ]]
 }

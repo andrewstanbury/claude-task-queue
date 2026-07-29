@@ -44,4 +44,6 @@ script's own default — never assume `on`):
   taste call is normally the owner's even when trivially undoable — and by the time autopilot goes
   off, the pile the R38 review exists to walk is empty by construction.
 
+**A drain is bounded in TIME and TURNS, not just progress (R81).** The no-progress cap stops a *stuck* model; it can never stop a *busy* one, because the stall counter resets every time a task completes — so an unattended overnight drain that keeps finishing (or keeps queueing) work had no plugin-side terminator at all. Two bounds now end it, whichever comes first: **`CLAUDE_COMPANION_AUTOPILOT_HOURS`** (default 6) and **`CLAUDE_COMPANION_AUTOPILOT_TURNS`** (default 400). Both are deliberately generous — they exist to stop a runaway, never to interrupt ordinary work — and `0` disables either. The clock counts real elapsed time *including suspend*, so a machine that sleeps and wakes yields rather than resuming an unattended burn; the turn cap is suspend-immune, which is why both exist. A bounded run ends cleanly: the queue, the breadcrumb and every `done_when` survive, so `/companion:resume` picks it up exactly where it stopped.
+
 Relay the script's one-line confirmation to the user.

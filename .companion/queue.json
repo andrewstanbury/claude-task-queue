@@ -1,1 +1,44 @@
-[]
+[
+  {
+    "subject": "PERF#1: batch companion_open_tasks — one jq, not one per task file",
+    "status": "in_progress",
+    "done_when": "single jq invocation over matching files; measured >5x faster on the real store; identical output (byte-compare before/after); resume + session-start tests pass",
+    "description": "",
+    "notes": []
+  },
+  {
+    "subject": "PERF#4: prune session task stores with no open tasks past an age",
+    "status": "pending",
+    "done_when": "an age-based prune removes only stores with ZERO open tasks; never touches a store with open/parked work; bats covers both",
+    "description": "",
+    "notes": []
+  },
+  {
+    "subject": "PERF#2: statusline refreshInterval 3 + /companion:setup REPAIRS a wrong value",
+    "status": "pending",
+    "done_when": "setup rewrites an existing wrong refreshInterval instead of leaving it; this machine's settings.json is corrected to 3",
+    "description": "",
+    "notes": []
+  },
+  {
+    "subject": "PERF#3: cut statusline process spawns toward 2",
+    "status": "pending",
+    "done_when": "measured ms per run materially lower; one git call and one jq pass; seds replaced by bash builtins; every hud bats case still passes",
+    "description": "",
+    "notes": []
+  },
+  {
+    "subject": "PERF#5: trim capture.sh + secret-guard.sh jq passes",
+    "status": "pending",
+    "done_when": "one jq pass each; secret-guard's blocking behaviour byte-identical on every existing case (it fails safe, so change it last)",
+    "description": "",
+    "notes": []
+  },
+  {
+    "subject": "HOOK BUDGET: enforce a measured per-hook ceiling in check.sh (new R81)",
+    "status": "pending",
+    "done_when": "check.sh FAILS a hook exceeding its declared ms ceiling or doing history-scale work; ceilings recorded; proved by inflating one hook",
+    "description": "",
+    "notes": []
+  }
+]

@@ -94,8 +94,8 @@ move the flow page **first**: propose the `docs/flows/<flow>.md` (or `_quality-b
 recommendation-first, then queue the code as a `tq` task against it ▢ the contract is the
 acceptance the work satisfies (the doc-side twin of `--done`) ▢ a critical, un-eyeball-able
 flow with no safety net → offer `/companion:cover` (buy-in first) ▢ never let behaviour
-outrun the contract silently. Capture is a zero-token hook (`capture.sh`); *this reflex* is
-the judgment layer; `contract-drift.sh` at the ship boundary is the net.
+outrun the contract silently. *This reflex* is the judgment layer; `contract-drift.sh` at the
+ship boundary is the net.
 
 ## How we know the project
 
@@ -183,9 +183,8 @@ questioned — hence the mandate is itself challengeable.
 a glance before anything is built.
 
 **Why the contract layers split the way they do (R58).** "Does this change the contract?" is a
-judgment a gate can't make without false-positiving — so *capture* is a hook (mechanical,
-zero-token), *classification* is this document's reflex, and the drift check runs only at the
-ship boundary: a warning on every mid-work gate run — where drift is the normal intermediate
+judgment a gate can't make without false-positiving — so *classification* is this document's
+reflex, and the drift check runs only at the ship boundary: a warning on every mid-work gate run — where drift is the normal intermediate
 state — trains its own tune-out. `/companion:cover` is the test arm of the same contract
 (R61 amended R58·d's "never writes": it scaffolds picked tests, buy-in first).
 

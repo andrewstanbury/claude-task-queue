@@ -258,6 +258,15 @@ fi
 # intermediate state — trains its own tune-out, and CI is a clean-tree no-op anyway. It runs at
 # the ONE boundary where drift is real and actionable: /companion:ship-it's contract-sync step.
 
+section "Hook budget (R81 — hooks stay O(1) in store size; MEASURED, not asserted)"
+# Lives in bin/hook-budget.sh so the SUITE can exercise it (same reason as doc-lint, R78).
+# Primary assertion is a SCALING RATIO, not a wall-clock cap — see that file's header for why an
+# absolute-ms budget is machine-dependent and self-defeating. This is the gate that would have
+# stopped the 2085ms->16108ms session-start scan (measured 8.06x, caught) from ever shipping.
+if ! "$PWD/plugins/companion/bin/hook-budget.sh"; then
+  echo "  FAIL — a hook's cost grows with the task store (R81)"; fail=1
+fi
+
 section "Tests (bats)"
 if have bats; then
   for d in plugins/*/tests tests; do

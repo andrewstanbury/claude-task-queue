@@ -23,9 +23,14 @@ Do this:
    (expand `${CLAUDE_PLUGIN_ROOT}` to its real value — the status line runs outside the hook
    environment, so the stored command must be an absolute path, not the variable).
 2. Read the user's `~/.claude/settings.json` (create `{}` if absent).
-3. Set `.statusLine` to `{ "type": "command", "command": "bash <ABSOLUTE_PATH>", "refreshInterval": 3 }`.
+3. Set `.statusLine` to `{ "type": "command", "command": "bash <ABSOLUTE_PATH>", "refreshInterval": 10 }`.
    If a `statusLine` already exists, show the current value and confirm before replacing it.
-4. Write it back (valid JSON, preserving other keys). Confirm in one line that it's wired and
+4. **REPAIR a wrong `refreshInterval`, don't leave it (R81).** If `statusLine` already points at
+   this script but carries a different interval — including the old `3` — rewrite it to `10` and
+   say so in one line. A stale low interval is the single largest idle cost the companion imposes
+   (measured: ~212 CPU-seconds/hour/window at 3s, fork/exec-dominated), and it is invisible: the
+   line renders perfectly either way, so nothing else would ever surface it.
+5. Write it back (valid JSON, preserving other keys). Confirm in one line that it's wired and
    will appear on the next render.
 
 **Once *per machine*, not once ever.** `settings.json` is machine-local and the stored path is
@@ -33,7 +38,12 @@ absolute, so a repo carried to another machine (`/companion:resume`) has **no** 
 `/companion:setup` runs there too — nothing else surfaces its absence. If the plugin cache path
 moves on a version bump, the stored path rots silently (the line just stops rendering); re-run this.
 
-`refreshInterval: 3` (seconds, R32) — the beacon animates only when there's work in motion, so it
-needs *a* timer, but not a per-second one: at 3s it still advances (nobody reads a spinner at 1 Hz)
-while cutting the idle cost — the jq + `git status` wake — ~3× versus 1s. (A no-color terminal shows
-a static ● and doesn't need the timer at all.)
+`refreshInterval: 10` (seconds, R32·5 → widened by R81) — the beacon animates only when there's
+work in motion, so it needs *a* timer, but a fast one is the companion's largest idle cost. Each
+wake is ~13 process spawns and a `git status`; **measured at 3s that is ~212 CPU-seconds per hour,
+per open window**, and it is *sys*-dominated — fork/exec churn, not computation. On a laptop or a
+handheld that is the difference between the SoC reaching deep idle and never quite getting there.
+At 10s the spinner still visibly steps and the wake rate drops ~70%. The git segment is
+additionally cached for ~10s (`CLAUDE_COMPANION_SL_CACHE_TTL`, `0` disables), so branch and the
+dirty count may lag by up to that long — the accepted trade. (A no-color terminal shows a static ●
+and doesn't need the timer at all; dropping `refreshInterval` entirely is the zero-idle option.)

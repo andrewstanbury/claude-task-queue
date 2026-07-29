@@ -20,8 +20,7 @@ work here too.**
   cross-session resume + LESSONS; re-anchors after compaction) · `tq` (**THE task queue** —
   the companion owns its store; never native task tools, R8/R10) · `statusline.sh` ·
   autopilot (`stop-autopilot.sh` auto-continues the drain, `ask-guard.sh` blocks asking;
-  ship-mode auto-commits to `autopilot/*`, never main) · `capture.sh` (write-only prompt
-  sink, zero-token) · `lib/companion.sh` (shared helpers).
+  ship-mode auto-commits to `autopilot/*`, never main) · `lib/companion.sh` (shared helpers).
 - **Commands** — `setup` · `autopilot` · `ship-it` · `resume` · `review` · `advise` ·
   `redesign` · `docs` · `cover`. Per-file responsibilities live in
   **[docs/MAP.md](./docs/MAP.md)** — read it before touching the core.
@@ -38,6 +37,9 @@ work here too.**
 - **Generic (R9).** No hardcoded language/framework/ecosystem allowlists — delegate
   *recognition* to the model, detect *structure* generically. Wide-audience product (R1).
 - **Files ≤ 300 lines; best-effort hooks** (never break the action that triggered them — R68).
+- **Hook work is bounded (R81).** A hook may read the project; it may not do work that grows
+  with repo size, file count, history, or store age. Ceilings are **measured by `./check.sh`**,
+  not asserted — an unmeasured budget is not a budget.
 - Verify everything with **`./check.sh`** — CI runs the same script.
 
 Project docs: **[docs/MAP.md](./docs/MAP.md)** · **[docs/ROADMAP.md](./docs/ROADMAP.md)** ·

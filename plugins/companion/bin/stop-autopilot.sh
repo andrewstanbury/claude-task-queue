@@ -4,6 +4,12 @@
 # ❓/⏳ deferred items are left. A no-progress cap (consecutive stops with no task completed)
 # yields so a stuck model can't spin forever. Best-effort: any error degrades to "allow the
 # stop". Disable: CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0; cap: CLAUDE_COMPANION_AUTOPILOT_MAX (8).
+#
+# RUN BOUNDS (R81): the no-progress cap catches a STUCK model, never a BUSY one — `stall` resets on
+# every completion, so a productive drain had no plugin-side terminator at all. Two generous bounds
+# now end an unattended runaway without interrupting ordinary work; `0` disables either:
+#   CLAUDE_COMPANION_AUTOPILOT_HOURS (6)   wall-clock; includes suspend, which is the safe direction
+#   CLAUDE_COMPANION_AUTOPILOT_TURNS (400) total continuations; suspend-immune
 set -uo pipefail
 allow() { exit 0; }
 command -v jq >/dev/null 2>&1 || allow
@@ -88,11 +94,47 @@ cfile="$(companion_state_dir)/autopilot/continue-$(printf '%s' "${sid:-x}" | sed
 if [ "$OPEN" -eq 0 ]; then rm -f "$cfile" 2>/dev/null; allow; fi   # nothing workable left → genuinely done
 
 # No-progress cap: reset the stall counter whenever a task completed since last stop.
-last=0; stall=0; swept=0
-[ -f "$cfile" ] && read -r last stall swept < "$cfile" 2>/dev/null
+# Five fields since 2026-07-29; a 3-field file from an older version reads back with the two new
+# ones empty, which sanitize to 0 and re-seed on this turn — no migration, no lost run.
+last=0; stall=0; swept=0; started=0; turns=0
+[ -f "$cfile" ] && read -r last stall swept started turns < "$cfile" 2>/dev/null
 case "$last"  in ''|*[!0-9]*) last=0 ;;  esac; case "$stall" in ''|*[!0-9]*) stall=0 ;; esac
 case "$swept" in ''|*[!0-9]*) swept=0 ;; esac
+case "$started" in ''|*[!0-9]*) started=0 ;; esac; case "$turns" in ''|*[!0-9]*) turns=0 ;; esac
 if [ "$DONE" -gt "$last" ]; then stall=0; else stall=$((stall+1)); fi
+
+# ---- RUN bounds (R81 follow-up): bound the RUN, not just the stall ----------------------------
+# The stall cap above catches a STUCK model; it cannot catch a BUSY one, because `stall` resets to
+# 0 on every completion. A drain that keeps finishing tasks — or keeps queueing new ones as it
+# decomposes work — therefore had NO plugin-side terminator at all, and would run until the queue
+# emptied or the account rate limit stopped it. That is not a thermal strategy on a handheld.
+# Two independent bounds, whichever fires first; both yield exactly like the stall cap (allow the
+# stop, clear the counter file), so a bounded run ends cleanly and `/companion:resume` picks it up.
+# Defaults are deliberately GENEROUS — they must never interrupt ordinary interactive work, only
+# stop an unattended runaway. `0` disables either one.
+now="$(date +%s 2>/dev/null || echo 0)"; case "$now" in ''|*[!0-9]*) now=0 ;; esac
+[ "$started" -eq 0 ] && started="$now"
+turns=$((turns + 1))
+# (a) WALL-CLOCK. Note this is real elapsed time and INCLUDES suspend — on a machine that sleeps,
+# waking long after the run began yields immediately. That is the safe direction: an unattended run
+# that spanned a suspend should stop, not resume drawing power.
+# `10#` forces base 10: a value like "08" is otherwise read as octal, which errors under $(( ))
+# and SILENTLY DISABLES the bound. Clamp the width too so a huge value cannot overflow negative.
+hours="$(printf '%s' "${CLAUDE_COMPANION_AUTOPILOT_HOURS:-6}" | tr -dc '0-9')"; hours="${hours:-6}"
+[ "${#hours}" -gt 6 ] && hours=999999
+hours=$((10#$hours))
+if [ "$hours" -gt 0 ] && [ "$now" -gt 0 ] && [ "$started" -gt 0 ] \
+   && [ "$((now - started))" -ge "$((hours * 3600))" ]; then
+  rm -f "$cfile" 2>/dev/null; allow
+fi
+# (b) TOTAL TURNS — counts every continuation regardless of progress, so it closes the
+# reset-on-completion hole directly, and unlike the clock it is immune to suspend.
+maxturns="$(printf '%s' "${CLAUDE_COMPANION_AUTOPILOT_TURNS:-400}" | tr -dc '0-9')"; maxturns="${maxturns:-400}"
+[ "${#maxturns}" -gt 9 ] && maxturns=999999999
+maxturns=$((10#$maxturns))
+if [ "$maxturns" -gt 0 ] && [ "$turns" -ge "$maxturns" ]; then
+  rm -f "$cfile" 2>/dev/null; allow
+fi
 max="$(printf '%s' "${CLAUDE_COMPANION_AUTOPILOT_MAX:-8}" | tr -dc '0-9')"; max="${max:-8}"
 if [ "$stall" -ge "$max" ]; then rm -f "$cfile" 2>/dev/null; allow; fi   # stuck → yield
 # SWEEP TERMINATOR (R77) — the stall cap CANNOT bound a sweep: closing a swept park advances DONE,
@@ -104,7 +146,7 @@ if [ "$sweep" = true ] && [ "$PLAIN" -eq 0 ] && [ "$OPEN" -gt 0 ]; then
   swept=$((swept+1))
   if [ "$swept" -ge "$max" ]; then rm -f "$cfile" 2>/dev/null; allow; fi   # swept enough → yield
 fi
-{ mkdir -p "$(dirname "$cfile")" 2>/dev/null && printf '%s %s %s' "$DONE" "$stall" "$swept" > "$cfile"; } 2>/dev/null || true
+{ mkdir -p "$(dirname "$cfile")" 2>/dev/null && printf '%s %s %s %s %s' "$DONE" "$stall" "$swept" "$started" "$turns" > "$cfile"; } 2>/dev/null || true
 
 SWEEPNOTE=""
 if [ "$sweep" = true ]; then

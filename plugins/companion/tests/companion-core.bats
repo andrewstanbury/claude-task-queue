@@ -9,7 +9,7 @@ setup() {
   ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"
   AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
-  CAP="$ROOT/bin/capture.sh"; DRIFT="$ROOT/bin/contract-drift.sh"   # R58 living contract
+  DRIFT="$ROOT/bin/contract-drift.sh"   # R58 living contract (drift backstop)
   export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"   # the companion's OWN store, not ~/.claude/tasks
   export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"   # autopilot flags live here
   export CLAUDE_COMPANION_SESSION_ID="s1"
@@ -464,6 +464,47 @@ _ux_flow_check() {
   [[ "$output" == *"No carried-over"* ]]
 }
 
+@test "resume: BATCHED scan — many dirs x many files in one jq, newline-less markers still match" {
+  # companion_open_tasks collects every matching file and runs ONE jq over all of them (it used to
+  # spawn a jq per file: 277 spawns / ~2s on a real store, on the SessionStart + compaction path).
+  # Two failure modes this pins, both of which lose tasks SILENTLY — no error, just a short list:
+  #   1. markers are written with `printf '%s'` (NO trailing newline), so the `read` builtin returns
+  #      1 on them. Reading them with `read … && match` instead of checking the VARIABLE drops the
+  #      whole session dir.
+  #   2. a batched jq that mishandles multi-file input drops files after the first.
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local rid; rid="$(cd "$repo" && bash -c 'source "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
+  # dir A matches on the path-stable .repo identity, dir B on the legacy .root abspath — both
+  # newline-less, exactly as `tq` writes them. Several files each, so batching has to span dirs.
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sA"; printf '%s' "$rid"  > "$CLAUDE_COMPANION_TASKS_DIR/sA/.repo"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sB"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/sB/.root"
+  jq -n '{id:"1",subject:"alpha A1",status:"pending"}'     > "$CLAUDE_COMPANION_TASKS_DIR/sA/1.json"
+  jq -n '{id:"2",subject:"alpha A2",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/sA/2.json"
+  jq -n '{id:"3",subject:"alpha A3",status:"completed"}'   > "$CLAUDE_COMPANION_TASKS_DIR/sA/3.json"
+  jq -n '{id:"1",subject:"beta B1",status:"pending"}'      > "$CLAUDE_COMPANION_TASKS_DIR/sB/1.json"
+  jq -n '{id:"2",subject:"beta B2",status:"pending"}'      > "$CLAUDE_COMPANION_TASKS_DIR/sB/2.json"
+  # a third repo's dir must not leak in, and a marker-less dir must not match by accident
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sC"; printf '/other/x' > "$CLAUDE_COMPANION_TASKS_DIR/sC/.root"
+  jq -n '{id:"1",subject:"NOT MINE",status:"pending"}'     > "$CLAUDE_COMPANION_TASKS_DIR/sC/1.json"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sD"
+  jq -n '{id:"1",subject:"UNSTAMPED",status:"pending"}'    > "$CLAUDE_COMPANION_TASKS_DIR/sD/1.json"
+
+  run bash -c 'cd "$1" && source "$2" && companion_open_tasks "$PWD"' _ "$repo" "$ROOT/lib/companion.sh"
+  [ "$status" -eq 0 ]
+  # every OPEN task across BOTH matching dirs survives the batch — the count is the real assertion
+  [ "$(printf '%s\n' "$output" | grep -c '◻')" -eq 4 ]
+  [[ "$output" == *"alpha A1"* ]] && [[ "$output" == *"alpha A2"* ]]
+  [[ "$output" == *"beta B1"*  ]] && [[ "$output" == *"beta B2"*  ]]
+  [[ "$output" != *"alpha A3"* ]]    # completed excluded
+  [[ "$output" != *"NOT MINE"* ]]    # no cross-repo bleed
+  [[ "$output" != *"UNSTAMPED"* ]]   # an unmarked dir is not a match
+  # and it stays a SINGLE jq: batching is the point, so a regression to per-file is a failure
+  local n; n="$(cd "$repo" && strace -f -e trace=execve -o /dev/stdout \
+      bash -c 'source "$1"; companion_open_tasks "$PWD"' _ "$ROOT/lib/companion.sh" 2>/dev/null \
+      | grep -c 'execve("[^"]*/jq"' || true)"
+  [ -z "$n" ] || [ "$n" -le 1 ]      # skips cleanly where strace is unavailable (macOS CI)
+}
+
 @test "manual resume: turns autopilot OFF first, announced when on and quiet when off (R39)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
@@ -618,7 +659,6 @@ _ux_flow_check() {
   [[ "$output" == *"recommendation-first"* ]]   # the R49 posture must survive a compaction summary (its whole purpose)
 }
 
-
 @test "secret gate: blocks non-AWS anchored keys too — GH/Slack/Stripe/Google/PEM (R56 — INVARIANTS claim)" {
   # INVARIANTS.md claims six-vendor coverage but only AKIA was ever exercised. Construct each shape
   # at runtime (never a literal key in this file) so gitleaks doesn't flag the test itself.
@@ -730,43 +770,7 @@ _ux_flow_check() {
   [ "$output" = "block" ]                                   # so parked-ness lives in the prefix, not status
 }
 
-# ---- living contract (R58): capture write-only + drift backstop ----
-
-@test "capture: banks the prompt, injects nothing" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
-  run bash -c 'jq -nc --arg c "$1" --arg p "$2" "{cwd:\$c,prompt:\$p}" | "$3"' _ "$repo" "add a /companion:cover command" "$CAP"
-  [ "$status" -eq 0 ]
-  [ -z "$output" ]                                          # WRITE-ONLY: nothing to stdout (no additionalContext) — N1
-  local enc; enc="$(printf '%s' "$(git -C "$repo" rev-parse --show-toplevel)" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
-  local store="$CLAUDE_COMPANION_STATE_DIR/captures/$enc/prompts.jsonl"
-  [ -f "$store" ]                                           # …the prompt WAS banked to the per-repo store
-  [ "$(jq -r .prompt "$store")" = "add a /companion:cover command" ]
-  # garbage stdin is a clean no-op (best-effort, R7)
-  run bash -c 'printf "%s" "not json" | "$1"' _ "$CAP"; [ "$status" -eq 0 ]; [ -z "$output" ]
-}
-
-@test "capture: redacts anchored credentials/PII at rest + rotates at the size cap (R68)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
-  local k="AKIA""ABCDEFGHIJKLMNOP"
-  run bash -c 'jq -nc --arg c "$1" --arg p "$2" "{cwd:\$c,prompt:\$p}" | "$3"' _ "$repo" "key $k ssn 123-45-6789 card 4111 1111 1111 1111 end" "$CAP"
-  [ "$status" -eq 0 ]; [ -z "$output" ]
-  local enc; enc="$(printf '%s' "$(git -C "$repo" rev-parse --show-toplevel)" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
-  local store="$CLAUDE_COMPANION_STATE_DIR/captures/$enc/prompts.jsonl"
-  local banked; banked="$(jq -r .prompt "$store")"
-  [[ "$banked" != *"$k"* ]]                                 # raw key never persisted
-  [[ "$banked" != *"123-45-6789"* ]]                        # SSN shape never persisted
-  [[ "$banked" == *"[REDACTED:key]"* ]]
-  [[ "$banked" == *"[REDACTED:ssn]"* ]]
-  [[ "$banked" == *"[REDACTED:card]"* ]]
-  [[ "$banked" == *"end"* ]]                                # surrounding prose survives
-  # rotation: inflate past the cap, next capture rotates to .1 and starts fresh
-  head -c 1200000 /dev/zero | tr '\0' 'x' > "$store"
-  run bash -c 'jq -nc --arg c "$1" --arg p "after-cap" "{cwd:\$c,prompt:\$p}" | "$2"' _ "$repo" "$CAP"
-  [ "$status" -eq 0 ]
-  [ -f "$store.1" ]                                         # previous generation kept
-  [ "$(wc -c < "$store")" -lt 4096 ]                        # fresh file, bounded
-  [ "$(jq -r .prompt "$store")" = "after-cap" ]
-}
+# ---- living contract (R58): drift backstop (capture retired 2026-07-29) ----
 
 @test "contract-drift: warns when behaviour changed without a contract doc, silent otherwise (R58)" {
   local repo; repo="$(mktemp -d)"
@@ -1018,6 +1022,47 @@ _sw_repo() {
   [[ "$output" == *"not found"* ]]
 }
 
+@test "R81 hook budget: the gate CATCHES a store-scaling hook and PASSES a bounded one" {
+  # The gate's own guard. A budget gate that cannot fail is theatre, so prove both directions
+  # against a REAL scaling hook rather than a stub: a fake bin/ whose session-start.sh reads the
+  # whole store (the shape of the 2085ms->16108ms regression) must FAIL, and a bounded one PASS.
+  command -v jq >/dev/null 2>&1 || skip "jq not installed"
+  local fake; fake="$(mktemp -d)"; mkdir -p "$fake/bin" "$fake/lib"
+  cp "$ROOT/bin/hook-budget.sh" "$fake/bin/"; cp "$ROOT/lib/companion.sh" "$fake/lib/"
+  # BOUNDED: touches nothing in the store. Must pass.
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$fake/bin/session-start.sh"
+  chmod +x "$fake/bin/session-start.sh"
+  run env HOOK_BUDGET_BASEDIRS=6 HOOK_BUDGET_PERDIR=4 bash "$fake/bin/hook-budget.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"session-start.sh"* ]]
+  # UNBOUNDED: one jq per file across every session dir — cost tracks the store. Must fail.
+  cat > "$fake/bin/session-start.sh" <<'EOS'
+#!/usr/bin/env bash
+for f in "${CLAUDE_COMPANION_TASKS_DIR:-/nonexistent}"/*/*.json; do
+  [ -f "$f" ] || continue
+  jq -r '.subject // empty' "$f" >/dev/null 2>&1 || true
+done
+exit 0
+EOS
+  chmod +x "$fake/bin/session-start.sh"
+  run env HOOK_BUDGET_BASEDIRS=6 HOOK_BUDGET_PERDIR=4 bash "$fake/bin/hook-budget.sh"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"FAIL"* ]]
+}
+
+@test "R81 hook budget: a missing jq/git SKIPS clean — the gate never false-reds the environment" {
+  # Best-effort about the environment, strict about the budget (R7/R68): a toolless box must not
+  # turn into a red build, or the gate gets deleted for being flaky.
+  local fake bsh; fake="$(mktemp -d)"; mkdir -p "$fake/bin" "$fake/empty"
+  cp "$ROOT/bin/hook-budget.sh" "$fake/bin/"
+  # Absolute interpreter path: `env PATH=<empty> bash …` would fail to find bash ITSELF, which
+  # tests nothing about the gate. Emptying PATH must hide jq/git from the script, not the shell.
+  bsh="$(command -v bash)"
+  run env PATH="$fake/empty" "$bsh" "$fake/bin/hook-budget.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SKIP"* ]]
+}
+
 @test "session start: the compact re-anchor carries BOTH halves of the posture, not the core (R80)" {
   # The posture is what decays across a long session, and the closing-verdict half decays first —
   # it was missing from this message while the options half was present. R30·d2 still holds: the
@@ -1032,4 +1077,205 @@ _sw_repo() {
   [[ "$ctx" == *"compacted"* ]]
   [[ "$ctx" != *"How we keep it clean"* ]]           # the core is still NOT re-pasted (R30·d2)
   [[ "$ctx" != *"Wireframe convention"* ]]
+}
+
+@test "tq prune: removes FINISHED old stores, never one with open/parked/blocked work (R81)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local rid; rid="$(cd "$repo" && bash -c '. "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
+  _mk() {  # $1=dirname  $2=status  $3=subject
+    mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$1"
+    printf '%s' "$rid" > "$CLAUDE_COMPANION_TASKS_DIR/$1/.repo"
+    jq -n --arg s "$3" --arg st "$2" '{id:"1",subject:$s,status:$st}' > "$CLAUDE_COMPANION_TASKS_DIR/$1/1.json"
+    # backdate everything so the age window can't be what saves it
+    find "$CLAUDE_COMPANION_TASKS_DIR/$1" -exec touch -t 202001010000 {} + 2>/dev/null || true
+  }
+  _mk done1   completed   "shipped"
+  _mk done2   cancelled   "dropped"
+  _mk open1   pending     "still open"
+  _mk doing1  in_progress "mid-flight"
+  _mk park1   pending     "❓ [parked] a decision"
+  _mk block1  pending     "⏳ [blocked] owner action"
+  # another repo's finished store must be invisible to this repo's prune (no cross-project bleed)
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/other"; printf '/somewhere/else' > "$CLAUDE_COMPANION_TASKS_DIR/other/.root"
+  jq -n '{id:"1",subject:"theirs",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/other/1.json"
+  find "$CLAUDE_COMPANION_TASKS_DIR/other" -exec touch -t 202001010000 {} + 2>/dev/null || true
+
+  run bash -c 'cd "$1" && "$2" prune --days 30' _ "$repo" "$TQ"
+  [ "$status" -eq 0 ]
+  # finished stores gone
+  [ ! -d "$CLAUDE_COMPANION_TASKS_DIR/done1" ]
+  [ ! -d "$CLAUDE_COMPANION_TASKS_DIR/done2" ]
+  # every flavour of unfinished work survives
+  [ -d "$CLAUDE_COMPANION_TASKS_DIR/open1" ]
+  [ -d "$CLAUDE_COMPANION_TASKS_DIR/doing1" ]
+  [ -d "$CLAUDE_COMPANION_TASKS_DIR/park1" ]
+  [ -d "$CLAUDE_COMPANION_TASKS_DIR/block1" ]
+  # and another project's store is untouched
+  [ -d "$CLAUDE_COMPANION_TASKS_DIR/other" ]
+}
+
+@test "tq prune: age protects a RECENT finished store, and --dry-run deletes nothing" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local rid; rid="$(cd "$repo" && bash -c '. "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/fresh"; printf '%s' "$rid" > "$CLAUDE_COMPANION_TASKS_DIR/fresh/.repo"
+  jq -n '{id:"1",subject:"just finished",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/fresh/1.json"
+  run bash -c 'cd "$1" && "$2" prune --days 30' _ "$repo" "$TQ"
+  [ -d "$CLAUDE_COMPANION_TASKS_DIR/fresh" ]        # recent → kept despite being finished
+  # old + finished, but dry-run must not remove it
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/old"; printf '%s' "$rid" > "$CLAUDE_COMPANION_TASKS_DIR/old/.repo"
+  jq -n '{id:"1",subject:"ancient",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/old/1.json"
+  find "$CLAUDE_COMPANION_TASKS_DIR/old" -exec touch -t 202001010000 {} + 2>/dev/null || true
+  run bash -c 'cd "$1" && "$2" prune --days 30 --dry-run' _ "$repo" "$TQ"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"would remove"* ]]
+  [ -d "$CLAUDE_COMPANION_TASKS_DIR/old" ]          # dry run: still there
+  run bash -c 'cd "$1" && "$2" prune --days 30' _ "$repo" "$TQ"
+  [ ! -d "$CLAUDE_COMPANION_TASKS_DIR/old" ]        # real run: gone
+}
+
+@test "autopilot RUN bound: the TURN cap stops a PRODUCTIVE drain the stall cap never could (R81)" {
+  # The hole this closes: `stall` resets on every completion, so a drain that keeps finishing work
+  # ran forever. Complete a task on EVERY turn — the stall cap can never fire — and prove the turn
+  # cap still ends it. This is the overnight-runaway case.
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  local sid=apTurns; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"
+  printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  jq -n '{id:"9",subject:"always open",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/9.json"
+  local i r
+  for i in 1 2 3; do
+    # a NEW completed task each turn → DONE rises → stall resets to 0 every single time
+    jq -n --arg i "$i" '{id:$i,subject:"done \($i)",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/$i.json"
+    r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' \
+         | CLAUDE_COMPANION_AUTOPILOT_TURNS=4 "$STOP" | jq -r '.decision // "allow"')"
+    [ "$r" = "block" ]
+  done
+  jq -n '{id:"4",subject:"done 4",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/4.json"
+  r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_TURNS=4 "$STOP")"
+  [ -z "$r" ]        # 4th continuation hits the cap → yields, despite constant progress
+}
+
+@test "autopilot RUN bound: the wall-clock deadline yields, and 0 disables both bounds (R81)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  local sid=apClock; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"
+  printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  jq -n '{id:"1",subject:"open work",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  # one turn to create the counter file
+  local r; r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" | jq -r '.decision // "allow"')"
+  [ "$r" = "block" ]
+  local cf="$CLAUDE_COMPANION_STATE_DIR/autopilot/continue-$sid"
+  [ -f "$cf" ]
+  # backdate the run's start by ~7h, leaving the other fields intact. `|| true`: the counter file is
+  # written with printf and NO trailing newline, so `read` returns 1 having set the vars correctly —
+  # the same newline-less trap the task-store markers have (see the BATCHED scan test).
+  local d s w st tn; read -r d s w st tn < "$cf" || true
+  printf '%s %s %s %s %s' "$d" "$s" "$w" "$((st - 25200))" "$tn" > "$cf"
+  r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_HOURS=6 "$STOP")"
+  [ -z "$r" ]        # past the 6h deadline → yields
+  # ...and with both bounds disabled it keeps going regardless of how old the run is
+  printf '%s %s %s %s %s' "$d" "$s" "$w" "$((st - 999999))" "9999" > "$cf"
+  r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' \
+       | CLAUDE_COMPANION_AUTOPILOT_HOURS=0 CLAUDE_COMPANION_AUTOPILOT_TURNS=0 "$STOP" | jq -r '.decision // "allow"')"
+  [ "$r" = "block" ]
+}
+
+@test "autopilot RUN bound: an OLD 3-field continue-file still works (no migration, no lost run)" {
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  local sid=apOld; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"
+  printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  jq -n '{id:"1",subject:"open work",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  local cf="$CLAUDE_COMPANION_STATE_DIR/autopilot/continue-$sid"
+  mkdir -p "$(dirname "$cf")"; printf '0 1 0' > "$cf"     # pre-2026-07-29 format
+  local r; r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" | jq -r '.decision // "allow"')"
+  [ "$r" = "block" ]                                       # keeps going, no crash
+  local _a _b _c st tn; read -r _a _b _c st tn < "$cf" || true   # no trailing newline -> read exits 1
+  [ -n "$st" ] && [ "$st" -gt 0 ]                          # start re-seeded
+  [ "$tn" = "1" ]                                          # turn counter started
+}
+
+@test "resume: ONE corrupt task file loses only ITSELF, never the whole backlog (DA blocker)" {
+  # The batched jq aborts at the first parse error, so a single half-written file took every task
+  # in every LATER file with it — 7 open tasks rendering as 0, silently, on the one path whose job
+  # is handing the backlog back after a crash. The per-file fallback is what makes that survivable.
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local rid; rid="$(cd "$repo" && bash -c '. "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/cA" "$CLAUDE_COMPANION_TASKS_DIR/cB"
+  printf '%s' "$rid" > "$CLAUDE_COMPANION_TASKS_DIR/cA/.repo"
+  printf '%s' "$rid" > "$CLAUDE_COMPANION_TASKS_DIR/cB/.repo"
+  printf '{ NOT VALID JSON' > "$CLAUDE_COMPANION_TASKS_DIR/cA/1.json"
+  local i
+  for i in 2 3 4;   do jq -n --arg i "$i" '{id:$i,subject:"alpha \($i)",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/cA/$i.json"; done
+  for i in 5 6 7 8; do jq -n --arg i "$i" '{id:$i,subject:"beta \($i)",status:"pending"}'  > "$CLAUDE_COMPANION_TASKS_DIR/cB/$i.json"; done
+  run bash -c 'cd "$1" && . "$2" && companion_open_tasks "$PWD"' _ "$repo" "$ROOT/lib/companion.sh"
+  [ "$status" -eq 0 ]
+  [ "$(printf '%s\n' "$output" | grep -c '◻')" -eq 7 ]   # all 7 healthy tasks, not 0
+  [[ "$output" == *"alpha 2"* ]] && [[ "$output" == *"beta 8"* ]]
+}
+
+@test "tq prune: an UNREADABLE task file means KEEP, never delete (jq exit status, not stdout)" {
+  # `jq -s` prints 0 AND exits 2 when it cannot OPEN a file, so reading stdout alone turned
+  # "unreadable" into "zero open tasks" and destroyed a store holding a parked decision.
+  [ "$(id -u)" -ne 0 ] || skip "running as root: chmod 000 is not enforced"
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local rid; rid="$(cd "$repo" && bash -c '. "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/locked"
+  printf '%s' "$rid" > "$CLAUDE_COMPANION_TASKS_DIR/locked/.repo"
+  jq -n '{id:"1",subject:"❓ [parked] owner decision",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/locked/1.json"
+  chmod 000 "$CLAUDE_COMPANION_TASKS_DIR/locked/1.json"
+  find "$CLAUDE_COMPANION_TASKS_DIR/locked" -exec touch -t 202001010000 {} + 2>/dev/null || true
+  run bash -c 'cd "$1" && "$2" prune --days 30' _ "$repo" "$TQ"
+  chmod 644 "$CLAUDE_COMPANION_TASKS_DIR/locked/1.json" 2>/dev/null || true
+  [ -d "$CLAUDE_COMPANION_TASKS_DIR/locked" ]
+}
+
+@test "tq prune: a SYMLINKED session dir is skipped — rm -rf must not recurse through the link" {
+  # The glob yields a trailing slash, which makes rm -rf follow the link and empty the TARGET:
+  # an archived session dir outside the store was destroyed while the link itself survived.
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local rid; rid="$(cd "$repo" && bash -c '. "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
+  local arch; arch="$(mktemp -d)"; mkdir -p "$arch/real"
+  printf 'IRREPLACEABLE\n' > "$arch/real/notes.md"
+  printf '%s' "$rid" > "$arch/real/.repo"
+  jq -n '{id:"1",subject:"long done",status:"completed"}' > "$arch/real/1.json"
+  ln -s "$arch/real" "$CLAUDE_COMPANION_TASKS_DIR/archived"
+  find "$arch" -exec touch -t 202001010000 {} + 2>/dev/null || true
+  run bash -c 'cd "$1" && "$2" prune --days 30' _ "$repo" "$TQ"
+  [ "$status" -eq 0 ]
+  [ -f "$arch/real/notes.md" ]     # the target survived
+  rm -rf "$arch"
+}
+
+@test "secret gate: NON-STRING content (NotebookEdit array/object) still BLOCKS — no fail-open (R43)" {
+  # jq's `+` throws on a non-string, so `rec` came back empty and the gate exited 0 — a real
+  # credential straight through, on the very tool R43 added the gate to cover.
+  local k="AKIA""ABCDEFGHIJKLMNOP" p          # split so THIS file isn't itself a secret
+  p="$(jq -nc --arg k "$k" '{tool_input:{file_path:"/r/n.ipynb",new_source:[$k,"x"]}}')"
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$p" "$GUARD"
+  [ "$status" -eq 2 ]
+  p="$(jq -nc --arg k "$k" '{tool_input:{file_path:"/r/n.ipynb",content:{a:$k}}}')"
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$p" "$GUARD"
+  [ "$status" -eq 2 ]
+}
+
+@test "secret gate: an EMPTY edit never scans the FILE PATH as content (no false block)" {
+  # With no content there was no newline to split on, so the path itself became the scanned text:
+  # an Edit clearing a file under a directory literally named AKIA… was BLOCKED.
+  local k="AKIA""ABCDEFGHIJKLMNOP" p        # split so THIS file isn't itself a secret
+  p="$(jq -nc --arg d "/tmp/$k/notes.txt" '{tool_input:{file_path:$d,new_string:""}}')"
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$p" "$GUARD"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "R81 hook budget: measures under a COMMA-DECIMAL locale (LC_ALL=C is load-bearing)" {
+  # TIMEFORMAT renders through the locale: under de_DE every sample was "0,124", failed the
+  # digits-only guard and fell through to 0 — a green gate that measured nothing at all.
+  command -v jq >/dev/null 2>&1 || skip "jq not installed"
+  run env LC_NUMERIC=de_DE.UTF-8 LC_ALL=de_DE.UTF-8 \
+      HOOK_BUDGET_BASEDIRS=6 HOOK_BUDGET_PERDIR=4 bash "$ROOT/bin/hook-budget.sh"
+  [ "$status" -eq 0 ]
+  # at least one hook must report a NON-zero measurement
+  [[ "$output" =~ [1-9][0-9]*ms ]]
 }

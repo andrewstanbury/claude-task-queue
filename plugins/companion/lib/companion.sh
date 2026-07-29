@@ -83,27 +83,50 @@ companion_secret_re() { printf '%s' 'AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,}
 # The companion's own task store (not native tasks).
 companion_tasks_dir() { printf '%s' "${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}"; }
 
-# Per-repo raw prompt-capture store (R58) — the UserPromptSubmit hook appends one JSONL line
-# per prompt here so the living-contract reflex/`/companion:cover` have durable raw material to
-# classify (which prompts changed the UX / a quality attribute). Scoped by encoded repo root, same
-# as the autopilot flag, so there's no cross-repo bleed. Write-only sink: nothing here is ever
-# injected into context (N1 — the hook returns no additionalContext); it's read on demand only.
-companion_captures_dir() { printf '%s/captures/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
-
 # Open (pending/in_progress) task subjects for a repo, across every session dir whose `.root`
 # stamp matches — the cross-session resume signal. One "  ◻ <subject>" line each; empty when
 # none. Shared by the SessionStart hook (auto-resume) and `bin/resume.sh` (manual).
+# The one render program, shared by the batched pass and its per-file fallback so the two can
+# never drift into printing different things for the same task.
+_COMPANION_TASK_RENDER='select(.status=="pending" or .status=="in_progress") | "  ◻ " + (.subject // "") + (if (.done_when//"")!="" then "\n       └ done when: " + .done_when else "" end) + (if ((.notes//[])|length)>0 then "\n       └ note: " + ((.notes[-1].text)//"") elif (.description//"")!="" then "\n       └ note: " + .description else "" end)'
+
 companion_open_tasks() {
-  local root="$1" store d f id
+  local root="$1" store d id rid rroot f out; local -a files=()
   store="$(companion_tasks_dir)"; [ -d "$store" ] || return 0
   id="$(companion_repo_id "$root")"
   for d in "$store"/*/; do
     [ -d "$d" ] || continue
+    # Marker files are read with the `read` BUILTIN, not `$(cat …)`: this runs on SessionStart and
+    # every compaction, and two forks per session directory was 82 spawns on a real store. `read`
+    # returns 1 on a final line with no newline, so check the variable, not the status.
+    rid=""; rroot=""
+    [ -f "$d.repo" ] && { IFS= read -r rid  < "$d.repo"  || true; }
+    [ -f "$d.root" ] && { IFS= read -r rroot < "$d.root" || true; }
     # Match on repo IDENTITY (path-stable) first, else the legacy abspath stamp (back-compat).
-    { [ "$(cat "$d.repo" 2>/dev/null || true)" = "$id" ] || [ "$(cat "$d.root" 2>/dev/null || true)" = "$root" ]; } || continue
-    for f in "$d"*.json; do
-      [ -f "$f" ] || continue
-      jq -r 'select(.status=="pending" or .status=="in_progress") | "  ◻ " + (.subject // "") + (if (.done_when//"")!="" then "\n       └ done when: " + .done_when else "" end) + (if ((.notes//[])|length)>0 then "\n       └ note: " + ((.notes[-1].text)//"") elif (.description//"")!="" then "\n       └ note: " + .description else "" end)' "$f" 2>/dev/null || true
-    done
+    { [ "$rid" = "$id" ] || [ "$rroot" = "$root" ]; } || continue
+    set -- "$d"*.json
+    [ -f "$1" ] || continue
+    files+=("$@")
+  done
+  [ "${#files[@]}" -gt 0 ] || return 0
+  # ONE jq for every matching file across every matching directory. It used to spawn a jq PER FILE:
+  # 265 spawns / 818ms on a real store, growing with every session and task, on a hook path. Glob
+  # order is preserved so the rendered list is byte-identical to the per-file version.
+  #
+  # FALLBACK IS LOAD-BEARING, not defensive padding: jq ABORTS at the first unparseable file, so a
+  # single corrupt task file would take every task in every LATER file down with it — measured
+  # 7 open tasks rendering as 0, silently, exit 0, on the one path whose entire job is to hand the
+  # backlog back after a crash. (R44's atomic writes make a half-written file rare, not impossible;
+  # `tq export` already learned this exact lesson — "one corrupt file skipped-with-count, never
+  # zeroes the backlog".) So: try the fast batch, and the moment jq reports failure, redo it
+  # per-file so a bad file costs only itself. The slow path runs only when something is already
+  # broken, so the hot path keeps its 56x.
+  if out="$(jq -r "$_COMPANION_TASK_RENDER" "${files[@]}" 2>/dev/null)"; then
+    [ -n "$out" ] && printf '%s\n' "$out"
+    return 0
+  fi
+  for f in "${files[@]}"; do
+    [ -f "$f" ] || continue
+    jq -r "$_COMPANION_TASK_RENDER" "$f" 2>/dev/null || true
   done
 }
