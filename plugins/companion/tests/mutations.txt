@@ -6,7 +6,9 @@ plugins/companion/bin/stop-autopilot.sh::s|(subj\|startswith("⏳")) or|(false) 
 plugins/companion/bin/stop-autopilot.sh::s|((subj\|ascii_downcase\|contains("decompose:"))\|not)|(true)|::sweep starts eating decompose parks
 plugins/companion/bin/stop-autopilot.sh::s|if \[ "$swept" -ge "$max" \]|if [ "$swept" -ge 99999 ]|::the sweep terminator is removed
 plugins/companion/bin/secret-guard.sh::s|exit 2|exit 0|::the secret gate stops blocking
-plugins/companion/bin/ship.sh::s@if \[ -s .companion/da-paths \] \&\& \[ -z "$da" \]@if false@::the devil's-advocate gate never fires
+plugins/companion/bin/ship.sh::s@if \[ -z "$da" \]; then@if false; then@::the devil's-advocate gate never fires
+plugins/companion/bin/da-gate.sh::s@    exit 1 ;;@    exit 0 ;;@::da-gate reports no critical paths, ever
+plugins/companion/bin/da-gate.sh::s@\[ "$rc" -ge 2 \] && exit 2@:@::da-gate FAILS OPEN on an unusable config
 plugins/companion/bin/ship.sh::s@ls-files --others --exclude-standard@ls-files --cached@::untracked critical-path files stop being seen
 plugins/companion/bin/ship.sh::s@--name-only --no-renames HEAD@--name-only HEAD@::a rename hides one side of a critical-path change
 plugins/companion/bin/doc-lint.sh::s@\\"\*|\\'\*)@\\"ZZZ*)@::frontmatter stops rejecting an unterminated quote
