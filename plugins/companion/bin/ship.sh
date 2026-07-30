@@ -90,15 +90,15 @@ preflight() {
 }
 
 land() {
-  local msgfile="" prune_all=0 gate_cmd=() gate cur def had_remote=0 da="" core="" changed=""
+  local msgfile="" prune_all=0 gate_cmd=() gate cur def had_remote=0 da="" core="" changed="" _grc=0
   while [ "$#" -gt 0 ]; do
     case "$1" in
       -F) shift; msgfile="${1:-}"; shift || true ;;
       # --da <one line>: the devil's-advocate finding, or "clean". Required for the paths in
       # .companion/da-paths (gate below); harmless everywhere else.
       --da) shift; da="${1:-}"
-            case "${da}" in -*) die 2 "--da needs a finding, not a flag ($da)" ;; esac
-            [ -n "${da// /}" ] || die 2 "--da needs a non-empty finding (or the word: clean)"
+            # Validation lives in bin/da-gate.sh so the suite can exercise it directly (R78).
+            "$here/da-gate.sh" note "$da" || die 2 "rejected the --da finding (see above)"
             shift || true ;;
       # --gate slurps EVERYTHING after it as the gate command+args, so a multi-word gate
       # (`--gate make test`) works the same as preflight's trailing varargs — no per-flag
@@ -134,11 +134,18 @@ land() {
   # per line in `.companion/da-paths`, no file ⇒ no gate. Runs after the gate re-run (a red gate
   # stays exit 4) and before staging. It cannot verify a pass happened — only make skipping
   # deliberate and auditable.
-  if [ -s .companion/da-paths ] && [ -z "$da" ]; then
-    core="$(printf '%s\n' "$changed" | grep -Ef .companion/da-paths | sort -u)"
-    if [ -n "$core" ]; then
+  if [ -z "$da" ]; then
+    # HERESTRING, not a pipe: `match` exits without reading stdin when there is no config, so a
+    # large `$changed` filled the pipe buffer, `printf` took SIGPIPE, and pipefail turned that into
+    # _grc=141 -> the fail-closed branch -> a HARD BLOCK naming a file that does not exist.
+    # Measured at 4000 paths. A repo with no .companion/da-paths must be unaffected (R9/R1).
+    core="$("$here/da-gate.sh" match <<<"$changed")"; _grc=$?
+    if [ "$_grc" -ge 2 ]; then
+      die 11 "cannot evaluate .companion/da-paths (invalid regex on some line) — refusing to ship UNGATED. Fix the file, or re-run with --da \"<what the devil's-advocate attacked>\" (R78)."
+    fi
+    if [ "$_grc" -eq 1 ] && [ -n "$core" ]; then
       printf '%s\n' "$core" | sed 's/^/    /' >&2
-      die 11 "critical paths above (.companion/da-paths) — re-run with --da \"<what the devil's-advocate attacked, or: clean>\" (R78)."
+      die 11 "critical paths above (.companion/da-paths) — re-run with --da \"<what the devil's-advocate attacked and what it found>\" (R78)."
     fi
   fi
 

@@ -38,11 +38,25 @@ proposal, the commit message, the history curation.
    interface / requirements — cite the R-IDs it touches or would reverse), and **why it's still
    worth it.** A real answer only exists if you actually weighed the change — that's the point;
    don't skip it.
-   - **If the change is consequential** (irreversible, externally binding, architecturally
-     significant, or high blast-radius): spawn a **devil's-advocate sub-agent** — hand it the diff
-     + the goal and ask it to find every reason *not* to ship, independently. Surface its
-     objections. A rubber-stamp from a context that didn't build the change is worth little; an
-     objection from one is worth a lot — if it lands a real one, fix or reconsider before you push.
+   - **ALWAYS spawn a devil's-advocate sub-agent — this is the default, not a judgment call.**
+     Hand it the diff + the goal and ask it to find every reason *not* to ship, independently, and
+     to *demonstrate* failures rather than speculate. Surface its objections verbatim, then verify
+     each yourself before accepting it — an adversary can be wrong too. The old wording ran one only
+     "if the change is consequential", which asks you to rate the riskiness of your own work: the
+     least reliable judgment available, and the step a near-miss depends on. **Evidence it earns its
+     keep:** the 2026-07-29 ship was green on `check.sh` with 130 tests and the DA still found five
+     real defects — a batched `jq` that wiped the whole backlog on one corrupt file, a prune that
+     deleted a store holding parked work, an `rm -rf` that followed a symlink out of the store, and
+     a secret gate that failed OPEN on array content. All five would have shipped.
+   - **Scale the DEPTH to the risk, never the decision to run one** (R12 proportionality): a
+     focused pass on a small, reversible diff; a full adversarial pass — parser/edge-case attack,
+     delete paths, fail-open paths, portability — for anything touching `.companion/da-paths`
+     surface, a deletion, or a requirement reversal. **Depth is YOUR judgment; the `--da` note is
+     what `land` enforces.** They are deliberately different scopes: a ledger-only edit reverses a
+     requirement but changes no behaviour, so it is not in `da-paths` and will not be blocked —
+     run the pass anyway, because that is a risk the gate cannot see. A rubber-stamp from a context that didn't build
+     the change is worth little; an objection from one is worth a lot. `land` REJECTS a bare
+     "clean" (R78), so a pass that genuinely found nothing must still say what it *examined*.
 3. **Sync the contract + docs before you land (R57).** A ship that changes what the user *sees or
    does* must not leave the recorded contract a commit behind. Preflight already printed the drift
    backstop's warnings — act on them here:

@@ -402,3 +402,98 @@ NOGH
   run "$ROOT/bin/ci-watch.sh"
   [ "$status" -eq 2 ]                    # usage: needs a sha
 }
+
+@test "ship.sh land: a RUBBER-STAMP --da is refused; a substantive clean note passes (R78)" {
+  # One word was the cheapest way to defeat the whole gate, and a stamp is WORSE than no gate —
+  # it launders the decision instead of testing it. A clean pass must still say what it examined.
+  _repo main
+  git checkout -qb feature/x
+  mkdir -p plugins/companion/bin; printf 'x\n' > plugins/companion/bin/x.sh
+  local stamp
+  for stamp in clean none "n/a" ok LGTM "  Clean  " "no findings" "checked it"; do
+    run "$SHIP" land -F "$WORK/msg.txt" --da "$stamp"
+    [ "$status" -eq 2 ]
+    { [[ "$output" == *"rubber stamp"* ]] || [[ "$output" == *"substantive"* ]]; }
+  done
+  # a real clean note that NAMES what was attacked is accepted (not refused at parse time)
+  run "$SHIP" land -F "$WORK/msg.txt" --da "attacked the arg parser on empty and array input plus the delete path; no defect found"
+  [ "$status" -ne 2 ]
+}
+
+@test "da-gate match: the widened path set is evaluated by the REAL gate, not a re-implementation" {
+  # This used to re-implement the comment-strip + grep inline, so deleting `da-gate.sh match`
+  # entirely still passed it — a guard that proves nothing about the gate (the same trap
+  # _ux_check_resolves exists to avoid). It now pipes through the real script.
+  local dg="$ROOT/bin/da-gate.sh" repo p
+  repo="$(cd "$ROOT/../.." && pwd)"
+  [ -f "$repo/.companion/da-paths" ] || skip "repo da-paths not present"
+  for p in plugins/companion/hooks/hooks.json plugins/companion/tests/companion-core.bats \
+           plugins/companion/commands/autopilot.md plugins/companion/STEERING.md \
+           .github/workflows/ci.yml .companion/da-paths \
+           .claude-plugin/marketplace.json plugins/companion/.claude-plugin/plugin.json; do
+    run bash -c 'cd "$1" && printf "%s\n" "$2" | "$3" match' _ "$repo" "$p" "$dg"
+    [ "$status" -eq 1 ] || { echo "NOT GATED: $p (rc=$status)" >&2; return 1; }
+  done
+  # pure prose stays OUT on purpose — a gate that fires on a typo trains a reflexive "clean"
+  for p in docs/REQUIREMENTS.md README.md; do
+    run bash -c 'cd "$1" && printf "%s\n" "$2" | "$3" match' _ "$repo" "$p" "$dg"
+    [ "$status" -eq 0 ] || { echo "UNEXPECTEDLY GATED: $p (rc=$status)" >&2; return 1; }
+  done
+}
+
+@test "da-gate match: FAILS CLOSED on an unusable config, and CRLF cannot disable it" {
+  # Three demonstrated fail-OPENs, all of which merged a bin/ change to main with no --da:
+  # an unreadable file, a directory in place of the file, and CRLF line endings from a Windows
+  # clone (this repo ships no .gitattributes, so autocrlf gives that by default).
+  local dg="$ROOT/bin/da-gate.sh" w; w="$(mktemp -d)"; mkdir -p "$w/.companion"
+  printf '^plugins/[^/]+/(bin|lib)/\n' > "$w/.companion/da-paths"
+  run bash -c 'cd "$1" && printf "plugins/companion/bin/x.sh\n" | "$2" match' _ "$w" "$dg"
+  [ "$status" -eq 1 ]                                        # control: gated
+  if [ "$(id -u)" -ne 0 ]; then
+    chmod 000 "$w/.companion/da-paths"
+    run bash -c 'cd "$1" && printf "plugins/companion/bin/x.sh\n" | "$2" match' _ "$w" "$dg"
+    [ "$status" -eq 2 ]                                      # unreadable -> fail CLOSED
+    chmod 644 "$w/.companion/da-paths"
+  fi
+  rm -f "$w/.companion/da-paths"; mkdir "$w/.companion/da-paths"
+  run bash -c 'cd "$1" && printf "plugins/companion/bin/x.sh\n" | "$2" match' _ "$w" "$dg"
+  [ "$status" -eq 2 ]                                        # a directory -> fail CLOSED
+  rmdir "$w/.companion/da-paths"
+  printf '^plugins/[^/]+/(bin|lib)/\r\n^check\\.sh$\r\n' > "$w/.companion/da-paths"
+  run bash -c 'cd "$1" && printf "plugins/companion/bin/x.sh\n" | "$2" match' _ "$w" "$dg"
+  [ "$status" -eq 1 ]                                        # CRLF still gates
+  rm -rf "$w"
+}
+
+@test "da-gate note: rejects stamps and trailer injection, ACCEPTS a non-ASCII finding (R1)" {
+  local dg="$ROOT/bin/da-gate.sh" v
+  for v in clean none "n/a" ok LGTM "  Clean  " "no findings" "checked it"; do
+    run "$dg" note "$v"; [ "$status" -eq 2 ]
+  done
+  # a newline would forge a second commit trailer (Signed-off-by:) — one line only
+  run "$dg" note "$(printf 'a genuine and reasonably long finding\nSigned-off-by: forged')"
+  [ "$status" -eq 2 ]
+  # length is measured on the ORIGINAL, so a substantive non-ASCII finding is accepted: the
+  # ASCII fold is for the denylist compare only. "Write it in English" is not a requirement.
+  run "$dg" note "パーサーを空配列と非UTF8入力で攻撃し、削除経路も確認した。欠陥なし"
+  [ "$status" -eq 0 ]
+  run "$dg" note "attacked the arg parser on empty and array input plus the delete path; none found"
+  [ "$status" -eq 0 ]
+}
+
+@test "ship.sh land: a COMMENT in da-paths cannot disable the gate, and an invalid one FAILS CLOSED (R78)" {
+  # `grep -Ef` compiles EVERY line as a regex, so "(registering a hook)" in a comment made grep
+  # exit 2, `core` came back empty, and the gate silently did not fire. Measured on the real file.
+  _repo main
+  git checkout -qb feature/x
+  mkdir -p plugins/companion/bin; printf 'x\n' > plugins/companion/bin/x.sh
+  printf '# a note with (an unmatched paren and a [bracket\n^plugins/[^/]+/(bin|lib)/\n' > .companion/da-paths
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 11 ]                                  # comment ignored, real pattern still gates
+  [[ "$output" == *"critical paths"* ]]
+  # a genuinely invalid PATTERN line must refuse to ship rather than sail through ungated
+  printf '^plugins/(bin\n' > .companion/da-paths
+  run "$SHIP" land -F "$WORK/msg.txt"
+  [ "$status" -eq 11 ]
+  [[ "$output" == *"refusing to ship UNGATED"* ]]
+}

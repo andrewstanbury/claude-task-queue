@@ -1,5 +1,18 @@
 # Paths whose change requires a devil's-advocate pass before `ship.sh land` (R78).
 # One extended-regex per line, matched against changed paths. No file ⇒ no gate.
-# For THIS repo the critical set is the enforced core: code that blocks, injects or controls flow.
+#
+# Scope: everything that BEARS BEHAVIOUR. Widened 2026-07-29 after an audit found the gate had
+# real holes — `hooks.json` (registering a hook), `tests/` (weakening a test IS "a green gate
+# certifying broken work", R78's own premise) and `.github/` (CI could be disabled outright) all
+# shipped ungated. Pure prose (docs/*.md, README) stays OUT on purpose: a gate that fires on a
+# typo trains a reflexive "clean", and a rubber stamp launders the decision instead of testing it.
 ^plugins/[^/]+/(bin|lib)/
 ^check\.sh$
+^plugins/[^/]+/(hooks|commands|tests)/
+^plugins/[^/]+/STEERING\.md$
+^\.github/
+# the manifests decide what actually gets INSTALLED
+^\.claude-plugin/
+^plugins/[^/]+/\.claude-plugin/
+# the gate's own config: weakening this must itself be challenged
+^\.companion/da-paths$
