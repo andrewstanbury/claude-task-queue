@@ -1,0 +1,10 @@
+# Normalise line endings in the working tree. A Windows/WSL clone with core.autocrlf=true
+# otherwise gets CRLF in files that are parsed line-by-line — and a CR turns every pattern in
+# `.companion/da-paths` into `…\r`, which matches nothing and SILENTLY disables the R78 gate.
+# `da-gate.sh` strips CR defensively; this prevents the class rather than one instance (R81/R78).
+* text=auto eol=lf
+*.sh   text eol=lf
+*.bats text eol=lf
+*.json text eol=lf
+*.md   text eol=lf
+da-paths text eol=lf

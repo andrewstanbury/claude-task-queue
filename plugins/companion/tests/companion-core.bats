@@ -1032,7 +1032,11 @@ _sw_repo() {
   # BOUNDED: touches nothing in the store. Must pass.
   printf '#!/usr/bin/env bash\nexit 0\n' > "$fake/bin/session-start.sh"
   chmod +x "$fake/bin/session-start.sh"
-  run env HOOK_BUDGET_BASEDIRS=6 HOOK_BUDGET_PERDIR=4 bash "$fake/bin/hook-budget.sh"
+  # Pin the ABSOLUTE cap, which is the hard gate since the recalibration, and use a store big
+  # enough that the unbounded hook clears the noise floor. With the old tiny store the fake
+  # hook measured UNDER NOISE_MS, where the ratio is not enforced — so the gate passed it and
+  # this guard silently stopped guarding. It failed only under load, which is how it surfaced.
+  run env HOOK_BUDGET_BASEDIRS=8 HOOK_BUDGET_PERDIR=8 HOOK_BUDGET_ABSCAP=200 bash "$fake/bin/hook-budget.sh"
   [ "$status" -eq 0 ]
   [[ "$output" == *"session-start.sh"* ]]
   # UNBOUNDED: one jq per file across every session dir — cost tracks the store. Must fail.
@@ -1045,7 +1049,7 @@ done
 exit 0
 EOS
   chmod +x "$fake/bin/session-start.sh"
-  run env HOOK_BUDGET_BASEDIRS=6 HOOK_BUDGET_PERDIR=4 bash "$fake/bin/hook-budget.sh"
+  run env HOOK_BUDGET_BASEDIRS=8 HOOK_BUDGET_PERDIR=8 HOOK_BUDGET_ABSCAP=200 bash "$fake/bin/hook-budget.sh"
   [ "$status" -eq 1 ]
   [[ "$output" == *"FAIL"* ]]
 }
