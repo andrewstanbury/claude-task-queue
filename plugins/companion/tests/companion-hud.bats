@@ -352,6 +352,18 @@ _feature_off() {  # $1=feature  $2=repo-dir
     rate_limits:{seven_day:{used_percentage:60,resets_at:$r}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$ahead" "$SL"
   [[ "$output" == *"60%▴"* ]]
+  # THE BOUNDARY CASE — the only one that distinguishes a CEILING on elapsed from a FLOOR, and
+  # therefore the only one that pins ▴ against lying. 4d left of 604800s = 42.857% elapsed, so
+  # floor(elapsed)=42 and ceil(elapsed)=43. At exactly 42% used you are GENUINELY BEHIND
+  # (42 < 42.857), so the honest verdict is ▾:
+  #   ceiling (correct) → 42 >= 43 is false → ▾
+  #   floor   (mutant)  → 42 >= 42 is true  → ▴, claiming on-pace while behind
+  # The other cases in this test all sit far from a boundary and read the SAME either way — which
+  # is exactly how the ceiling shipped with a mutation hole that CI, not the local run, caught.
+  local edge; edge="$(jq -nc --arg c "$repo" --argjson r "$(( now + 345600 ))" '{model:{display_name:"Opus"},session_id:"sP6",cwd:$c,
+    rate_limits:{seven_day:{used_percentage:42,resets_at:$r}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$edge" "$SL"
+  [[ "$output" == *"42%▾"* ]]
   # The marker is NOT a restatement of the percentage: these two payloads differ ONLY in how far
   # into the window they are, and the SAME 41% flips the verdict. That is the whole point of it.
   local early; early="$(jq -nc --arg c "$repo" --argjson r "$(( now + 594000 ))" '{model:{display_name:"Opus"},session_id:"sP3",cwd:$c,
