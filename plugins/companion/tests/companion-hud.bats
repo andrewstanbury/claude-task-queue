@@ -321,6 +321,24 @@ _feature_off() {  # $1=feature  $2=repo-dir
   [ ! -s "$err" ]; rm -f "$err"
 }
 
+@test "status line: a FAILED clock suppresses the countdown, never renders a 56-year one (R76/R68)" {
+  # `date` missing → the run's single $NOW is 0. Treating that as "now" would make every resets_at
+  # look ~56 years out and render `↻20665d`. The guard is new with the countdown's move into
+  # rlsecs, and it is the only thing standing between a broken clock and a garbage number.
+  local repo bin; repo="$(mktemp -d)"; git -C "$repo" init -q
+  bin="$(mktemp -d)"                      # a PATH with jq/git but deliberately no `date`
+  local t; for t in jq git bash sed grep cat printf dirname readlink mktemp; do
+    command -v "$t" >/dev/null 2>&1 && ln -sf "$(command -v "$t")" "$bin/$t"
+  done
+  local p; p="$(jq -nc --arg c "$repo" --argjson r "$(( $(date +%s) + 9000 ))" '{model:{display_name:"Opus"},session_id:"sNOW",cwd:$c,
+    rate_limits:{five_hour:{used_percentage:23,resets_at:$r}}}')"
+  run bash -c 'printf "%s" "$1" | PATH="$2" NO_COLOR=1 bash "$3"' _ "$p" "$bin" "$SL"
+  [ "$status" -eq 0 ]                  # still renders — best-effort, never breaks the host (R68)
+  [[ "$output" == *"23%"* ]]           # the bar it CAN compute is still there
+  [[ "$output" != *"↻"* ]]             # ...and the countdown it cannot is silent
+  [[ "$output" == *"5h"* ]]            # falling back to the window name
+}
+
 @test "status line: the ▴/▾ pace marker says whether the 7d window will be spent (R76)" {
   local repo now; repo="$(mktemp -d)"; git -C "$repo" init -q; now="$(date +%s)"
   # The 7d window is 604800s. `resets_at = now + 345600` (4d left) puts it 3d in → 42% elapsed.

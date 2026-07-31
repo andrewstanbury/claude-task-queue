@@ -10,7 +10,7 @@ tokens · project · branch (+ *changes · ↑ahead ↓behind).
 
 **The usage bars (R76)** read `.rate_limits` out of the payload Claude Code already pipes to the
 status line — **no API call, no network, no token cost**. Green under 60%, yellow 60–84%, red at
-85% and above, with a `↻` reset countdown once a window reaches 80%. They are **rolling windows, not a
+85% and above. The label is a `↻` countdown to that window's reset (the `5h`/`7d` name shows instead when there is no usable timestamp), and the 7d percent carries `▴`/`▾` for whether you are on pace to spend the window before it resets. They are **rolling windows, not a
 billing cycle** (the plans meter on 5-hour and 7-day windows, so there is no monthly percentage to
 show), and they cover the whole **account**, not this repo. The field only exists for Claude.ai
 Pro/Max and only after the session's first API response — each window independently — so on an API

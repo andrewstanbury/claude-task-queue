@@ -76,12 +76,12 @@ Bash + `jq`, zero build, one install.
 Three plugin sections then generic — `⠋` beacon `-` **active features** `-` **the queue** `-` model · git:
 `⠋` health beacon (spins while working) · `v<x.y.z>` the installed plugin version · `🛡️✗` secret gate
 **off** (shown only when disabled — no icon when it's on) · `✈️` autopilot on (`✈️⚡` decisive) · `📦` ship-mode armed · `📋` open · `❓` parked ·
-`⏳` blocked tasks · `5h`/`7d` **account** rate-limit usage bars · `⇡`/`⇣` input/output tokens · project · `⎇` branch · `*N` uncommitted · `↑`/`↓`
+`⏳` blocked tasks · **account** rate-limit usage bars (labelled `↻`<time-to-reset>, or `5h`/`7d` when there is none; `▴`/`▾` on the 7d = on/behind pace to spend it) · `⇡`/`⇣` input/output tokens · project · `⎇` branch · `*N` uncommitted · `↑`/`↓`
 commits ahead/behind upstream. *(`⇡⇣` are tokens; `↑↓` are git — two arrow pairs, different meanings.)*
 
 **The `5h`/`7d` bars** show how much of your Claude.ai subscription's **rolling** rate-limit windows
 you've burned — account-wide, not just this repo. Green under 60%, yellow 60–84%, red at 85% and above, and a
-`↻` countdown to the window reset once it reaches 80%. It's free: Claude Code already hands the status
+`↻` countdown to the window reset, used as each bar's label. It's free: Claude Code already hands the status
 line this data, so there's no API call and no token cost. Note these are **rolling 5-hour and 7-day
 windows, not a monthly billing cycle** — there is no monthly figure to show. The bars appear only for
 Pro/Max plans after the session's first response; on an API key you won't see them at all.

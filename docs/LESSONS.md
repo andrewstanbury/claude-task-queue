@@ -32,9 +32,9 @@ stops being true. Not decisions (the ledger) nor in-flight work (the queue).
   anything that parses `time`.
 - **A command exiting without reading stdin SIGPIPEs its writer** — with `pipefail` that becomes 141
   and trips the "unexpected error" branch. Feed it `<<<"$var"`, not a pipe.
-- **Tab-joined `read` needs `IFS=$'\t'`:** any `read` splitting a tab-joined `jq` line whose last
-  field is free text (a task subject) must set `IFS=$'\t'` — the trailing subject can carry spaces
-  and a default-IFS split corrupts it (the R32·1 status-line bug). Readers: `statusline.sh`, `stop-autopilot.sh`.
+- **TAB is IFS *whitespace*: `IFS=$'\t' read` COLLAPSES repeats**, so every field after an EMPTY
+  one shifts left, silently. Safe only where no field can be empty (`stop-autopilot.sh`); with any
+  optional field use **US `$'\x1f'`** (`statusline.sh`). `@tsv` escapes `\n\r\t`; `join` does not.
 
 ## Tests (bats)
 - **git identity:** `git commit` in a test needs `-c user.email=t@t -c user.name=t` — CI's bare
@@ -59,17 +59,11 @@ stops being true. Not decisions (the ledger) nor in-flight work (the queue).
   and logs at *debug*. Six commands were one `land` from shipping that.
 - **`check.sh` line-greps frontmatter, so it can never see a parse failure** — an assertion on a
   *value* validates a string the host may never have loaded. Verify with a real YAML parser.
-- **Every extraction leaves a second copy — grep for the old shape before calling it done.** A
-  restore trap globbed only `plugins/` after the mutation set grew to `check.sh`; a frontmatter
-  `awk` was duplicated into `check.sh`. **Extraction also orphans MUTATIONS** — `mutations.txt`
-  patterns keep pointing at the old file and match nothing; re-aim them in the SAME commit (four
-  times now: 3.24.3, 3.27.0, 3.29.0, 3.30.0).
-- **Extraction can MOVE a guard's failure mode without removing the guard, and that silently opens
-  a mutation hole.** Hoisting a countdown into a helper meant it ran in a command substitution,
-  which *isolates* an arithmetic abort — so deleting its non-numeric guard no longer changed a
-  single rendered glyph, only added a bash parse error on stderr every repaint. The rendering
-  assertions still passed; `--mutate` reported the hole. After moving code, re-ask **what observable
-  property does this guard still buy** — the answer may have changed, and the test must follow it.
+- **Extraction leaves three traps.** (1) A second COPY — grep the old shape. (2) Orphaned
+  MUTATIONS — `mutations.txt` still aims at the old file and matches nothing; re-aim in the SAME
+  commit (4x). (3) A MOVED failure mode — code hoisted into a helper runs in `$( )`, which
+  *isolates* an abort, so deleting its input guard changed no output, only stderr; render
+  assertions passed and `--mutate` caught the hole.
 - **A reader returning EMPTY on malformed input fails open, silently.** `NR==1&&$0=="---"` returned
   nothing for a CRLF file and every check on that block passed vacuously. When a parser can say
   "nothing here", ask what callers do with nothing — usually: succeed.

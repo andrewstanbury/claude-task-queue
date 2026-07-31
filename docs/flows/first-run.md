@@ -23,9 +23,13 @@ tests:
 - [E] `status line: 5h + 7d usage bars render both windows from .rate_limits (R76)` ✅
 - [E] `status line: no .rate_limits (API-key user / pre-first-response) renders NO bar (R76)` ✅
 - [E] `status line: one window absent renders ONLY the other — no field shift (R76)` ✅
+- [E] `status line: the ▴/▾ pace marker says whether the 7d window will be spent (R76)` ✅
+- [E] `status line: a FAILED clock suppresses the countdown, never renders a 56-year one (R76/R68)` ✅
 
 changes:
 - 2026-07-25 status line gains 5h/7d ACCOUNT rate-limit bars — free from the payload; rolling windows, not a billing cycle [R76]
+- 2026-07-31 the ↻ reset countdown becomes always-on and TAKES the label slot from the 5h/7d names (they fall back in when no timestamp is usable); spaces added around each bar [R76]
+- 2026-07-31 the 7d bar gains a ▴/▾ on-pace marker — derived-exact from the window length + resets_at, never sampled; a pre-merge devil's-advocate pass caught its bias INVERTED and it now ceilings elapsed so ▴ cannot lie [R76]
 - 2026-07-23 two-tier steering: core-only injection, budget enforced in check.sh [R69; partially reverses R66's trim-declined]
 - 2026-07-22 machine shape [R66; reverses R62 human-first] — content preserved, prose dropped; why-line kept as provenance
 - 2026-07-20 from UX.md P1 [R62]

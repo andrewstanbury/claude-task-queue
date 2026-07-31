@@ -28,3 +28,5 @@ plugins/companion/lib/ratelimit.sh::s@\[ "$left" -gt 0 \] || return 0@[ 1 -eq 1 
 plugins/companion/lib/ratelimit.sh::s@case "$rst" in \*\[!0-9\]\*) return 0;; esac@case "$rst" in zzzNEVERzzz) return 0;; esac@::a non-numeric resets_at reaches $(( )) and can abort the line
 plugins/companion/lib/ratelimit.sh::s@if \[ "$3" -ge "$el" \]@if [ "$3" -ge 0 ]@::the pace marker reads ▴ always — it stops comparing against elapsed
 plugins/companion/lib/ratelimit.sh::s@case "${len:-}" in ''|\*\[!0-9\]\*) return 0;; esac@case "${len:-}" in zzzNEVERzzz) return 0;; esac@::a length-less window (5h) starts getting a pace marker
+plugins/companion/lib/ratelimit.sh::s@\[ -n "$rst" \] \&\& \[ "$NOW" -gt 0 \] || return 0@[ -n "$rst" ] || return 0@::a failed clock (NOW=0) renders a 56-year countdown
+plugins/companion/lib/ratelimit.sh::s@el=$(( ((len - left) \* 100 + len - 1) / len ))@el=$(( (len - left) * 100 / len ))@::the pace marker loses its ceiling — ▴ starts lying about being on pace

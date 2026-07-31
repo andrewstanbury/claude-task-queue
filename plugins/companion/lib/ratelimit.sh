@@ -38,17 +38,24 @@ rlsecs() {  # $1 resets_at (epoch|"") → seconds remaining · "" when unreadabl
 # EXACT, not a forecast: the length is known from the field name and `resets_at` gives what's
 # left, so this is arithmetic on data already in the payload — nothing sampled, persisted or
 # estimated, which is what keeps it inside R76's "never invent a number it wasn't given".
-# Known bias, in the safe direction: `p` is FLOORED, so 41.9% compares as 41 and the marker
-# flips to ▾ a hair early. ONLY for a length-bearing window (7d) — 5h is passed none, because
-# "on pace" is not a question anyone asks of it.
+# BIAS, and getting its DIRECTION right is the point: `p` is the FLOORED percent, so elapsed is
+# compared as a CEILING. ▴ then requires floor(used) >= ceil(elapsed), which cannot hold unless
+# used >= elapsed — so **▴ is always honest, and only ▾ can be conservative** (it may say "behind"
+# when you are marginally ahead). That is the safe direction for someone trying to SPEND the
+# window: being nudged to push when you were already fine costs nothing, being told "on pace"
+# when you are behind costs the window. Flooring both sides instead inverts this — a devil's-
+# advocate sweep of 6.2M probes found 31861 wrong-▴ and zero wrong-▾ before this ceiling.
+# ONLY for a length-bearing window (7d) — 5h is passed none, because "on pace" is not a question
+# anyone asks of it.
 rlpace() {  # $1 resets_at (epoch|"") · $2 window length in seconds ("" = no marker) · $3 used %
   local left="" len="$2" el
   case "${len:-}" in ''|*[!0-9]*) return 0;; esac
   [ "$len" -gt 0 ] || return 0
   left="$(rlsecs "$1")"; [ -n "$left" ] || return 0
-  # Guard a resets_at further out than the window is long (a payload that can't be true): elapsed
-  # would go negative, and nobody is behind pace at t=0.
-  el=$(( (len - left) * 100 / len )); [ "$el" -lt 0 ] && el=0
+  # CEILING division — see the bias note above; this is what makes ▴ un-lyingly honest. A
+  # resets_at further out than the window is long yields a negative el, and `p >= negative` is ▴,
+  # which is already correct at t=0 — so no clamp is needed (one was here, and was provably dead).
+  el=$(( ((len - left) * 100 + len - 1) / len ))
   if [ "$3" -ge "$el" ]; then printf '▴'; else printf '▾'; fi
 }
 
@@ -102,6 +109,9 @@ rlbar() {  # $1 used_pct (float|"") · $2 fallback label · $3 resets_at (epoch|
   # fourth field. Dim on purpose: it must not compete with the bar's green/yellow/red, which means
   # the OPPOSITE thing on the window it appears on (there, high usage is the goal).
   pace="$(rlpace "$rst" "${4:-}" "$p")"
-  s=" ${D}${lab}${X} ${col}${bar}${X} ${col}${B}${p}%${X}${D}${pace}${X}"
+  # Wrap ONLY when there is a marker — `${D}${X}` around an empty string is a null SGR pair
+  # emitted on every repaint of every marker-less bar.
+  [ -n "$pace" ] && pace="${D}${pace}${X}"
+  s=" ${D}${lab}${X} ${col}${bar}${X} ${col}${B}${p}%${X}${pace}"
   printf '%s' "$s"
 }
