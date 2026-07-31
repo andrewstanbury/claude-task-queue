@@ -23,6 +23,8 @@ done
 PLUGIN_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 # shellcheck source=../lib/companion.sh
 . "$PLUGIN_DIR/lib/companion.sh"
+# shellcheck source=../lib/ratelimit.sh
+. "$PLUGIN_DIR/lib/ratelimit.sh"
 # Plugin version (so it's clear at a glance which companion is installed) — read from the manifest.
 VERSION="$(jq -r '.version // empty' "$PLUGIN_DIR/.claude-plugin/plugin.json" 2>/dev/null || true)"
 in=""; [ -t 0 ] || in="$(cat 2>/dev/null || true)"; [ -n "$in" ] || in="{}"
@@ -57,73 +59,6 @@ case "$NOW" in ''|*[!0-9]*) NOW=0 ;; esac
 hum() { local n="${1%%.*}"; case "$n" in ''|*[!0-9]*) printf '0'; return;; esac
   if [ "$n" -lt 1000 ]; then printf '%s' "$n"; elif [ "$n" -lt 1000000 ]; then printf '%s.%sk' "$((n/1000))" "$(((n%1000)/100))";
   else printf '%s.%sM' "$((n/1000000))" "$(((n%1000000)/100000))"; fi; }
-
-# ▰▱ ACCOUNT rate-limit bars (R76) — the one thing on this line that is about neither this repo
-# nor this session. Claude Code hands the subscription's rolling-window usage straight to the
-# status line in `.rate_limits`, so this costs **no API call, no network, no token** — it is the
-# same stdin payload already parsed above. Two windows: **5h** (the one that stops you mid-session)
-# and **7d** (the weekly burn). NOT a billing cycle — the plans meter on rolling windows, so a
-# "this month" bar would be fiction.
-# The field is ABSENT for API-key users and for Pro/Max until the first API response of a session,
-# and each window can vanish independently — so every path renders NOTHING rather than a
-# placeholder or a zero (best-effort, R7/R68: a status line never invents a number it wasn't given).
-# Percentages arrive as floats ("23.5"); bash 3.2 has no float math, so truncate to int first.
-rlleft() {  # $1 resets_at (epoch|"") → "↻2h" · "↻44m" · "" when the field is absent or unusable
-  local rst="${1%%.*}" now left
-  [ -n "$rst" ] || return 0
-  # A non-numeric timestamp (an ISO string, anything) must never reach $(( )) — the arithmetic
-  # would abort mid-line and take the whole status line with it (R68: best-effort, always renders).
-  case "$rst" in *[!0-9]*) return 0;; esac
-  now="$(date +%s 2>/dev/null || echo 0)"; left=$(( rst - now ))
-  # Already elapsed → nothing, never a negative. A stale timestamp is the ordinary case in the
-  # beat right after a window rolls forward.
-  [ "$left" -gt 0 ] || return 0
-  # Integer division FLOORS, so 2h20m renders `↻2h`: it under-reports remaining time and never
-  # over-reports, the safe direction for a number you might plan around.
-  if   [ "$left" -ge 86400 ]; then printf '↻%dd' "$((left/86400))"
-  elif [ "$left" -ge 3600  ]; then printf '↻%dh' "$((left/3600))"
-  else                             printf '↻%dm' "$((left/60))"; fi
-}
-
-rlbar() {  # $1 used_percentage (float|"") · $2 fallback label · $3 resets_at (epoch|"")
-  local p="${1%%.*}" lab="$2" rst="${3%%.*}" n i bar col s
-  case "${p:-}" in ''|*[!0-9]*) return 0;; esac
-  # A long all-digit string passes the guard above but overflows the shell's integer
-  # compare (stderr spew every refresh). Length-clamp first, then value-clamp.
-  [ "${#p}" -gt 3 ] && p=100
-  [ "$p" -gt 100 ] && p=100
-  # 5 cells, FLOOR — so only a genuinely exhausted window shows five filled. Rounding up would
-  # paint 87% and 100% identically, which is the one reading that has to stay distinguishable.
-  # Floor alone would hide 1-19% entirely, so anything above zero lights at least one cell.
-  n=$(( p / 20 )); [ "$p" -gt 0 ] && [ "$n" -eq 0 ] && n=1
-  # 0 < raw < 1 truncates to p=0: still in use, so light one cell rather than read as idle.
-  case "$1" in 0.*[1-9]*) [ "$n" -eq 0 ] && n=1 ;; esac
-  bar=""; i=0
-  while [ "$i" -lt 5 ]; do
-    if [ "$i" -lt "$n" ]; then bar="${bar}▰"; else bar="${bar}▱"; fi
-    i=$((i+1))
-  done
-  col="$G"; [ "$p" -ge 60 ] && col="$Y"; [ "$p" -ge 85 ] && col="$R"
-  # THE LABEL SLOT CARRIES THE COUNTDOWN, not the window name (owner-asked 2026-07-31, replacing
-  # `5h`/`7d`): "when does this ease?" is the reading wanted at a glance, and it now costs the slot
-  # the window name used to hold rather than extra width. `↻` is kept as the marker — a bare `2h`
-  # sitting next to a percentage reads as "2 hours used", the opposite of what it says.
-  #   · These are ROLLING windows (R76), so `resets_at` is when the window rolls forward, not a
-  #     moment when the quota snaps back to full. `↻2h` is honest about the timestamp; it is not a
-  #     promise of a full tank. The bar beside it is what says how much is left.
-  # FALLBACK to the window name whenever the countdown is unavailable — API-key users, before the
-  # session's first API response, an elapsed or malformed timestamp, EACH WINDOW INDEPENDENTLY.
-  # An unlabelled bar is not a smaller version of a labelled one: either window can be absent on
-  # its own (a first-class path here, R7/R68), so a lone anonymous bar could not be told from the
-  # other window's — the exact field-shift class of defect R76 already had to fix once. The slot
-  # is never empty and never anonymous.
-  lab="$(rlleft "$rst")"; [ -n "$lab" ] || lab="$2"
-  # Spaces around the bar (owner-asked 2026-07-31): label, bar and percent are three readings, and
-  # `5h▰▱▱▱▱20%` runs them into one glyph blur. Two columns per rendered window. Deliberately
-  # OUTSIDE the dim/colour escapes so neither gap carries an SGR of its own.
-  s=" ${D}${lab}${X} ${col}${bar}${X} ${col}${B}${p}%${X}"
-  printf '%s' "$s"
-}
 
 # Tasks in this session's companion store, split by state: 📋 open · ❓ parked · ⏳ blocked
 # (parked/blocked detected by the ❓/⏳ subject prefix — the same convention as the queue and
@@ -260,7 +195,8 @@ out="${BCOL}${B}${BEACON}${X}"
 [ -n "$FEAT" ] && out="$out $DIVC$FEAT"   # features section only when something's active
 [ -n "$TASKS" ] && out="$out${DIV}${TASKS}"   # omit the divider too when the queue is quiet
 # account usage sits next to the session's own consumption — both bars, or the section is omitted
-RL="$(rlbar "${RL5:-}" 5h "${RL5R:-}")$(rlbar "${RL7:-}" 7d "${RL7R:-}")"
+# 604800s = the 7d window, from the field's own name — what the pace marker measures against.
+RL="$(rlbar "${RL5:-}" 5h "${RL5R:-}")$(rlbar "${RL7:-}" 7d "${RL7R:-}" 604800)"
 [ -n "$RL" ] && out="$out $DIVC$RL"
 out="$out${DIV}${C}${MODEL}${X}"
 [ "${ITOK:-0}" -gt 0 ] 2>/dev/null && out="$out ${D}⇡$(hum "$ITOK") ⇣$(hum "$OTOK")$X"

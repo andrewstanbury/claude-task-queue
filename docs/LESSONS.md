@@ -62,8 +62,14 @@ stops being true. Not decisions (the ledger) nor in-flight work (the queue).
 - **Every extraction leaves a second copy — grep for the old shape before calling it done.** A
   restore trap globbed only `plugins/` after the mutation set grew to `check.sh`; a frontmatter
   `awk` was duplicated into `check.sh`. **Extraction also orphans MUTATIONS** — `mutations.txt`
-  patterns keep pointing at the old file and match nothing; re-aim them in the SAME commit (twice:
-  3.24.3, 3.27.0).
+  patterns keep pointing at the old file and match nothing; re-aim them in the SAME commit (four
+  times now: 3.24.3, 3.27.0, 3.29.0, 3.30.0).
+- **Extraction can MOVE a guard's failure mode without removing the guard, and that silently opens
+  a mutation hole.** Hoisting a countdown into a helper meant it ran in a command substitution,
+  which *isolates* an arithmetic abort — so deleting its non-numeric guard no longer changed a
+  single rendered glyph, only added a bash parse error on stderr every repaint. The rendering
+  assertions still passed; `--mutate` reported the hole. After moving code, re-ask **what observable
+  property does this guard still buy** — the answer may have changed, and the test must follow it.
 - **A reader returning EMPTY on malformed input fails open, silently.** `NR==1&&$0=="---"` returned
   nothing for a CRLF file and every check on that block passed vacuously. When a parser can say
   "nothing here", ask what callers do with nothing — usually: succeed.

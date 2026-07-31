@@ -4,7 +4,7 @@ description: "(no args) — wire the companion status line into your settings.js
 
 Wire the companion's status line into the user's Claude Code settings so it renders in the
 CLI. The status line shows, grouped: ⠋ beacon · │ 🛡️ secret gate · ✈️ autopilot (⚡ decisive, 🧹 sweep) · 📦 ship-mode │
-(active features) · │ 📋 open · ❓ parked · ⏳ blocked │ (the queue) · │ ↻2h ▰▰▱▱▱ 23% ↻6d ▰▰▰▱▱ 41% │
+(active features) · │ 📋 open · ❓ parked · ⏳ blocked │ (the queue) · │ ↻2h ▰▰▱▱▱ 23% ↻6d ▰▰▰▱▱ 41%▴ │
 (**account** rate-limit usage) · model · ⇡ input ⇣ output
 tokens · project · branch (+ *changes · ↑ahead ↓behind).
 

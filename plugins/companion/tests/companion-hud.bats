@@ -321,6 +321,40 @@ _feature_off() {  # $1=feature  $2=repo-dir
   [ ! -s "$err" ]; rm -f "$err"
 }
 
+@test "status line: the ▴/▾ pace marker says whether the 7d window will be spent (R76)" {
+  local repo now; repo="$(mktemp -d)"; git -C "$repo" init -q; now="$(date +%s)"
+  # The 7d window is 604800s. `resets_at = now + 345600` (4d left) puts it 3d in → 42% elapsed.
+  # BEHIND: 41% used against 42% elapsed → at this rate the window resets unspent.
+  local behind; behind="$(jq -nc --arg c "$repo" --argjson r "$(( now + 345600 ))" '{model:{display_name:"Opus"},session_id:"sP1",cwd:$c,
+    rate_limits:{seven_day:{used_percentage:41,resets_at:$r}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$behind" "$SL"
+  [[ "$output" == *"41%▾"* ]]          # marker rides the percent, no gap
+  # AHEAD: same instant, 60% used against the same 42% elapsed.
+  local ahead; ahead="$(jq -nc --arg c "$repo" --argjson r "$(( now + 345600 ))" '{model:{display_name:"Opus"},session_id:"sP2",cwd:$c,
+    rate_limits:{seven_day:{used_percentage:60,resets_at:$r}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$ahead" "$SL"
+  [[ "$output" == *"60%▴"* ]]
+  # The marker is NOT a restatement of the percentage: these two payloads differ ONLY in how far
+  # into the window they are, and the SAME 41% flips the verdict. That is the whole point of it.
+  local early; early="$(jq -nc --arg c "$repo" --argjson r "$(( now + 594000 ))" '{model:{display_name:"Opus"},session_id:"sP3",cwd:$c,
+    rate_limits:{seven_day:{used_percentage:41,resets_at:$r}}}')"   # ~2% elapsed
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$early" "$SL"
+  [[ "$output" == *"41%▴"* ]]
+  # 5h NEVER carries a marker — it is passed no window length, and "on pace" is not a question
+  # anyone asks of it. Pin it on a payload where the 5h numbers would otherwise read as behind.
+  local both; both="$(jq -nc --arg c "$repo" --argjson a "$(( now + 900 ))" --argjson r "$(( now + 345600 ))" '{model:{display_name:"Opus"},session_id:"sP4",cwd:$c,
+    rate_limits:{five_hour:{used_percentage:3,resets_at:$a},seven_day:{used_percentage:41,resets_at:$r}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$both" "$SL"
+  [[ "$output" == *"3%"* ]]; [[ "$output" != *"3%▾"* ]]; [[ "$output" != *"3%▴"* ]]
+  [[ "$output" == *"41%▾"* ]]          # ...while the 7d beside it still carries one
+  # NO resets_at → no marker at all. The marker is only ever as good as the timestamp behind it,
+  # and there is no pace to report without one (same silence as the countdown).
+  local none; none="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sP5",cwd:$c,
+    rate_limits:{seven_day:{used_percentage:41}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$none" "$SL"
+  [[ "$output" == *"7d ▰▰▱▱▱ 41%"* ]]; [[ "$output" != *"▾"* ]]; [[ "$output" != *"▴"* ]]
+}
+
 @test "status line: a control character in the payload cannot truncate the line (R76)" {
   # `@tsv` used to escape \n\r\t for us; a plain join does not. A newline in a path or model name
   # would split jq's record so `read` took only the first line — silently dropping the tokens,

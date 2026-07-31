@@ -8,7 +8,7 @@ steps:
 - earlier-session open tasks re-surface, scoped to THIS repo (no cross-repo bleed)
 - repo `LESSONS.md` gotchas surface if present [R30·d7]
 - post-compaction: re-anchor with queue + next-pointer only, NOT full STEERING [R32]
-- status line: beacon · version · feature icons (🛡✗ only when gate off, ✈️/✈️⚡, 📦) · 📋/❓/⏳ · 5h/7d account rate-limit bars (absent for API-key users and before the first response; rolling windows, NOT a billing cycle) [R76] · model · tokens · project · branch
+- status line: beacon · version · feature icons (🛡✗ only when gate off, ✈️/✈️⚡, 📦) · 📋/❓/⏳ · 5h/7d account rate-limit bars, each labelled with its ↻ reset countdown (absent for API-key users and before the first response; rolling windows, NOT a billing cycle) and the 7d carrying a ▴/▾ on-pace marker [R76] · model · tokens · project · branch
 
 quality:
 - steering loads once/session, never per-turn [N1]
