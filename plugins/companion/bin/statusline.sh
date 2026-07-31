@@ -68,8 +68,25 @@ hum() { local n="${1%%.*}"; case "$n" in ''|*[!0-9]*) printf '0'; return;; esac
 # and each window can vanish independently — so every path renders NOTHING rather than a
 # placeholder or a zero (best-effort, R7/R68: a status line never invents a number it wasn't given).
 # Percentages arrive as floats ("23.5"); bash 3.2 has no float math, so truncate to int first.
-rlbar() {  # $1 used_percentage (float|"") · $2 label · $3 resets_at (epoch|"")
-  local p="${1%%.*}" lab="$2" rst="${3%%.*}" n i bar col s now left
+rlleft() {  # $1 resets_at (epoch|"") → "↻2h" · "↻44m" · "" when the field is absent or unusable
+  local rst="${1%%.*}" now left
+  [ -n "$rst" ] || return 0
+  # A non-numeric timestamp (an ISO string, anything) must never reach $(( )) — the arithmetic
+  # would abort mid-line and take the whole status line with it (R68: best-effort, always renders).
+  case "$rst" in *[!0-9]*) return 0;; esac
+  now="$(date +%s 2>/dev/null || echo 0)"; left=$(( rst - now ))
+  # Already elapsed → nothing, never a negative. A stale timestamp is the ordinary case in the
+  # beat right after a window rolls forward.
+  [ "$left" -gt 0 ] || return 0
+  # Integer division FLOORS, so 2h20m renders `↻2h`: it under-reports remaining time and never
+  # over-reports, the safe direction for a number you might plan around.
+  if   [ "$left" -ge 86400 ]; then printf '↻%dd' "$((left/86400))"
+  elif [ "$left" -ge 3600  ]; then printf '↻%dh' "$((left/3600))"
+  else                             printf '↻%dm' "$((left/60))"; fi
+}
+
+rlbar() {  # $1 used_percentage (float|"") · $2 fallback label · $3 resets_at (epoch|"")
+  local p="${1%%.*}" lab="$2" rst="${3%%.*}" n i bar col s
   case "${p:-}" in ''|*[!0-9]*) return 0;; esac
   # A long all-digit string passes the guard above but overflows the shell's integer
   # compare (stderr spew every refresh). Length-clamp first, then value-clamp.
@@ -87,27 +104,24 @@ rlbar() {  # $1 used_percentage (float|"") · $2 label · $3 resets_at (epoch|""
     i=$((i+1))
   done
   col="$G"; [ "$p" -ge 60 ] && col="$Y"; [ "$p" -ge 85 ] && col="$R"
-  s=" ${D}${lab}${X}${col}${bar}${X}${col}${B}${p}%${X}"
-  # Reset countdown whenever the payload carries `resets_at` (owner-picked 2026-07-31, reversing
-  # the original ≥80% gate — "when does this ease?" turned out to be wanted at a glance, not only
-  # under pressure). Two honesty notes, both deliberate:
-  #   · Integer division FLOORS, so 2h20m renders `↻2h`. It under-reports remaining time, never
-  #     over-reports — the safe direction for a number you might plan around.
+  # THE LABEL SLOT CARRIES THE COUNTDOWN, not the window name (owner-asked 2026-07-31, replacing
+  # `5h`/`7d`): "when does this ease?" is the reading wanted at a glance, and it now costs the slot
+  # the window name used to hold rather than extra width. `↻` is kept as the marker — a bare `2h`
+  # sitting next to a percentage reads as "2 hours used", the opposite of what it says.
   #   · These are ROLLING windows (R76), so `resets_at` is when the window rolls forward, not a
   #     moment when the quota snaps back to full. `↻2h` is honest about the timestamp; it is not a
-  #     promise of a full tank. The bar next to it is what says how much is left.
-  # Absent whenever the field is (API-key users, and before the session's first API response, each
-  # window independently) — the countdown disappearing is the payload's silence, not an error.
-  if [ -n "${rst:-}" ]; then
-    case "$rst" in *[!0-9]*) :;; *)
-      now="$(date +%s 2>/dev/null || echo 0)"; left=$(( rst - now ))
-      if [ "$left" -gt 0 ]; then
-        if   [ "$left" -ge 86400 ]; then s="$s ${D}↻$((left/86400))d${X}"
-        elif [ "$left" -ge 3600  ]; then s="$s ${D}↻$((left/3600))h${X}"
-        else                             s="$s ${D}↻$((left/60))m${X}"; fi
-      fi ;;
-    esac
-  fi
+  #     promise of a full tank. The bar beside it is what says how much is left.
+  # FALLBACK to the window name whenever the countdown is unavailable — API-key users, before the
+  # session's first API response, an elapsed or malformed timestamp, EACH WINDOW INDEPENDENTLY.
+  # An unlabelled bar is not a smaller version of a labelled one: either window can be absent on
+  # its own (a first-class path here, R7/R68), so a lone anonymous bar could not be told from the
+  # other window's — the exact field-shift class of defect R76 already had to fix once. The slot
+  # is never empty and never anonymous.
+  lab="$(rlleft "$rst")"; [ -n "$lab" ] || lab="$2"
+  # Spaces around the bar (owner-asked 2026-07-31): label, bar and percent are three readings, and
+  # `5h▰▱▱▱▱20%` runs them into one glyph blur. Two columns per rendered window. Deliberately
+  # OUTSIDE the dim/colour escapes so neither gap carries an SGR of its own.
+  s=" ${D}${lab}${X} ${col}${bar}${X} ${col}${B}${p}%${X}"
   printf '%s' "$s"
 }
 

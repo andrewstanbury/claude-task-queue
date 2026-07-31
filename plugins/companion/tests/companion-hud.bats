@@ -235,8 +235,8 @@ _feature_off() {  # $1=feature  $2=repo-dir
   [[ "$output" == *"87%"* ]]
   [[ "$output" == *"100%"* ]]        # 130 clamped, never "130%"
   [[ "$output" != *"130%"* ]]
-  [[ "$output" == *"5h▰▰▰▰▱87%"* ]]  # floor: 87% is NOT a full bar
-  [[ "$output" == *"7d▰▰▰▰▰100%"* ]] # only a truly exhausted window fills
+  [[ "$output" == *"5h ▰▰▰▰▱ 87%"* ]]  # floor: 87% is NOT a full bar
+  [[ "$output" == *"7d ▰▰▰▰▰ 100%"* ]] # only a truly exhausted window fills
 }
 
 @test "status line: usage bar severity colors — green <60, yellow 60-84, red >=85 (R76)" {
@@ -251,11 +251,11 @@ _feature_off() {  # $1=feature  $2=repo-dir
     out="$(printf '%s' "$(jq -nc --arg c "$repo" --argjson p "$p" \
       '{model:{display_name:"Opus"},session_id:"sRL5",cwd:$c,rate_limits:{five_hour:{used_percentage:$p}}}')" \
       | env -u NO_COLOR TERM=xterm "$SL")"
-    rest="${out#*5h}"                     # the label is followed by reset, then the bar's colour
+    rest="${out#*5h}"                     # label → reset → the space → the bar's colour
     case "$rest" in
-      "$esc[0m$esc[32m"*) printf '32m' ;;
-      "$esc[0m$esc[33m"*) printf '33m' ;;
-      "$esc[0m$esc[31m"*) printf '31m' ;;
+      "$esc[0m $esc[32m"*) printf '32m' ;;
+      "$esc[0m $esc[33m"*) printf '33m' ;;
+      "$esc[0m $esc[31m"*) printf '31m' ;;
       *) printf 'none' ;;
     esac
   }
@@ -273,16 +273,18 @@ _feature_off() {  # $1=feature  $2=repo-dir
   # test builds the payload, so "now + 45m" floors to 44m whenever a second elapses in between.
   # Assert the countdown's PRESENCE and unit, never a specific remaining count.
   local soon; soon=$(( $(date +%s) + 2700 ))     # ~45 min out
-  # LOW usage now shows the countdown too — the >=80% gate was reversed 2026-07-31 (owner-picked).
+  # LOW usage shows the countdown too — the >=80% gate was reversed 2026-07-31 (owner-picked).
+  # It sits IN THE LABEL SLOT, immediately before the bar, and the window name `5h` is GONE.
   local low; low="$(jq -nc --arg c "$repo" --argjson r "$soon" '{model:{display_name:"Opus"},session_id:"sRL6",cwd:$c,
     rate_limits:{five_hour:{used_percentage:3,resets_at:$r}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$low" "$SL"
-  [[ "$output" =~ ↻[0-9]+m ]]
+  [[ "$output" =~ ↻[0-9]+m\ ▰ ]]     # countdown, space, then the bar — the label slot itself
+  [[ "$output" != *"5h"* ]]          # the window name it replaced is gone, not merely moved
   # high usage still shows it, in minutes
   local high; high="$(jq -nc --arg c "$repo" --argjson r "$soon" '{model:{display_name:"Opus"},session_id:"sRL7",cwd:$c,
     rate_limits:{five_hour:{used_percentage:90,resets_at:$r}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$high" "$SL"
-  [[ "$output" =~ ↻[0-9]+m ]]
+  [[ "$output" =~ ↻[0-9]+m\ ▰ ]]
   # a multi-day window reports days, not thousands of minutes
   local far; far="$(jq -nc --arg c "$repo" --argjson r "$(( $(date +%s) + 300000 ))" '{model:{display_name:"Opus"},session_id:"sRL8",cwd:$c,
     rate_limits:{seven_day:{used_percentage:95,resets_at:$r}}}')"
@@ -293,7 +295,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
   local none; none="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRL9",cwd:$c,
     rate_limits:{five_hour:{used_percentage:41.2}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$none" "$SL"
-  [[ "$output" == *"41%"* ]]
+  [[ "$output" == *"5h ▰▰▱▱▱ 41%"* ]]   # the window NAME is back in the slot — never anonymous
   [[ "$output" != *"↻"* ]]
   # An ALREADY-ELAPSED reset time prints no countdown rather than a negative one. Reversing the
   # >=80% gate widened this path from "only under pressure" to every payload that carries the
@@ -302,14 +304,21 @@ _feature_off() {  # $1=feature  $2=repo-dir
   local past; past="$(jq -nc --arg c "$repo" --argjson r "$(( $(date +%s) - 60 ))" '{model:{display_name:"Opus"},session_id:"sRLa",cwd:$c,
     rate_limits:{five_hour:{used_percentage:95,resets_at:$r}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$past" "$SL"
-  [[ "$output" == *"95%"* ]]; [[ "$output" != *"↻"* ]]
+  [[ "$output" == *"5h ▰▰▰▰▱ 95%"* ]]; [[ "$output" != *"↻"* ]]
   # A NON-NUMERIC resets_at (an ISO string, a float epoch, anything) is discarded, not arithmetic'd
   # — `$(( ))` on a string would abort the whole status line under `set -e` (R68: best-effort, the
   # line must still render). The bar survives; only the countdown is dropped.
-  local junk; junk="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRLb",cwd:$c,
+  local junk err; err="$(mktemp)"
+  junk="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRLb",cwd:$c,
     rate_limits:{five_hour:{used_percentage:70,resets_at:"2026-07-31T12:00:00Z"}}}')"
-  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$junk" "$SL"
-  [ "$status" -eq 0 ]; [[ "$output" == *"70%"* ]]; [[ "$output" != *"↻"* ]]
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2" 2>"$3"' _ "$junk" "$SL" "$err"
+  [ "$status" -eq 0 ]; [[ "$output" == *"5h ▰▰▰▱▱ 70%"* ]]; [[ "$output" != *"↻"* ]]
+  # STDERR MUST BE SILENT, and that is the assertion the guard actually needs. Since the countdown
+  # moved into `rlleft`, it is computed in a command substitution — which ISOLATES an arithmetic
+  # failure, so dropping the guard no longer changes a single rendered glyph. What it changes is
+  # a bash parse error on stderr every repaint (~1200/hour). Asserting only the rendering left a
+  # mutation hole here; this is the line that closes it.
+  [ ! -s "$err" ]; rm -f "$err"
 }
 
 @test "status line: a control character in the payload cannot truncate the line (R76)" {
@@ -365,8 +374,8 @@ ird"; mkdir -p "$weird"
     rate_limits:{five_hour:{used_percentage:0.4},seven_day:{used_percentage:0}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"5h▰▱▱▱▱0%"* ]]   # in use, just barely → one cell lit
-  [[ "$output" == *"7d▱▱▱▱▱0%"* ]]   # genuinely idle → none
+  [[ "$output" == *"5h ▰▱▱▱▱ 0%"* ]]   # in use, just barely → one cell lit
+  [[ "$output" == *"7d ▱▱▱▱▱ 0%"* ]]   # genuinely idle → none
 }
 
 @test "status line: a DRAINED queue renders no queue section at all (R80)" {
