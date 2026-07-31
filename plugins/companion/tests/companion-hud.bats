@@ -267,18 +267,18 @@ _feature_off() {  # $1=feature  $2=repo-dir
   [ "$(_bar_sgr 100)" = "31m" ]  # red
 }
 
-@test "status line: reset countdown appears only once a window is tight (R76)" {
+@test "status line: reset countdown shows whenever resets_at is present, at ANY usage (R76 amended)" {
   local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
   # Deliberately NOT an exact multiple of a minute: the script reads its own clock a beat after the
-  # test builds the payload, so "now + 42m" floors to 41m whenever a second elapses in between.
+  # test builds the payload, so "now + 45m" floors to 44m whenever a second elapses in between.
   # Assert the countdown's PRESENCE and unit, never a specific remaining count.
   local soon; soon=$(( $(date +%s) + 2700 ))     # ~45 min out
-  # low usage + a reset time → no countdown (width is spent only when it's actionable)
+  # LOW usage now shows the countdown too — the >=80% gate was reversed 2026-07-31 (owner-picked).
   local low; low="$(jq -nc --arg c "$repo" --argjson r "$soon" '{model:{display_name:"Opus"},session_id:"sRL6",cwd:$c,
-    rate_limits:{five_hour:{used_percentage:20,resets_at:$r}}}')"
+    rate_limits:{five_hour:{used_percentage:3,resets_at:$r}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$low" "$SL"
-  [[ "$output" != *"↻"* ]]
-  # high usage + the same reset time → countdown shown, in minutes
+  [[ "$output" =~ ↻[0-9]+m ]]
+  # high usage still shows it, in minutes
   local high; high="$(jq -nc --arg c "$repo" --argjson r "$soon" '{model:{display_name:"Opus"},session_id:"sRL7",cwd:$c,
     rate_limits:{five_hour:{used_percentage:90,resets_at:$r}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$high" "$SL"
@@ -288,11 +288,28 @@ _feature_off() {  # $1=feature  $2=repo-dir
     rate_limits:{seven_day:{used_percentage:95,resets_at:$r}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$far" "$SL"
   [[ "$output" =~ ↻3d ]]
-  # an already-elapsed reset time prints no countdown rather than a negative one
-  local past; past="$(jq -nc --arg c "$repo" --argjson r "$(( $(date +%s) - 60 ))" '{model:{display_name:"Opus"},session_id:"sRL9",cwd:$c,
+  # NO resets_at → the bar still renders and NO countdown appears. This is the honest-absence case:
+  # the field is missing for API-key users and before the session's first API response.
+  local none; none="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRL9",cwd:$c,
+    rate_limits:{five_hour:{used_percentage:41.2}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$none" "$SL"
+  [[ "$output" == *"41%"* ]]
+  [[ "$output" != *"↻"* ]]
+  # An ALREADY-ELAPSED reset time prints no countdown rather than a negative one. Reversing the
+  # >=80% gate widened this path from "only under pressure" to every payload that carries the
+  # field, so the guard matters MORE now, not less — a stale timestamp is the common case right
+  # after a window rolls.
+  local past; past="$(jq -nc --arg c "$repo" --argjson r "$(( $(date +%s) - 60 ))" '{model:{display_name:"Opus"},session_id:"sRLa",cwd:$c,
     rate_limits:{five_hour:{used_percentage:95,resets_at:$r}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$past" "$SL"
-  [[ "$output" == *"95%"* ]]; [[ "$output" != *"↻"* ]]; [[ "$output" != *"-"* ]]
+  [[ "$output" == *"95%"* ]]; [[ "$output" != *"↻"* ]]
+  # A NON-NUMERIC resets_at (an ISO string, a float epoch, anything) is discarded, not arithmetic'd
+  # — `$(( ))` on a string would abort the whole status line under `set -e` (R68: best-effort, the
+  # line must still render). The bar survives; only the countdown is dropped.
+  local junk; junk="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRLb",cwd:$c,
+    rate_limits:{five_hour:{used_percentage:70,resets_at:"2026-07-31T12:00:00Z"}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$junk" "$SL"
+  [ "$status" -eq 0 ]; [[ "$output" == *"70%"* ]]; [[ "$output" != *"↻"* ]]
 }
 
 @test "status line: a control character in the payload cannot truncate the line (R76)" {

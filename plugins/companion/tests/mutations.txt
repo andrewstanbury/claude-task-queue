@@ -24,3 +24,5 @@ plugins/companion/bin/doc-lint.sh::s@echo "  FAIL ledger file not found@return 0
 plugins/companion/bin/ci-watch.sh::s@exit 12@exit 0@::a give-up watch goes back to reporting success
 plugins/companion/bin/statusline.sh::s@\[ "$NOPEN"  -gt 0 \] \&\& TASKS=@TASKS=@::the drained queue renders 📋 0 again
 plugins/companion/bin/session-start.sh::s@close EVERY reply with a one-line brutal-honest verdict@close some replies@::the compact re-anchor drops the unconditional verdict clause
+plugins/companion/bin/statusline.sh::s@if \[ "$left" -gt 0 \]; then@if [ 1 -eq 1 ]; then@::an elapsed reset time renders a NEGATIVE countdown
+plugins/companion/bin/statusline.sh::s@case "$rst" in \*\[!0-9\]\*) :;; \*)@case "$rst" in zzzNEVERzzz) :;; *)@::a non-numeric resets_at reaches $(( )) and can abort the line

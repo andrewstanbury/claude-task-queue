@@ -88,9 +88,17 @@ rlbar() {  # $1 used_percentage (float|"") · $2 label · $3 resets_at (epoch|""
   done
   col="$G"; [ "$p" -ge 60 ] && col="$Y"; [ "$p" -ge 85 ] && col="$R"
   s=" ${D}${lab}${X}${col}${bar}${X}${col}${B}${p}%${X}"
-  # Reset countdown only once the window is actually tight: on an always-on segment width is the
-  # scarce resource, and "82%" is only actionable when you also know it clears in 40 minutes.
-  if [ "$p" -ge 80 ] && [ -n "${rst:-}" ]; then
+  # Reset countdown whenever the payload carries `resets_at` (owner-picked 2026-07-31, reversing
+  # the original ≥80% gate — "when does this ease?" turned out to be wanted at a glance, not only
+  # under pressure). Two honesty notes, both deliberate:
+  #   · Integer division FLOORS, so 2h20m renders `↻2h`. It under-reports remaining time, never
+  #     over-reports — the safe direction for a number you might plan around.
+  #   · These are ROLLING windows (R76), so `resets_at` is when the window rolls forward, not a
+  #     moment when the quota snaps back to full. `↻2h` is honest about the timestamp; it is not a
+  #     promise of a full tank. The bar next to it is what says how much is left.
+  # Absent whenever the field is (API-key users, and before the session's first API response, each
+  # window independently) — the countdown disappearing is the payload's silence, not an error.
+  if [ -n "${rst:-}" ]; then
     case "$rst" in *[!0-9]*) :;; *)
       now="$(date +%s 2>/dev/null || echo 0)"; left=$(( rst - now ))
       if [ "$left" -gt 0 ]; then
