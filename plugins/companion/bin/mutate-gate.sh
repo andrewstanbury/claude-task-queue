@@ -18,7 +18,11 @@ mfile="plugins/companion/tests/mutations.txt"
 # ship can afford to check the files it actually touched. The full set is ~9 minutes, which is why
 # it is CI-only — and that is exactly how a pattern stale-ed by the commit that changed its target
 # reached main (3.24.2). Bounded per-file, it becomes affordable pre-push.
-shift $(( $# > 0 ? 1 : 0 )) 2>/dev/null || true
+# NO shift here. `check.sh --mutate` already drops its own flag before exec'ing this script; the
+# shift that used to live here (when the code was INSIDE check.sh) then ate the FIRST filter path,
+# so every `--mutate <file>` silently ran the whole 31-mutation set — ~35 minutes instead of ~2,
+# which is what made every local filtered run look like a hang. CI never noticed: it passes no
+# filter, so the bug was invisible to the one place that runs this gate on every push.
 mfilter=("$@")
 command -v bats >/dev/null 2>&1 || { echo "  SKIP — bats not installed"; exit 0; }
 # RESTORE ON ANY EXIT. This mutates the live working tree — including `secret-guard.sh`, a hook
@@ -51,11 +55,33 @@ trap '_mut_restore' EXIT INT TERM HUP
 # cannot parse it emits TAP instead of a number, so this also catches a broken .bats file BEFORE
 # any mutation runs — the hole a devil's-advocate pass found in the first version of this fix,
 # where a single syntax error made every mutation report "caught" and the gate exit 0.
+# ONE RUN AT A TIME, per tree. This gate mutates LIVE enforced-core files; two concurrent runs
+# restore each other's *.mutbak and leave a file MUTATED behind. That is not theoretical — it
+# happened here, leaving doc-lint.sh with BOM-stripping disabled (a gate failing OPEN) and
+# ship.sh unable to see untracked critical paths, both sitting in the working tree ready to be
+# committed. `git status` was the only thing that revealed it.
+_mut_lock="${TMPDIR:-/tmp}/companion-mutate-$(printf '%s' "$PWD" | cksum | cut -d' ' -f1).lock"
+if ! mkdir "$_mut_lock" 2>/dev/null; then
+  echo "  FAIL another --mutate run holds $_mut_lock — concurrent runs corrupt each other's"
+  echo "       backups and can leave enforced core MUTATED. Wait, or remove the dir if stale."; exit 2
+fi
+trap 'rmdir "$_mut_lock" 2>/dev/null; _mut_restore' EXIT INT TERM HUP
 expect="$(bats --count plugins/companion/tests 2>/dev/null | tr -d '[:space:]')"
 case "${expect:-}" in ''|*[!0-9]*) expect=0 ;; esac
 if [ "$expect" -lt 2 ]; then
   echo "  FAIL cannot enumerate the suite (bats --count gave '${expect}') — a gate that cannot"
   echo "       count its own tests cannot certify anything about them"; exit 2
+fi
+# THE BASELINE MUST BE GREEN. Every verdict below is "did the suite go RED?" — which measures
+# nothing if it was already red. One pre-existing failure makes EVERY mutation report "caught",
+# and that is the most dangerous reading this gate can produce: a clean bill of health for
+# coverage it never demonstrated. Costs one suite run; the alternative is a lie.
+bout="$(bats plugins/companion/tests 2>&1)"; brc=$?
+if [ "$brc" -ne 0 ]; then
+  echo "  FAIL the suite is ALREADY RED before any mutation — every mutation would report"
+  echo "       'caught' for a failure it did not cause. Fix the suite, then measure."
+  printf '%s\n' "$bout" | grep '^not ok' | head -5 | sed 's/^/        | /'
+  exit 2
 fi
 holes=0; errs=0; ran=0; keep=0; want=""
 while IFS= read -r line; do

@@ -32,3 +32,6 @@ plugins/companion/lib/ratelimit.sh::s@\[ -n "$rst" \] \&\& \[ "$NOW" -gt 0 \] ||
 plugins/companion/lib/ratelimit.sh::s@el=$(( ((len - left) \* 100 + len - 1) / len ))@el=$(( (len - left) * 100 / len ))@::the pace marker loses its ceiling — ▴ starts lying about being on pace
 plugins/companion/bin/mutate-gate.sh::s@\[ "$plan" = "$3" \] && \[ "$res" = "$3" \] || return 1@:@::the gate stops requiring a COMPLETE run — a killed suite scores 'caught' again
 plugins/companion/bin/mutate-gate.sh::s@if \[ "$expect" -lt 2 \]; then@if false; then@::an unparseable suite is no longer refused up front
+plugins/companion/bin/session-start.sh::s@awk '/lessons injection stops here/{exit} {print}' "$lf"@cat "$lf"@::LESSONS injects its ON-DEMAND tail again, silently re-taxing every session
+plugins/companion/bin/mutate-gate.sh::s@if \[ "$brc" -ne 0 \]; then@if false; then@::an ALREADY-RED suite is measured anyway, scoring every mutation 'caught'
+plugins/companion/bin/mutate-gate.sh::s@if ! mkdir "$_mut_lock" 2>/dev/null; then@if false; then@::concurrent --mutate runs are allowed to corrupt each other again

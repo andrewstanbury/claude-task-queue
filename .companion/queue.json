@@ -42,13 +42,6 @@
     "notes": []
   },
   {
-    "subject": "find the intermittent test that let a mutation HOLE report as caught (R78 trust)",
-    "status": "pending",
-    "done_when": "the flaky test is named and either fixed or quarantined; a repeated full-suite run (30x) shows 0 failures, and the ceiling mutation's local verdict matches CI's",
-    "description": "",
-    "notes": []
-  },
-  {
     "subject": "raise SHIP_CI_TIMEOUT past the ~19min mutate job so land actually watches (R74)",
     "status": "pending",
     "done_when": "land exits 0/10 on a real verdict instead of 12; the default is documented wherever SHIP_CI_TIMEOUT is",

@@ -93,10 +93,20 @@ if [ "${marker_n:-0}" -ne 1 ]; then
 elif [ "${core_b:-0}" -gt 12288 ]; then
   echo "  FAIL STEERING.md injected core: ${core_b}B > 12288B"; tok_fail=1; fail=1
 fi
+# LESSONS is two-tier like STEERING (owner-picked 2026-08-01): the cap applies to what is actually
+# INJECTED, not to the file. Without the split the file was 5B under its ceiling while the process
+# tells every session to append to it — so each new lesson was paid for by deleting a true one.
+# Marker policed exactly as STEERING's: zero → the whole file injects (cap silently under-measured),
+# two+ → the awk cut truncates at the first while this gate still reads green.
+les_n="$(grep -c 'lessons injection stops here' docs/LESSONS.md 2>/dev/null || true)"
+if [ -f docs/LESSONS.md ] && [ "${les_n:-0}" -ne 1 ]; then
+  echo "  FAIL docs/LESSONS.md: 'lessons injection stops here' marker count is ${les_n:-0}, must be exactly 1"; tok_fail=1; fail=1
+fi
 for spec in "CLAUDE.md:4096" "docs/LESSONS.md:6144"; do
   f="${spec%%:*}"; cap="${spec##*:}"; [ -f "$f" ] || continue
-  b="$(wc -c < "$f" | tr -d '[:space:]')"
-  if [ "${b:-0}" -gt "$cap" ]; then echo "  FAIL $f: ${b}B > ${cap}B (auto-loaded/injected every session)"; tok_fail=1; fail=1; fi
+  # Measure what session-start actually injects (same awk, same fail-open) — not the whole file.
+  b="$(awk '/lessons injection stops here/{exit} {print}' "$f" | wc -c | tr -d '[:space:]')"
+  if [ "${b:-0}" -gt "$cap" ]; then echo "  FAIL $f: ${b}B injected > ${cap}B (injected every session)"; tok_fail=1; fail=1; fi
 done
 # Command `description:` frontmatter is ALSO always-loaded injection (the whole command list rides
 # every session), yet R69 never capped it — the same silent-growth class. Cap each at 140B (a label,

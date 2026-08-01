@@ -1300,8 +1300,14 @@ _mutgate() {  # $1 = shim body ("" = use the real bats) · $2 = tag → runs the
   [ -n "$1" ] && { printf '%s\n' "$1" > "$d/shim/bats"; chmod +x "$d/shim/bats"; }
   ( cd "$d" && PATH="$d/shim:$PATH" ./plugins/companion/bin/mutate-gate.sh plugins/companion/target.sh 2>&1 )
 }
-# A shim that answers --count with 3 and then behaves as told.
-_shim() { printf '#!/bin/sh\n[ "$1" = "--count" ] && { echo 3; exit 0; }\n%s\n' "$1"; }
+# A shim that answers --count with 3, passes the gate's GREEN BASELINE run (call #1), and only
+# then behaves as told. The baseline check is itself under test below, so shims must satisfy it.
+_shim() {
+  printf '#!/bin/sh\n[ "$1" = "--count" ] && { echo 3; exit 0; }\n'
+  printf 'n=$(cat "$0.n" 2>/dev/null || echo 0); n=$((n+1)); echo "$n" > "$0.n"\n'
+  printf 'if [ "$n" -eq 1 ]; then echo "1..3"; echo "ok 1 a"; echo "ok 2 b"; echo "ok 3 c"; exit 0; fi\n'
+  printf '%s\n' "$1"
+}
 
 @test "mutation gate: only a COMPLETE run that failed counts as caught (R78)" {
   # THE POINT: "bats exited nonzero" and "a test failed" are different claims, and conflating them
@@ -1327,6 +1333,51 @@ _shim() { printf '#!/bin/sh\n[ "$1" = "--count" ] && { echo 3; exit 0; }\n%s\n' 
   [ "$status" -ne 0 ]; [[ "$output" == *"HOLE"* ]]
 }
 
+@test "mutation gate: a suite ALREADY RED is refused — it would score every mutation caught (R78)" {
+  # The deepest version of this gate's failure mode. Every verdict is "did the suite go red?",
+  # which measures nothing if it was red beforehand: ONE pre-existing failure makes EVERY mutation
+  # report "caught" and the gate hand back a clean bill of health for coverage it never saw.
+  # This is not hypothetical — a killed run left doc-lint.sh mutated in the tree, one test went
+  # red, and the gate duly certified two mutations it had not actually measured.
+  local d="$BATS_TEST_TMPDIR/mgred"
+  mkdir -p "$d/plugins/companion/tests" "$d/plugins/companion/bin"
+  cp "$ROOT/bin/mutate-gate.sh" "$d/plugins/companion/bin/"
+  printf 'VALUE=1\n' > "$d/plugins/companion/target.sh"
+  printf 'plugins/companion/target.sh::s@VALUE=1@VALUE=2@::the value changes\n' \
+    > "$d/plugins/companion/tests/mutations.txt"
+  printf '@test "a" { true; }\n@test "already broken" { false; }\n@test "c" { true; }\n' \
+    > "$d/plugins/companion/tests/t.bats"
+  run bash -c 'cd "$1" && ./plugins/companion/bin/mutate-gate.sh plugins/companion/target.sh 2>&1' _ "$d"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"ALREADY RED"* ]]
+  [[ "$output" == *"already broken"* ]]   # names the culprit rather than just refusing
+  [[ "$output" != *"ok    caught"* ]]     # no mutation was scored
+}
+
+@test "mutation gate: refuses to run CONCURRENTLY on one tree (R78/R7)" {
+  # Two runs restore each other's *.mutbak and leave enforced core MUTATED in the working tree,
+  # ready for the next `git add -A`. That happened: doc-lint.sh lost its BOM stripping and ship.sh
+  # lost sight of untracked critical paths, both silently.
+  local d="$BATS_TEST_TMPDIR/mglock"
+  mkdir -p "$d/plugins/companion/tests" "$d/plugins/companion/bin"
+  cp "$ROOT/bin/mutate-gate.sh" "$d/plugins/companion/bin/"
+  printf 'VALUE=1\n' > "$d/plugins/companion/target.sh"
+  printf 'plugins/companion/target.sh::s@VALUE=1@VALUE=2@::the value changes\n' \
+    > "$d/plugins/companion/tests/mutations.txt"
+  printf '@test "a" { true; }\n@test "b" { true; }\n' > "$d/plugins/companion/tests/t.bats"
+  # Hold the lock the way a running gate would, then prove a second run refuses instead of racing.
+  local lk; lk="${TMPDIR:-/tmp}/companion-mutate-$(printf '%s' "$d" | cksum | cut -d' ' -f1).lock"
+  mkdir -p "$lk"
+  run bash -c 'cd "$1" && ./plugins/companion/bin/mutate-gate.sh plugins/companion/target.sh 2>&1' _ "$d"
+  rmdir "$lk" 2>/dev/null || true
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"another --mutate run"* ]]
+  [[ "$output" != *"ok    caught"* ]]
+  # and the target was never touched while the lock was held
+  run cat "$d/plugins/companion/target.sh"
+  [ "$output" = "VALUE=1" ]
+}
+
 @test "mutation gate: an UNPARSEABLE suite is refused up front, not scored (R78)" {
   # bats answers a suite it cannot parse with a perfectly well-formed `1..1 / not ok
   # bats-gather-tests` — zero tests run. Demanding "a ^not ok" therefore does NOT distinguish it,
@@ -1343,4 +1394,31 @@ _shim() { printf '#!/bin/sh\n[ "$1" = "--count" ] && { echo 3; exit 0; }\n%s\n' 
   [ "$status" -eq 2 ]
   [[ "$output" == *"cannot enumerate the suite"* ]]
   [[ "$output" != *"caught"* ]]
+}
+
+@test "session start: LESSONS is two-tier — only the core above the marker is injected (R69/R30·d7)" {
+  # The cap is on INJECTED bytes, not on the file. Before the split, LESSONS sat 5B under its
+  # ceiling while the process told every session to append to it, so each new lesson was paid for
+  # by deleting a true one — two real remedies were lost that way before this landed.
+  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; mkdir -p "$repo/docs"
+  cat > "$repo/docs/LESSONS.md" <<'EOF'
+# Lessons
+- ALPHA-CORE-TRAP always injected
+<!-- lessons injection stops here -->
+- OMEGA-ONDEMAND-TRAP read on demand only
+EOF
+  run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" \
+    CLAUDE_COMPANION_SESSION_ID=sL bash "$4"' _ \
+    "$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')" "$(mktemp -d)" "$(mktemp -d)" "$SS"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ALPHA-CORE-TRAP"* ]]        # the core rides every session...
+  [[ "$output" != *"OMEGA-ONDEMAND-TRAP"* ]]    # ...the tail does not, which is the whole point
+  [[ "$output" != *"lessons injection stops here"* ]]   # and the marker itself is never injected
+
+  # FAILS OPEN on a file with no marker — a stranger's repo (R9) keeps working, whole file injected.
+  printf '# Lessons\n- ZETA-UNSPLIT-TRAP\n' > "$repo/docs/LESSONS.md"
+  run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" \
+    CLAUDE_COMPANION_SESSION_ID=sL2 bash "$4"' _ \
+    "$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')" "$(mktemp -d)" "$(mktemp -d)" "$SS"
+  [[ "$output" == *"ZETA-UNSPLIT-TRAP"* ]]
 }

@@ -56,7 +56,10 @@ carry="$(companion_open_tasks "$root")"
 # This repo's accumulated gotchas (R30·d7) — model-maintained; first match wins.
 for lf in "$root/docs/LESSONS.md" "$root/LESSONS.md" "$root/.companion/LESSONS.md"; do
   [ -f "$lf" ] || continue
-  msg="$msg"$'\n\n'"── This repo's LESSONS (accumulated gotchas — heed them, and append new ones as you learn them) ──"$'\n'"$(cat "$lf")"
+  # Two-tier like STEERING (R69): only the core above the marker is injected; everything below is
+  # on-demand. Same awk, same FAIL-OPEN — no marker means the whole file rides, which is what an
+  # unsplit LESSONS.md in someone else's repo should do (R9: a stranger's file still works).
+  msg="$msg"$'\n\n'"── This repo's LESSONS (accumulated gotchas — heed them, and append new ones as you learn them) ──"$'\n'"$(awk '/lessons injection stops here/{exit} {print}' "$lf" 2>/dev/null || cat "$lf")"
   break
 done
 
