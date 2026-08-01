@@ -49,6 +49,12 @@ else
   # here" marker and is on-demand reading, not a per-session tax. awk fails open: no marker
   # (or an old STEERING) → the whole file, exactly the pre-R69 behavior.
   [ -f "$PLUGIN_DIR/STEERING.md" ] && msg="$msg$(awk '/injection stops here/{exit} {print}' "$PLUGIN_DIR/STEERING.md" 2>/dev/null || cat "$PLUGIN_DIR/STEERING.md")"
+  # Autopilot's mode prose (~2.7KB) is dead weight in every session where autopilot is OFF, which
+  # is most of them — so it rides ONLY when the mode is actually armed for this repo. Conditional
+  # beats deleted: when the mode IS on, the rules are exactly as present as they ever were.
+  if [ -f "$PLUGIN_DIR/STEERING.md" ] && companion_autopilot_on "$root"; then
+    msg="$msg"$'\n'"$(awk '/autopilot:start/{f=1;next} /autopilot:end/{f=0} f' "$PLUGIN_DIR/STEERING.md" 2>/dev/null || true)"
+  fi
 fi
 carry="$(companion_open_tasks "$root")"
 [ -n "$carry" ] && msg="$msg"$'\n\n'"── Open tasks carried over from an earlier session (reinstate before new work) ──"$'\n'"$carry"

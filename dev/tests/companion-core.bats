@@ -1425,3 +1425,28 @@ EOF
     "$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')" "$(mktemp -d)" "$(mktemp -d)" "$SS"
   [[ "$output" == *"ZETA-UNSPLIT-TRAP"* ]]
 }
+
+@test "session start: autopilot mode prose rides ONLY when the mode is armed (R69)" {
+  # ~2.7KB of mode rules that are dead weight in every session where autopilot is off — which is
+  # most of them. Conditional, not deleted: when the mode IS on the rules are exactly as present as
+  # they ever were. This is rent paid per session forever, so the gate is worth having.
+  local repo st; repo="$(mktemp -d)"; git -C "$repo" init -q; st="$(mktemp -d)"
+  local pay; pay="$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')"
+  run bash -c 'cd "$4" && printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" \
+      CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)" CLAUDE_COMPANION_SESSION_ID=sAp bash "$3"' \
+      _ "$pay" "$st" "$SS" "$repo"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Working agreement"* ]]        # the core always rides...
+  [[ "$output" != *"Keep-going mode"* ]]          # ...the mode prose does not
+  [[ "$output" != *"autopilot:start"* ]]          # and the delimiter never leaks
+  local off_len="${#output}"
+
+  ( cd "$repo" && CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/autopilot.sh" on ) >/dev/null
+  run bash -c 'cd "$4" && printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" \
+      CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)" CLAUDE_COMPANION_SESSION_ID=sAp2 bash "$3"' \
+      _ "$pay" "$st" "$SS" "$repo"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Keep-going mode"* ]]          # armed → the rules are there
+  [[ "$output" == *"park with the full payload"* ]]
+  [ "${#output}" -gt "$off_len" ]
+}

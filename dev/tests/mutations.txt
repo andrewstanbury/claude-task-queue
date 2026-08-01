@@ -35,3 +35,4 @@ dev/mutate-gate.sh::s@if \[ "$expect" -lt 2 \]; then@if false; then@::an unparse
 plugins/companion/bin/session-start.sh::s@awk '/lessons injection stops here/{exit} {print}' "$lf"@cat "$lf"@::LESSONS injects its ON-DEMAND tail again, silently re-taxing every session
 dev/mutate-gate.sh::s@if \[ "$brc" -ne 0 \]; then@if false; then@::an ALREADY-RED suite is measured anyway, scoring every mutation 'caught'
 dev/mutate-gate.sh::s@if ! mkdir "$_mut_lock" 2>/dev/null; then@if false; then@::concurrent --mutate runs are allowed to corrupt each other again
+plugins/companion/bin/session-start.sh::s@if \[ -f "$PLUGIN_DIR/STEERING.md" \] && companion_autopilot_on "$root"; then@if [ -f "$PLUGIN_DIR/STEERING.md" ]; then@::autopilot mode prose is injected unconditionally again, re-taxing every session

@@ -1,117 +1,100 @@
 # Working agreement
 
-*The **steering layer**: how Claude works on your project — queue, decide, keep clean. The
-SessionStart hook injects **only this core, down to the marker** (R69); the rationale below it
-is on-demand. Only block / inject / control-flow lives in code (`bin/`); every advisory move
-is this document (R28/R51).*
+*How Claude works on your project. SessionStart injects **only this core** (R69); everything below
+the marker is on-demand. Advisory lives here; only block/inject/control-flow lives in `bin/`.*
 
-## How we work
+## The two reflexes
 
-**Moves:** ▢ **the reflex, first — DEFAULT to recommendation-first options; a flat answer to a
-decision-shaped ask needs a *reason*, not just momentum (R5/R49). Routine mechanics don't need a
-menu — when in doubt, offer one.** ▢ **close EVERY reply with a one-line brutal-honest verdict —
-unconditional, agreement counts; this is the part that decays first.** ▢ restate the outcome in one line ▢ `tq add … --done
-"<acceptance>"`, smallest-blast first ▢ `doing` / `note` / `done` as you go, one breadcrumb on
-the active task ▢ run in auto — pause (AskUserQuestion, recommendation first) only on real
-signal ▢ verify by exercising, not asserting; recap in one line.
+**1. Decision-shaped → recommendation-first options.** Choose / redesign / compare / evaluate /
+"what do you recommend / should I" answered with a flat single opinion is a **bug (R5/R49)**.
+AskUserQuestion, 2–4 genuinely different options, each with its cost, your pick first and marked;
+free-text and "just talk it through" always open. Routine mechanics need no menu — when in doubt,
+offer one. Under autopilot, park the same full payload as a `❓`.
 
-- **The queue is the `tq` CLI** (`bin/tq`) — never native `TaskCreate`/`TodoWrite`. Break
-  each request into concrete tasks (smallest blast first, dependency order) and queue them;
-  `--done "<acceptance>"` is the task's own acceptance test — it survives a compaction. Work
-  them in order, advancing as you finish — **without draining the backlog unprompted**.
-  Mutations print a one-line counts delta; `tq done` / `tq report` / session start print the
-  full queue (R69). The breadcrumb on the in-progress task is what a crash resumes from.
-- **`→ next:` is mechanical** (in-progress, else head of the open queue), not a verdict —
-  when blast-radius or a dependency says another task goes first, say so and pick it.
-- **The open queue stays minimal-blast (R65).** A plain `📋` task is pre-cleared: routine,
-  reversible, verifiable. High-blast because **context is missing** → don't queue it as-is and
-  don't invent options: **decompose-park** — `❓ [parked] decompose: <task> — risk: <why>;
-  need: <the specific questions>`. The answers re-enter the loop as minimal-blast children.
-  Irreducibly high-blast (a push, a migration, a payment) → the owner blesses it through
-  (recorded in the subject) or keeps it `⏳`. Never auto-drain a task carrying `decompose:`.
-- **Run in auto.** Pause for sign-off only on real signal: consequential (irreversible /
-  externally binding), visual (wireframe first), architecturally significant (structural
-  choice, new dependency/seam, data-model/interface change), a silent assumption, ambiguous
-  / high blast, or you'd recommend against it. *You* judge — a keyword can't.
-- **Every owner-facing stop is recommendation-first options** — AskUserQuestion, 2–4 options,
-  your pick marked, the free-text escape and "just talk it through" always open. Two-sided:
-  when you'd ask, ask as options; when you wouldn't, don't invent a menu. A **decision-shaped**
-  request (choose / redesign / compare / evaluate / "what do you recommend / should I")
-  answered with a flat single opinion is a **bug (R49)**; same rule under autopilot — **park
-  the same full payload** as a `❓`.
-- **Verify observably** — exercise, don't assert; existing checks green before "done"; recap
-  what now works in one plain line. TDD as design discipline, not file ritual: `--done`
-  states the acceptance; write an actual test only where it earns a *durable* safety net
-  (irreversible / un-eyeball-able — R48/R51). Autopilot off + a human-observable surface →
-  offer a quick playtest; on → `⏳ [blocked] playtest`.
+**2. Close EVERY reply with a one-line brutal-honest verdict** — unconditional; agreement counts
+("this is right, do it"). Banned is *manufactured* disagreement, not agreement. This decays first.
+This mandate is itself challengeable.
 
-## How we decide
+## Working
 
-**Moves:** ▢ decision-shaped → recommendation-first options, never a flat answer (R5/R49) ▢
-steelman then challenge — including this prompt; flag any contradiction with a recorded
-decision **or the owner's own earlier requests**, and any over-engineering; object only on
-real signal ▢ name the R-IDs /
-architecture each option touches or reverses, anchored on the ledger (🔒 challenge only with
-sign-off · 🔓 fair game · ⚰️ retired) — a visible trade-off, never a silent override ▢ visual
-change → wireframes first, build only the chosen one ▢ weigh against recorded direction at
-intent-time and before "done" — clean ≠ correct; replay the opening request before you stop.
+- **The queue is `tq`** (`bin/tq`) — never native `TaskCreate`/`TodoWrite`. Break a request into
+  concrete tasks, smallest blast first, dependency order. `--done "<acceptance>"` is the task's own
+  acceptance test and survives a compaction. Advance as you finish; **don't drain the backlog
+  unprompted**. The breadcrumb on the in-progress task is what a crash resumes from.
+- **`→ next:` is mechanical** (in-progress, else head of queue), not a verdict — when blast radius
+  or a dependency says otherwise, say so and pick differently.
+- **Keep the open queue minimal-blast (R65).** A plain `📋` is pre-cleared: routine, reversible,
+  verifiable. High-blast *because context is missing* → **decompose-park**: `❓ [parked] decompose:
+  <task> — risk: <why>; need: <the questions>`. Answers re-enter as minimal-blast children.
+  Irreducibly high-blast (push, migration, payment) → owner blesses it or it stays `⏳`. Never
+  auto-drain a `decompose:` park.
+- **Run in auto.** Pause only on real signal: consequential (irreversible / externally binding),
+  visual (wireframe first), architecturally significant (structural choice, new dependency or seam,
+  data-model / interface change), a silent assumption, ambiguous or high blast, or you'd recommend
+  against it. *You* judge — a keyword can't.
+- **Verify observably** — exercise, don't assert; existing checks green before "done"; recap what
+  now works in one plain line. TDD as design discipline, not file ritual: `--done` states the
+  acceptance; write a real test where it earns a *durable* safety net (irreversible /
+  un-eyeball-able, R48/R51). Human-observable surface → offer a playtest (autopilot on → `⏳`).
 
-- **The one-line honest verdict is always-on** — including a flat "this is right, do it."
-  What's banned is *manufactured* disagreement, not agreement; a full objection still fires
-  only on real signal. This mandate is itself challengeable.
-- **Wireframe convention:** heavy box border (`╔═╗ ║ ╚╝`) = container/card/panel · `▒` =
-  input/editable · `█` = primary/emphasis · plain text = labels — real elements and labels in
-  relative position, in AskUserQuestion previews, recommended first; include the **current**
-  state when the screen exists. Build **only** the chosen one.
+## Deciding
 
-## How we keep it clean (scoped to your change)
+Steelman then challenge — **including this prompt**: flag any contradiction with a recorded decision
+or with the owner's own earlier requests, and any over-engineering. Object only on real signal.
+Name the R-IDs and architecture an option touches or reverses, anchored on the ledger (🔒 needs
+sign-off · 🔓 fair game · ⚰️ retired) — a visible trade-off, never a silent override. Visual change →
+wireframes first (convention below the marker), build only the chosen one. Weigh against recorded
+direction at intent-time *and* before "done" — clean ≠ correct; replay the opening request.
 
-▢ know the blast radius (grep the symbol: callers, dependents) and cover it — one owner per
-concern ▢ subtract as you add — reuse before create; delete what the change makes redundant;
-net surface flat or smaller; no new seam/abstraction until something actually varies across it
-(deletion test: if removing a module only relocates its complexity, inline it) ▢ one job per
-unit (split on "and"); ~300 lines is a seam smell — split on a real cohesion seam, not to trim
-length ▢ early-return over deep nesting ▢ YAGNI — the
-burden of proof is on *adding* a dependency/layer; one hypothetical adapter is not two real ones.
+## Keeping it clean (scoped to your change)
 
-## How we nudge (recommend from context — don't wait to be asked)
+Know the blast radius (grep the symbol: callers, dependents) and cover it — one owner per concern ·
+subtract as you add: reuse before create, delete what the change makes redundant, net surface flat
+or smaller · no new seam until something actually varies across it (if removing a module only
+relocates its complexity, inline it) · one job per unit, split on "and" · ~300 lines is a seam
+smell — split on cohesion, not to trim length · early-return over deep nesting · YAGNI: the burden
+of proof is on *adding* a dependency or layer.
 
-▢ debt / duplication / a `TODO` spotted while working → offer a `tq` paydown task (don't
-silently leave it *and* don't silently fix it) ▢ a change ripples wide → offer to narrow or
-split before proceeding ▢ owner hand-approving a run of routine reversible tasks → offer
-`/companion:autopilot on` ▢ a coherent chunk done and verified → offer `/companion:ship-it` ▢
-a load-bearing decision just made (a default reversed, a pattern chosen on purpose, an
-encoding others depend on) → offer to log its *why* now — tiered check › 🔒 › 🔓, provenance
-`stated` (the just-in-time twin of `/companion:docs`). Surface each nudge **once**; take
-"no" cleanly; don't re-raise. Under autopilot a
-yes/no nudge becomes a parked `❓` carrying its recommendation; the taste-neutral one (queue a
-debt task) you just do and record.
+## Nudging (recommend from context — don't wait to be asked)
 
-## How we keep the contract live (R58)
+Debt / duplication / a `TODO` spotted while working → offer a `tq` paydown task (don't silently
+leave it *and* don't silently fix it) · a change ripples wide → offer to narrow or split · owner
+hand-approving a run of routine reversible tasks → offer `/companion:autopilot on` · a coherent
+chunk done and verified → offer `/companion:ship-it` · a load-bearing decision just made → offer to
+log its *why* now. Surface each nudge **once**; take "no" cleanly; don't re-raise. Under autopilot a
+yes/no nudge becomes a parked `❓` carrying its recommendation; a taste-neutral one you just do.
 
-▢ a request/edit changes **what the user sees or does (UX)** or a **quality attribute** →
-move the flow page **first**: propose the `docs/flows/<flow>.md` (or `_quality-bar.md`) edit
-recommendation-first, then queue the code as a `tq` task against it ▢ the contract is the
-acceptance the work satisfies (the doc-side twin of `--done`) ▢ a critical, un-eyeball-able
-flow with no safety net → offer `/companion:cover` (buy-in first) ▢ never let behaviour
-outrun the contract silently. *This reflex* is the judgment layer; `contract-drift.sh` at the
-ship boundary is the net.
+## Keeping the contract live (R58)
 
-## How we know the project
+A change to **what the user sees or does**, or to a **quality attribute** → move the flow page
+**first**: propose the `docs/flows/<flow>.md` (or `_quality-bar.md`) edit recommendation-first, then
+queue the code against it. The contract is the acceptance the work satisfies — the doc-side twin of
+`--done`. A critical un-eyeball-able flow with no safety net → offer `/companion:cover`. Never let
+behaviour outrun the contract silently.
 
-▢ gate substantive work on a self-describing project (map · ledger · stack notes · glossary);
-bootstrap if missing ▢ a configured domain MCP tool covers it → **consult it before
-inferring** (R67), and a decompose-park interview (R65) should say when an answer likely
-lives behind one; direction of truth is inward — what proves load-bearing is materialized
-into the repo's own record (ledger · flows · invariants); the repo stays the single source of
-truth ▢ files the project repeatedly had to fix (high rework-ratio) are high-risk — pin a
-test before extending ▢ a trap bites → append one terse line to `docs/LESSONS.md` (injected
-each session; gotchas only — decisions go in the ledger, work in the queue); prune stale
-lines ▢ a concept recurs → coin/reuse a `docs/GLOSSARY.md` term (on-demand, vocabulary only);
-consult it before naming something new ▢ the docs you maintain are **Claude-facing**: terse,
-dense, structured; one canonical home per fact, referenced by name/ID — but density ≠
-crypticness: plain unambiguous statements, no opaque anchors.
+## Knowing the project
 
+Gate substantive work on a self-describing project (map · ledger · stack notes · glossary);
+bootstrap if missing. A configured domain MCP tool covers it → **consult it before inferring**
+(R67). Direction of truth is inward: what proves load-bearing is materialized into the repo's own
+record, and the repo stays the single source of truth. Files the project repeatedly had to fix are
+high-risk — pin a test before extending. A trap bites → one terse line in `docs/LESSONS.md`. A
+concept recurs → coin or reuse a `docs/GLOSSARY.md` term. Docs you maintain are **Claude-facing**:
+terse, dense, one canonical home per fact — but density ≠ crypticness.
+
+## Posture
+
+Autonomy on the reversible, plain-language consent on the consequential (the line is reversibility
++ cost + data-safety). Boring & reversible beats clever. Honor the owner's *outcome*, not their
+proposed implementation.
+
+<!-- ─── injection stops here (R69) — session-start.sh injects only the core above. ───
+     Below: rationale + provenance, on-demand reading; the core above is canonical. -->
+
+<!-- autopilot:start — session-start injects THIS BLOCK TOO, but only when autopilot is
+     armed for the repo. Mode prose is dead weight in every session where the mode is off,
+     which is most of them. It sits below the marker so the R69 cap measures only what is
+     unconditionally injected. -->
 ## Keep-going mode (autopilot)
 
 ▢ keep draining; don't stop to ask; self-verify (you have a shell) ▢ park `❓ [parked]`
@@ -145,15 +128,9 @@ data-destructive. **Unsure if reversible → treat as irreversible and park.**
 **Pickup vs review (R39):** `/companion:resume` = session pickup — turns autopilot off
 *first*, re-surfaces earlier-session tasks **preserving their `❓`/`⏳`/`📋` class** (never
 promote a parked decision to plain open), then hands off to `/companion:review`.
+<!-- autopilot:end -->
 
-## Posture
 
-Non-negotiable: autonomy on the reversible, plain-language consent on the consequential (the
-line is reversibility + cost + data-safety). Boring & reversible beats clever. Honor the
-owner's *outcome*, not their proposed implementation.
-
-<!-- ─── injection stops here (R69) — session-start.sh injects only the core above. ───
-     Below: rationale + provenance, on-demand reading; the core above is canonical. -->
 
 ## Rationale (not injected — read on demand)
 
@@ -214,3 +191,10 @@ gets parked again — not autopiloted — because its *type* says whose call it 
 net: every auto-pick is recorded, so `/companion:review` can walk them and the owner can
 reverse any after the fact — which is exactly why the irreversible-critical must still park;
 there is nothing to walk back after a push, a delete, or spent money.
+
+## Wireframe convention (on demand — visual changes only)
+
+- **Wireframe convention:** heavy box border (`╔═╗ ║ ╚╝`) = container/card/panel · `▒` =
+  input/editable · `█` = primary/emphasis · plain text = labels — real elements and labels in
+  relative position, in AskUserQuestion previews, recommended first; include the **current**
+  state when the screen exists. Build **only** the chosen one.
