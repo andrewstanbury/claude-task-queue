@@ -25,7 +25,12 @@ case "${SHIP_CI_WATCH:-1}" in 0) printf '== ship.sh: CI watch off (SHIP_CI_WATCH
 command -v gh >/dev/null 2>&1 || {
   printf '== ship.sh: gh not found — CI UNWATCHED (a local PASS is not a CI PASS)\n'; exit 0; }
 
-appear="${SHIP_CI_APPEAR:-90}"; poll="${SHIP_CI_POLL:-10}"; timeout="${SHIP_CI_TIMEOUT:-300}"
+# 300s -> 1800s (2026-08-01). The default was shorter than this repo's own CI: the mutate job runs
+# ~21-24 min, so EVERY land exited 12 ("shipped but unwatched") and the watch had to be repeated by
+# hand — a guarantee that never once fired is worse than no guarantee, because it reads as one.
+# Raising a CEILING costs nothing when CI is fast: the watch returns the moment the run concludes,
+# so this only changes behaviour for runs that would otherwise have been abandoned.
+appear="${SHIP_CI_APPEAR:-90}"; poll="${SHIP_CI_POLL:-10}"; timeout="${SHIP_CI_TIMEOUT:-1800}"
 printf '== ship.sh: watching CI for %s (opt out: SHIP_CI_WATCH=0) …\n' "$short"
 
 # 1) wait for a run to register against this commit
