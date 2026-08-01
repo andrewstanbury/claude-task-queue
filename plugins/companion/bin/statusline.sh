@@ -197,6 +197,17 @@ out="${BCOL}${B}${BEACON}${X}"
 # account usage sits next to the session's own consumption — both bars, or the section is omitted
 # 604800s = the 7d window, from the field's own name — what the pace marker measures against.
 RL="$(rlbar "${RL5:-}" 5h "${RL5R:-}")$(rlbar "${RL7:-}" 7d "${RL7R:-}" 604800)"
+# SNAPSHOT the windows for readers outside this process (burn-down's forecaster). The data exists
+# only on this stdin payload, so if the status line does not write it down, nothing else can ever
+# see it. Best-effort and O(1): one line, overwritten, never read back here. A failed write is a
+# non-event — the forecaster treats a missing or stale snapshot as "cannot forecast" and holds.
+if [ -n "${RL7:-}" ] || [ -n "${RL5:-}" ]; then
+  _rlsnap="$(companion_rl_snapshot)"
+  mkdir -p "${_rlsnap%/*}" 2>/dev/null &&
+    printf '%s %s %s %s %s\n' "$NOW" "${RL5:-}" "${RL5R:-}" "${RL7:-}" "${RL7R:-}" \
+      > "$_rlsnap.tmp$$" 2>/dev/null && mv -f "$_rlsnap.tmp$$" "$_rlsnap" 2>/dev/null || true
+  rm -f "$_rlsnap.tmp$$" 2>/dev/null || true
+fi
 [ -n "$RL" ] && out="$out $DIVC$RL"
 out="$out${DIV}${C}${MODEL}${X}"
 [ "${ITOK:-0}" -gt 0 ] 2>/dev/null && out="$out ${D}⇡$(hum "$ITOK") ⇣$(hum "$OTOK")$X"

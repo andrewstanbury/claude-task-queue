@@ -1450,3 +1450,158 @@ EOF
   [[ "$output" == *"park with the full payload"* ]]
   [ "${#output}" -gt "$off_len" ]
 }
+
+# ── burn-down mode (the only mode that AUTHORS work) ───────────────────────────────────────────
+_bd() {  # $1=used7 $2=used5 $3=age-offset → run the forecaster against a fresh fixture
+  printf '%s %s %s %s %s\n' "$(( $(date +%s) - ${3:-0} ))" "${2:-20}" "$(( $(date +%s)+7200 ))" \
+    "${1:-10}" "$(( $(date +%s)+86400 ))" > "$BD_STATE/ratelimit"
+  run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+      BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
+}
+_bd_setup() {
+  BD_REPO="$(mktemp -d)"; git -C "$BD_REPO" init -q -b main
+  git -C "$BD_REPO" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  BD_STATE="$(mktemp -d)"; BD_TASKS="$(mktemp -d)"
+  mkdir -p "$BD_STATE/burndown"
+  touch "$BD_STATE/burndown/$(printf '%s' "$BD_REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+}
+
+@test "burn-down: HOLD is the default and every unknown resolves to it" {
+  _bd_setup
+  # OFF is the shipped state. This mode authors work, so arming it must be a deliberate act.
+  rm -rf "$BD_STATE/burndown"
+  _bd 10; [ "$status" -eq 0 ]; [[ "$output" == HOLD:* ]]; [[ "$output" == *"OFF for this repo"* ]]
+  mkdir -p "$BD_STATE/burndown"
+  touch "$BD_STATE/burndown/$(printf '%s' "$BD_REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  # No snapshot at all — the status line may simply not be wired. Cannot forecast, so hold.
+  rm -f "$BD_STATE/ratelimit"
+  run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+      BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
+  [[ "$output" == HOLD:* ]]; [[ "$output" == *"no rate-limit snapshot"* ]]
+  # A STALE snapshot is not a forecast — old data would let it burn on a window that already rolled.
+  _bd 10 20 99999; [[ "$output" == HOLD:* ]]; [[ "$output" == *"stale data"* ]]
+  # Garbage in the snapshot must not become a number.
+  printf 'not-a-timestamp junk\n' > "$BD_STATE/ratelimit"
+  run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+      BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
+  [ "$status" -eq 0 ]; [[ "$output" == HOLD:* ]]
+}
+
+@test "burn-down: burns ONLY on a forecast underspend, never when on track" {
+  _bd_setup
+  # 90% used with one day left projects to 105% — on track, so there is no spare capacity to fill.
+  _bd 90; [[ "$output" == HOLD:* ]]; [[ "$output" == *"on track"* ]]
+  # 10% with one day left projects to ~11% — a genuine underspend.
+  _bd 10; [[ "$output" == BURN:* ]]; [[ "$output" == *"tracking to"* ]]
+  # The target is what it stops at, and it is configurable: aim at 10% and the same state is fine.
+  run env BURNDOWN_TARGET_PCT=10 CLAUDE_COMPANION_STATE_DIR="$BD_STATE" \
+      CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
+  [[ "$output" == HOLD:* ]]
+}
+
+@test "burn-down: real queued work outranks generated work" {
+  _bd_setup
+  mkdir -p "$BD_TASKS/sQ"; printf '%s' "$BD_REPO" > "$BD_TASKS/sQ/.root"
+  jq -n '{id:"1",subject:"something the owner asked for",status:"pending"}' > "$BD_TASKS/sQ/1.json"
+  _bd 10
+  [[ "$output" == HOLD:* ]]; [[ "$output" == *"still queued"* ]]
+  # Drain it and the capacity becomes available — the meter fills BEHIND the backlog, never ahead.
+  jq -n '{id:"1",subject:"something the owner asked for",status:"completed"}' > "$BD_TASKS/sQ/1.json"
+  _bd 10; [[ "$output" == BURN:* ]]
+}
+
+@test "burn-down: unreviewed branches apply backpressure — the loop is self-limiting" {
+  _bd_setup
+  # THE anti-waste guarantee. If the owner is not reviewing, generating more output is by
+  # definition waste, so the system must notice that about itself and stop.
+  local i
+  for i in 1 2; do
+    git -C "$BD_REPO" checkout -q -b "burndown/p$i" main
+    git -C "$BD_REPO" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "p$i"
+    git -C "$BD_REPO" checkout -q main
+  done
+  _bd 10; [[ "$output" == BURN:* ]]        # 2 of 3 — still room
+  git -C "$BD_REPO" checkout -q -b burndown/p3 main
+  git -C "$BD_REPO" -c user.email=t@t -c user.name=t commit -q --allow-empty -m p3
+  git -C "$BD_REPO" checkout -q main
+  _bd 10; [[ "$output" == HOLD:* ]]; [[ "$output" == *"review or delete"* ]]
+  # An EMPTY branch is nothing to review, so it must not count against the budget.
+  git -C "$BD_REPO" branch -D burndown/p3 >/dev/null 2>&1
+  git -C "$BD_REPO" branch burndown/empty main
+  _bd 10; [[ "$output" == BURN:* ]]
+}
+
+@test "burn-down: refuses when the 5h window has no room to actually work" {
+  _bd_setup
+  _bd 10 95; [[ "$output" == HOLD:* ]]; [[ "$output" == *"headroom"* ]]
+  _bd 10 20; [[ "$output" == BURN:* ]]
+}
+
+@test "candidates: never invents while a recorded signal remains, and labels it when it does" {
+  # The property that makes unattended generation defensible: authorship of "what is worth doing"
+  # stays with the owner. Rank order is the mechanism — invention is last and labelled, not first.
+  local d; d="$(mktemp -d)"; git -C "$d" init -q
+  git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
+  local tk; tk="$(mktemp -d)"
+  _cand() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" bash "$ROOT/bin/candidates.sh"; }
+
+  # Nothing recorded at all → says so, out loud, as rank 5.
+  _cand; [ "$status" -eq 0 ]; [[ "$output" == 5\|invent\|* ]]; [[ "$output" == *"INVENTED"* ]]
+
+  # A ROADMAP item outranks invention — and a CHECKED item is done, so it must not appear.
+  printf '# R\n- [ ] add a dark theme\n- [x] shipped already\n' > "$d/ROADMAP.md"
+  _cand; [[ "$output" == 2\|roadmap\|*"dark theme"* ]]; [[ "$output" != *"shipped already"* ]]
+  [[ "$output" != *invent* ]]
+
+  # A TODO in tracked source outranks nothing here, but must be found once committed.
+  rm "$d/ROADMAP.md"; printf 'x=1  # TODO: cache this\n' > "$d/a.sh"
+  git -C "$d" add -A; git -C "$d" -c user.email=t@t -c user.name=t commit -q -m add
+  _cand; [[ "$output" == 3\|todo\|* ]]
+
+  # A parked decision carrying a recommendation outranks EVERYTHING — the owner already reasoned it.
+  mkdir -p "$tk/sP"; printf '%s' "$d" > "$tk/sP/.root"
+  jq -n '{id:"1",subject:"❓ [parked] pick a cache backend — options: A) sqlite B) files; rec: sqlite",status:"pending"}' \
+    > "$tk/sP/1.json"
+  _cand; [[ "$output" == 1\|parked\|* ]]; [[ "$output" == *"rec: sqlite"* ]]
+  # A park WITHOUT a recommendation is not a candidate: nothing has been decided, so building
+  # against it would be guessing on the owner's behalf.
+  jq -n '{id:"1",subject:"❓ [parked] pick a cache backend",status:"pending"}' > "$tk/sP/1.json"
+  _cand; [[ "$output" != 1\|parked\|* ]]
+}
+
+@test "burndown-branch: work is containerised — never on main, never pushed, always discardable" {
+  local d st; d="$(mktemp -d)"; st="$(mktemp -d)"
+  git -C "$d" init -q -b main
+  git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  _bb() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" "$@"; }
+
+  _bb start "2|roadmap|add a dark theme"
+  [ "$status" -eq 0 ]; [ "$output" = "add-a-dark-theme" ]
+  [ "$(git -C "$d" rev-parse --abbrev-ref HEAD)" = "burndown/add-a-dark-theme" ]
+  # main is untouched: one commit, exactly as before.
+  [ "$(git -C "$d" rev-list --count main)" -eq 1 ]
+  git -C "$d" checkout -q main
+  # The manifest lives OUTSIDE the repo, so reviewing from main still finds it and the tree is clean.
+  [ -z "$(git -C "$d" status --porcelain)" ]
+  _bb show add-a-dark-theme
+  [[ "$output" == *"must default to OFF"* ]]; [[ "$output" == *"roadmap"* ]]
+  [[ "$output" == *"Deleting is the DEFAULT expectation"* ]]
+  _bb list; [[ "$output" == *"burndown/add-a-dark-theme"* ]]; [[ "$output" == *"add a dark theme"* ]]
+
+  # A dirty tree is refused: discarding the branch would otherwise discard the owner's own WIP.
+  printf 'wip\n' > "$d/wip.txt"
+  _bb start "2|roadmap|another thing"; [ "$status" -eq 4 ]; [[ "$output" == *"dirty"* ]]
+  rm "$d/wip.txt"
+  # Duplicates are refused rather than silently reusing a branch that may hold other work.
+  _bb start "2|roadmap|add a dark theme"; [ "$status" -eq 3 ]
+
+  # You cannot delete the branch you are standing on, and the default branch is never a target.
+  git -C "$d" checkout -q burndown/add-a-dark-theme
+  _bb discard add-a-dark-theme; [ "$status" -eq 5 ]
+  git -C "$d" checkout -q main
+  _bb discard main; [ "$status" -eq 6 ]
+  # Discard is genuinely one step, and leaves nothing behind.
+  _bb discard add-a-dark-theme; [ "$status" -eq 0 ]
+  _bb list; [ -z "$output" ]
+  [ "$(git -C "$d" rev-list --count main)" -eq 1 ]
+}

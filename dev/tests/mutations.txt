@@ -36,3 +36,11 @@ plugins/companion/bin/session-start.sh::s@awk '/lessons injection stops here/{ex
 dev/mutate-gate.sh::s@if \[ "$brc" -ne 0 \]; then@if false; then@::an ALREADY-RED suite is measured anyway, scoring every mutation 'caught'
 dev/mutate-gate.sh::s@if ! mkdir "$_mut_lock" 2>/dev/null; then@if false; then@::concurrent --mutate runs are allowed to corrupt each other again
 plugins/companion/bin/session-start.sh::s@if \[ -f "$PLUGIN_DIR/STEERING.md" \] && companion_autopilot_on "$root"; then@if [ -f "$PLUGIN_DIR/STEERING.md" ]; then@::autopilot mode prose is injected unconditionally again, re-taxing every session
+plugins/companion/bin/burn-down.sh::s@companion_burndown_on "$root" ||@false ||@::burn-down runs without being armed
+plugins/companion/bin/burn-down.sh::s@\[ "$open" -eq 0 \] ||@[ 1 -eq 1 ] ||@::generated work stops yielding to real queued work
+plugins/companion/bin/burn-down.sh::s@\[ "$nb" -lt "$MAXBRANCH" \] ||@[ 1 -eq 1 ] ||@::unreviewed-branch backpressure stops applying
+plugins/companion/bin/burn-down.sh::s@\[ "$projected" -lt "$TARGET" \] ||@[ 1 -eq 1 ] ||@::burn-down fires even when the forecast is ON TARGET
+plugins/companion/bin/candidates.sh::s@| grep -F 'rec:' | head@| head@::a park with NO recommendation becomes a build candidate — guessing for the owner
+plugins/companion/bin/candidates.sh::s@if \[ "$found" -eq 0 \]; then@if true; then@::invention is emitted even when recorded signals exist
+plugins/companion/bin/burndown-branch.sh::s@\[ -z "$(git -C "$root" status --porcelain 2>/dev/null)" \] ||@[ 1 -eq 1 ] ||@::autonomous work starts on top of the owner's uncommitted changes
+plugins/companion/bin/burndown-branch.sh::s@\[ "$cur" = "burndown/$slug" \] &&@[ 1 -eq 2 ] \&\&@::discard deletes the branch you are standing on

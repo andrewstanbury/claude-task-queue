@@ -60,6 +60,19 @@ companion_decisive_on()   { [ -n "${1:-}" ] && [ -f "$(companion_decisive_flag "
 companion_sweep_flag()    { printf '%s/sweep/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_sweep_on()      { [ -n "${1:-}" ] && [ -f "$(companion_sweep_flag "$1")" ]; }
 
+# BURN-DOWN mode — opt-in, per-repo, OFF by default. When the 7d rate-limit window is forecast to
+# end UNDERSPENT and there is no queued work left, autopilot may generate candidate work rather
+# than idle. Everything it produces lands behind a feature flag on a branch; nothing merges.
+# Deliberately its own flag, not a mode of autopilot: this is the only mode that AUTHORS work, so
+# turning it on must be a separate, explicit act.
+companion_burndown_flag() { printf '%s/burndown/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
+companion_burndown_on()   { [ -n "${1:-}" ] && [ -f "$(companion_burndown_flag "$1")" ]; }
+
+# Where the status line drops its rate-limit snapshot. The window data arrives ONLY on the
+# statusLine stdin payload, so anything outside that process (like the burn-down forecaster) can
+# read it only if the status line writes it down. One short line, overwritten in place.
+companion_rl_snapshot() { printf '%s/ratelimit' "$(companion_state_dir)"; }
+
 # Per-repo feature OFF flags (R50) — a single per-repo file storing only OFF overrides, one
 # `<feature>=off` line each. Absence of a line ⇒ the feature's default (secret/steering
 # default ON). Read by every enforced-core reader (session-start steering, statusline shield);

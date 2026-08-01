@@ -36,6 +36,15 @@ case "$cmd" in
       status) companion_decisive_on "$root" && echo on || echo off ;;
       *) echo "usage: autopilot decisive on|off|status" >&2; exit 1 ;;
     esac ;;
+  burndown) sub="${2:-status}"; bflag="$(companion_burndown_flag "$root")"
+    case "$sub" in
+      on)  mkdir -p "$(dirname "$bflag")" 2>/dev/null && : > "$bflag" \
+           && echo "🔥 burn-down ON for $root — when the 7d window is forecast to end UNDERSPENT and the queue is empty, I may GENERATE work from signals you already recorded (parked decisions with a rec:, ROADMAP items, TODOs, untested flows) and build each on a burndown/* branch behind a flag that defaults OFF. Nothing merges, nothing pushes. It stops on its own once 3 branches are awaiting your review — check them with: burndown-branch.sh list. This is the only mode that authors its own work; turn it off with: /companion:autopilot burndown off" ;;
+      off) rm -f "$bflag" 2>/dev/null; echo "burn-down OFF for $root — I will idle rather than generate work." ;;
+      status) if companion_burndown_on "$root"; then echo on; else echo off; fi ;;
+      *) echo "usage: autopilot.sh burndown on|off|status" >&2; exit 2 ;;
+    esac
+    exit 0 ;;
   sweep) sub="${2:-status}"; wflag="$(companion_sweep_flag "$root")"
     case "$sub" in
       on)  mkdir -p "$(dirname "$wflag")" 2>/dev/null && : > "$wflag" \
