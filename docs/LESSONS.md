@@ -11,11 +11,10 @@ stops being true. Not decisions (the ledger) nor in-flight work (the queue).
   stdin* races into a closed pipe; jq prints "Broken pipe" to stderr, which bats
   merges into `$output` → flaky `[ -z "$output" ]`. Add `2>/dev/null` to the producing jq.
 - **jq array-length precedence:** `[ [$o[]|select(..)]|length ]` mis-parses; use
-  `[ ($s|map(select(..))|length) ]`.
+  `[ ($s|map(select(..))|length) ]`. (A literal `'` in a single-quoted jq program also breaks it —
+  shellcheck SC1036/SC2026 catches that one for you.)
 - **jq `+` THROWS on a non-string** — `.a + "\n" + .b` emits nothing when `.b` is an array/object
   (NotebookEdit's `new_source`), so the caller reads empty and **fails open**. `| tostring` always.
-- **Apostrophe in a single-quoted jq program:** a literal `'` in a `jq -cn '{…}'` message ends the
-  quote → runtime break + shellcheck SC1036/SC2026. Reword around it.
 - **BSD is not GNU — shipped red CI three times.** `\?`/`\+`/`\|` in `sed`/`grep` are GNU extensions
   BSD reads as LITERALS; an escaped `^` in a BRE differs too; BSD `wc -c` pads with spaces, so a
   digits-only guard reads garbage and zeroes the value. Strip: `wc -c < f | tr -d '[:space:]'`.
@@ -46,12 +45,14 @@ stops being true. Not decisions (the ledger) nor in-flight work (the queue).
   `env -u NO_COLOR TERM=xterm`, or an exported `NO_COLOR` reddens a correct tree.
 - **Never assert an exact countdown from `date +%s`** — `now + 42m` floors to `41m` the moment a
   second passes. Assert unit and presence (`↻[0-9]+m`), never the count.
-- **A test that re-implements the logic proves nothing** — one re-grepped a gate's config and passed
-  with that gate **deleted**. Pipe through the real script; mutate to confirm.
+- **Three ways a check silently CANNOT FAIL.** (1) It re-implements the logic — one re-grepped a
+  gate's config and passed with that gate **deleted**. (2) It reads "nonzero = detected" —
+  `--mutate` scored a KILLED suite (124, nothing run) as "caught", so a real hole read as covered,
+  green locally and red on CI; demand the specific signal (`^not ok`), nonzero without it is an
+  error. (3) A retune drops the fake bad input under the noise floor, and the guard stops guarding.
+  Pipe through the real script, **shim the tool on PATH** to test a gate without recursion, and
+  mutate to confirm it CAN redden.
 - **`cmd && { …; false; }` fails a bats test when `cmd` correctly returns non-zero.** Use `if`.
-- **Retuning a gate can disarm its own guard-test** — a raised threshold put the fake bad input
-  under the noise floor, so the guard silently stopped guarding (it failed only under load). Pin
-  guards to the threshold they assert; re-run them after any retune.
 
 ## Frontmatter (commands / skills)
 - **Quote any YAML value starting with `[`, `{`, `*`, `&`, `!`, `>`, `|`, `,` or `#`.** An unquoted
@@ -60,10 +61,9 @@ stops being true. Not decisions (the ledger) nor in-flight work (the queue).
 - **`check.sh` line-greps frontmatter, so it can never see a parse failure** — an assertion on a
   *value* validates a string the host may never have loaded. Verify with a real YAML parser.
 - **Extraction leaves three traps.** (1) A second COPY — grep the old shape. (2) Orphaned
-  MUTATIONS — `mutations.txt` still aims at the old file and matches nothing; re-aim in the SAME
-  commit (4x). (3) A MOVED failure mode — code hoisted into a helper runs in `$( )`, which
-  *isolates* an abort, so deleting its input guard changed no output, only stderr; render
-  assertions passed and `--mutate` caught the hole.
+  MUTATIONS — `mutations.txt` still aims at the old file, matching nothing; re-aim in the SAME
+  commit (5x). (3) A MOVED failure mode — code hoisted into a helper runs in `$( )`, which
+  *isolates* an abort, so deleting its guard changed no output, only stderr.
 - **A reader returning EMPTY on malformed input fails open, silently.** `NR==1&&$0=="---"` returned
   nothing for a CRLF file and every check on that block passed vacuously. When a parser can say
   "nothing here", ask what callers do with nothing — usually: succeed.
@@ -71,7 +71,6 @@ stops being true. Not decisions (the ledger) nor in-flight work (the queue).
 ## CI
 - macOS is a **required** lane (bash 3.2). Test hooks for *silence* under missing tooling.
 - **`gitleaks` + `shellcheck` SKIP locally when absent but RUN on CI** — a local PASS is not a CI
-  PASS for those two. Linuxbrew's `shellcheck` **under-reports `SC2015`** (`A && B || C`) that CI
-  flags — shipped red twice (3.16.0, 3.17.0). **Never write `test && test || cmd` as a guard.** The
-  split cuts both ways on CODES: a trap-invoked function is `SC2329` locally, `SC2317` on CI —
-  disable **both**.
+  PASS. Linuxbrew's `shellcheck` under-reports `SC2015` (`A && B || C`) that CI flags — shipped red
+  twice. **Never write `test && test || cmd` as a guard.** Codes split both ways: a trap-invoked
+  function is `SC2329` locally, `SC2317` on CI — disable **both**.

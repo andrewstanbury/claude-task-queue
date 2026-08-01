@@ -1,65 +1,11 @@
 #!/usr/bin/env bash
 
-# ── ./check.sh --mutate (R78) ──────────────────────────────────────────────────────────────────
-# A green suite proves the tests pass, not that they CAN fail. Three fixtures in one session were
-# vacuous — each masked by another rule it also tripped — and every one hid a real defect. This
-# mode applies each declared mutation to the enforced core and asserts the suite goes RED. A
-# mutation that stays green is a hole: a test that cannot fail. CI-only by design; it costs a full
-# suite run per mutation, so it is never part of the default gate.
+# ── ./check.sh --mutate (R78) ────────────────────────────────────────────────────────
+# The gate lives in bin/mutate-gate.sh so the suite can exercise it (R78, same reason as
+# doc-lint.sh / da-gate.sh / hook-budget.sh). Delegated, not reimplemented.
 if [ "${1:-}" = "--mutate" ]; then
-  mfile="plugins/companion/tests/mutations.txt"
-  [ -f "$mfile" ] || { echo "no $mfile"; exit 2; }
-  # Optional file filter: `--mutate <file>...` runs ONLY the mutations targeting those files, so a
-  # ship can afford to check the files it actually touched. The full set is ~9 minutes, which is why
-  # it is CI-only — and that is exactly how a pattern stale-ed by the commit that changed its target
-  # reached main (3.24.2). Bounded per-file, it becomes affordable pre-push.
-  shift $(( $# > 0 ? 1 : 0 )) 2>/dev/null || true
-  mfilter=("$@")
-  command -v bats >/dev/null 2>&1 || { echo "  SKIP — bats not installed"; exit 0; }
-  # RESTORE ON ANY EXIT. This mutates the live working tree — including `secret-guard.sh`, a hook
-  # that is ACTIVE in this repo. Without a trap, one Ctrl-C leaves the secret gate disabled and a
-  # mutated file staged by the next `git add -A` (R7 must never fail open). Belt and braces: the
-  # trap restores, and `.gitignore` covers `*.mutbak` so a stray one can never be committed.
-  # shellcheck disable=SC2329,SC2317  # invoked via the trap below, not by name.
-  # BOTH codes: local shellcheck 0.11 flags SC2329, CI's older build flags SC2317 for the same
-  # function — a version split that has now shipped red CI twice (cf. SC2015 in LESSONS).
-  _mut_restore() {
-    # NOT `find plugins` — mutations target check.sh at the repo root too, and scoping the restore
-    # to plugins/ left check.sh mutated after an interrupted run (found by a real timeout).
-    find . -name '*.mutbak' -print0 2>/dev/null |
-      while IFS= read -r -d '' b; do mv -f "$b" "${b%.mutbak}"; done
-  }
-  trap '_mut_restore' EXIT INT TERM HUP
-  holes=0; ran=0; keep=0; want=""
-  while IFS= read -r line; do
-    case "$line" in ''|'#'*) continue ;; esac
-    tgt="${line%%::*}"; tmp="${line#*::}"; sedscript="${tmp%%::*}"; what="${tmp#*::}"
-    [ -f "$tgt" ] || { echo "  SKIP (missing) $tgt"; continue; }
-    if [ "${#mfilter[@]}" -gt 0 ]; then
-      keep=0; for want in "${mfilter[@]}"; do [ "$want" = "$tgt" ] && keep=1; done
-      [ "$keep" = 1 ] || continue
-    fi
-    cp "$tgt" "$tgt.mutbak"
-    if ! sed -i.bak "$sedscript" "$tgt" 2>/dev/null; then
-      mv "$tgt.mutbak" "$tgt"; rm -f "$tgt.bak"
-      echo "  FAIL mutation did not apply — the sed script is stale: $what"; holes=$((holes+1)); continue
-    fi
-    rm -f "$tgt.bak"
-    if cmp -s "$tgt" "$tgt.mutbak"; then
-      mv "$tgt.mutbak" "$tgt"
-      echo "  FAIL mutation matched NOTHING (stale pattern): $what"; holes=$((holes+1)); continue
-    fi
-    ran=$((ran+1))
-    if bats plugins/companion/tests >/dev/null 2>&1; then
-      echo "  HOLE  suite stayed GREEN with: $what"; holes=$((holes+1))
-    else
-      echo "  ok    caught: $what"
-    fi
-    mv "$tgt.mutbak" "$tgt"
-  done < "$mfile"
-  echo
-  if [ "$holes" -gt 0 ]; then printf '== Mutation result ==\n  %s HOLE(S) of %s — a test that cannot fail is not coverage\n' "$holes" "$ran"; exit 1; fi
-  echo "== Mutation result =="; echo "  all $ran mutations caught"; exit 0
+  shift
+  exec "$(dirname "$0")/plugins/companion/bin/mutate-gate.sh" "$@"
 fi
 
 # One-command check — the single source of truth for what this repo enforces.
@@ -281,3 +227,4 @@ fi
 section "Result"
 if [ "$fail" -eq 0 ]; then echo "  PASS"; else echo "  FAILURES — see above"; fi
 exit "$fail"
+

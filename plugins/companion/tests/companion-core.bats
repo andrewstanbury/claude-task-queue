@@ -1283,3 +1283,64 @@ EOS
   # at least one hook must report a NON-zero measurement
   [[ "$output" =~ [1-9][0-9]*ms ]]
 }
+
+# ── the mutation gate itself (R78) ─────────────────────────────────────────────────────────────
+# The gate whose whole job is proving tests CAN fail had no test of its own, and shipped TWO
+# defects that let it certify coverage it never observed (3.30.2 and 3.31.0, both caught by
+# something other than the suite). It now lives in bin/ so these cases can exist at all; a FAKE
+# `bats` first on PATH drives each verdict branch in milliseconds without recursing into the
+# real suite.
+_mutgate() {  # $1 = shim body ("" = use the real bats) · $2 = tag → runs the REAL gate
+  local d="$BATS_TEST_TMPDIR/mg$2"
+  mkdir -p "$d/plugins/companion/tests" "$d/plugins/companion/bin" "$d/shim"
+  cp "$ROOT/bin/mutate-gate.sh" "$d/plugins/companion/bin/"
+  printf 'VALUE=1\n' > "$d/plugins/companion/target.sh"
+  printf 'plugins/companion/target.sh::s@VALUE=1@VALUE=2@::the value changes\n' \
+    > "$d/plugins/companion/tests/mutations.txt"
+  [ -n "$1" ] && { printf '%s\n' "$1" > "$d/shim/bats"; chmod +x "$d/shim/bats"; }
+  ( cd "$d" && PATH="$d/shim:$PATH" ./plugins/companion/bin/mutate-gate.sh plugins/companion/target.sh 2>&1 )
+}
+# A shim that answers --count with 3 and then behaves as told.
+_shim() { printf '#!/bin/sh\n[ "$1" = "--count" ] && { echo 3; exit 0; }\n%s\n' "$1"; }
+
+@test "mutation gate: only a COMPLETE run that failed counts as caught (R78)" {
+  # THE POINT: "bats exited nonzero" and "a test failed" are different claims, and conflating them
+  # made the gate certify holes as covered. Each case below exits nonzero; only one is evidence.
+
+  # (1) KILLED — exit 124, nothing ran. This is what load does, and what made a real pace-marker
+  #     hole report as caught locally while CI called it a hole (3.30.2).
+  run _mutgate "$(_shim 'exit 124')" killed
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"did not COMPLETE"* ]]; [[ "$output" != *"ok    caught"* ]]
+
+  # (2) PARTIAL — the plan promises 3 results, 2 arrive. A run cut short mid-suite still emits a
+  #     `not ok`, so checking only for one accepts a suite that never finished.
+  run _mutgate "$(_shim 'echo "1..3"; echo "ok 1 a"; echo "not ok 2 b"; exit 1')" partial
+  [ "$status" -ne 0 ]; [[ "$output" == *"did not COMPLETE"* ]]
+
+  # (3) GENUINE — a complete run of 3 with one failure. The gate must still do its actual job.
+  run _mutgate "$(_shim 'echo "1..3"; echo "ok 1 a"; echo "not ok 2 b"; echo "ok 3 c"; exit 1')" real
+  [ "$status" -eq 0 ]; [[ "$output" == *"caught"* ]]
+
+  # (4) GREEN — the mutation survived. Still a hole.
+  run _mutgate "$(_shim 'echo "1..3"; echo "ok 1 a"; echo "ok 2 b"; echo "ok 3 c"; exit 0')" green
+  [ "$status" -ne 0 ]; [[ "$output" == *"HOLE"* ]]
+}
+
+@test "mutation gate: an UNPARSEABLE suite is refused up front, not scored (R78)" {
+  # bats answers a suite it cannot parse with a perfectly well-formed `1..1 / not ok
+  # bats-gather-tests` — zero tests run. Demanding "a ^not ok" therefore does NOT distinguish it,
+  # and the first version of this very fix scored EVERY mutation as caught because of it, exiting
+  # 0. Calibrating with `bats --count` catches it before a single mutation is applied.
+  local d="$BATS_TEST_TMPDIR/mgparse"
+  mkdir -p "$d/plugins/companion/tests" "$d/plugins/companion/bin"
+  cp "$ROOT/bin/mutate-gate.sh" "$d/plugins/companion/bin/"
+  printf 'VALUE=1\n' > "$d/plugins/companion/target.sh"
+  printf 'plugins/companion/target.sh::s@VALUE=1@VALUE=2@::the value changes\n' \
+    > "$d/plugins/companion/tests/mutations.txt"
+  printf '@test "broken" {\n  if true; then\n}\n' > "$d/plugins/companion/tests/x.bats"
+  run bash -c 'cd "$1" && ./plugins/companion/bin/mutate-gate.sh plugins/companion/target.sh 2>&1' _ "$d"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"cannot enumerate the suite"* ]]
+  [[ "$output" != *"caught"* ]]
+}

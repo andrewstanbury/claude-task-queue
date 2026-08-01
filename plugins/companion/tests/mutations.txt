@@ -30,3 +30,5 @@ plugins/companion/lib/ratelimit.sh::s@if \[ "$3" -ge "$el" \]@if [ "$3" -ge 0 ]@
 plugins/companion/lib/ratelimit.sh::s@case "${len:-}" in ''|\*\[!0-9\]\*) return 0;; esac@case "${len:-}" in zzzNEVERzzz) return 0;; esac@::a length-less window (5h) starts getting a pace marker
 plugins/companion/lib/ratelimit.sh::s@\[ -n "$rst" \] \&\& \[ "$NOW" -gt 0 \] || return 0@[ -n "$rst" ] || return 0@::a failed clock (NOW=0) renders a 56-year countdown
 plugins/companion/lib/ratelimit.sh::s@el=$(( ((len - left) \* 100 + len - 1) / len ))@el=$(( (len - left) * 100 / len ))@::the pace marker loses its ceiling — ▴ starts lying about being on pace
+plugins/companion/bin/mutate-gate.sh::s@\[ "$plan" = "$3" \] && \[ "$res" = "$3" \] || return 1@:@::the gate stops requiring a COMPLETE run — a killed suite scores 'caught' again
+plugins/companion/bin/mutate-gate.sh::s@if \[ "$expect" -lt 2 \]; then@if false; then@::an unparseable suite is no longer refused up front
