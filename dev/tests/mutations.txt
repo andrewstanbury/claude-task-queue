@@ -45,3 +45,5 @@ plugins/companion/bin/candidates.sh::s@if \[ "$found" -eq 0 \]; then@if true; th
 plugins/companion/bin/burndown-branch.sh::s@\[ -z "$(git -C "$root" status --porcelain 2>/dev/null)" \] ||@[ 1 -eq 1 ] ||@::autonomous work starts on top of the owner's uncommitted changes
 plugins/companion/bin/burndown-branch.sh::s@\[ "$cur" = "burndown/$slug" \] &&@[ 1 -eq 2 ] \&\&@::discard deletes the branch you are standing on
 plugins/companion/bin/candidates.sh::s@-- . ':!\*.md' ':!\*.markdown'@-- .@::the todo signal reads prose about markers again, feeding on documentation
+plugins/companion/bin/tq::s@($p\[\]|lnr("❓")),($b\[\]|lnr("⏳"))@($p[]|ln("❓")),($b[]|ln("⏳"))@::a park's rec: is hidden again — the review becomes a rubber stamp
+plugins/companion/bin/tq::s@elif (($p|length)+($b|length))>0 then@elif false then@::a parks-only queue stops naming the decision that needs the owner

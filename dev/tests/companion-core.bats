@@ -1620,3 +1620,30 @@ _bd_setup() {
   [[ "$output" != *"guide.md"* ]]    # prose about markers is not
   [[ "$output" != *"candidates.sh"* ]]  # and never its own source
 }
+
+@test "tq report: a park shows its rec:, and 'next' names the decision when nothing is buildable" {
+  # A park is REQUIRED to carry `options:`/`rec:` so the review is a decision and not a rubber
+  # stamp — and the 72-char truncation cut at exactly the point where `rec:` begins, so the
+  # convention was stored and then hidden in the one place anyone reads it.
+  export CLAUDE_COMPANION_SESSION_ID=sRec
+  local d="$CLAUDE_COMPANION_TASKS_DIR/sRec"; mkdir -p "$d"
+  jq -n '{id:"1",subject:"❓ [parked] pick a cache backend — options: A) sqlite (one file, needs a dep) B) plain files (no dep, slower); rec: A — the dep is already vendored",status:"pending"}' > "$d/1.json"
+  run "$TQ" report
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"└ rec: A — the dep is already vendored"* ]]   # the deciding half survives
+  # With nothing buildable, "next" must not point at a task — it must name the decision.
+  [[ "$output" == *"nothing left to build"* ]]
+  [[ "$output" != *"→ next: #1"* ]]
+
+  # A park WITHOUT a rec has no continuation line to show — and must not invent one.
+  jq -n '{id:"2",subject:"❓ [parked] something undecided",status:"pending"}' > "$d/2.json"
+  run "$TQ" report
+  [[ "$output" == *"something undecided"* ]]
+  [ "$(printf '%s' "$output" | grep -c '└ rec:')" -eq 1 ]
+
+  # Buildable work still wins: `next` stays mechanical and points at the open task, not the park.
+  jq -n '{id:"3",subject:"do the actual thing",status:"pending"}' > "$d/3.json"
+  run "$TQ" report
+  [[ "$output" == *"→ next: #3"* ]]
+  [[ "$output" != *"nothing left to build"* ]]
+}

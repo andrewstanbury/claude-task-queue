@@ -94,6 +94,13 @@ report() {
     # strip a leading ❓/⏳ marker so the front glyph is not duplicated, then truncate
     def s72: ((.subject//"")|sub("^\\s*[❓⏳]\\s*";"")|if length>72 then .[0:71]+"…" else . end);
     def ln($g): "  "+$g+" #"+(.id|tostring)+"  "+s72;
+    # A park is REQUIRED to carry its own `rec:` so the review is a decision, not a rubber stamp —
+    # and s72 truncated at 72 chars, which is exactly where `rec:` lives. The convention was being
+    # stored and then hidden in the one place anyone reads it. Parks (and blocked items) now get a
+    # continuation line with the recommendation, so "what should I do about this?" is answerable
+    # from the queue alone. Costs nothing when nothing is parked, which is the common case.
+    def rec: ((.subject//"") | if test("rec:") then "\n       └ rec: " + (split("rec:")[1]|sub("^\\s+";"")) else "" end);
+    def lnr($g): ln($g) + rec;
     (map(select(.status=="in_progress"))|sort_by(.id|tonumber)) as $ip
     |(map(select(.status=="pending" and (pk|not) and (bl|not)))|sort_by(.id|tonumber)) as $op
     |(map(select(.status=="pending" and pk))|sort_by(.id|tonumber)) as $p
@@ -105,8 +112,11 @@ report() {
         (if($b|length)>0 then "⏳\($b|length)" else empty end),
         (if($d|length)>0 then "✔\($d|length)" else empty end)]|join(" ")) as $h
     |("📋"+(if $h=="" then " Task queue — (all clear)" else "  "+$h end)),
-     ($ip[]|ln("▸")),($op[]|ln("◻")),($p[]|ln("❓")),($b[]|ln("⏳")),
-     (($ip[0] // $op[0]) as $nx | if $nx then "  → next: #\($nx.id)" else empty end)
+     ($ip[]|ln("▸")),($op[]|ln("◻")),($p[]|lnr("❓")),($b[]|lnr("⏳")),
+     (($ip[0] // $op[0]) as $nx | if $nx then "  → next: #\($nx.id)"
+       elif (($p|length)+($b|length))>0 then
+         "  → nothing left to build — " + (($p|length)|tostring) + " decision(s)/block(s) need you; each carries its rec: above"
+       else empty end)
   ' "${files[@]}" 2>/dev/null || printf '📋 Task queue — (unreadable)\n'
 }
 
