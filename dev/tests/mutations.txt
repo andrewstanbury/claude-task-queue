@@ -11,16 +11,16 @@ plugins/companion/bin/da-gate.sh::s@    exit 1 ;;@    exit 0 ;;@::da-gate report
 plugins/companion/bin/da-gate.sh::s@\[ "$rc" -ge 2 \] && exit 2@:@::da-gate FAILS OPEN on an unusable config
 plugins/companion/bin/ship.sh::s@ls-files --others --exclude-standard@ls-files --cached@::untracked critical-path files stop being seen
 plugins/companion/bin/ship.sh::s@--name-only --no-renames HEAD@--name-only HEAD@::a rename hides one side of a critical-path change
-plugins/companion/bin/doc-lint.sh::s@\\"\*|\\'\*)@\\"ZZZ*)@::frontmatter stops rejecting an unterminated quote
-plugins/companion/bin/doc-lint.sh::s@-gt 1 @-gt 99 @::frontmatter stops rejecting a duplicate key
-plugins/companion/bin/doc-lint.sh::s@^        \[.*\]\*)$@        ZZZNEVERMATCH)@::frontmatter stops rejecting a leading YAML indicator (logic, not the message)
-plugins/companion/bin/doc-lint.sh::s@measured (R78)"; rc=1@measured (R78)"; rc=0@::ledger stops FAILING on an unevidenced measurement
+dev/doc-lint.sh::s@\\"\*|\\'\*)@\\"ZZZ*)@::frontmatter stops rejecting an unterminated quote
+dev/doc-lint.sh::s@-gt 1 @-gt 99 @::frontmatter stops rejecting a duplicate key
+dev/doc-lint.sh::s@^        \[.*\]\*)$@        ZZZNEVERMATCH)@::frontmatter stops rejecting a leading YAML indicator (logic, not the message)
+dev/doc-lint.sh::s@measured (R78)"; rc=1@measured (R78)"; rc=0@::ledger stops FAILING on an unevidenced measurement
 check.sh::s@doc-lint.sh" frontmatter@doc-lint.sh" ZZZfrontmatter@::check.sh stops invoking the frontmatter lint
 check.sh::s@doc-lint.sh ledger@doc-lint.sh ZZZledger@::check.sh stops invoking the ledger lint
-plugins/companion/bin/doc-lint.sh::s@{sub(/\\r$/,"")}@{}@::CRLF stops being stripped, re-opening the fail-open frontmatter hole
-plugins/companion/bin/doc-lint.sh::s@NR==1{sub(/\^\[^-\]\*/,"")}@NR==1{}@::a BOM stops being stripped
-plugins/companion/bin/doc-lint.sh::s@sed -e 's/\[~≈\]@sed -e 's/ZZZ@::the ~ approximation exemption stops working
-plugins/companion/bin/doc-lint.sh::s@echo "  FAIL ledger file not found@return 0; echo "  FAIL ledger file not found@::a missing ledger file goes back to silent success
+dev/doc-lint.sh::s@{sub(/\\r$/,"")}@{}@::CRLF stops being stripped, re-opening the fail-open frontmatter hole
+dev/doc-lint.sh::s@NR==1{sub(/\^\[^-\]\*/,"")}@NR==1{}@::a BOM stops being stripped
+dev/doc-lint.sh::s@sed -e 's/\[~≈\]@sed -e 's/ZZZ@::the ~ approximation exemption stops working
+dev/doc-lint.sh::s@echo "  FAIL ledger file not found@return 0; echo "  FAIL ledger file not found@::a missing ledger file goes back to silent success
 plugins/companion/bin/ci-watch.sh::s@exit 12@exit 0@::a give-up watch goes back to reporting success
 plugins/companion/bin/statusline.sh::s@\[ "$NOPEN"  -gt 0 \] \&\& TASKS=@TASKS=@::the drained queue renders 📋 0 again
 plugins/companion/bin/session-start.sh::s@close EVERY reply with a one-line brutal-honest verdict@close some replies@::the compact re-anchor drops the unconditional verdict clause
@@ -30,8 +30,8 @@ plugins/companion/lib/ratelimit.sh::s@if \[ "$3" -ge "$el" \]@if [ "$3" -ge 0 ]@
 plugins/companion/lib/ratelimit.sh::s@case "${len:-}" in ''|\*\[!0-9\]\*) return 0;; esac@case "${len:-}" in zzzNEVERzzz) return 0;; esac@::a length-less window (5h) starts getting a pace marker
 plugins/companion/lib/ratelimit.sh::s@\[ -n "$rst" \] \&\& \[ "$NOW" -gt 0 \] || return 0@[ -n "$rst" ] || return 0@::a failed clock (NOW=0) renders a 56-year countdown
 plugins/companion/lib/ratelimit.sh::s@el=$(( ((len - left) \* 100 + len - 1) / len ))@el=$(( (len - left) * 100 / len ))@::the pace marker loses its ceiling — ▴ starts lying about being on pace
-plugins/companion/bin/mutate-gate.sh::s@\[ "$plan" = "$3" \] && \[ "$res" = "$3" \] || return 1@:@::the gate stops requiring a COMPLETE run — a killed suite scores 'caught' again
-plugins/companion/bin/mutate-gate.sh::s@if \[ "$expect" -lt 2 \]; then@if false; then@::an unparseable suite is no longer refused up front
+dev/mutate-gate.sh::s@\[ "$plan" = "$3" \] && \[ "$res" = "$3" \] || return 1@:@::the gate stops requiring a COMPLETE run — a killed suite scores 'caught' again
+dev/mutate-gate.sh::s@if \[ "$expect" -lt 2 \]; then@if false; then@::an unparseable suite is no longer refused up front
 plugins/companion/bin/session-start.sh::s@awk '/lessons injection stops here/{exit} {print}' "$lf"@cat "$lf"@::LESSONS injects its ON-DEMAND tail again, silently re-taxing every session
-plugins/companion/bin/mutate-gate.sh::s@if \[ "$brc" -ne 0 \]; then@if false; then@::an ALREADY-RED suite is measured anyway, scoring every mutation 'caught'
-plugins/companion/bin/mutate-gate.sh::s@if ! mkdir "$_mut_lock" 2>/dev/null; then@if false; then@::concurrent --mutate runs are allowed to corrupt each other again
+dev/mutate-gate.sh::s@if \[ "$brc" -ne 0 \]; then@if false; then@::an ALREADY-RED suite is measured anyway, scoring every mutation 'caught'
+dev/mutate-gate.sh::s@if ! mkdir "$_mut_lock" 2>/dev/null; then@if false; then@::concurrent --mutate runs are allowed to corrupt each other again

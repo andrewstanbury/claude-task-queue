@@ -6,7 +6,10 @@
 # delete target, and the merged-branch sweep is list-only without --prune-all.
 
 setup() {
-  ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  # Tests live in dev/ and are NOT shipped. ROOT still means the SHIPPED plugin dir; DEV is
+  # where the gates that verify it live. Keeping the two named apart is the point of the split.
+  ROOT="$(cd "$BATS_TEST_DIRNAME/../../plugins/companion" && pwd)"
+  DEV="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   SHIP="$ROOT/bin/ship.sh"
   export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"
   export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"
@@ -427,7 +430,7 @@ NOGH
   local dg="$ROOT/bin/da-gate.sh" repo p
   repo="$(cd "$ROOT/../.." && pwd)"
   [ -f "$repo/.companion/da-paths" ] || skip "repo da-paths not present"
-  for p in plugins/companion/hooks/hooks.json plugins/companion/tests/companion-core.bats \
+  for p in plugins/companion/hooks/hooks.json dev/tests/companion-core.bats \
            plugins/companion/commands/autopilot.md plugins/companion/STEERING.md \
            .github/workflows/ci.yml .companion/da-paths \
            .claude-plugin/marketplace.json plugins/companion/.claude-plugin/plugin.json; do

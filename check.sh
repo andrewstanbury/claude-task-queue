@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 # ── ./check.sh --mutate (R78) ────────────────────────────────────────────────────────
-# The gate lives in bin/mutate-gate.sh so the suite can exercise it (R78, same reason as
-# doc-lint.sh / da-gate.sh / hook-budget.sh). Delegated, not reimplemented.
+# The gate lives in dev/ — it verifies the plugin, it is not part of it. Delegated, not
+# reimplemented, and not shipped to anyone who installs the plugin.
 if [ "${1:-}" = "--mutate" ]; then
   shift
-  exec "$(dirname "$0")/plugins/companion/bin/mutate-gate.sh" "$@"
+  exec "$(dirname "$0")/dev/mutate-gate.sh" "$@"
 fi
 
 # One-command check — the single source of truth for what this repo enforces.
@@ -135,14 +135,14 @@ cmd_params() {
 # Strip one layer of YAML double-quoting so caps are measured on the value the host actually loads.
 unquote() { local v="$1"; case "$v" in \"*\") v="${v#\"}"; v="${v%\"}" ;; esac; printf '%s' "$v"; }
 for f in plugins/companion/commands/*.md; do
-  fm="$(plugins/companion/bin/doc-lint.sh fm "$f")"   # one shared reader — CRLF/BOM safe (R78)
+  fm="$(dev/doc-lint.sh fm "$f")"   # one shared reader — CRLF/BOM safe (R78)
   draw="$(printf '%s\n' "$fm" | awk -F'description: '   '/^description: /{print $2; exit}')"
   hraw="$(printf '%s\n' "$fm" | awk -F'argument-hint: ' '/^argument-hint: /{print $2; exit}')"
   d="$(unquote "$draw")"; hint="$(unquote "$hraw")"
 
   # Frontmatter lint lives in bin/doc-lint.sh so the SUITE can exercise it (R78) — check.sh runs
   # bats, so anything inline here is untestable by construction and was a named gap.
-  if ! out="$("$PWD/plugins/companion/bin/doc-lint.sh" frontmatter "$f")"; then
+  if ! out="$("$PWD/dev/doc-lint.sh" frontmatter "$f")"; then
     printf '%s\n' "$out"; tok_fail=1; fail=1
   fi
 
@@ -202,7 +202,7 @@ EOF
 done
 # Ledger evidence lint — also in bin/doc-lint.sh, same reason (R78).
 led_fail=0
-if ! out="$(plugins/companion/bin/doc-lint.sh ledger docs/REQUIREMENTS.md)"; then
+if ! out="$(dev/doc-lint.sh ledger docs/REQUIREMENTS.md)"; then
   printf '%s\n' "$out"; led_fail=1; fail=1
 fi
 [ "$led_fail" -eq 0 ] && echo "  ok (ledger measurements cite their evidence)"
@@ -219,17 +219,21 @@ section "Hook budget (R81 — hooks stay O(1) in store size; MEASURED, not asser
 # Primary assertion is a SCALING RATIO, not a wall-clock cap — see that file's header for why an
 # absolute-ms budget is machine-dependent and self-defeating. This is the gate that would have
 # stopped the 2085ms->16108ms session-start scan (measured 8.06x, caught) from ever shipping.
-if ! "$PWD/plugins/companion/bin/hook-budget.sh"; then
+if ! "$PWD/dev/hook-budget.sh"; then
   echo "  FAIL — a hook's cost grows with the task store (R81)"; fail=1
 fi
 
 section "Tests (bats)"
 if have bats; then
-  for d in plugins/*/tests tests; do
-    [ -d "$d" ] || continue
+  # One suite, one location — the tests moved to dev/ with the gates they run (they verify the
+  # plugin; they are not part of it). No glob: a loop over one fixed path is just a path.
+  d=dev/tests
+  if [ -d "$d" ]; then
     echo "  -- $d --"
     bats --print-output-on-failure "$d" || fail=1
-  done
+  else
+    echo "  FAIL — $d missing"; fail=1
+  fi
 else
   echo "  FAIL — bats not installed (required to run tests)"; fail=1
 fi

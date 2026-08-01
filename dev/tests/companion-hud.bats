@@ -5,7 +5,10 @@
 # pipes on stdin plus the companion's own state.
 
 setup() {
-  ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  # Tests live in dev/ and are NOT shipped. ROOT still means the SHIPPED plugin dir; DEV is
+  # where the gates that verify it live. Keeping the two named apart is the point of the split.
+  ROOT="$(cd "$BATS_TEST_DIRNAME/../../plugins/companion" && pwd)"
+  DEV="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"
   AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
   export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"

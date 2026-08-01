@@ -12,7 +12,7 @@
 # mutation that stays green is a hole: a test that cannot fail. CI-only by design; it costs a full
 # suite run per mutation, so it is never part of the default gate.
 
-mfile="plugins/companion/tests/mutations.txt"
+mfile="dev/tests/mutations.txt"
 [ -f "$mfile" ] || { echo "no $mfile"; exit 2; }
 # Optional file filter: `--mutate <file>...` runs ONLY the mutations targeting those files, so a
 # ship can afford to check the files it actually touched. The full set is ~9 minutes, which is why
@@ -66,7 +66,7 @@ if ! mkdir "$_mut_lock" 2>/dev/null; then
   echo "       backups and can leave enforced core MUTATED. Wait, or remove the dir if stale."; exit 2
 fi
 trap 'rmdir "$_mut_lock" 2>/dev/null; _mut_restore' EXIT INT TERM HUP
-expect="$(bats --count plugins/companion/tests 2>/dev/null | tr -d '[:space:]')"
+expect="$(bats --count dev/tests 2>/dev/null | tr -d '[:space:]')"
 case "${expect:-}" in ''|*[!0-9]*) expect=0 ;; esac
 if [ "$expect" -lt 2 ]; then
   echo "  FAIL cannot enumerate the suite (bats --count gave '${expect}') — a gate that cannot"
@@ -76,7 +76,7 @@ fi
 # nothing if it was already red. One pre-existing failure makes EVERY mutation report "caught",
 # and that is the most dangerous reading this gate can produce: a clean bill of health for
 # coverage it never demonstrated. Costs one suite run; the alternative is a lie.
-bout="$(bats plugins/companion/tests 2>&1)"; brc=$?
+bout="$(bats dev/tests 2>&1)"; brc=$?
 if [ "$brc" -ne 0 ]; then
   echo "  FAIL the suite is ALREADY RED before any mutation — every mutation would report"
   echo "       'caught' for a failure it did not cause. Fix the suite, then measure."
@@ -107,12 +107,12 @@ while IFS= read -r line; do
   # run) and when it cannot gather tests (a well-formed `1..1 / not ok bats-gather-tests`, also
   # nothing run). Scoring either as "caught" is how a real hole certified itself — twice. Require a
   # COMPLETE run: plan and result lines both equal to the calibrated count, with >=1 failure.
-  mout="$(bats plugins/companion/tests 2>&1)"; mrc=$?
+  mout="$(bats dev/tests 2>&1)"; mrc=$?
   # Retry ONLY an incomplete NONZERO run — transient load is the commonest cause. A green run is a
   # finished run: retrying it buys nothing and doubles the cost of every hole (which is how this
   # gate first blew its own timeout).
   if [ "$mrc" -ne 0 ] && ! _mut_complete "$mrc" "$mout" "$expect"; then
-    mout="$(bats plugins/companion/tests 2>&1)"; mrc=$?
+    mout="$(bats dev/tests 2>&1)"; mrc=$?
   fi
   if [ "$mrc" -eq 0 ]; then
     echo "  HOLE  suite stayed GREEN with: $what"; holes=$((holes+1))

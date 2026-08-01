@@ -38,7 +38,10 @@ while [ -L "$SELF" ]; do
   link="$(readlink "$SELF")"
   case "$link" in /*) SELF="$link" ;; *) SELF="$(dirname "$SELF")/$link" ;; esac
 done
-BIN="$(cd "$(dirname "$SELF")" && pwd)"
+# This gate lives in dev/ (it verifies the plugin, it is not part of it), so the hooks it measures
+# are NOT its siblings. $HOOK_BUDGET_BIN lets the tests point it at a fixture; the default is the
+# shipped plugin's bin/ relative to the repo root.
+BIN="${HOOK_BUDGET_BIN:-$(cd "$(dirname "$SELF")/../plugins/companion/bin" && pwd)}"
 
 # Tunables (R81: the VALUES are tunable, measuring them is not).
 MULT="${HOOK_BUDGET_MULT:-8}"        # how much bigger the oversized store is

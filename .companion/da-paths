@@ -8,7 +8,10 @@
 # typo trains a reflexive "clean", and a rubber stamp launders the decision instead of testing it.
 ^plugins/[^/]+/(bin|lib)/
 ^check\.sh$
-^plugins/[^/]+/(hooks|commands|tests)/
+^plugins/[^/]+/(hooks|commands)/
+# the verification kit: it no longer ships, but weakening a gate or a test is exactly what R78
+# exists to challenge — the move out of the plugin must not move it out of scrutiny.
+^dev/
 ^plugins/[^/]+/STEERING\.md$
 ^\.github/
 # the manifests decide what actually gets INSTALLED

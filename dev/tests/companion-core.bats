@@ -6,7 +6,10 @@
 # live in companion-gates.bats; the status line in companion-hud.bats.)
 
 setup() {
-  ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  # Tests live in dev/ and are NOT shipped. ROOT still means the SHIPPED plugin dir; DEV is
+  # where the gates that verify it live. Keeping the two named apart is the point of the split.
+  ROOT="$(cd "$BATS_TEST_DIRNAME/../../plugins/companion" && pwd)"
+  DEV="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"
   AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
   DRIFT="$ROOT/bin/contract-drift.sh"   # R58 living contract (drift backstop)
@@ -322,7 +325,7 @@ _ux_flow_check() {
   # not failed — coverage stays truthful. (bats proves the test PASSES; this proves it EXISTS + is
   # wired to the flow.) Uses the shared _ux_* helpers — the same code the guard-test runs.
   local repo titles; repo="$(cd "$ROOT/../.." && pwd)"
-  [ -d "$repo/docs/flows" ]; titles="$(grep -h '^@test' "$ROOT/tests"/*.bats)"
+  [ -d "$repo/docs/flows" ]; titles="$(grep -h '^@test' "$DEV/tests"/*.bats)"
   local f line frag s; local -a bad=()
   for f in "$repo"/docs/flows/*.md; do [ -f "$f" ] || continue
     while IFS= read -r line; do
@@ -339,7 +342,7 @@ _ux_flow_check() {
   # _ux_flow_check + _ux_check_resolves the real gate uses (not a re-implemented proxy), proving the
   # matcher rejects a phantom AND accepts a real name — so it can't be silently stuck always-pass or
   # always-fail. Also covers the silent-skip edge: a leading-indented Tests line must still be gated.
-  local titles; titles="$(grep -h '^@test' "$ROOT/tests"/*.bats)"
+  local titles; titles="$(grep -h '^@test' "$DEV/tests"/*.bats)"
   local frag s; _check() { local r="$1"                # returns 0 iff the line's [E] test resolves
     frag="$(_ux_flow_check "$r")"; [ -n "$frag" ] || return 1
     s="${frag#\`}"; s="${s%\`}"; _ux_check_resolves "$s" "$titles"; }
@@ -921,7 +924,7 @@ _sw_repo() {
   # rejected all unquoted values passed all three cases AND left check.sh green (every real
   # command already quotes). The "must not break valid commands" contract had no coverage.
   printf -- '---\ndescription: walk the parked backlog one at a time\n---\nbody\n' > "$d/d.md"
-  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/a.md" "$d/b.md" "$d/c.md" "$d/d.md"
+  run "$DEV/doc-lint.sh" frontmatter "$d/a.md" "$d/b.md" "$d/c.md" "$d/d.md"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
@@ -933,33 +936,33 @@ _sw_repo() {
   printf -- '---\ndescription: "never closed\n---\nbody\n'                 > "$d/quote.md"
   printf -- '---\ndescription: "one"\ndescription: "two"\n---\nbody\n'     > "$d/dup.md"
   for c in ind colon quote dup; do
-    run "$ROOT/bin/doc-lint.sh" frontmatter "$d/$c.md"
+    run "$DEV/doc-lint.sh" frontmatter "$d/$c.md"
     [ "$status" -eq 1 ]
     [[ "$output" == *"FAIL"* ]]
   done
-  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/ind.md"
+  run "$DEV/doc-lint.sh" frontmatter "$d/ind.md"
   [[ "$output" == *"YAML indicator"* ]]
-  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/quote.md"
+  run "$DEV/doc-lint.sh" frontmatter "$d/quote.md"
   [[ "$output" == *"never closes"* ]]
-  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/dup.md"
+  run "$DEV/doc-lint.sh" frontmatter "$d/dup.md"
   [[ "$output" == *"duplicate"* ]]
 }
 
 @test "doc-lint ledger: a hard measurement needs evidence; a rhetorical figure does not (R78)" {
   local d; d="$(mktemp -d)"
   printf '| **R1** | 🔓 | Grew by 512B and blocked 25/25 turns. | 2026-01-01, no evidence. |\n' > "$d/bad.md"
-  run "$ROOT/bin/doc-lint.sh" ledger "$d/bad.md"
+  run "$DEV/doc-lint.sh" ledger "$d/bad.md"
   [ "$status" -eq 1 ]
   [[ "$output" == *"R1 states a measurement with no evidence"* ]]
 
   printf '| **R2** | 🔓 | Grew by 512B, measured with check.sh. | 2026-01-01. |\n' > "$d/good.md"
-  run "$ROOT/bin/doc-lint.sh" ledger "$d/good.md"
+  run "$DEV/doc-lint.sh" ledger "$d/good.md"
   [ "$status" -eq 0 ]
 
   # a rhetorical estimate is a judgement, not a measurement — it must NOT trip the rule (this
   # false-positived on R40's "~90% of the value" during calibration)
   printf '| **R3** | 🔓 | Roughly ~90%% of the value, and version 3.22.0. | 2026-01-01. |\n' > "$d/rhet.md"
-  run "$ROOT/bin/doc-lint.sh" ledger "$d/rhet.md"
+  run "$DEV/doc-lint.sh" ledger "$d/rhet.md"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
@@ -982,12 +985,12 @@ _sw_repo() {
   local d; d="$(mktemp -d)"
   printf -- '---\r\ndescription: "never closed\r\n---\r\nbody\r\n' > "$d/crlf.md"
   printf -- '\xef\xbb\xbf---\ndescription: [bad]\n---\nbody\n'     > "$d/bom.md"
-  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/crlf.md"
+  run "$DEV/doc-lint.sh" frontmatter "$d/crlf.md"
   [ "$status" -eq 1 ]; [[ "$output" == *"never closes"* ]]
-  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/bom.md"
+  run "$DEV/doc-lint.sh" frontmatter "$d/bom.md"
   [ "$status" -eq 1 ]; [[ "$output" == *"YAML indicator"* ]]
   # and the shared reader really returns the block for both
-  run "$ROOT/bin/doc-lint.sh" fm "$d/crlf.md"
+  run "$DEV/doc-lint.sh" fm "$d/crlf.md"
   [[ "$output" == *"description"* ]]
 }
 
@@ -995,10 +998,10 @@ _sw_repo() {
   local d; d="$(mktemp -d)"
   printf -- '---\ndescription: >\n  folded and valid\n---\nb\n' > "$d/f.md"
   printf -- '---\ndescription: |\n  literal and valid\n---\nb\n' > "$d/l.md"
-  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/f.md" "$d/l.md"
+  run "$DEV/doc-lint.sh" frontmatter "$d/f.md" "$d/l.md"
   [ "$status" -eq 0 ]; [ -z "$output" ]
   printf -- '---\ndescription: [still bad]\n---\nb\n' > "$d/i.md"   # real indicators still caught
-  run "$ROOT/bin/doc-lint.sh" frontmatter "$d/i.md"
+  run "$DEV/doc-lint.sh" frontmatter "$d/i.md"
   [ "$status" -eq 1 ]
 }
 
@@ -1007,17 +1010,17 @@ _sw_repo() {
   # did not — the exemption only worked for single digits.
   local d; d="$(mktemp -d)"
   printf '| **R9** | 🔓 | Grew by ~371B and ≈1200 tokens. | x. |\n' > "$d/approx.md"
-  run "$ROOT/bin/doc-lint.sh" ledger "$d/approx.md"
+  run "$DEV/doc-lint.sh" ledger "$d/approx.md"
   [ "$status" -eq 0 ]; [ -z "$output" ]
   printf '| **R9** | 🔓 | Grew by 371B. | x. |\n' > "$d/hard.md"    # a hard figure still needs evidence
-  run "$ROOT/bin/doc-lint.sh" ledger "$d/hard.md"
+  run "$DEV/doc-lint.sh" ledger "$d/hard.md"
   [ "$status" -eq 1 ]
 }
 
 @test "doc-lint ledger: a missing file FAILS loudly instead of reporting ok (R78)" {
   # It exited 0, and check.sh then printed "ok (ledger measurements cite their evidence)" for a
   # check that never ran — a gate reporting green on work it did not do.
-  run "$ROOT/bin/doc-lint.sh" ledger /nonexistent/REQUIREMENTS.md
+  run "$DEV/doc-lint.sh" ledger /nonexistent/REQUIREMENTS.md
   [ "$status" -eq 1 ]
   [[ "$output" == *"not found"* ]]
 }
@@ -1028,7 +1031,7 @@ _sw_repo() {
   # whole store (the shape of the 2085ms->16108ms regression) must FAIL, and a bounded one PASS.
   command -v jq >/dev/null 2>&1 || skip "jq not installed"
   local fake; fake="$(mktemp -d)"; mkdir -p "$fake/bin" "$fake/lib"
-  cp "$ROOT/bin/hook-budget.sh" "$fake/bin/"; cp "$ROOT/lib/companion.sh" "$fake/lib/"
+  cp "$DEV/hook-budget.sh" "$fake/bin/"; cp "$ROOT/lib/companion.sh" "$fake/lib/"
   # BOUNDED: touches nothing in the store. Must pass.
   printf '#!/usr/bin/env bash\nexit 0\n' > "$fake/bin/session-start.sh"
   chmod +x "$fake/bin/session-start.sh"
@@ -1036,7 +1039,7 @@ _sw_repo() {
   # enough that the unbounded hook clears the noise floor. With the old tiny store the fake
   # hook measured UNDER NOISE_MS, where the ratio is not enforced — so the gate passed it and
   # this guard silently stopped guarding. It failed only under load, which is how it surfaced.
-  run env HOOK_BUDGET_BASEDIRS=8 HOOK_BUDGET_PERDIR=8 HOOK_BUDGET_ABSCAP=200 bash "$fake/bin/hook-budget.sh"
+  run env HOOK_BUDGET_BIN="$fake/bin" HOOK_BUDGET_BASEDIRS=8 HOOK_BUDGET_PERDIR=8 HOOK_BUDGET_ABSCAP=200 bash "$fake/bin/hook-budget.sh"
   [ "$status" -eq 0 ]
   [[ "$output" == *"session-start.sh"* ]]
   # UNBOUNDED: one jq per file across every session dir — cost tracks the store. Must fail.
@@ -1049,7 +1052,7 @@ done
 exit 0
 EOS
   chmod +x "$fake/bin/session-start.sh"
-  run env HOOK_BUDGET_BASEDIRS=8 HOOK_BUDGET_PERDIR=8 HOOK_BUDGET_ABSCAP=200 bash "$fake/bin/hook-budget.sh"
+  run env HOOK_BUDGET_BIN="$fake/bin" HOOK_BUDGET_BASEDIRS=8 HOOK_BUDGET_PERDIR=8 HOOK_BUDGET_ABSCAP=200 bash "$fake/bin/hook-budget.sh"
   [ "$status" -eq 1 ]
   [[ "$output" == *"FAIL"* ]]
 }
@@ -1058,11 +1061,11 @@ EOS
   # Best-effort about the environment, strict about the budget (R7/R68): a toolless box must not
   # turn into a red build, or the gate gets deleted for being flaky.
   local fake bsh; fake="$(mktemp -d)"; mkdir -p "$fake/bin" "$fake/empty"
-  cp "$ROOT/bin/hook-budget.sh" "$fake/bin/"
+  cp "$DEV/hook-budget.sh" "$fake/bin/"
   # Absolute interpreter path: `env PATH=<empty> bash …` would fail to find bash ITSELF, which
   # tests nothing about the gate. Emptying PATH must hide jq/git from the script, not the shell.
   bsh="$(command -v bash)"
-  run env PATH="$fake/empty" "$bsh" "$fake/bin/hook-budget.sh"
+  run env PATH="$fake/empty" HOOK_BUDGET_BIN="$fake/bin" "$bsh" "$fake/bin/hook-budget.sh"
   [ "$status" -eq 0 ]
   [[ "$output" == *"SKIP"* ]]
 }
@@ -1278,7 +1281,7 @@ EOS
   # digits-only guard and fell through to 0 — a green gate that measured nothing at all.
   command -v jq >/dev/null 2>&1 || skip "jq not installed"
   run env LC_NUMERIC=de_DE.UTF-8 LC_ALL=de_DE.UTF-8 \
-      HOOK_BUDGET_BASEDIRS=6 HOOK_BUDGET_PERDIR=4 bash "$ROOT/bin/hook-budget.sh"
+      HOOK_BUDGET_BASEDIRS=6 HOOK_BUDGET_PERDIR=4 bash "$DEV/hook-budget.sh"
   [ "$status" -eq 0 ]
   # at least one hook must report a NON-zero measurement
   [[ "$output" =~ [1-9][0-9]*ms ]]
@@ -1292,13 +1295,13 @@ EOS
 # real suite.
 _mutgate() {  # $1 = shim body ("" = use the real bats) · $2 = tag → runs the REAL gate
   local d="$BATS_TEST_TMPDIR/mg$2"
-  mkdir -p "$d/plugins/companion/tests" "$d/plugins/companion/bin" "$d/shim"
-  cp "$ROOT/bin/mutate-gate.sh" "$d/plugins/companion/bin/"
+  mkdir -p "$d/dev/tests" "$d/plugins/companion" "$d/shim"
+  cp "$DEV/mutate-gate.sh" "$d/dev/"
   printf 'VALUE=1\n' > "$d/plugins/companion/target.sh"
   printf 'plugins/companion/target.sh::s@VALUE=1@VALUE=2@::the value changes\n' \
-    > "$d/plugins/companion/tests/mutations.txt"
+    > "$d/dev/tests/mutations.txt"
   [ -n "$1" ] && { printf '%s\n' "$1" > "$d/shim/bats"; chmod +x "$d/shim/bats"; }
-  ( cd "$d" && PATH="$d/shim:$PATH" ./plugins/companion/bin/mutate-gate.sh plugins/companion/target.sh 2>&1 )
+  ( cd "$d" && PATH="$d/shim:$PATH" ./dev/mutate-gate.sh plugins/companion/target.sh 2>&1 )
 }
 # A shim that answers --count with 3, passes the gate's GREEN BASELINE run (call #1), and only
 # then behaves as told. The baseline check is itself under test below, so shims must satisfy it.
@@ -1340,14 +1343,14 @@ _shim() {
   # This is not hypothetical — a killed run left doc-lint.sh mutated in the tree, one test went
   # red, and the gate duly certified two mutations it had not actually measured.
   local d="$BATS_TEST_TMPDIR/mgred"
-  mkdir -p "$d/plugins/companion/tests" "$d/plugins/companion/bin"
-  cp "$ROOT/bin/mutate-gate.sh" "$d/plugins/companion/bin/"
+  mkdir -p "$d/dev/tests" "$d/plugins/companion"
+  cp "$DEV/mutate-gate.sh" "$d/dev/"
   printf 'VALUE=1\n' > "$d/plugins/companion/target.sh"
   printf 'plugins/companion/target.sh::s@VALUE=1@VALUE=2@::the value changes\n' \
-    > "$d/plugins/companion/tests/mutations.txt"
+    > "$d/dev/tests/mutations.txt"
   printf '@test "a" { true; }\n@test "already broken" { false; }\n@test "c" { true; }\n' \
-    > "$d/plugins/companion/tests/t.bats"
-  run bash -c 'cd "$1" && ./plugins/companion/bin/mutate-gate.sh plugins/companion/target.sh 2>&1' _ "$d"
+    > "$d/dev/tests/t.bats"
+  run bash -c 'cd "$1" && ./dev/mutate-gate.sh plugins/companion/target.sh 2>&1' _ "$d"
   [ "$status" -eq 2 ]
   [[ "$output" == *"ALREADY RED"* ]]
   [[ "$output" == *"already broken"* ]]   # names the culprit rather than just refusing
@@ -1359,16 +1362,16 @@ _shim() {
   # ready for the next `git add -A`. That happened: doc-lint.sh lost its BOM stripping and ship.sh
   # lost sight of untracked critical paths, both silently.
   local d="$BATS_TEST_TMPDIR/mglock"
-  mkdir -p "$d/plugins/companion/tests" "$d/plugins/companion/bin"
-  cp "$ROOT/bin/mutate-gate.sh" "$d/plugins/companion/bin/"
+  mkdir -p "$d/dev/tests" "$d/plugins/companion"
+  cp "$DEV/mutate-gate.sh" "$d/dev/"
   printf 'VALUE=1\n' > "$d/plugins/companion/target.sh"
   printf 'plugins/companion/target.sh::s@VALUE=1@VALUE=2@::the value changes\n' \
-    > "$d/plugins/companion/tests/mutations.txt"
-  printf '@test "a" { true; }\n@test "b" { true; }\n' > "$d/plugins/companion/tests/t.bats"
+    > "$d/dev/tests/mutations.txt"
+  printf '@test "a" { true; }\n@test "b" { true; }\n' > "$d/dev/tests/t.bats"
   # Hold the lock the way a running gate would, then prove a second run refuses instead of racing.
   local lk; lk="${TMPDIR:-/tmp}/companion-mutate-$(printf '%s' "$d" | cksum | cut -d' ' -f1).lock"
   mkdir -p "$lk"
-  run bash -c 'cd "$1" && ./plugins/companion/bin/mutate-gate.sh plugins/companion/target.sh 2>&1' _ "$d"
+  run bash -c 'cd "$1" && ./dev/mutate-gate.sh plugins/companion/target.sh 2>&1' _ "$d"
   rmdir "$lk" 2>/dev/null || true
   [ "$status" -eq 2 ]
   [[ "$output" == *"another --mutate run"* ]]
@@ -1384,13 +1387,13 @@ _shim() {
   # and the first version of this very fix scored EVERY mutation as caught because of it, exiting
   # 0. Calibrating with `bats --count` catches it before a single mutation is applied.
   local d="$BATS_TEST_TMPDIR/mgparse"
-  mkdir -p "$d/plugins/companion/tests" "$d/plugins/companion/bin"
-  cp "$ROOT/bin/mutate-gate.sh" "$d/plugins/companion/bin/"
+  mkdir -p "$d/dev/tests" "$d/plugins/companion"
+  cp "$DEV/mutate-gate.sh" "$d/dev/"
   printf 'VALUE=1\n' > "$d/plugins/companion/target.sh"
   printf 'plugins/companion/target.sh::s@VALUE=1@VALUE=2@::the value changes\n' \
-    > "$d/plugins/companion/tests/mutations.txt"
-  printf '@test "broken" {\n  if true; then\n}\n' > "$d/plugins/companion/tests/x.bats"
-  run bash -c 'cd "$1" && ./plugins/companion/bin/mutate-gate.sh plugins/companion/target.sh 2>&1' _ "$d"
+    > "$d/dev/tests/mutations.txt"
+  printf '@test "broken" {\n  if true; then\n}\n' > "$d/dev/tests/x.bats"
+  run bash -c 'cd "$1" && ./dev/mutate-gate.sh plugins/companion/target.sh 2>&1' _ "$d"
   [ "$status" -eq 2 ]
   [[ "$output" == *"cannot enumerate the suite"* ]]
   [[ "$output" != *"caught"* ]]

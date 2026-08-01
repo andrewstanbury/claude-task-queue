@@ -7,7 +7,10 @@
 # design rests on; a regression here is a hook that could break a user's edit.
 
 setup() {
-  ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
+  # Tests live in dev/ and are NOT shipped. ROOT still means the SHIPPED plugin dir; DEV is
+  # where the gates that verify it live. Keeping the two named apart is the point of the split.
+  ROOT="$(cd "$BATS_TEST_DIRNAME/../../plugins/companion" && pwd)"
+  DEV="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"
   export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"
 }

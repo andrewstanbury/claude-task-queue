@@ -9,3 +9,4 @@ tmp/
 .claude/settings.local.json
 .claude/worktrees/
 *.mutbak
+.ruff_cache/
