@@ -1605,3 +1605,18 @@ _bd_setup() {
   _bb list; [ -z "$output" ]
   [ "$(git -C "$d" rev-list --count main)" -eq 1 ]
 }
+
+@test "candidates: does not feed on prose ABOUT markers, only real annotations" {
+  # The first run of this generator against its own repo returned four candidates that were all
+  # documentation EXPLAINING what a TODO signal is — including its own source comments. A
+  # generator that reads its own definition as input is a mirror, not a signal.
+  local d tk; d="$(mktemp -d)"; tk="$(mktemp -d)"; git -C "$d" init -q
+  printf 'x=1  # TODO: cache this\n'                 > "$d/a.sh"
+  printf '# Guide\nWe write TODO: markers like this.\n' > "$d/guide.md"
+  git -C "$d" add -A; git -C "$d" -c user.email=t@t -c user.name=t commit -q -m i
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" bash "$ROOT/bin/candidates.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"a.sh"* ]]        # a real annotation in code is still a candidate
+  [[ "$output" != *"guide.md"* ]]    # prose about markers is not
+  [[ "$output" != *"candidates.sh"* ]]  # and never its own source
+}

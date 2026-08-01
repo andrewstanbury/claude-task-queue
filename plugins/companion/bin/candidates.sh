@@ -62,8 +62,16 @@ if [ "$found" -lt "$LIMIT" ]; then
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     emit 3 todo "$line"
-  done < <(git -C "$root" grep -nIE '(TODO|FIXME|XXX)[: ]' -- . 2>/dev/null \
+  # TWO EXCLUSIONS, both learned the hard way — the first run of this against its own repo
+  # returned four candidates that were all PROSE ABOUT TODO MARKERS, including this very comment
+  # block. A generator that feeds on its own definition is not grounded, it is a mirror.
+  #   · `:!*.md` — markdown is prose and checklists, not code annotations. Genuine intent recorded
+  #     in markdown is already rank 2, so nothing is lost by declining to read it as rank 3.
+  #   · this file — self-exclusion is the general rule, not a special case: a tool must never
+  #     propose work sourced from its own explanation of what it looks for.
+  done < <(git -C "$root" grep -nIE '(TODO|FIXME|XXX)[: ]' -- . ':!*.md' ':!*.markdown' 2>/dev/null \
            | grep -vE '(^|/)(dev/tests|node_modules|vendor)/' \
+           | grep -vF "${SELF##*/}" \
            | sed -e 's/[[:space:]]*$//' | head -"$LIMIT")
 fi
 

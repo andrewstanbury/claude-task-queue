@@ -22,6 +22,11 @@ work always outranks generated work and will make this mode refuse to run at all
    - **Rank 5 is `invent`**, meaning nothing recorded remains. Do **not** build it. Park it as a
      `❓` proposal with your recommendation and stop the loop. Inventing work to fill a quota is
      precisely the failure this whole mode is shaped to avoid.
+   - **A candidate may not be buildable at all** — a rank-1 park is often a *decision* ("should we
+     push?", "which backend?"), not a feature. No pattern can tell those apart reliably, so this is
+     your judgment: if building it would mean **making the owner's decision for them**, skip it,
+     leave the park exactly as it is, and take the next candidate. Never convert a question into an
+     implementation just because it ranked first.
 3. **Open the container before writing anything.**
    `"$CLAUDE_PLUGIN_ROOT/bin/burndown-branch.sh" start "<the candidate line verbatim>"` — it
    creates `burndown/<slug>` off the default branch, refuses if the tree is dirty, and writes a

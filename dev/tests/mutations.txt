@@ -44,3 +44,4 @@ plugins/companion/bin/candidates.sh::s@| grep -F 'rec:' | head@| head@::a park w
 plugins/companion/bin/candidates.sh::s@if \[ "$found" -eq 0 \]; then@if true; then@::invention is emitted even when recorded signals exist
 plugins/companion/bin/burndown-branch.sh::s@\[ -z "$(git -C "$root" status --porcelain 2>/dev/null)" \] ||@[ 1 -eq 1 ] ||@::autonomous work starts on top of the owner's uncommitted changes
 plugins/companion/bin/burndown-branch.sh::s@\[ "$cur" = "burndown/$slug" \] &&@[ 1 -eq 2 ] \&\&@::discard deletes the branch you are standing on
+plugins/companion/bin/candidates.sh::s@-- . ':!\*.md' ':!\*.markdown'@-- .@::the todo signal reads prose about markers again, feeding on documentation
