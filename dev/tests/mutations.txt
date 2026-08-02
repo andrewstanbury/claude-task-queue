@@ -67,4 +67,4 @@ dev/portability-lint.sh::s|grep -HnF '$(mktemp -d)'|grep -HnF 'zzzNEVERzzz'|::th
 check.sh::s@dev/portability-lint.sh fixtures dev/tests/\*.bats@true dev/tests@::check.sh stops running the fixture-leak lint
 plugins/companion/bin/ship.sh::s@\[ "$cur" = "$def" \] &&@[ "$cur" = zzzNEVER ] \&\&@::committed-but-unpushed work on the default branch reports 'nothing to commit' again
 dev/mutate-gate.sh::s@if \[ "$shard_m" -gt 1 \] \&\& \[ $(( (idx - 1) % shard_m )) -ne "$shard_n" \]; then@if false; then@::--shard stops partitioning — every shard runs every mutation
-check.sh::s@dev/trace.sh 2>&1@true 2>&1@::check.sh stops running the traceability gate
+check.sh::s@dev/trace.sh 2>&1@:@::check.sh stops running the traceability gate

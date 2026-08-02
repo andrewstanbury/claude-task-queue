@@ -99,6 +99,12 @@ if [ "$do_validate" = 1 ]; then
     tgt="${line%%::*}"; tmp="${line#*::}"; sedscript="${tmp%%::*}"; what="${tmp#*::}"
     [ -f "$tgt" ] || { echo "  FAIL missing target: $tgt ($what)"; vbad=1; continue; }
     vn=$((vn+1))
+    # An unescaped `&` in the REPLACEMENT expands to the whole match, silently re-inserting the
+    # text the mutation was meant to remove. The result changes the file (so it validates) while
+    # leaving the target string in place — which then reads as a HOLE in whatever guard searches
+    # for that string, sending you to debug the guard instead of the mutation. Caught statically.
+    if printf '%s' "$sedscript" | awk -v FS="" '{d=$2; n=0; for(i=3;i<=NF;i++){ if($i==d && $(i-1)!="\\") n++; if(n==1 && $i=="&" && $(i-1)!="\\") { exit 1 } } }'; then :
+    else echo "  FAIL replacement contains an unescaped & (expands to the whole match): $what"; vbad=1; mv "$tgt.mutbak" "$tgt" 2>/dev/null; continue; fi
     cp "$tgt" "$tgt.mutbak"
     if ! sed -i.bak "$sedscript" "$tgt" 2>/dev/null; then
       echo "  FAIL sed script is invalid (delimiter collision?): $what"; vbad=1
