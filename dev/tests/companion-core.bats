@@ -1463,12 +1463,21 @@ _bd() {  # $1=used7 $2=used5 $3=age-offset → run the forecaster against a fres
   run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
       BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
 }
+# Encode a repo path the way lib/companion.sh does, keyed on the RESOLVED root. On macOS
+# `mktemp -d` returns /var/folders/... and git resolves it to /private/var/folders/..., so any test
+# that hand-encodes the mktemp path creates a flag the product never looks at — green on Linux,
+# vacuous on macOS. Always go through git, exactly like companion_root does.
+_flagpath() {  # $1=state dir · $2=flag kind (autopilot|burndown|ship|…) · $3=repo dir
+  local r; r="$(git -C "$3" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$3")"
+  printf '%s/%s/%s' "$1" "$2" "$(printf '%s' "$r" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+}
+
 _bd_setup() {
   BD_REPO="$(mktemp -d)"; git -C "$BD_REPO" init -q -b main
   git -C "$BD_REPO" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
   BD_STATE="$(mktemp -d)"; BD_TASKS="$(mktemp -d)"
   mkdir -p "$BD_STATE/burndown"
-  touch "$BD_STATE/burndown/$(printf '%s' "$BD_REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  touch "$(_flagpath "$BD_STATE" burndown "$BD_REPO")"
 }
 
 @test "burn-down: HOLD is the default and every unknown resolves to it" {
@@ -1477,7 +1486,7 @@ _bd_setup() {
   rm -rf "$BD_STATE/burndown"
   _bd 10; [ "$status" -eq 0 ]; [[ "$output" == HOLD:* ]]; [[ "$output" == *"OFF for this repo"* ]]
   mkdir -p "$BD_STATE/burndown"
-  touch "$BD_STATE/burndown/$(printf '%s' "$BD_REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  touch "$(_flagpath "$BD_STATE" burndown "$BD_REPO")"
   # No snapshot at all — the status line may simply not be wired. Cannot forecast, so hold.
   rm -f "$BD_STATE/ratelimit"
   run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
@@ -1722,7 +1731,7 @@ _bd_setup() {
   local d st tk; d="$(mktemp -d)"; st="$(mktemp -d)"; tk="$(mktemp -d)"
   git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
   mkdir -p "$st/burndown" "$tk/s1"; printf '%s' "$d" > "$tk/s1/.root"
-  touch "$st/burndown/$(printf '%s' "$d" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  touch "$(_flagpath "$st" burndown "$d")"
   local n; n="$(date +%s)"
   printf '%s 20 %s 10 %s\n' "$n" "$((n+7200))" "$((n+86400))" > "$st/ratelimit"
   _bd2() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" CLAUDE_COMPANION_TASKS_DIR="$tk" bash "$ROOT/bin/burn-down.sh" status; }
@@ -1859,7 +1868,7 @@ _bd_setup() {
   [[ "$output" == *"no pause is needed"* ]]                   # autopilot off
   # ARMED: it must say pause first, because the ask-guard would otherwise PARK the review's own
   # questions instead of asking them — the review would silently accomplish nothing.
-  mkdir -p "$st/autopilot"; touch "$st/autopilot/$(printf '%s' "$d" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  mkdir -p "$st/autopilot"; touch "$(_flagpath "$st" autopilot "$d")"
   _pc continue
   [[ "$output" == *"autopilot.sh pause"* ]] && [[ "$output" == *"resume"* ]]
   # A ⏳ alone counts too — manual jobs are equally the owner's.

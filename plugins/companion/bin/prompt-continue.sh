@@ -42,7 +42,9 @@ root="$(companion_root "$cwd")"
 
 # Count what needs the OWNER, not what needs building. Same classification the queue and the
 # status line use: a ❓/⏳ prefix on the subject.
-pile="$(companion_open_tasks "$root" 2>/dev/null | grep '^  ◻' | grep -c '^  ◻ *[❓⏳]' || true)"
+# -e alternation, NOT a [❓⏳] bracket: a bracket expression over multibyte characters is not
+# portable — BSD grep (the macOS CI lane) can match bytes rather than characters.
+pile="$(companion_open_tasks "$root" 2>/dev/null | grep '^  ◻' | grep -c -e '^  ◻ *❓' -e '^  ◻ *⏳' || true)"
 case "$pile" in ''|*[!0-9]*) pile=0 ;; esac
 [ "$pile" -gt 0 ] || exit 0        # nothing waiting on them → say nothing, just drain
 
