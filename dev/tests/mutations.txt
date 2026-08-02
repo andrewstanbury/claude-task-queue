@@ -1,9 +1,9 @@
 # Declared mutations for `./check.sh --mutate` (R78). Each line: <file>::<sed script>::<what it breaks>
 # A mutation that does NOT turn the suite red is a HOLE — a test that cannot fail. Three such holes
 # hid real defects in a single session, each masked by a fixture that also tripped another rule.
-plugins/companion/bin/stop-autopilot.sh::s@rev:"))@rev:")) or (subj|startswith("❓"))@::sweep drops the rev: marker requirement
-plugins/companion/bin/stop-autopilot.sh::s|(subj\|startswith("⏳")) or|(false) or|::sweep starts eating owner-blocked items
-plugins/companion/bin/stop-autopilot.sh::s|((subj\|ascii_downcase\|contains("decompose:"))\|not)|(true)|::sweep starts eating decompose parks
+plugins/companion/bin/tq::s@rev:"))@rev:")) or (subj|startswith("❓"))@::sweep drops the rev: marker requirement
+plugins/companion/bin/tq::s|(subj\|startswith("⏳")) or|(false) or|::sweep starts eating owner-blocked items
+plugins/companion/bin/tq::s|((subj\|ascii_downcase\|contains("decompose:"))\|not)|(true)|::sweep starts eating decompose parks
 plugins/companion/bin/stop-autopilot.sh::s|if \[ "$swept" -ge "$max" \]|if [ "$swept" -ge 99999 ]|::the sweep terminator is removed
 plugins/companion/bin/secret-guard.sh::s|exit 2|exit 0|::the secret gate stops blocking
 plugins/companion/bin/ship.sh::s@if \[ -z "$da" \]; then@if false; then@::the devil's-advocate gate never fires
@@ -78,6 +78,7 @@ plugins/companion/bin/ask-guard.sh::s@"❓ \[parked\] decision: "@"❓ [parked] 
 plugins/companion/bin/tq::s@map(select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0))@map(select(true))@::the next pointer points at work that cannot start again
 plugins/companion/bin/stop-autopilot.sh::s@IFS=$'\\x1f' read -r OPEN@IFS=$'\\t' read -r OPEN@::the Stop hook reads tab-delimited again, so an empty done_when collapses two delimiters and shifts every later field
 plugins/companion/bin/stop-autopilot.sh::s@ || \[ "$STARTABLE" -eq 0 \]@@::the drain pushes on when every remaining task waits on an earlier item
-plugins/companion/bin/stop-autopilot.sh::s@$st\[0\].id@$o[0].id@::the Stop hook offers the first OPEN task rather than the first STARTABLE one
-plugins/companion/bin/stop-autopilot.sh::s@select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)@select(true)@::the Stop hook forgets dependencies entirely
-plugins/companion/bin/stop-autopilot.sh::s@match("after #(\[0-9\]+)";"g")@capture("after #(?<n>[0-9]+)")@::the Stop hook honours only the FIRST blocker, so a task with two starts early
+plugins/companion/bin/tq::s@$st\[0\].id@$o[0].id@::the startable pointer reverts to the first OPEN task
+plugins/companion/bin/tq::s@select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)\]@select(true)]@::the stopfields pointer forgets dependencies entirely
+plugins/companion/bin/tq::s@\[(subj | match("after #(\[0-9\]+)";"g").captures\[0\].string)\]@[(subj|capture("after #(?<n>[0-9]+)").n)]@::stopfields honours only the FIRST blocker, so a task with two starts early
+plugins/companion/bin/stop-autopilot.sh::s@  companion_autopilot_clear "$root"@  :@::a drained queue leaves autopilot ARMED, so the next stop re-reads the same undrainable queue and nags again

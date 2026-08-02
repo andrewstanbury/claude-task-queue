@@ -101,7 +101,13 @@ marker_n="$(grep -c 'injection stops here' plugins/companion/STEERING.md || true
 # silently truncates the core at the first occurrence while this gate keeps reading green.
 if [ "${marker_n:-0}" -ne 1 ]; then
   echo "  FAIL STEERING.md: 'injection stops here' marker count is ${marker_n:-0}, must be exactly 1"; tok_fail=1; fail=1
-elif [ "${core_b:-0}" -gt 6656 ]; then
+elif [ "${core_b:-0}" -gt 7040 ]; then
+  # 12288 -> 6144 -> 6656 -> 7040. The last move (2026-08-02) funds fusing the two posture
+  # reflexes: the owner reported for the SECOND time (cf. R80, 2026-07-29) that recommendations
+  # arrive only when asked and the honest read lands as a closing verdict AFTER the choice. R80
+  # split "options" and "verdict" into separate reflexes, which is what produced that symptom, so
+  # the honest read now attaches to the pick itself. ~384B = ~95 tokens/session, paid to fix the
+  # product's core promise; compressing it away instead would be the documented anti-pattern below.
   # 12288 -> 6144 when the core was cut 11097B -> 5919B, then 6144 -> 6656 once a devil's-advocate
   # pass proved that 5919B core had silently DROPPED EIGHT BEHAVIOURAL RULES. The old cap was
   # calibrated against a defective measurement, so defending it meant compressing real instructions
@@ -109,7 +115,7 @@ elif [ "${core_b:-0}" -gt 6656 ]; then
   # This is still a 40% cut from 11097B, with the eight restored and ~380B of honest headroom.
   # A cap should track what the content genuinely needs; it stops being a budget the moment it
   # starts deciding what the content is allowed to say.
-  echo "  FAIL STEERING.md injected core: ${core_b}B > 6656B"; tok_fail=1; fail=1
+  echo "  FAIL STEERING.md injected core: ${core_b}B > 7040B"; tok_fail=1; fail=1
 fi
 # LESSONS is two-tier like STEERING (owner-picked 2026-08-01): the cap applies to what is actually
 # INJECTED, not to the file. Without the split the file was 5B under its ceiling while the process
@@ -225,7 +231,7 @@ if ! out="$(dev/doc-lint.sh ledger docs/REQUIREMENTS.md)"; then
 fi
 [ "$led_fail" -eq 0 ] && echo "  ok (ledger measurements cite their evidence)"
 
-[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/6656B; command descriptions ≤140B; arg-taking commands hinted)"
+[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/7040B; command descriptions ≤140B; arg-taking commands hinted)"
 
 # NOTE: the contract-drift backstop (bin/contract-drift.sh) deliberately does NOT run here
 # (R58 amended 2026-07-22): a warning on every mid-work gate run — where drift is the normal

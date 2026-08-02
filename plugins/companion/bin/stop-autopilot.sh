@@ -61,42 +61,20 @@ fi
 dir="${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}/$sid"
 files=("$dir"/*.json); [ -e "${files[0]}" ] || allow
 # open = pending/in_progress and NOT deferred (❓/⏳); done = completed (progress signal).
-# Split on US (0x1f), NOT tab — the same fix statusline.sh carries at its own read, applied here
-# late. Tab is IFS *whitespace*, so `IFS=$'\t' read` COLLAPSES a run of them: an empty done_when
-# merged its two delimiters into one and every later field shifted left by one. That stayed
-# invisible while done_when was last in the list and surfaced the moment a field was appended
-# after it. US is not IFS whitespace, so empty fields keep their place.
-# SWEEP (R77): with the flag on, an already-parked ❓ stops counting as "deferred" and the drain
-# keeps going instead of declaring the run finished. Eligibility is a POSITIVE MARKER the parker
-# wrote, never an inference over prose: `rev:` means *reversible, but the owner's call* (a taste /
-# design / wording choice — R33), which is the only class an unattended run may decide for them.
-# A park is irreversible whenever it lacks `rev:`, which is the safe default for every park written
-# before this existed. `rec:` must be anchored — an unanchored substring matched subjects like
-# "no rec: recorded, this one is yours", i.e. exactly the opposite of what it claims to detect.
-# NEVER eligible in any mode: `⏳` (blocked ON THE OWNER acting in the world — no mode clears it)
-# and `decompose:` parks (R65 — questions, not options), matched case-insensitively.
+# Split on US (0x1f), NOT tab: tab is IFS whitespace, so a run of them collapses and every field
+# after an EMPTY one shifts left (LESSONS). The FIELDS and the sweep rules that produce them are
+# defined by `tq stopfields` — read them there, and change them only there.
+# SWEEP (R77) is passed through, not re-decided here: the flag is per-repo state this hook can see
+# and tq cannot, so the hook reads the flag and tq applies the rule.
 sweep=false; companion_sweep_on "$root" && sweep=true
-IFS=$'\x1f' read -r OPEN PLAIN DONE NEXT NID DONEWHEN STARTABLE < <(jq -rs --argjson sw "$sweep" '
-  def subj: ((.subject//"")|sub("^\\s+";""));
-  # DEPENDENCY (mirrors tq report): a subject saying "after #N" is not startable while #N is still
-  # live. Without this the hook offered a task whose blocker was an unanswered ❓ four turns running
-  # — `tq` knew, this did not, because the pointer was computed twice in two places.
-  def waits: [(subj | match("after #([0-9]+)";"g").captures[0].string)];   # ALL refs, not the first
-  def parked: (subj|startswith("❓"));
-  def sweepable: parked
-    and ((subj|ascii_downcase|contains("decompose:"))|not)
-    and (subj|test("^❓\\s*\\[parked\\]\\s*rev:"))   # the parker marked it reversible-but-yours
-    and (subj|test("[;—-]\\s*rec:"));         # ...and recorded a pick to apply
-  def pk: (subj|startswith("⏳")) or (parked and (($sw and sweepable)|not));
-  ([.[]|select((.status=="pending" or .status=="in_progress") and (pk|not))]) as $o
-  | ([$o[]|select((subj|startswith("❓"))|not)]) as $plain
-  # $live spans EVERY open task, parked ones included: a task waiting on an unanswered ❓ is exactly
-  # the case this exists for, so a dependency does not stop counting just because it is deferred.
-  | ([.[]|select(.status=="pending" or .status=="in_progress")]|map(.id|tostring)) as $live
-  # `waits` MUST be bound before the index: an argument to index() is evaluated against the input
-  # of index() itself, so `$live|index(waits)` re-runs `waits` with `.` set to the ARRAY and dies.
-  | ([$o[]|select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)]) as $st
-  | "\($o|length)\u001f\($plain|length)\u001f\([.[]|select(.status=="completed")]|length)\u001f\(($st[0].subject // "")|gsub("\u001f";" "))\u001f\($st[0].id // "")\u001f\(($st[0].done_when // "")|gsub("\u001f";" "))\u001f\($st|length)"' "${files[@]}" 2>/dev/null)
+# ONE implementation of "first startable task" (R86·b, owner-decided 2026-08-02): this used to
+# re-derive the selection in its own jq, it drifted from tq, and the hook then offered a task
+# blocked on an unanswered park four turns running. tq owns it; this reads it.
+# Best-effort (R7/R68): a missing/empty store or an unreadable tq leaves every field empty, which
+# sanitizes to 0 below and allows the stop — the hook never breaks the action that triggered it.
+_tq="$(cd "$(dirname "$SELF")" && pwd)/tq"
+IFS=$'\x1f' read -r OPEN PLAIN DONE NEXT NID DONEWHEN STARTABLE < <(
+  CLAUDE_COMPANION_SESSION_ID="$sid" "$_tq" stopfields "$sweep" 2>/dev/null)
 OPEN="${OPEN:-0}"; PLAIN="${PLAIN:-0}"; DONE="${DONE:-0}"; NID="${NID:-}"; DONEWHEN="${DONEWHEN:-}"
 case "${STARTABLE:-}" in ''|*[!0-9]*) STARTABLE=0 ;; esac
 case "$OPEN" in ''|*[!0-9]*) OPEN=0 ;; esac
@@ -106,7 +84,19 @@ case "$DONE" in ''|*[!0-9]*) DONE=0 ;; esac
 cfile="$(companion_state_dir)/autopilot/continue-$(printf '%s' "${sid:-x}" | sed 's:/:-:g')"
 # Nothing workable left → genuinely done. STARTABLE covers the second way a drain ends: open tasks
 # remain, but every one of them waits on an earlier item, so pushing is asking for the impossible.
-if [ "$OPEN" -eq 0 ] || [ "$STARTABLE" -eq 0 ]; then rm -f "$cfile" 2>/dev/null; allow; fi
+#
+# DISARM on a dry queue (owner-asked 2026-08-02). Leaving the flag armed means the next stop — in
+# this session or a later one — re-reads the same undrainable queue and nags again; today that
+# repeated four times against work whose only blocker was an unanswered park. Turning it off is
+# also the right HANDOFF: autopilot-off is what starts the parked-pile review (R38), so a drain
+# that runs dry lands the owner exactly where the remaining decisions are.
+# Same clear() the `autopilot off` command uses, so the teardown cannot drift. Best-effort:
+# a failure here must not break the stop, which is why nothing is checked (R7/R68).
+if [ "$OPEN" -eq 0 ] || [ "$STARTABLE" -eq 0 ]; then
+  rm -f "$cfile" 2>/dev/null
+  companion_autopilot_clear "$root"
+  allow
+fi
 
 # No-progress cap: reset the stall counter whenever a task completed since last stop.
 # Five fields since 2026-07-29; a 3-field file from an older version reads back with the two new

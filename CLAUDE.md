@@ -40,7 +40,15 @@ work here too.**
 - **Hook work is bounded (R81).** A hook may read the project; it may not do work that grows
   with repo size, file count, history, or store age. Ceilings are **measured by `./check.sh`**,
   not asserted — an unmeasured budget is not a budget.
-- Verify everything with **`./check.sh`** — CI runs the same script.
+- **The hooks that fire are NOT the ones you edit.** They are served from
+  `~/.claude/plugins/cache/*/companion/<version>/`; this tree is only the source. If that version
+  is behind `plugins/companion/.claude-plugin/plugin.json`, every change you make here is **inert
+  in this session** — check it before claiming a hook or command works, and name the version that
+  actually ran. (This lives here, not in a hook, because a hook shipped inside the plugin is as
+  stale as the lag it is trying to report.)
+- Verify everything with **`./check.sh`** — CI runs the same script. It does **not** run the
+  mutation gate: that is `./check.sh --mutate` (CI shards it). A green `check.sh` is evidence
+  about tests, never about mutation coverage.
 
 Project docs: **[docs/MAP.md](./docs/MAP.md)** · **[docs/ROADMAP.md](./docs/ROADMAP.md)** ·
 **[AGENTS.md](./AGENTS.md)** · **[docs/REQUIREMENTS.md](./docs/REQUIREMENTS.md)** ·

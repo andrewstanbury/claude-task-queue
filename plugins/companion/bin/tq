@@ -174,6 +174,37 @@ delta() {
   ' "${files[@]}" 2>/dev/null || printf '📋 (unreadable)\n'
 }
 
+# stopfields <sweep-bool> — the Stop hook's view of the queue, as ONE machine-readable record.
+# R86·b (owner-decided 2026-08-02): "first startable task" was implemented HERE and again in
+# stop-autopilot.sh. The two diverged, and the hook offered a task blocked on an unanswered park
+# four turns running. The owner's rule is that drift should not be something we manage, so the
+# selection lives in exactly one place and the hook reads it.
+#
+# US (0x1f) separated, seven fields: open · plain · done · next-subject · next-id · done-when ·
+# startable-count. NOT tab: tab is IFS whitespace, so an empty done_when would collapse two
+# delimiters and shift every later field left (LESSONS).
+# NOTE: no apostrophes anywhere in this jq program — a single quote ENDS it (LESSONS).
+stopfields() {
+  local files=("$DIR"/*.json); [ -e "${files[0]}" ] || return 1
+  jq -rs --argjson sw "${1:-false}" '
+    def subj: ((.subject//"")|sub("^\\s+";""));
+    def waits: [(subj | match("after #([0-9]+)";"g").captures[0].string)];
+    def parked: (subj|startswith("❓"));
+    # Sweep eligibility is a POSITIVE MARKER the parker wrote, never an inference over prose:
+    # `rev:` means reversible-but-yours, and an anchored `rec:` means a pick was recorded.
+    def sweepable: parked
+      and ((subj|ascii_downcase|contains("decompose:"))|not)
+      and (subj|test("^❓\\s*\\[parked\\]\\s*rev:"))
+      and (subj|test("[;—-]\\s*rec:"));
+    def pk: (subj|startswith("⏳")) or (parked and (($sw and sweepable)|not));
+    ([.[]|select((.status=="pending" or .status=="in_progress") and (pk|not))]) as $o
+    | ([$o[]|select((subj|startswith("❓"))|not)]) as $plain
+    | ([.[]|select(.status=="pending" or .status=="in_progress")]|map(.id|tostring)) as $live
+    | ([$o[]|select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)]) as $st
+    | "\($o|length)\u001f\($plain|length)\u001f\([.[]|select(.status=="completed")]|length)\u001f\(($st[0].subject // "")|gsub("\u001f";" "))\u001f\($st[0].id // "")\u001f\(($st[0].done_when // "")|gsub("\u001f";" "))\u001f\($st|length)"
+  ' "${files[@]}" 2>/dev/null
+}
+
 cmd="${1:-list}"; shift || true
 case "$cmd" in
   add) mkdir -p "$DIR" || exit 1
@@ -308,6 +339,10 @@ case "$cmd" in
     total="$(jq 'length' "$in" 2>/dev/null || echo 0)"
     echo "tq import: added $added, skipped $((total-added>0?total-added:0)) already-present (from $in)"; echo; report ;;
   report) report ;;
+  # Internal, for stop-autopilot.sh (R86·b). Undocumented in usage() on purpose: it is a hook
+  # interface, not something the model should drive. Exit 1 with no output when the store is
+  # empty, so the caller can tell "no tasks" from "unreadable" and stay best-effort either way.
+  stopfields) stopfields "${1:-false}" ;;
   list) l=""; if [ -d "$DIR" ]; then for f in "$DIR"/*.json; do [ -f "$f" ] || continue; l+="$(jq -r '"\(.id)\t\(.status)\t\(.subject)"' "$f" 2>/dev/null)"$'\n'; done; fi
     if printf '%s' "$l" | grep -q '[^[:space:]]'; then printf '%s' "$l" | sort -n | awk -F'\t' 'NF>=3{printf "  #%s  [%s]  %s\n",$1,$2,$3}'; else echo "(queue empty)"; fi ;;
   -h|--help|help) usage ;;

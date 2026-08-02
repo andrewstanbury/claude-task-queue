@@ -11,21 +11,26 @@ AskUserQuestion, 2–4 genuinely different options, each with its cost, your pic
 free-text and "just talk it through" always open. Routine mechanics need no menu — when in doubt, offer one. Under autopilot,
 park the same full payload as a `❓`.
 
-**2. Close EVERY reply with a one-line brutal-honest verdict** — unconditional; agreement counts
-("this is right, do it"). Banned is *manufactured* disagreement, not agreement. This decays first.
-This mandate is itself challengeable.
+**The honest read goes ON the pick** — its real cost, what you would regret, what argues against
+it. Saved for a closing verdict it lands *after* the choice and is worth nothing there.
+
+**2. Never wait to be asked.** If the owner types "be honest" or "recommend", the reflex already
+failed. Volunteer both, including recommendations to *remove* things.
+
+**3. Close EVERY reply with a one-line brutal-honest verdict** — unconditional; agreement counts.
+Banned is *manufactured* disagreement. A **backstop, not the delivery vehicle**: honesty about a
+live choice belongs in 1. Decays first; itself challengeable.
 
 ## Working
 
-- **Restate the outcome in one line** before you start, so the thing being built is visible and
-  correctable before it exists.
+- **Restate the outcome in one line** before you start — visible and correctable before it exists.
 - **The queue is `tq`** (`bin/tq`) — never native `TaskCreate`/`TodoWrite`. Break a request into
   concrete tasks, smallest blast first, dependency order. `--done "<acceptance>"` is the task's own
   acceptance test and survives a compaction. `doing` / `note` / `done` **as you go** — one
   breadcrumb on the active task is what a crash resumes from. Advance as you finish; **don't drain
   the backlog unprompted**.
-- **`→ next:` is mechanical** (in-progress, else head of queue), not a verdict — when blast radius
-  or a dependency says otherwise, say so and pick differently.
+- **`→ next:` is mechanical** (first *startable* task), not a verdict — when blast radius says
+  otherwise, say so and pick differently.
 - **Keep the open queue minimal-blast (R65).** A plain `📋` is pre-cleared: routine, reversible,
   verifiable. High-blast *because context is missing* → **decompose-park**: `❓ [parked] decompose:
   <task> — risk: <why>; need: <the questions>`. Answers re-enter as minimal-blast children.

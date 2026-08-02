@@ -560,8 +560,12 @@ _ux_flow_check() {
   jq -n '{id:"1",subject:"do it",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
   [ -z "$output" ]
+  # ...and a dry queue DISARMS autopilot (owner-asked). Left armed, the next stop re-reads the
+  # same undrainable queue and nags again — which it did four times in a row before this existed.
+  # Disarming is also the handoff: autopilot-off is what starts the parked-pile review (R38).
+  [ "$(cd "$repo" && "$AP" status)" = "off" ]
 
-  # off → ask-guard allows again
+  # explicitly off → ask-guard allows again
   ( cd "$repo" && "$AP" off ) >/dev/null
   run bash -c 'jq -nc --arg c "$1" "{cwd:\$c}" | "$2"' _ "$repo" "$ASK"
   [ -z "$output" ]
@@ -585,7 +589,10 @@ _ux_flow_check() {
   # The id it names must be the first STARTABLE task, not merely the first open one. A subject
   # saying "after #N" is not startable while #N is live — the same rule `tq report` applies.
   local d="$CLAUDE_COMPANION_TASKS_DIR/$sid"
-  _reason() { jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" 2>/dev/null; }
+  # Re-arm before each fire: a dry queue now DISARMS autopilot, so every case below is its own
+  # scenario with the mode on — otherwise the first ALLOW would silence all the later assertions.
+  _reason() { ( cd "$repo" && "$AP" on ) >/dev/null
+              jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" 2>/dev/null; }
   rm "$d/7.json"
   jq -n '{id:"38",subject:"❓ [parked] pick one",status:"pending"}'    > "$d/38.json"
   jq -n '{id:"50",subject:"sharpen it (after #38)",status:"pending"}' > "$d/50.json"
@@ -818,7 +825,9 @@ _ux_flow_check() {
   jq -n '{id:"2",subject:"❓ decide X",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
   run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
   [ -z "$output" ]                                          # a ❓ PENDING task counts as parked → Stop yields
-  # drop the prefix → same pending task is now real open work → Stop blocks (keeps draining)
+  # drop the prefix → same pending task is now real open work → Stop blocks (keeps draining).
+  # Re-arm: the parked-only read above ran the queue dry, which now disarms autopilot.
+  ( cd "$repo" && "$AP" on ) >/dev/null
   jq -n '{id:"2",subject:"decide X",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
   run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3" | jq -r ".decision // \"allow\""' _ "$repo" "$sid" "$STOP"
   [ "$output" = "block" ]                                   # so parked-ness lives in the prefix, not status
@@ -872,6 +881,9 @@ _sw_task() {  # $1=subject $2=id
   jq -n --arg s "$1" --arg i "$2" '{id:$i,subject:$s,status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sw/$2.json"
 }
 _sw_decision() {  # -> "block" when the drain keeps going, "" when it lets the session stop
+  # Re-arm first: a dry queue DISARMS autopilot, so without this the first "" answer would make
+  # every later case in the same test read "" too, and the sweep assertions would pass vacuously.
+  ( cd "$1" && "$AP" on ) >/dev/null 2>&1
   printf '{"session_id":"sw","cwd":"%s"}' "$1" | bash "$STOP" | jq -r '.decision // ""' 2>/dev/null
 }
 _sw_repo() {
@@ -900,12 +912,14 @@ _sw_repo() {
   # queue above passes vacuously — the hook prints nothing at all there (a mutation that emitted
   # the note unconditionally slipped through exactly that way).
   _sw_task "plain work that keeps the drain going" 9
+  ( cd "$repo" && "$AP" on ) >/dev/null       # the parked-only read above ran dry and disarmed
   run bash -c 'printf "{\"session_id\":\"sw\",\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$repo" "$STOP"
   [[ "$output" == *"Autopilot:"* ]]           # a nudge really was emitted...
   [[ "$output" != *"SWEEP (R77)"* ]]          # ...and carries no sweep note while the flag is off
   rm -f "$CLAUDE_COMPANION_TASKS_DIR/sw/9.json"
   ( cd "$repo" && "$AP" sweep on ) >/dev/null
   [ "$(_sw_decision "$repo")" = "block" ]     # sweep -> the rev: park is work
+  ( cd "$repo" && "$AP" on ) >/dev/null
   run bash -c 'printf "{\"session_id\":\"sw\",\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$repo" "$STOP"
   [[ "$output" == *"colour scheme"* ]]
   [[ "$output" == *"SWEEP (R77)"* ]]          # ...and present while it is on
