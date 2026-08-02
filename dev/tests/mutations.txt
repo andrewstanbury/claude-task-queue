@@ -63,3 +63,5 @@ plugins/companion/bin/prompt-continue.sh::s@  \*) exit 0 ;;@  *) : ;;@::any prom
 dev/portability-lint.sh::s@case "$hit" in \*sc2015-ok\*) continue ;; esac@case "$hit" in zzzNEVER) continue ;; esac@::the SC2015 guard stops honouring its own exemption marker
 dev/portability-lint.sh::s@case "$hit" in \*bre-ok\*) continue ;; esac@case "$hit" in zzzNEVER) continue ;; esac@::the GNU-escape guard stops honouring its exemption marker
 check.sh::s@dev/portability-lint.sh all@dev/portability-lint.sh sc2015@::check.sh stops running the GNU-escape half of the portability lint
+dev/portability-lint.sh::s|grep -HnF '$(mktemp -d)'|grep -HnF 'zzzNEVERzzz'|::the fixture-leak lint stops detecting a bare mktemp -d
+check.sh::s@dev/portability-lint.sh fixtures dev/tests/\*.bats@true dev/tests@::check.sh stops running the fixture-leak lint

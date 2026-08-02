@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# portability-lint.sh — the two traps that keep shipping red CI because the LOCAL toolchain cannot
-# reproduce the other platform. Extracted from check.sh so the SUITE can exercise them (same reason
+# portability-lint.sh — the traps that keep costing this repo real time, checked mechanically
+# because prose demonstrably has not prevented them. The first two keep shipping red CI because the
+# LOCAL toolchain cannot reproduce the other platform. Extracted from check.sh so the SUITE can exercise them (same reason
 # as doc-lint.sh and mutate-gate.sh): inline in check.sh they had declared mutations and no tests,
 # so the mutation gate reported them as HOLES — a guard that cannot fail is not a guard.
 #
@@ -14,8 +15,15 @@
 # Both shapes are sometimes correct on purpose. A deliberate use is marked `# sc2015-ok` / `# bre-ok`
 # on the line, which makes the exemption a reviewable act rather than a silent habit.
 #
+#   fixtures  `$(mktemp -d)` in a test — bats removes BATS_TEST_TMPDIR itself, a bare mktemp does
+#             not. One session of this suite left 37,000 dirs in /tmp and exhausted the inode
+#             table, after which unrelated tests fail in ways that look like code defects.
+#             This lint lives HERE rather than in a bats case because a test that greps for the
+#             pattern necessarily contains it, and so fails on itself forever.
+#
 #   portability-lint.sh sc2015 <file...>
 #   portability-lint.sh bre    <file...>
+#   portability-lint.sh fixtures <test-file...>
 #   portability-lint.sh all    <file...>
 set -uo pipefail
 
@@ -40,13 +48,24 @@ lint_bre() {
   return "$rc"
 }
 
+lint_fixtures() {
+  local rc=0 hit
+  while IFS= read -r hit; do
+    echo "  FAIL $hit"; rc=1
+  # Skip comments, like the other two lints: a line that NAMES the pattern is documentation, not
+  # a leak, and without this the guard flags every explanation of itself.
+  done < <(grep -HnF '$(mktemp -d)' "$@" 2>/dev/null | grep -vE ':[0-9]+:[[:space:]]*#')
+  return "$rc"
+}
+
 mode="${1:-all}"; shift || true
 [ "$#" -gt 0 ] || { echo "usage: portability-lint.sh [sc2015|bre|all] <file...>" >&2; exit 2; }
 rc=0
 case "$mode" in
-  sc2015) lint_sc2015 "$@" || rc=1 ;;
-  bre)    lint_bre "$@"    || rc=1 ;;
-  all)    lint_sc2015 "$@" || rc=1; lint_bre "$@" || rc=1 ;;
-  *)      echo "usage: portability-lint.sh [sc2015|bre|all] <file...>" >&2; exit 2 ;;
+  sc2015)   lint_sc2015 "$@" || rc=1 ;;
+  bre)      lint_bre "$@"    || rc=1 ;;
+  fixtures) lint_fixtures "$@" || rc=1 ;;
+  all)      lint_sc2015 "$@" || rc=1; lint_bre "$@" || rc=1 ;;
+  *)        echo "usage: portability-lint.sh [sc2015|bre|fixtures|all] <file...>" >&2; exit 2 ;;
 esac
 exit "$rc"

@@ -5,18 +5,23 @@
 # aborts uncommitted, secrets never commit, non-ff hands back, the default branch is never a
 # delete target, and the merged-branch sweep is list-only without --prune-all.
 
+# Fixture dirs go under BATS_TEST_TMPDIR, which bats removes after each test. Plain `mktemp -d`
+# leaks: one session of this suite left 37,000 directories in /tmp and exhausted the inode table,
+# which then fails unrelated tests for reasons that look like code defects.
+_tmpd() { mktemp -d "$BATS_TEST_TMPDIR/d.XXXXXX"; }
+
 setup() {
   # Tests live in dev/ and are NOT shipped. ROOT still means the SHIPPED plugin dir; DEV is
   # where the gates that verify it live. Keeping the two named apart is the point of the split.
   ROOT="$(cd "$BATS_TEST_DIRNAME/../../plugins/companion" && pwd)"
   DEV="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   SHIP="$ROOT/bin/ship.sh"
-  export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"
-  export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"
+  export CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)"
+  export CLAUDE_COMPANION_STATE_DIR="$(_tmpd)"
   export CLAUDE_COMPANION_SESSION_ID="s1"
   export SHIP_CI_WATCH=0        # R74: default the CI watch OFF for the fixture (no GitHub remote);
                                 # the R74 tests re-enable it with a stubbed gh. Keeps land tests fast.
-  WORK="$(mktemp -d)"
+  WORK="$(_tmpd)"
 }
 
 # Stub `gh` on PATH so watch_ci resolves it before any real gh: `run list` yields a run id,
@@ -448,7 +453,7 @@ NOGH
   # Three demonstrated fail-OPENs, all of which merged a bin/ change to main with no --da:
   # an unreadable file, a directory in place of the file, and CRLF line endings from a Windows
   # clone (this repo ships no .gitattributes, so autocrlf gives that by default).
-  local dg="$ROOT/bin/da-gate.sh" w; w="$(mktemp -d)"; mkdir -p "$w/.companion"
+  local dg="$ROOT/bin/da-gate.sh" w; w="$(_tmpd)"; mkdir -p "$w/.companion"
   printf '^plugins/[^/]+/(bin|lib)/\n' > "$w/.companion/da-paths"
   run bash -c 'cd "$1" && printf "plugins/companion/bin/x.sh\n" | "$2" match' _ "$w" "$dg"
   [ "$status" -eq 1 ]                                        # control: gated

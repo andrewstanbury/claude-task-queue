@@ -70,6 +70,10 @@ fi
 section "Portability lint (SC2015 · GNU-only regex escapes)"
 if out="$(dev/portability-lint.sh all "${scripts[@]}")"; then echo "  ok (none unmarked)"
 else printf '%s\n' "$out"; fail=1; fi
+# Fixture hygiene, scanned over the TESTS: a bare `$(mktemp -d)` leaks, and one session of leaks
+# exhausted this machine's /tmp inode table.
+if out="$(dev/portability-lint.sh fixtures dev/tests/*.bats)"; then echo "  ok (no leaking fixtures)"
+else printf '%s\n' "$out"; fail=1; fi
 
 section "Secret scan"
 if have gitleaks; then

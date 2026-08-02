@@ -6,13 +6,18 @@
 # one legitimate block) and prints nothing alarming to stdout. This is the contract the whole
 # design rests on; a regression here is a hook that could break a user's edit.
 
+# Fixture dirs go under BATS_TEST_TMPDIR, which bats removes after each test. Plain `mktemp -d`
+# leaks: one session of this suite left 37,000 directories in /tmp and exhausted the inode table,
+# which then fails unrelated tests for reasons that look like code defects.
+_tmpd() { mktemp -d "$BATS_TEST_TMPDIR/d.XXXXXX"; }
+
 setup() {
   # Tests live in dev/ and are NOT shipped. ROOT still means the SHIPPED plugin dir; DEV is
   # where the gates that verify it live. Keeping the two named apart is the point of the split.
   ROOT="$(cd "$BATS_TEST_DIRNAME/../../plugins/companion" && pwd)"
   DEV="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"
-  export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"
+  export CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)"
+  export CLAUDE_COMPANION_STATE_DIR="$(_tmpd)"
 }
 teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR"; }
 

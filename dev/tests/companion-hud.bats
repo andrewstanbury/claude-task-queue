@@ -4,6 +4,11 @@
 # ◻/❓/⏳ task split, and git branch + ahead/behind. Read-only; renders from the JSON Claude Code
 # pipes on stdin plus the companion's own state.
 
+# Fixture dirs go under BATS_TEST_TMPDIR, which bats removes after each test. Plain `mktemp -d`
+# leaks: one session of this suite left 37,000 directories in /tmp and exhausted the inode table,
+# which then fails unrelated tests for reasons that look like code defects.
+_tmpd() { mktemp -d "$BATS_TEST_TMPDIR/d.XXXXXX"; }
+
 setup() {
   # Tests live in dev/ and are NOT shipped. ROOT still means the SHIPPED plugin dir; DEV is
   # where the gates that verify it live. Keeping the two named apart is the point of the split.
@@ -11,8 +16,8 @@ setup() {
   DEV="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"
   AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
-  export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"
-  export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"
+  export CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)"
+  export CLAUDE_COMPANION_STATE_DIR="$(_tmpd)"
   export CLAUDE_COMPANION_SESSION_ID="s1"
   # Render tests assert on REAL git state, so the git-segment TTL cache is off by default here —
   # otherwise a test that changes the tree between two runs would read its own stale line. The
@@ -31,7 +36,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 }
 
 @test "status line: renders version · model · tokens · task count · project · branch (no shield when gate on)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sBar"
   jq -n '{id:"1",subject:"a",status:"pending"}'     > "$CLAUDE_COMPANION_TASKS_DIR/sBar/1.json"
@@ -59,7 +64,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
   jq -n '{id:"4",subject:"⏳ [blocked] owner deploys",status:"pending"}'  > "$CLAUDE_COMPANION_TASKS_DIR/sSplit/4.json"
   jq -n '{id:"5",subject:"shipped",status:"completed"}'          > "$CLAUDE_COMPANION_TASKS_DIR/sSplit/5.json"
   # a repo one commit ahead of its upstream
-  local repo up; repo="$(mktemp -d)"; up="$(mktemp -d)"
+  local repo up; repo="$(_tmpd)"; up="$(_tmpd)"
   git -C "$repo" init -q; git -C "$up" init -q --bare
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
   git -C "$repo" remote add origin "$up"; git -C "$repo" push -q -u origin HEAD 2>/dev/null
@@ -80,7 +85,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 }
 
 @test "status line: 🛡✗ when the secret gate is off per-repo via the secret=off flag (R50)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"s",cwd:$c}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
   [[ "$output" != *"✗"* ]]                       # on → plain shield
@@ -90,7 +95,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 }
 
 @test "status line: 📦 ship-mode icon shows only when ship-mode is armed (R34)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"s",cwd:$c}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
@@ -103,7 +108,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 @test "status line: a space in the model name / project path doesn't corrupt the parse (R32·1)" {
   # spaced project path (routine on macOS) + spaced model name — both would mis-split under
   # default IFS, breaking the session-id (→ task counts 0) and the cwd (→ branch/project).
-  local base repo; base="$(mktemp -d)"; repo="$base/My Project"; mkdir -p "$repo"
+  local base repo; base="$(_tmpd)"; repo="$base/My Project"; mkdir -p "$repo"
   git -C "$repo" init -q; git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sSpace"
   jq -n '{id:"1",subject:"a",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sSpace/1.json"
@@ -116,7 +121,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 }
 
 @test "status line: beacon animates only on activity (static ● when idle, spins on in-progress)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   # idle: a pending task, no autopilot, nothing in-progress → static ● even with color on
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sIdle"
@@ -135,7 +140,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 @test "status line: beacon animates under autopilot even with no in-progress task (R55 dogfood gap)" {
   # Activity = autopilot DRAINING or in-progress — not in-progress alone. The regen dogfood on
   # statusline.sh silently dropped this because nothing pinned it; this closes that gap.
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   ( cd "$repo" && "$AP" on ) >/dev/null                 # autopilot armed for this repo
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sAP"
@@ -147,7 +152,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 }
 
 @test "status line: ⚡ decisive indicator shows only when autopilot AND decisive are on (R59)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sDec",cwd:$c}')"
   ( cd "$repo" && "$AP" on ) >/dev/null
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
@@ -161,7 +166,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 }
 
 @test "status line: sections render in R34 plugin-relevance order — beacon → features → queue → git (R56 #24)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sOrd"
   jq -n '{id:"1",subject:"x",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sOrd/1.json"
@@ -174,7 +179,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 }
 
 @test "status line: semantic colors — red shield when gate off, yellow beacon under autopilot (R56 #24)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sClr",cwd:$c}')"
   # gate OFF → the shield carries the RED code (\033[31m is used ONLY by the off-shield)
   run bash -c 'printf "%s" "$1" | env -u NO_COLOR TERM=xterm CLAUDE_COMPANION_SECSCAN=0 "$2"' _ "$p" "$SL"
@@ -194,7 +199,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 # nothing rather than a zero or a placeholder, so each absence shape gets a case.
 
 @test "status line: 5h + 7d usage bars render both windows from .rate_limits (R76)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRL",cwd:$c,
     rate_limits:{five_hour:{used_percentage:23.5},seven_day:{used_percentage:41.2}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
@@ -205,7 +210,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 }
 
 @test "status line: no .rate_limits (API-key user / pre-first-response) renders NO bar (R76)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRL2",cwd:$c}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
   [ "$status" -eq 0 ]
@@ -219,7 +224,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
   # Regression pin: `IFS=$'\t' read` collapses consecutive tabs (tab is IFS whitespace), which
   # would slide 7d's percentage into the 5h slot whenever five_hour was missing. The reader uses
   # a non-whitespace separator so an empty field stays empty in place.
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRL3",cwd:$c,
     rate_limits:{seven_day:{used_percentage:41.2}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
@@ -230,7 +235,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 }
 
 @test "status line: usage bar clamps >100, keeps 87% distinguishable from 100% (R76)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRL4",cwd:$c,
     rate_limits:{five_hour:{used_percentage:87},seven_day:{used_percentage:130}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
@@ -243,7 +248,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 }
 
 @test "status line: usage bar severity colors — green <60, yellow 60-84, red >=85 (R76)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   # Extract the SGR in PURE BASH. `cat -v` + `grep -o '\^\['…` reads the same on GNU but not on
   # BSD/macOS, where the backslash-escaped `^` in a BRE is not portable — that dialect gap turned
   # a green local run into a red macOS CI run for a colour that is a fixed string either way.
@@ -271,7 +276,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 }
 
 @test "status line: reset countdown shows whenever resets_at is present, at ANY usage (R76 amended)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   # Deliberately NOT an exact multiple of a minute: the script reads its own clock a beat after the
   # test builds the payload, so "now + 45m" floors to 44m whenever a second elapses in between.
   # Assert the countdown's PRESENCE and unit, never a specific remaining count.
@@ -328,8 +333,8 @@ _feature_off() {  # $1=feature  $2=repo-dir
   # `date` missing → the run's single $NOW is 0. Treating that as "now" would make every resets_at
   # look ~56 years out and render `↻20665d`. The guard is new with the countdown's move into
   # rlsecs, and it is the only thing standing between a broken clock and a garbage number.
-  local repo bin; repo="$(mktemp -d)"; git -C "$repo" init -q
-  bin="$(mktemp -d)"                      # a PATH with jq/git but deliberately no `date`
+  local repo bin; repo="$(_tmpd)"; git -C "$repo" init -q
+  bin="$(_tmpd)"                      # a PATH with jq/git but deliberately no `date`
   local t; for t in jq git bash sed grep cat printf dirname readlink mktemp; do
     command -v "$t" >/dev/null 2>&1 && ln -sf "$(command -v "$t")" "$bin/$t"
   done
@@ -343,7 +348,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
 }
 
 @test "status line: the ▴/▾ pace marker says whether the 7d window will be spent (R76)" {
-  local repo now; repo="$(mktemp -d)"; git -C "$repo" init -q; now="$(date +%s)"
+  local repo now; repo="$(_tmpd)"; git -C "$repo" init -q; now="$(date +%s)"
   # The 7d window is 604800s. `resets_at = now + 345600` (4d left) puts it 3d in → 42% elapsed.
   # BEHIND: 41% used against 42% elapsed → at this rate the window resets unspent.
   local behind; behind="$(jq -nc --arg c "$repo" --argjson r "$(( now + 345600 ))" '{model:{display_name:"Opus"},session_id:"sP1",cwd:$c,
@@ -392,7 +397,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
   # `@tsv` used to escape \n\r\t for us; a plain join does not. A newline in a path or model name
   # would split jq's record so `read` took only the first line — silently dropping the tokens,
   # both bars and the git segment. The reader neutralises framing characters before joining.
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local weird="$repo/we
 ird"; mkdir -p "$weird"
   local payload; payload="$(jq -nc --arg c "$weird" '{model:{display_name:"Opus"},session_id:"sRLc",cwd:$c,
@@ -408,7 +413,7 @@ ird"; mkdir -p "$weird"
 }
 
 @test "status line: usage bars sit between the queue and the model (R34 order, R76)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sRLo"   # an OPEN task, or 📋 is absent by design (R80)
   jq -n '{id:"1",subject:"work",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sRLo/1.json"
@@ -423,7 +428,7 @@ ird"; mkdir -p "$weird"
 @test "status line: an absurd percentage is clamped with NO stderr spew (R7/R68, R76)" {
   # The line repaints every ~3s; a value that overflows the shell's integer compare would emit a
   # `[: integer expression expected` to stderr on every repaint AND print the raw number.
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRLh",cwd:$c,
     rate_limits:{five_hour:{used_percentage:99999999999999999999999}}}')"
   local err; err="$(mktemp)"
@@ -436,7 +441,7 @@ ird"; mkdir -p "$weird"
 }
 
 @test "status line: a sub-1% window is distinguishable from an idle one (R76)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRLz",cwd:$c,
     rate_limits:{five_hour:{used_percentage:0.4},seven_day:{used_percentage:0}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
@@ -449,7 +454,7 @@ ird"; mkdir -p "$weird"
   # 📋 used to render permanently, even at 0 — the always-on zero that this line's own
   # shown-only-when-relevant rule exists to prevent (cf. 🛡✗, ✈️, 📦, ↑↓). The section reappearing
   # IS the signal that there is work; its divider goes too, so the line stays clean.
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sDrained"
   jq -n '{id:"1",subject:"shipped",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/sDrained/1.json"
@@ -468,7 +473,7 @@ ird"; mkdir -p "$weird"
 @test "status line: the git segment is CACHED for its TTL, and a hit skips git entirely (R81)" {
   # `git status` walks the worktree every refresh — 6ms here, 43ms on a 17k-file repo — and the
   # line repaints ~1200x/hour per window. A hit must serve from the cache file, not re-run git.
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"s1",cwd:$c}')"
   # first run: cold — populates the cache
@@ -490,7 +495,7 @@ ird"; mkdir -p "$weird"
 @test "status line: a garbled or future-dated cache line falls back to LIVE git, never renders junk" {
   # Cache-miss is the safe direction (R7/R68). A truncated write, a clock jump, or a hand-edited
   # file must degrade to reading git — not print a corrupt branch or a negative count.
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   local p enc cf; p="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"s1",cwd:$c}')"
   enc="$(printf '%s' "$repo" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
@@ -505,7 +510,7 @@ ird"; mkdir -p "$weird"
 }
 
 @test "status line: an unwritable state dir still renders — the cache is best-effort (R68)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"s1",cwd:$c}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_COMPANION_SL_CACHE_TTL=60 CLAUDE_COMPANION_STATE_DIR=/proc/nonexistent "$2"' _ "$p" "$SL"

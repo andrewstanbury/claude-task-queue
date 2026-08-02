@@ -5,6 +5,11 @@
 # root-scoped resume), and persisted+enforced autopilot. (R27 edit-gates
 # live in companion-gates.bats; the status line in companion-hud.bats.)
 
+# Fixture dirs go under BATS_TEST_TMPDIR, which bats removes after each test. Plain `mktemp -d`
+# leaks: one session of this suite left 37,000 directories in /tmp and exhausted the inode table,
+# which then fails unrelated tests for reasons that look like code defects.
+_tmpd() { mktemp -d "$BATS_TEST_TMPDIR/d.XXXXXX"; }
+
 setup() {
   # Tests live in dev/ and are NOT shipped. ROOT still means the SHIPPED plugin dir; DEV is
   # where the gates that verify it live. Keeping the two named apart is the point of the split.
@@ -13,8 +18,8 @@ setup() {
   GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"
   AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
   DRIFT="$ROOT/bin/contract-drift.sh"   # R58 living contract (drift backstop)
-  export CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)"   # the companion's OWN store, not ~/.claude/tasks
-  export CLAUDE_COMPANION_STATE_DIR="$(mktemp -d)"   # autopilot flags live here
+  export CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)"   # the companion's OWN store, not ~/.claude/tasks
+  export CLAUDE_COMPANION_STATE_DIR="$(_tmpd)"   # autopilot flags live here
   export CLAUDE_COMPANION_SESSION_ID="s1"
 }
 teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR"; }
@@ -97,7 +102,7 @@ _ux_flow_check() {
 
 @test "secret gate: honors a per-repo secret=off flag — ALLOWS there but still BLOCKS elsewhere (isolated, R50/R54)" {
   local k="AKIA""ABCDEFGHIJKLMNOP"
-  local repo other; repo="$(mktemp -d)"; other="$(mktemp -d)"
+  local repo other; repo="$(_tmpd)"; other="$(_tmpd)"
   git -C "$repo" init -q; git -C "$other" init -q
   _feature_off secret "$repo"
   # off in $repo → allowed
@@ -112,7 +117,7 @@ _ux_flow_check() {
 @test "secret gate FAIL-SAFE: a flag file that isn't exactly 'secret=off' still BLOCKS (R50/R54 never-fails-open)" {
   # Invariant (invisible to the user): only an exact ^secret=off$ line disables; corruption/typo -> gate ACTIVE.
   local k="AKIA""ABCDEFGHIJKLMNOP"
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   _feature_off secret "$repo"                                      # writes the flag at the enc path
   local flag; flag="$(find "${CLAUDE_COMPANION_STATE_DIR:?}/features" -type f 2>/dev/null | head -1)"
   [ -n "$flag" ]
@@ -129,7 +134,7 @@ _ux_flow_check() {
 }
 
 @test "steering off (per-repo flag): SessionStart drops the working agreement (resume/lessons unaffected, R50)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   _feature_off steering "$repo"
   run bash -c 'jq -nc --arg c "$1" "{source:\"startup\",cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.additionalContext"' _ "$repo" "$SS"
   [ "$status" -eq 0 ]
@@ -187,7 +192,7 @@ _ux_flow_check() {
 
 @test "tq export/import (R60): carries the open queue to a NEW clone path, re-stamped + idempotent" {
   # Machine A: open + in_progress + parked + one completed (the completed must NOT travel).
-  local A; A="$(mktemp -d)"; git -C "$A" init -q
+  local A; A="$(_tmpd)"; git -C "$A" init -q
   ( cd "$A" && "$TQ" add "build widget" --done "widget works" ) >/dev/null
   ( cd "$A" && "$TQ" add "❓ pick color" ) >/dev/null
   ( cd "$A" && "$TQ" doing 1 ) >/dev/null
@@ -202,7 +207,7 @@ _ux_flow_check() {
   [ "$(jq -r '[.[]|select(.subject=="build widget")][0].status' "$A/.companion/queue.json")" = "in_progress" ]
 
   # Machine B: DIFFERENT clone path, DIFFERENT store + session id (a fresh machine after git pull).
-  local B storeB; B="$(mktemp -d)"; storeB="$(mktemp -d)"; git -C "$B" init -q
+  local B storeB; B="$(_tmpd)"; storeB="$(_tmpd)"; git -C "$B" init -q
   mkdir -p "$B/.companion"; cp "$A/.companion/queue.json" "$B/.companion/queue.json"
   run env CLAUDE_COMPANION_TASKS_DIR="$storeB" CLAUDE_COMPANION_SESSION_ID="sB" \
       bash -c "cd '$B' && '$TQ' import"
@@ -219,7 +224,7 @@ _ux_flow_check() {
 }
 
 @test "tq import (R60): dedups across ALL statuses — a task completed here is not resurrected" {
-  local A; A="$(mktemp -d)"; git -C "$A" init -q
+  local A; A="$(_tmpd)"; git -C "$A" init -q
   mkdir -p "$A/.companion"
   jq -n '[{subject:"task X",status:"pending",done_when:"",description:"",notes:[]}]' > "$A/.companion/queue.json"
   ( cd "$A" && "$TQ" add "task X" ) >/dev/null                   # but on THIS machine it's already done
@@ -233,7 +238,7 @@ _ux_flow_check() {
 }
 
 @test "tq export (R60): one corrupt task file is skipped, the backlog is NOT zeroed (R44-class robustness)" {
-  local A; A="$(mktemp -d)"; git -C "$A" init -q
+  local A; A="$(_tmpd)"; git -C "$A" init -q
   ( cd "$A" && "$TQ" add "good one" ) >/dev/null
   ( cd "$A" && "$TQ" add "good two" ) >/dev/null
   printf '{half-written' > "$CLAUDE_COMPANION_TASKS_DIR/s1/99.json"   # a crash-mangled file
@@ -246,7 +251,7 @@ _ux_flow_check() {
 }
 
 @test "tq import (R60): two DISTINCT tasks sharing a subject line both import (no subject-collision collapse)" {
-  local A; A="$(mktemp -d)"; git -C "$A" init -q; mkdir -p "$A/.companion"
+  local A; A="$(_tmpd)"; git -C "$A" init -q; mkdir -p "$A/.companion"
   jq -n '[{subject:"fix bug",status:"pending",done_when:"auth",description:"",notes:[]},
           {subject:"fix bug",status:"pending",done_when:"upload",description:"",notes:[]}]' > "$A/.companion/queue.json"
   run bash -c "cd '$A' && '$TQ' import"
@@ -257,7 +262,7 @@ _ux_flow_check() {
 }
 
 @test "tq import (R60): refuses when the session is bound to a DIFFERENT repo (no wrong-.root landing)" {
-  local A; A="$(mktemp -d)"; git -C "$A" init -q; mkdir -p "$A/.companion"
+  local A; A="$(_tmpd)"; git -C "$A" init -q; mkdir -p "$A/.companion"
   jq -n '[{subject:"x",status:"pending",done_when:"",notes:[]}]' > "$A/.companion/queue.json"
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/s1"; printf '/some/other/repo' > "$CLAUDE_COMPANION_TASKS_DIR/s1/.root"
   run bash -c "cd '$A' && '$TQ' import"
@@ -268,7 +273,7 @@ _ux_flow_check() {
 }
 
 @test "tq import (R60): a merge-conflicted queue.json is a LOUD no-op, not a silent one" {
-  local A; A="$(mktemp -d)"; git -C "$A" init -q; mkdir -p "$A/.companion"
+  local A; A="$(_tmpd)"; git -C "$A" init -q; mkdir -p "$A/.companion"
   printf '<<<<<<< HEAD\n[]\n=======\n[]\n>>>>>>>\n' > "$A/.companion/queue.json"
   run bash -c "cd '$A' && '$TQ' import"
   [ "$status" -ne 0 ]
@@ -361,12 +366,12 @@ _ux_flow_check() {
   # The papercut in path-scoping: move the repo and your carried queue silently vanishes (the abspath
   # .root no longer matches). tq now also stamps .repo (a per-working-tree id in the tree's git dir,
   # which moves WITH the tree), and companion_open_tasks matches on it, so a move no longer hides tasks.
-  local a b; a="$(mktemp -d)/proj"; mkdir -p "$a"; git -C "$a" init -q
+  local a b; a="$(_tmpd)/proj"; mkdir -p "$a"; git -C "$a" init -q
   ( cd "$a" && "$TQ" add "carry me" ) >/dev/null
   [ -f "$CLAUDE_COMPANION_TASKS_DIR/s1/.repo" ]                       # identity stamp written
   run bash -c 'cd "$1" && . "$2/lib/companion.sh" && companion_open_tasks "$(companion_root "$PWD")"' _ "$a" "$ROOT"
   [[ "$output" == *"carry me"* ]]                                     # found at the original path
-  b="$(mktemp -d)/moved"; mkdir -p "$(dirname "$b")"; mv "$a" "$b"    # MOVE to a different abspath
+  b="$(_tmpd)/moved"; mkdir -p "$(dirname "$b")"; mv "$a" "$b"    # MOVE to a different abspath
   run bash -c 'cd "$1" && . "$2/lib/companion.sh" && companion_open_tasks "$(companion_root "$PWD")"' _ "$b" "$ROOT"
   [ "$status" -eq 0 ]
   [[ "$output" == *"carry me"* ]]                                     # STILL found after the move
@@ -377,10 +382,10 @@ _ux_flow_check() {
   # A worktree (or clone/fork) shares the root commit but is a DISTINCT working tree; its queue must
   # stay separate (the "no cross-project task bleed" invariant). Identity is a per-worktree tag, NOT
   # the root-SHA — which would collide worktrees/clones and merge their queues (a devil's-advocate catch).
-  local main wt; main="$(mktemp -d)/main"; mkdir -p "$main"; git -C "$main" init -q
+  local main wt; main="$(_tmpd)/main"; mkdir -p "$main"; git -C "$main" init -q
   git -C "$main" -c user.email=t@t -c user.name=t commit -q --allow-empty -m root
   ( cd "$main" && "$TQ" add "main-tree task" ) >/dev/null
-  wt="$(mktemp -d)/feature"; git -C "$main" worktree add -q "$wt" 2>/dev/null
+  wt="$(_tmpd)/feature"; git -C "$main" worktree add -q "$wt" 2>/dev/null
   run bash -c 'cd "$1" && . "$2/lib/companion.sh" && companion_open_tasks "$(companion_root "$PWD")"' _ "$main" "$ROOT"
   [[ "$output" == *"main-tree task"* ]]                               # the main tree sees its task
   run bash -c 'cd "$1" && . "$2/lib/companion.sh" && companion_open_tasks "$(companion_root "$PWD")"' _ "$wt" "$ROOT"
@@ -410,7 +415,7 @@ _ux_flow_check() {
 # ---- session start (steering + root-scoped resume, no native transcript) ----
 
 @test "session start: injects STEERING and resumes THIS repo's tasks only (scoped by .root)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sMine"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/sMine/.root"
   jq -n '{id:"1",subject:"resume me",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sMine/1.json"
   # an unrelated repo's task must NOT leak
@@ -428,7 +433,7 @@ _ux_flow_check() {
 }
 
 @test "session start: injects the STEERING CORE only — rationale below the marker excluded; missing marker fails OPEN (R69)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s69\"}" | "$2" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$SS"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Working agreement"* ]]        # the core is injected…
@@ -437,7 +442,7 @@ _ux_flow_check() {
   [[ "$output" != *"injection stops here"* ]]      # the marker line itself is excluded too
   # Fail-open (R7): a STEERING with no marker (old copy, botched edit) injects the WHOLE doc —
   # degraded-but-working beats silently steering-less. Build a marker-less plugin dir to prove it.
-  local plug; plug="$(mktemp -d)"; mkdir -p "$plug/bin" "$plug/lib"
+  local plug; plug="$(_tmpd)"; mkdir -p "$plug/bin" "$plug/lib"
   cp "$SS" "$plug/bin/session-start.sh"; cp "$ROOT/lib/companion.sh" "$plug/lib/"
   sed '/injection stops here/d' "$ROOT/STEERING.md" > "$plug/STEERING.md"
   run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s69b\"}" | "$2/bin/session-start.sh" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$plug"
@@ -446,7 +451,7 @@ _ux_flow_check() {
 }
 
 @test "session start: re-anchors on a compaction with queue+pointer, NOT the full STEERING — R30·d2 / R32" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/xc"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/xc/.root"
   jq -n '{id:"1",subject:"resume me",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/xc/1.json"
   run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"x\",source:\"compact\"}" | "$2" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$SS"
@@ -458,7 +463,7 @@ _ux_flow_check() {
 }
 
 @test "manual resume: lists THIS repo's open tasks on demand (and says so when none)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sM"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/sM/.root"
   jq -n '{id:"1",subject:"pick me up",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/sM/1.json"
   jq -n '{id:"2",subject:"already shipped",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/sM/2.json"
@@ -467,7 +472,7 @@ _ux_flow_check() {
   [[ "$output" == *"pick me up"* ]]          # open task surfaced
   [[ "$output" != *"already shipped"* ]]     # completed excluded
   # a repo with nothing says so
-  local empty; empty="$(mktemp -d)"; git -C "$empty" init -q
+  local empty; empty="$(_tmpd)"; git -C "$empty" init -q
   run bash -c 'cd "$1" && "$2"' _ "$empty" "$RESUME"
   [[ "$output" == *"No carried-over"* ]]
 }
@@ -480,7 +485,7 @@ _ux_flow_check() {
   #      1 on them. Reading them with `read … && match` instead of checking the VARIABLE drops the
   #      whole session dir.
   #   2. a batched jq that mishandles multi-file input drops files after the first.
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local rid; rid="$(cd "$repo" && bash -c 'source "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
   # dir A matches on the path-stable .repo identity, dir B on the legacy .root abspath — both
   # newline-less, exactly as `tq` writes them. Several files each, so batching has to span dirs.
@@ -514,7 +519,7 @@ _ux_flow_check() {
 }
 
 @test "manual resume: turns autopilot OFF first, announced when on and quiet when off (R39)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   [ "$(cd "$repo" && "$AP" status)" = "on" ]                  # armed
   run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
@@ -530,7 +535,7 @@ _ux_flow_check() {
 # ---- autopilot (persisted + enforced: ask-guard deny · Stop auto-continue) ----
 
 @test "autopilot: toggle persists, and is enforced (ask-guard deny + Stop auto-continue)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   [ "$(cd "$repo" && "$AP" status)" = "off" ]
   ( cd "$repo" && "$AP" on ) >/dev/null
   [ "$(cd "$repo" && "$AP" status)" = "on" ]                       # persisted flag
@@ -561,7 +566,7 @@ _ux_flow_check() {
 # (intended, load-bearing behaviors a green from-scratch regen would silently drop)
 
 @test "autopilot: the Stop block REASON carries the nudge — next #id, done-when, both park tokens (R56 G1)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   local sid=apR; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
   jq -n '{id:"7",subject:"real work",status:"pending",done_when:"it works"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/7.json"
@@ -574,7 +579,7 @@ _ux_flow_check() {
 }
 
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
   jq -n '{id:"1",subject:"carry me",status:"pending",done_when:"green tests",notes:[{ts:"t1",text:"first crumb"},{ts:"t2",text:"latest crumb"}]}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
@@ -624,7 +629,7 @@ _ux_flow_check() {
 }
 
 @test "ask-guard: the deny REASON carries park-with-full-options guidance (R56 G5)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   run bash -c 'jq -nc --arg c "$1" "{cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.permissionDecisionReason // \"\""' _ "$repo" "$ASK"
   [[ "$output" == *"PARK"* ]]                # instructs to park, not answer
@@ -634,7 +639,7 @@ _ux_flow_check() {
 }
 
 @test "autopilot decisive (R59): toggle persists, and flips the ask-guard guidance park→decide" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   [ "$(cd "$repo" && "$AP" decisive status)" = "off" ]           # off by default
   ( cd "$repo" && "$AP" decisive on ) >/dev/null
@@ -654,14 +659,14 @@ _ux_flow_check() {
 }
 
 @test "tq: stamps the session .root with the actual git toplevel (R56 G8 — cross-session scope)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$TQ" add "scoped" ) >/dev/null
   # not just that .root exists (already pinned) — that it holds the CORRECT root, else resume mis-scopes
   [ "$(cat "$CLAUDE_COMPANION_TASKS_DIR/s1/.root")" = "$(git -C "$repo" rev-parse --show-toplevel)" ]
 }
 
 @test "session start: the compaction re-anchor keeps the recommendation-contract clause (R56 G3 — R49)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   run bash -c 'jq -nc --arg c "$1" "{source:\"compact\",cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.additionalContext // \"\""' _ "$repo" "$SS"
   [ "$status" -eq 0 ]
   [[ "$output" == *"recommendation-first"* ]]   # the R49 posture must survive a compaction summary (its whole purpose)
@@ -680,7 +685,7 @@ _ux_flow_check() {
 }
 
 @test "ship-mode (R34): toggle, and Stop auto-commits work to an autopilot/* branch — NEVER main" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   [ "$(cd "$repo" && "$AP" ship status)" = "off" ]
   ( cd "$repo" && "$AP" ship on ) >/dev/null
@@ -698,7 +703,7 @@ _ux_flow_check() {
 }
 
 @test "ship-mode: off → Stop does NOT auto-commit (work stays uncommitted)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   ( cd "$repo" && "$AP" on ) >/dev/null                      # autopilot on, ship-mode OFF
   local sid=noShip; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
@@ -710,7 +715,7 @@ _ux_flow_check() {
 }
 
 @test "ship-mode: refuses to auto-commit a hardcoded credential (R34)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   ( cd "$repo" && "$AP" ship on ) >/dev/null; ( cd "$repo" && "$AP" on ) >/dev/null
   local k="AKIA""ABCDEFGHIJKLMNOP"                          # split so THIS file isn't a secret
@@ -723,7 +728,7 @@ _ux_flow_check() {
 }
 
 @test "autopilot: Stop yields after the no-progress cap (can't spin forever)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   local sid=apC; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
   jq -n '{id:"1",subject:"stuck",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
@@ -737,7 +742,7 @@ _ux_flow_check() {
 }
 
 @test "autopilot: the no-progress cap RESETS when a task completes — a productive drain keeps going (R56 G5)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   local sid=apRst; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
   jq -n '{id:"1",subject:"a",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
@@ -765,7 +770,7 @@ _ux_flow_check() {
 }
 
 @test "parked/blocked (❓/⏳) is a prefix-view over pending, NOT a status value (R42)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   local sid=pkv; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
   jq -n '{id:"1",subject:"did it",status:"completed"}'   > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
@@ -781,7 +786,7 @@ _ux_flow_check() {
 # ---- living contract (R58): drift backstop (capture retired 2026-07-29) ----
 
 @test "contract-drift: warns when behaviour changed without a contract doc, silent otherwise (R58)" {
-  local repo; repo="$(mktemp -d)"
+  local repo; repo="$(_tmpd)"
   git -C "$repo" init -q; git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
   mkdir -p "$repo/docs/flows" "$repo/src"; printf 'x\n' > "$repo/src/app"; printf '# flow\n' > "$repo/docs/flows/upload.md"
   git -C "$repo" add -A; git -C "$repo" commit -qm init
@@ -799,7 +804,7 @@ _ux_flow_check() {
 }
 
 @test "ship-mode never commits to the default branch, even from detached HEAD (R45)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   git -C "$repo" checkout -q --detach 2>/dev/null           # detached HEAD (cur=="HEAD")
   ( cd "$repo" && "$AP" ship on ) >/dev/null; ( cd "$repo" && "$AP" on ) >/dev/null
@@ -829,13 +834,13 @@ _sw_decision() {  # -> "block" when the drain keeps going, "" when it lets the s
   printf '{"session_id":"sw","cwd":"%s"}' "$1" | bash "$STOP" | jq -r '.decision // ""' 2>/dev/null
 }
 _sw_repo() {
-  local r; r="$(mktemp -d)"; git -C "$r" init -q
+  local r; r="$(_tmpd)"; git -C "$r" init -q
   git -C "$r" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
   ( cd "$r" && "$AP" on ) >/dev/null; printf '%s' "$r"
 }
 
 @test "autopilot sweep: flag persists per-repo and is independent of ship/decisive (R77)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   run bash -c 'cd "$1" && "$2" sweep status' _ "$repo" "$AP"; [ "$output" = "off" ]
   ( cd "$repo" && "$AP" sweep on ) >/dev/null
   run bash -c 'cd "$1" && "$2" sweep status' _ "$repo" "$AP"; [ "$output" = "on" ]
@@ -921,7 +926,7 @@ _sw_repo() {
 @test "doc-lint frontmatter: accepts shapes the HOST accepts (no false positives) (R78)" {
   # An earlier whole-block whitelist rejected all three of these, which would have broken valid
   # user commands — worse than having no check at all.
-  local d; d="$(mktemp -d)"
+  local d; d="$(_tmpd)"
   printf -- '---\ndescription: "plain"\nallowed-tools:\n  - Bash\n  - Read\n---\nbody\n' > "$d/a.md"
   printf -- '---\ndescription: "plain"\nallowed-tools: [Bash, Read]\n---\nbody\n' > "$d/b.md"
   printf -- "---\ndescription: 'a: b'\nmodel: inherit\n---\nbody\n" > "$d/c.md"
@@ -935,7 +940,7 @@ _sw_repo() {
 }
 
 @test "doc-lint frontmatter: rejects shapes the HOST throws on (R75/R78)" {
-  local d; d="$(mktemp -d)"
+  local d; d="$(_tmpd)"
   printf -- '---\ndescription: [target] — leading indicator\n---\nbody\n' > "$d/ind.md"
   printf -- '---\ndescription: wire this: the thing\n---\nbody\n'          > "$d/colon.md"
   printf -- '---\ndescription: "never closed\n---\nbody\n'                 > "$d/quote.md"
@@ -954,7 +959,7 @@ _sw_repo() {
 }
 
 @test "doc-lint ledger: a hard measurement needs evidence; a rhetorical figure does not (R78)" {
-  local d; d="$(mktemp -d)"
+  local d; d="$(_tmpd)"
   printf '| **R1** | 🔓 | Grew by 512B and blocked 25/25 turns. | 2026-01-01, no evidence. |\n' > "$d/bad.md"
   run "$DEV/doc-lint.sh" ledger "$d/bad.md"
   [ "$status" -eq 1 ]
@@ -987,7 +992,7 @@ _sw_repo() {
   # The reader compared line 1 to "---"; a CRLF file made it "---\r", so the block came back EMPTY
   # and EVERY frontmatter check passed vacuously — fail-open on all of them at once, and the exact
   # route by which the 3.21.0 blocker (an unquoted leading `[`) gets back in.
-  local d; d="$(mktemp -d)"
+  local d; d="$(_tmpd)"
   printf -- '---\r\ndescription: "never closed\r\n---\r\nbody\r\n' > "$d/crlf.md"
   printf -- '\xef\xbb\xbf---\ndescription: [bad]\n---\nbody\n'     > "$d/bom.md"
   run "$DEV/doc-lint.sh" frontmatter "$d/crlf.md"
@@ -1000,7 +1005,7 @@ _sw_repo() {
 }
 
 @test "doc-lint: folded and literal block scalars are valid YAML, not indicators (R78)" {
-  local d; d="$(mktemp -d)"
+  local d; d="$(_tmpd)"
   printf -- '---\ndescription: >\n  folded and valid\n---\nb\n' > "$d/f.md"
   printf -- '---\ndescription: |\n  literal and valid\n---\nb\n' > "$d/l.md"
   run "$DEV/doc-lint.sh" frontmatter "$d/f.md" "$d/l.md"
@@ -1013,7 +1018,7 @@ _sw_repo() {
 @test "doc-lint ledger: the ~ exemption works on MULTI-digit numbers (R78)" {
   # `(^|[^~])[0-9]` could begin matching one digit inside the number, so ~371B tripped while ~9B
   # did not — the exemption only worked for single digits.
-  local d; d="$(mktemp -d)"
+  local d; d="$(_tmpd)"
   printf '| **R9** | 🔓 | Grew by ~371B and ≈1200 tokens. | x. |\n' > "$d/approx.md"
   run "$DEV/doc-lint.sh" ledger "$d/approx.md"
   [ "$status" -eq 0 ]; [ -z "$output" ]
@@ -1035,7 +1040,7 @@ _sw_repo() {
   # against a REAL scaling hook rather than a stub: a fake bin/ whose session-start.sh reads the
   # whole store (the shape of the 2085ms->16108ms regression) must FAIL, and a bounded one PASS.
   command -v jq >/dev/null 2>&1 || skip "jq not installed"
-  local fake; fake="$(mktemp -d)"; mkdir -p "$fake/bin" "$fake/lib"
+  local fake; fake="$(_tmpd)"; mkdir -p "$fake/bin" "$fake/lib"
   cp "$DEV/hook-budget.sh" "$fake/bin/"; cp "$ROOT/lib/companion.sh" "$fake/lib/"
   # BOUNDED: touches nothing in the store. Must pass.
   printf '#!/usr/bin/env bash\nexit 0\n' > "$fake/bin/session-start.sh"
@@ -1065,7 +1070,7 @@ EOS
 @test "R81 hook budget: a missing jq/git SKIPS clean — the gate never false-reds the environment" {
   # Best-effort about the environment, strict about the budget (R7/R68): a toolless box must not
   # turn into a red build, or the gate gets deleted for being flaky.
-  local fake bsh; fake="$(mktemp -d)"; mkdir -p "$fake/bin" "$fake/empty"
+  local fake bsh; fake="$(_tmpd)"; mkdir -p "$fake/bin" "$fake/empty"
   cp "$DEV/hook-budget.sh" "$fake/bin/"
   # Absolute interpreter path: `env PATH=<empty> bash …` would fail to find bash ITSELF, which
   # tests nothing about the gate. Emptying PATH must hide jq/git from the script, not the shell.
@@ -1079,7 +1084,7 @@ EOS
   # The posture is what decays across a long session, and the closing-verdict half decays first —
   # it was missing from this message while the options half was present. R30·d2 still holds: the
   # STEERING core itself is NOT re-pasted, only these ~40 bytes of posture.
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local p; p="$(jq -nc --arg c "$repo" '{source:"compact",cwd:$c,session_id:"sC"}')"
   run bash -c 'printf "%s" "$1" | "$2"' _ "$p" "$SS"
   [ "$status" -eq 0 ]
@@ -1092,7 +1097,7 @@ EOS
 }
 
 @test "tq prune: removes FINISHED old stores, never one with open/parked/blocked work (R81)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local rid; rid="$(cd "$repo" && bash -c '. "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
   _mk() {  # $1=dirname  $2=status  $3=subject
     mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$1"
@@ -1127,7 +1132,7 @@ EOS
 }
 
 @test "tq prune: age protects a RECENT finished store, and --dry-run deletes nothing" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local rid; rid="$(cd "$repo" && bash -c '. "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/fresh"; printf '%s' "$rid" > "$CLAUDE_COMPANION_TASKS_DIR/fresh/.repo"
   jq -n '{id:"1",subject:"just finished",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/fresh/1.json"
@@ -1149,7 +1154,7 @@ EOS
   # The hole this closes: `stall` resets on every completion, so a drain that keeps finishing work
   # ran forever. Complete a task on EVERY turn — the stall cap can never fire — and prove the turn
   # cap still ends it. This is the overnight-runaway case.
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   local sid=apTurns; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"
   printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
@@ -1168,7 +1173,7 @@ EOS
 }
 
 @test "autopilot RUN bound: the wall-clock deadline yields, and 0 disables both bounds (R81)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   local sid=apClock; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"
   printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
@@ -1193,7 +1198,7 @@ EOS
 }
 
 @test "autopilot RUN bound: an OLD 3-field continue-file still works (no migration, no lost run)" {
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   local sid=apOld; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"
   printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
@@ -1211,7 +1216,7 @@ EOS
   # The batched jq aborts at the first parse error, so a single half-written file took every task
   # in every LATER file with it — 7 open tasks rendering as 0, silently, on the one path whose job
   # is handing the backlog back after a crash. The per-file fallback is what makes that survivable.
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local rid; rid="$(cd "$repo" && bash -c '. "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/cA" "$CLAUDE_COMPANION_TASKS_DIR/cB"
   printf '%s' "$rid" > "$CLAUDE_COMPANION_TASKS_DIR/cA/.repo"
@@ -1230,7 +1235,7 @@ EOS
   # `jq -s` prints 0 AND exits 2 when it cannot OPEN a file, so reading stdout alone turned
   # "unreadable" into "zero open tasks" and destroyed a store holding a parked decision.
   [ "$(id -u)" -ne 0 ] || skip "running as root: chmod 000 is not enforced"
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local rid; rid="$(cd "$repo" && bash -c '. "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/locked"
   printf '%s' "$rid" > "$CLAUDE_COMPANION_TASKS_DIR/locked/.repo"
@@ -1245,9 +1250,9 @@ EOS
 @test "tq prune: a SYMLINKED session dir is skipped — rm -rf must not recurse through the link" {
   # The glob yields a trailing slash, which makes rm -rf follow the link and empty the TARGET:
   # an archived session dir outside the store was destroyed while the link itself survived.
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local rid; rid="$(cd "$repo" && bash -c '. "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
-  local arch; arch="$(mktemp -d)"; mkdir -p "$arch/real"
+  local arch; arch="$(_tmpd)"; mkdir -p "$arch/real"
   printf 'IRREPLACEABLE\n' > "$arch/real/notes.md"
   printf '%s' "$rid" > "$arch/real/.repo"
   jq -n '{id:"1",subject:"long done",status:"completed"}' > "$arch/real/1.json"
@@ -1408,7 +1413,7 @@ _shim() {
   # The cap is on INJECTED bytes, not on the file. Before the split, LESSONS sat 5B under its
   # ceiling while the process told every session to append to it, so each new lesson was paid for
   # by deleting a true one — two real remedies were lost that way before this landed.
-  local repo; repo="$(mktemp -d)"; git -C "$repo" init -q; mkdir -p "$repo/docs"
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q; mkdir -p "$repo/docs"
   cat > "$repo/docs/LESSONS.md" <<'EOF'
 # Lessons
 - ALPHA-CORE-TRAP always injected
@@ -1417,7 +1422,7 @@ _shim() {
 EOF
   run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" \
     CLAUDE_COMPANION_SESSION_ID=sL bash "$4"' _ \
-    "$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')" "$(mktemp -d)" "$(mktemp -d)" "$SS"
+    "$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')" "$(_tmpd)" "$(_tmpd)" "$SS"
   [ "$status" -eq 0 ]
   [[ "$output" == *"ALPHA-CORE-TRAP"* ]]        # the core rides every session...
   [[ "$output" != *"OMEGA-ONDEMAND-TRAP"* ]]    # ...the tail does not, which is the whole point
@@ -1427,7 +1432,7 @@ EOF
   printf '# Lessons\n- ZETA-UNSPLIT-TRAP\n' > "$repo/docs/LESSONS.md"
   run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" \
     CLAUDE_COMPANION_SESSION_ID=sL2 bash "$4"' _ \
-    "$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')" "$(mktemp -d)" "$(mktemp -d)" "$SS"
+    "$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')" "$(_tmpd)" "$(_tmpd)" "$SS"
   [[ "$output" == *"ZETA-UNSPLIT-TRAP"* ]]
 }
 
@@ -1435,10 +1440,10 @@ EOF
   # ~2.7KB of mode rules that are dead weight in every session where autopilot is off — which is
   # most of them. Conditional, not deleted: when the mode IS on the rules are exactly as present as
   # they ever were. This is rent paid per session forever, so the gate is worth having.
-  local repo st; repo="$(mktemp -d)"; git -C "$repo" init -q; st="$(mktemp -d)"
+  local repo st; repo="$(_tmpd)"; git -C "$repo" init -q; st="$(_tmpd)"
   local pay; pay="$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')"
   run bash -c 'cd "$4" && printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" \
-      CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)" CLAUDE_COMPANION_SESSION_ID=sAp bash "$3"' \
+      CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)" CLAUDE_COMPANION_SESSION_ID=sAp bash "$3"' \
       _ "$pay" "$st" "$SS" "$repo"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Working agreement"* ]]        # the core always rides...
@@ -1448,7 +1453,7 @@ EOF
 
   ( cd "$repo" && CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/autopilot.sh" on ) >/dev/null
   run bash -c 'cd "$4" && printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" \
-      CLAUDE_COMPANION_TASKS_DIR="$(mktemp -d)" CLAUDE_COMPANION_SESSION_ID=sAp2 bash "$3"' \
+      CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)" CLAUDE_COMPANION_SESSION_ID=sAp2 bash "$3"' \
       _ "$pay" "$st" "$SS" "$repo"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Keep-going mode"* ]]          # armed → the rules are there
@@ -1464,7 +1469,7 @@ _bd() {  # $1=used7 $2=used5 $3=age-offset → run the forecaster against a fres
       BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
 }
 # Encode a repo path the way lib/companion.sh does, keyed on the RESOLVED root. On macOS
-# `mktemp -d` returns /var/folders/... and git resolves it to /private/var/folders/..., so any test
+# `_tmpd` returns /var/folders/... and git resolves it to /private/var/folders/..., so any test
 # that hand-encodes the mktemp path creates a flag the product never looks at — green on Linux,
 # vacuous on macOS. Always go through git, exactly like companion_root does.
 # Stamp a session store with the RESOLVED repo root, the way tq and companion_root do. Writing the
@@ -1482,9 +1487,9 @@ _flagpath() {  # $1=state dir · $2=flag kind (autopilot|burndown|ship|…) · $
 }
 
 _bd_setup() {
-  BD_REPO="$(mktemp -d)"; git -C "$BD_REPO" init -q -b main
+  BD_REPO="$(_tmpd)"; git -C "$BD_REPO" init -q -b main
   git -C "$BD_REPO" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
-  BD_STATE="$(mktemp -d)"; BD_TASKS="$(mktemp -d)"
+  BD_STATE="$(_tmpd)"; BD_TASKS="$(_tmpd)"
   mkdir -p "$BD_STATE/burndown"
   touch "$(_flagpath "$BD_STATE" burndown "$BD_REPO")"
 }
@@ -1563,9 +1568,9 @@ _bd_setup() {
 @test "candidates: never invents while a recorded signal remains, and labels it when it does" {
   # The property that makes unattended generation defensible: authorship of "what is worth doing"
   # stays with the owner. Rank order is the mechanism — invention is last and labelled, not first.
-  local d; d="$(mktemp -d)"; git -C "$d" init -q
+  local d; d="$(_tmpd)"; git -C "$d" init -q
   git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
-  local tk; tk="$(mktemp -d)"
+  local tk; tk="$(_tmpd)"
   _cand() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" bash "$ROOT/bin/candidates.sh"; }
 
   # Nothing recorded at all → says so, out loud, as rank 5.
@@ -1593,7 +1598,7 @@ _bd_setup() {
 }
 
 @test "burndown-branch: work is containerised — never on main, never pushed, always discardable" {
-  local d st; d="$(mktemp -d)"; st="$(mktemp -d)"
+  local d st; d="$(_tmpd)"; st="$(_tmpd)"
   git -C "$d" init -q -b main
   git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
   _bb() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" "$@"; }
@@ -1633,7 +1638,7 @@ _bd_setup() {
   # The first run of this generator against its own repo returned four candidates that were all
   # documentation EXPLAINING what a TODO signal is — including its own source comments. A
   # generator that reads its own definition as input is a mirror, not a signal.
-  local d tk; d="$(mktemp -d)"; tk="$(mktemp -d)"; git -C "$d" init -q
+  local d tk; d="$(_tmpd)"; tk="$(_tmpd)"; git -C "$d" init -q
   printf 'x=1  # TODO: cache this\n'                 > "$d/a.sh"
   printf '# Guide\nWe write TODO: markers like this.\n' > "$d/guide.md"
   git -C "$d" add -A; git -C "$d" -c user.email=t@t -c user.name=t commit -q -m i
@@ -1675,7 +1680,7 @@ _bd_setup() {
   # Review had to turn autopilot OFF to ask anything (the ask-guard blocks questions), which meant
   # reviewing was a decision to stop working and the owner re-armed by hand every time. Pause
   # records that it WAS armed; resume puts it back.
-  local repo st; repo="$(mktemp -d)"; git -C "$repo" init -q; st="$(mktemp -d)"
+  local repo st; repo="$(_tmpd)"; git -C "$repo" init -q; st="$(_tmpd)"
   _ap() { run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" "${@:4}"' _ "$repo" "$st" "$ROOT/bin/autopilot.sh" "$@"; }
 
   _ap pause; [[ "$output" == *"already off"* ]]          # clean no-op when it was never armed
@@ -1713,7 +1718,7 @@ _bd_setup() {
   # set — so the suite only ever exercised the one state the feature cannot really run in. The ON
   # flag is a FILE at $STATE/burndown/<enc>; the manifest dir was a DIRECTORY at the same path, so
   # armed, mkdir failed, no manifest was written, and start still exited 0 with a branch created.
-  local d st; d="$(mktemp -d)"; st="$(mktemp -d)"
+  local d st; d="$(_tmpd)"; st="$(_tmpd)"
   git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
   ( cd "$d" && CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/autopilot.sh" burndown on ) >/dev/null
   run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" start "1|parked|add retry backoff"
@@ -1724,7 +1729,7 @@ _bd_setup() {
   run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" burndown status' _ "$d" "$st" "$ROOT/bin/autopilot.sh"
   [ "$output" = on ]
   # An unwritable manifest dir must abort BEFORE the branch exists, not after.
-  local d2 st2; d2="$(mktemp -d)"; st2="$(mktemp -d)"
+  local d2 st2; d2="$(_tmpd)"; st2="$(_tmpd)"
   git -C "$d2" init -q -b main; git -C "$d2" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
   chmod 555 "$st2"
   run env BURNDOWN_ROOT="$d2" CLAUDE_COMPANION_STATE_DIR="$st2" bash "$ROOT/bin/burndown-branch.sh" start "1|parked|thing"
@@ -1737,7 +1742,7 @@ _bd_setup() {
   # Counting ❓/⏳ as "queued work" made rank 1 — the highest-signal source — unreachable, stopped
   # the documented loop after one iteration (step 6 parks a ❓, which blocked step 1), and made the
   # 3-branch backpressure unreachable. One long-lived ⏳ disabled the mode permanently.
-  local d st tk; d="$(mktemp -d)"; st="$(mktemp -d)"; tk="$(mktemp -d)"
+  local d st tk; d="$(_tmpd)"; st="$(_tmpd)"; tk="$(_tmpd)"
   git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
   mkdir -p "$st/burndown" "$tk/s1"; _stamp_root "$tk/s1" "$d"
   touch "$(_flagpath "$st" burndown "$d")"
@@ -1755,7 +1760,7 @@ _bd_setup() {
   # The first version cleared the flag unconditionally, so an unwritable state dir silently and
   # PERMANENTLY lost autopilot while printing a message promising it would come back — destroying
   # the exact state this verb exists to protect.
-  local d st; d="$(mktemp -d)"; git -C "$d" init -q; st="$(mktemp -d)"
+  local d st; d="$(_tmpd)"; git -C "$d" init -q; st="$(_tmpd)"
   _ap2() { run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" "${@:4}"' _ "$d" "$st" "$ROOT/bin/autopilot.sh" "$@"; }
   _ap2 on >/dev/null
   chmod 555 "$st"
@@ -1766,7 +1771,7 @@ _bd_setup() {
 }
 
 @test "burndown-branch: a slug cannot escape the manifest dir (R82)" {
-  local d st; d="$(mktemp -d)"; st="$(mktemp -d)"
+  local d st; d="$(_tmpd)"; st="$(_tmpd)"
   git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
   printf 'keep me\n' > "$st/victim.md"
   run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" discard '../../victim'
@@ -1779,7 +1784,7 @@ _bd_setup() {
 @test "ask-guard: a blocked question is PARKED, not just denied (R36 + owner-asked)" {
   # Denying alone made the block a dead end: the guard is enforced, the parking that should follow
   # was advisory. The hook already holds the payload, so it writes a park carrying the real options.
-  local d st tk; d="$(mktemp -d)"; git -C "$d" init -q; st="$(mktemp -d)"; tk="$(mktemp -d)"
+  local d st tk; d="$(_tmpd)"; git -C "$d" init -q; st="$(_tmpd)"; tk="$(_tmpd)"
   ( cd "$d" && CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/autopilot.sh" on ) >/dev/null
   local pay; pay="$(jq -nc --arg c "$d" '{cwd:$c,session_id:"sAsk",tool_input:{questions:[{question:"Which cache backend?",header:"Cache",options:[{label:"sqlite (Recommended)",description:"dep already vendored"},{label:"plain files",description:"no dep, slower"}]}]}}')"
   run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' _ "$pay" "$st" "$tk" "$ROOT/bin/ask-guard.sh"
@@ -1801,7 +1806,7 @@ _bd_setup() {
   # arm without checking, then printed "RESUMED" unconditionally — leaving autopilot off, the marker
   # gone, and no way back. A half-corrected defect class is worse than an uncorrected one, because
   # the ledger says it is handled.
-  local d st; d="$(mktemp -d)"; git -C "$d" init -q; st="$(mktemp -d)"
+  local d st; d="$(_tmpd)"; git -C "$d" init -q; st="$(_tmpd)"
   _ar() { run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" "${@:4}"' _ "$d" "$st" "$ROOT/bin/autopilot.sh" "$@"; }
   _ar on >/dev/null; _ar pause >/dev/null
   rm -rf "$st/autopilot"; chmod 555 "$st"
@@ -1833,8 +1838,8 @@ _bd_setup() {
   # the status line, while the model was told the decision was parked. (2) $SELF is RELATIVE when
   # the hook is invoked by a relative path, so cd-ing to the repo broke tq resolution entirely:
   # no task written, success still reported.
-  local d st tk elsewhere; d="$(mktemp -d)"; git -C "$d" init -q
-  st="$(mktemp -d)"; tk="$(mktemp -d)"; elsewhere="$(mktemp -d)"
+  local d st tk elsewhere; d="$(_tmpd)"; git -C "$d" init -q
+  st="$(_tmpd)"; tk="$(_tmpd)"; elsewhere="$(_tmpd)"
   ( cd "$d" && CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/autopilot.sh" on ) >/dev/null
   local pay; pay="$(jq -nc --arg c "$d" '{cwd:$c,session_id:"sPay",tool_input:{questions:[{question:"Which backend?",options:[{label:"A"},{label:"B"}]}]}}')"
   # Invoked BY A RELATIVE PATH (cwd = the plugin dir, script = bin/ask-guard.sh) while the payload
@@ -1854,7 +1859,7 @@ _bd_setup() {
 @test "burndown-branch: refuses a slug that collides with the default branch (R82)" {
   # `discard` refuses anything named like the default branch, so minting one created a branch that
   # could never be removed and counted against the backpressure cap forever.
-  local d st; d="$(mktemp -d)"; st="$(mktemp -d)"
+  local d st; d="$(_tmpd)"; st="$(_tmpd)"
   git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
   run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" start "1|parked|Main!"
   [ "$status" -eq 9 ]
@@ -1865,7 +1870,7 @@ _bd_setup() {
   # The owner types "continue" and gets more building on top of decisions they were never asked
   # about. As STEERING prose this is a reflex the model can skip; as an injection it cannot be,
   # and it costs nothing in every session where nothing is parked.
-  local d st tk; d="$(mktemp -d)"; git -C "$d" init -q; st="$(mktemp -d)"; tk="$(mktemp -d)"
+  local d st tk; d="$(_tmpd)"; git -C "$d" init -q; st="$(_tmpd)"; tk="$(_tmpd)"
   mkdir -p "$tk/sP"; _stamp_root "$tk/sP" "$d"
   _pc() { run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' \
             _ "$(jq -nc --arg c "$d" --arg p "$1" '{cwd:$c,session_id:"sP",prompt:$p}')" "$st" "$tk" "$ROOT/bin/prompt-continue.sh"; }
@@ -1925,7 +1930,20 @@ _bd_setup() {
   # A comment mentioning the shape is not code.
   printf '%s\n' '# never write [ a ] && [ b ] || c' > "$d/comment.sh"
   run "$L" all "$d/comment.sh"; [ "$status" -eq 0 ]
+  # fixtures: a bare `$(mktemp -d)` in a test leaks a dir bats would otherwise have removed.
+  # Checked HERE rather than by a bats case, because a test that greps for the pattern contains
+  # the pattern and so fails on itself forever — which is exactly what happened when I tried.
+  # Build the leaky line from PARTS: writing the literal into this file would make the fixtures
+  # lint flag companion-core.bats itself — the same self-reference that killed the bats-based
+  # version of this guard.
+  local mk='mktemp -d'
+  printf 'repo="$(%s)"\n' "$mk" > "$d/leaky.bats"
+  run "$L" fixtures "$d/leaky.bats"; [ "$status" -eq 1 ]; [[ "$output" == *"leaky.bats"* ]]
+  printf '%s\n' 'repo="$(_tmpd)"' > "$d/clean.bats"
+  run "$L" fixtures "$d/clean.bats"; [ "$status" -eq 0 ]; [ -z "$output" ]
+
   # `all` fails if EITHER lints fail.
   run "$L" all "$d/bad-sc.sh" "$d/bad-bre.sh"; [ "$status" -eq 1 ]
   run "$L" all "$d/ok-sc.sh" "$d/ok-bre.sh" "$d/ere.sh"; [ "$status" -eq 0 ]
 }
+
