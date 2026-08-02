@@ -79,6 +79,23 @@ while IFS= read -r hit; do
 done < <(grep -nE '\][[:space:]]*&&[[:space:]]*\[[^]]*\][[:space:]]*\|\|' "${scripts[@]}" 2>/dev/null | grep -vE ':[0-9]+:[[:space:]]*#')
 [ "$sc2015" -eq 0 ] && echo "  ok (none unmarked)"
 
+# GNU-only BRE escapes in sed/grep. LESSONS: "BSD is not GNU — shipped red CI three times.
+# \?/\+/\| in sed/grep are GNU extensions BSD reads as LITERALS." Today made four: `slugify`
+# used `\+`, so on the macOS lane every multi-word candidate produced a branch name with SPACES
+# and burn-down was simply broken there — while the Linux lane stayed green. Same reasoning as the
+# SC2015 guard above: the local toolchain cannot reproduce the other platform, so the gate has to
+# know the rule rather than hope the developer remembers it. Use `sed -E`/`grep -E` and plain
+# `+ ? |`; mark a deliberate literal `# bre-ok`.
+section "GNU-only regex escapes (BSD reads these as literals)"
+bre=0
+while IFS= read -r hit; do
+  case "$hit" in *bre-ok*) continue ;; esac
+  echo "  FAIL $hit"; bre=1; fail=1
+done < <(grep -nE '(sed|grep)[[:space:]]+[^|]*\\[+?|]' "${scripts[@]}" 2>/dev/null \
+         | grep -vE ':[0-9]+:[[:space:]]*#' \
+         | grep -vE '(sed|grep)[[:space:]]+(-[a-zA-Z]*[Er][a-zA-Z]*[[:space:]])')
+[ "$bre" -eq 0 ] && echo "  ok (none unmarked)"
+
 section "Secret scan"
 if have gitleaks; then
   if gitleaks detect --source . --no-git --redact; then echo "  ok"; else fail=1; fi

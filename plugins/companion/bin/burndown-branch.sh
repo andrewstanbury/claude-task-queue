@@ -64,9 +64,14 @@ valid_slug() {
   esac
 }
 
+# `sed -E` with `+`, NOT BRE `\+`. `\+` is a GNU extension that BSD sed (the macOS lane) reads as
+# a LITERAL plus — so on macOS this collapsed nothing and every multi-word candidate produced a
+# branch name containing spaces, which git rejects outright. Burn-down was simply broken there.
+# LESSONS has carried "BSD is not GNU — \?/\+/\| are GNU extensions BSD reads as LITERALS" since
+# it shipped red three times; this is the fourth, in code written the same day.
 slugify() {  # a branch-safe, filesystem-safe, bounded slug
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
-    | sed -e 's/[^a-z0-9]\+/-/g' -e 's/^-*//' -e 's/-*$//' | cut -c1-48
+    | sed -E -e 's/[^a-z0-9]+/-/g' -e 's/^-+//' -e 's/-+$//' | cut -c1-48
 }
 
 cmd_start() {
