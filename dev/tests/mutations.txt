@@ -47,3 +47,5 @@ plugins/companion/bin/burndown-branch.sh::s@\[ "$cur" = "burndown/$slug" \] &&@[
 plugins/companion/bin/candidates.sh::s@-- . ':!\*.md' ':!\*.markdown'@-- .@::the todo signal reads prose about markers again, feeding on documentation
 plugins/companion/bin/tq::s@($p\[\]|lnr("❓")),($b\[\]|lnr("⏳"))@($p[]|ln("❓")),($b[]|ln("⏳"))@::a park's rec: is hidden again — the review becomes a rubber stamp
 plugins/companion/bin/tq::s@elif (($p|length)+($b|length))>0 then@elif false then@::a parks-only queue stops naming the decision that needs the owner
+plugins/companion/bin/autopilot.sh::s@rm -f "$(companion_autopilot_paused_flag "$root")" 2>/dev/null || true@:@::an explicit `autopilot off` is silently undone by a later review resume
+plugins/companion/bin/tq::s@Run /companion:review — it asks the whole pile at once@Run it@::a parks-only queue stops naming the command that clears it

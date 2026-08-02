@@ -60,6 +60,15 @@ companion_decisive_on()   { [ -n "${1:-}" ] && [ -f "$(companion_decisive_flag "
 companion_sweep_flag()    { printf '%s/sweep/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_sweep_on()      { [ -n "${1:-}" ] && [ -f "$(companion_sweep_flag "$1")" ]; }
 
+# PAUSED-FOR-REVIEW marker. `/companion:review` has to ask questions, and the ask-guard blocks
+# those while autopilot is armed — so a review must disarm it. Turning it permanently OFF made the
+# owner re-arm by hand every time, which is why review became something you avoided running.
+# `pause` records that autopilot WAS on; `resume` puts it back. The marker is a file, so a crash
+# mid-review leaves a recoverable state rather than a silently-disarmed one.
+# An explicit `autopilot off` CLEARS this marker — an owner saying "off" outranks a pending resume.
+companion_autopilot_paused_flag() { printf '%s/autopilot-paused/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
+companion_autopilot_paused()      { [ -n "${1:-}" ] && [ -f "$(companion_autopilot_paused_flag "$1")" ]; }
+
 # BURN-DOWN mode — opt-in, per-repo, OFF by default. When the 7d rate-limit window is forecast to
 # end UNDERSPENT and there is no queued work left, autopilot may generate candidate work rather
 # than idle. Everything it produces lands behind a feature flag on a branch; nothing merges.

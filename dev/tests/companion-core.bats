@@ -296,7 +296,12 @@ _ux_flow_check() {
   grep -q "resume.sh"                       "$C/resume.md"       # resume runs the session-pickup re-surface (R39)
   grep -q "companion:review"               "$C/resume.md"       # pickup hands off to review (R39 re-split)
   grep -qE "parked|❓"                       "$C/review.md"       # review walks the parked pile (R38)
-  grep -q 'autopilot.sh" off'              "$C/review.md"       # review clears autopilot (it asks)
+  # R83: review PAUSES rather than kills — it must disarm to ask, then put autopilot back. Both
+  # halves are load-bearing: pause without resume is the old behaviour with extra steps, and the
+  # guard has to pin the pair or the resume can quietly disappear.
+  grep -q 'autopilot.sh" pause'            "$C/review.md"       # review disarms to ask (R83)
+  grep -q 'autopilot.sh" resume'           "$C/review.md"       # ...and re-arms when done (R83)
+  grep -qiE "up front|upfront"             "$C/review.md"       # the whole pile at once, not drip-fed
   grep -qiE "before .*new work"            "$C/review.md"       # R38 write-back-before-new-work
   grep -qiE "asks before it writes|buy-in still comes first|recommendation-first" "$C/cover.md"  # R58·d amended by R61/R62: cover SCAFFOLDS, but buy-in (owner picks) still precedes any write
   grep -q 'autopilot.sh" off'              "$C/cover.md"        # cover clears autopilot (it asks)
@@ -1646,4 +1651,41 @@ _bd_setup() {
   run "$TQ" report
   [[ "$output" == *"→ next: #3"* ]]
   [[ "$output" != *"nothing left to build"* ]]
+}
+
+@test "autopilot pause/resume: a review is transparent to the drain (R83)" {
+  # Review had to turn autopilot OFF to ask anything (the ask-guard blocks questions), which meant
+  # reviewing was a decision to stop working and the owner re-armed by hand every time. Pause
+  # records that it WAS armed; resume puts it back.
+  local repo st; repo="$(mktemp -d)"; git -C "$repo" init -q; st="$(mktemp -d)"
+  _ap() { run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" "${@:4}"' _ "$repo" "$st" "$ROOT/bin/autopilot.sh" "$@"; }
+
+  _ap pause; [[ "$output" == *"already off"* ]]          # clean no-op when it was never armed
+  _ap resume; [[ "$output" == *"not paused"* ]]          # and resume must not arm it from nothing
+  _ap status; [ "$output" = off ]
+
+  _ap on >/dev/null; _ap pause; [[ "$output" == *"PAUSED"* ]]
+  _ap status; [ "$output" = off ]                        # disarmed, so the ask-guard lets questions through
+  _ap resume; [[ "$output" == *"RESUMED"* ]]
+  _ap status; [ "$output" = on ]                         # ...and the drain picks back up
+
+  # AN EXPLICIT `off` DURING A REVIEW OUTRANKS A PENDING RESUME. Without this, saying "stop" mid
+  # review would be silently undone by the review finishing.
+  _ap on >/dev/null; _ap pause >/dev/null; _ap off >/dev/null
+  _ap resume; [[ "$output" == *"not paused"* ]]
+  _ap status; [ "$output" = off ]
+}
+
+@test "tq report: a parks-only queue names the next action, not just the counts" {
+  # Asked to "continue" with nothing buildable, the honest answer is not silence — it is which
+  # command clears the pile. Mechanical, so it survives a compaction without costing injected prose.
+  export CLAUDE_COMPANION_SESSION_ID=sNx
+  local d="$CLAUDE_COMPANION_TASKS_DIR/sNx"; mkdir -p "$d"
+  jq -n '{id:"1",subject:"❓ [parked] a decision; rec: A",status:"pending"}'    > "$d/1.json"
+  jq -n '{id:"2",subject:"⏳ [blocked] go plug in the device",status:"pending"}' > "$d/2.json"
+  run "$TQ" report
+  [[ "$output" == *"decision(s) for you"* ]]
+  [[ "$output" == *"manual job(s) only you can do"* ]]   # ⏳ is the owner's to-do list
+  [[ "$output" == *"/companion:review"* ]]
+  [[ "$output" == *"resumes autopilot if it was on"* ]]
 }

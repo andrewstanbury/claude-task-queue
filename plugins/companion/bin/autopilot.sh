@@ -18,7 +18,29 @@ flag="$(companion_autopilot_flag "$root")"
 case "$cmd" in
   on)  mkdir -p "$(dirname "$flag")" 2>/dev/null && : > "$flag" \
        && echo "✈️  autopilot ON for $root — I'll keep draining the queue and PARK decisions (❓) / owner-actions (⏳) until you turn it off." ;;
-  off) companion_autopilot_clear "$root"; echo "autopilot OFF for $root — normal review loop resumes; run /companion:review to walk any parked ❓ / blocked ⏳ items." ;;
+  off) companion_autopilot_clear "$root"
+       # An explicit OFF outranks any pending resume: clear the paused marker so a review that
+       # runs later cannot silently re-arm something the owner deliberately turned off.
+       rm -f "$(companion_autopilot_paused_flag "$root")" 2>/dev/null || true
+       echo "autopilot OFF for $root — normal review loop resumes; run /companion:review to walk any parked ❓ / blocked ⏳ items." ;;
+  # pause/resume exist so a REVIEW is transparent to autopilot: it must disarm to ask anything
+  # (the ask-guard blocks questions), and the owner should not have to re-arm by hand afterwards.
+  pause) pflag="$(companion_autopilot_paused_flag "$root")"
+       if companion_autopilot_on "$root"; then
+         mkdir -p "$(dirname "$pflag")" 2>/dev/null && : > "$pflag"
+         companion_autopilot_clear "$root"
+         echo "autopilot PAUSED for $root — disarmed so the review can ask; it will re-arm when the review finishes."
+       else
+         echo "autopilot was already off — nothing to pause."
+       fi ;;
+  resume) pflag="$(companion_autopilot_paused_flag "$root")"
+       if [ -f "$pflag" ]; then
+         rm -f "$pflag" 2>/dev/null || true
+         mkdir -p "$(dirname "$(companion_autopilot_flag "$root")")" 2>/dev/null && : > "$(companion_autopilot_flag "$root")"
+         echo "✈️  autopilot RESUMED for $root — picking the drain back up where the review interrupted it."
+       else
+         echo "autopilot was not paused by a review — leaving it off."
+       fi ;;
   status) companion_autopilot_on "$root" && echo on || echo off ;;
   ship) sub="${2:-status}"; sflag="$(companion_ship_flag "$root")"
     case "$sub" in

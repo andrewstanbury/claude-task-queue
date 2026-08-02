@@ -115,7 +115,11 @@ report() {
      ($ip[]|ln("▸")),($op[]|ln("◻")),($p[]|lnr("❓")),($b[]|lnr("⏳")),
      (($ip[0] // $op[0]) as $nx | if $nx then "  → next: #\($nx.id)"
        elif (($p|length)+($b|length))>0 then
-         "  → nothing left to build — " + (($p|length)|tostring) + " decision(s)/block(s) need you; each carries its rec: above"
+         "  → nothing left to build — "
+           + (if ($p|length)>0 then (($p|length)|tostring)+" decision(s) for you" else "" end)
+           + (if ($p|length)>0 and ($b|length)>0 then " and " else "" end)
+           + (if ($b|length)>0 then (($b|length)|tostring)+" manual job(s) only you can do" else "" end)
+           + ". Run /companion:review — it asks the whole pile at once, then resumes autopilot if it was on."
        else empty end)
   ' "${files[@]}" 2>/dev/null || printf '📋 Task queue — (unreadable)\n'
 }

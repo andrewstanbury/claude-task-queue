@@ -1,24 +1,26 @@
 ---
-description: "(no args) — walk the parked (❓) + blocked (⏳) backlog one at a time, recommendation-first, writing picks back to the queue"
+description: "(no args) — answer the whole parked (❓) + blocked (⏳) pile up front, recommendation-first, then resume autopilot if it was on"
 ---
 
-Run a **review**: walk the backlog of tasks that need *you* — the **parked (❓) decisions** and the
-**blocked (⏳) owner-actions** — one at a time, recommendation-first, recording each pick before any
-new work. This is the ritual that runs when autopilot is turned off (R38), and you can run it any
-time to clear the pile of things waiting on your input.
+Run a **review**: clear the backlog of tasks that need *you* — the **parked (❓) decisions** and the
+**blocked (⏳) owner-actions** — by asking **the whole pile up front**, recommendation-first, and
+recording every pick before any new work. Run it any time; it is also what runs when autopilot is
+turned off (R38).
+
+**A review is transparent to autopilot (R83).** It has to disarm to ask anything — the ask-guard
+blocks questions while the flag is on — but it re-arms itself at the end and carries straight on
+draining. Reviewing is no longer a decision to stop working.
 
 It's judgment + workflow, not enforcement — it proposes, you choose, it records (R28). It reuses the
-`/companion:advise` presentation loop (R29) — don't build a second machine. It's owner-present by
-nature: autopilot's ask-guard blocks the questions, so it's meant for when autopilot is **off**
-(turning it off is the trigger). It reviews **only** the pile that needs deciding — to *re-surface
-carried-over tasks from an earlier session* first, run `/companion:resume` (session-pickup), then
-this.
+`/companion:advise` presentation loop (R29) — don't build a second machine. It reviews **only** the
+pile that needs deciding — to *re-surface carried-over tasks from an earlier session* first, run
+`/companion:resume` (session-pickup), then this.
 
-0. **Clear autopilot first.** If autopilot is on, run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off`
-   before anything else — while the persisted flag is on, the ask-guard blocks `AskUserQuestion` and
-   this review can't ask a single question. (The `/companion:autopilot off` command already does
-   this; on the plain-conversation "turn it off" path, do it here. Mirrors `/companion:advise` /
-   `/companion:docs` / `/companion:cover`.)
+0. **Pause autopilot, don't kill it.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" pause` before
+   anything else — the ask-guard blocks `AskUserQuestion` while the flag is on, so a review cannot
+   ask a single question until it disarms. `pause` records that autopilot **was** armed so step 5
+   can put it back; it is a clean no-op when autopilot was already off. Never use `off` here —
+   that is the owner's word, and it deliberately cancels any pending resume.
 
 1. **Gather the pile — parked + blocked only.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/tq" list` (**not
    `report`** — the report truncates each subject to ~72 chars, and a parked item carries its options
@@ -27,8 +29,18 @@ this.
    presenting a menu for "implement X" is noise. If nothing is parked or blocked, say so in one line
    and stop — this is a clean no-op, not a reason to manufacture questions.
 
-2. **Walk it one at a time, recommendation-first.** For each item, in smallest-blast / dependency
-   order, present a **single `AskUserQuestion`** — number them ("N of M"), carry picks forward:
+2. **Ask the whole pile UP FRONT, recommendation-first.** Do not drip-feed one question per turn:
+   batch them into as few `AskUserQuestion` calls as the tool allows (**up to 4 questions per
+   call**), in smallest-blast / dependency order, and keep issuing batches until every item has
+   been put to the owner. State the total up front ("12 parked, 3 blocked — here are the first
+   4"). The point is that the owner sits down **once** and comes back to a drained queue, rather
+   than being interrupted fifteen times.
+
+   Only split an item out of a batch when it genuinely cannot be answered alongside the others —
+   a decompose-park interview (below), or a choice whose options depend on how an earlier one in
+   the same batch was answered. In that case ask the independent ones first, then the dependent.
+
+   For each item:
    - **❓ parked** — the subject already frames the choice; surface its recorded options + your
      recommendation. Options recommended-first, `(Recommended)` on your pick, each naming its
      trade-off / what it changes (cite an R-ID if an option touches or reverses a ledger requirement
@@ -40,8 +52,11 @@ this.
      the expected path), then propose the decomposition — the minimal-blast children — as a
      recommendation-first menu. If the task is irreducibly high-blast, offer *bless it through as-is*
      (queued with the blessing recorded in the subject) or *keep it yours (⏳)*.
-   - **⏳ blocked** — present the owner action and offer *Done (unblocked) / Still blocked / Drop it*,
-     recommended by your read of whether it's actionable now.
+   - **⏳ blocked — MANUAL WORK ONLY THE OWNER CAN DO** (deploy, purchase, physical check, an
+     approval in a system you cannot reach). This is their to-do list, so present it as one: state
+     the action plainly and offer *Done (unblocked) / Still blocked / Drop it*, recommended by your
+     read of whether it is actionable now. If an item is really a decision you could implement once
+     answered, it was mis-filed — re-file it as `❓` rather than asking them to go do something.
 
    The owner can **bail at any point** — "review before new work" is the default, not a wall.
    Deferred and still-blocked items stay in the pile untouched for next time.
@@ -62,7 +77,12 @@ this.
    - **Defer** → leave the item as-is (optionally `tq note <id> "deferred <what you're waiting on>"`).
 
 4. **Close the loop.** Recap the picks in a short table (item → decision → what's now queued), then
-   confirm the queue state with `tq report`. The picks **are** the go — flow straight into the newly
-   queued work in order (the STEERING pause triggers still govern: stop only on a genuinely
-   consequential item, not for a blanket second confirmation). If a decision would touch a locked
-   requirement, offer to draft the ledger entry (per R5).
+   confirm the queue state with `tq report`. If a decision would touch a locked requirement, offer
+   to draft the ledger entry (per R5).
+
+5. **Resume autopilot and keep going.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" resume`. If
+   the review paused it, this re-arms it and you carry on draining the newly-queued work
+   immediately — the picks **are** the go, so do not ask for a second blanket confirmation. If
+   autopilot was off when the review started, `resume` is a no-op and you simply continue in the
+   normal loop. Either way, say in one line which mode you are now in, so the owner is never
+   guessing whether work is still happening.

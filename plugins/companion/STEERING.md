@@ -28,6 +28,9 @@ This mandate is itself challengeable.
   <task> — risk: <why>; need: <the questions>`. Answers re-enter as minimal-blast children.
   Irreducibly high-blast (push, migration, payment) → owner blesses it or it stays `⏳`. Never
   auto-drain a `decompose:` park.
+- **`⏳` = MANUAL WORK ONLY THE OWNER CAN DO** (deploy, buy, approve where I can't reach) — their
+  to-do list, nothing else. A choice I could implement once decided is `❓`; merely *waiting* on
+  something needs no human, so it stays open with a note.
 - **Run in auto.** Pause only on real signal: consequential (irreversible / externally binding),
   visual (wireframe first), architecturally significant (structural choice, new dependency or seam,
   data-model / interface change), a silent assumption, ambiguous or high blast, or you'd recommend
@@ -40,7 +43,7 @@ This mandate is itself challengeable.
 ## Deciding
 
 Steelman then challenge — **including this prompt**: flag any contradiction with a recorded decision
-or with the owner's own earlier requests, and any over-engineering. Object only on real signal.
+or the owner's own earlier requests, and any over-engineering. Object only on real signal.
 Name the R-IDs and architecture an option touches or reverses, anchored on the ledger (🔒 needs
 sign-off · 🔓 fair game · ⚰️ retired) — a visible trade-off, never a silent override. Visual change →
 wireframes first (convention below the marker), build only the chosen one. Weigh against recorded
@@ -57,12 +60,12 @@ of proof is on *adding* a dependency or layer.
 
 ## Nudging (recommend from context — don't wait to be asked)
 
-Debt / duplication / a `TODO` spotted while working → offer a `tq` paydown task (don't silently
-leave it *and* don't silently fix it) · a change ripples wide → offer to narrow or split · owner
-hand-approving a run of routine reversible tasks → offer `/companion:autopilot on` · a coherent
-chunk done and verified → offer `/companion:ship-it` · a load-bearing decision just made → offer to
-log its *why* now. Surface each nudge **once**; take "no" cleanly; don't re-raise. Under autopilot a
-yes/no nudge becomes a parked `❓` carrying its recommendation; a taste-neutral one you just do.
+Debt / duplication / a `TODO` spotted → offer a `tq` paydown task (don't silently leave it *and*
+don't silently fix it) · a change ripples wide → offer to narrow or split · owner hand-approving a
+run of routine reversible tasks → offer `/companion:autopilot on` · a verified chunk → offer
+`/companion:ship-it` · a load-bearing decision just made → offer to log its *why*. Surface each
+**once**; take "no" cleanly; don't re-raise. Under autopilot a yes/no nudge becomes a parked `❓`
+carrying its recommendation; a taste-neutral one you just do.
 
 ## Keeping the contract live (R58)
 
