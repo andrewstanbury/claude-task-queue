@@ -1,0 +1,98 @@
+# Classification of every row in docs/REQUIREMENTS.md, 2026-08-02. Working artifact for the
+# left-arm rebuild (#33). READ-ONLY analysis — no ledger row was edited to produce this.
+#
+# class    meaning
+# REQ      a testable behaviour of the product. One observable thing; belongs in requirements.yaml.
+# PRIN     a product principle or posture. True across the whole system, no single test can hold it.
+#          These are the closest thing this repo has to NEEDS — they are why the product is shaped
+#          as it is — but most are written as constraints rather than as what the owner wanted.
+# ADR      a decision, an architecture choice, or a rejected option. History, not a requirement.
+#          "Decided against X" rows are the clearest cases: nothing to verify, only to remember.
+# RETIRED  already marked ⚰️. Belongs in adr/ as superseded history.
+#
+# id	class	note
+R1	PRIN	wide-audience product; generic rules are load-bearing
+R2	PRIN	the ledger is the source of truth (meta-process, not product behaviour)
+R3	PRIN	token efficiency is a value; explicitly NOT enforced as an NFR any more
+R4	RETIRED	build step / four plugins
+R5	PRIN	recommendation posture — overlaps R49 and R80
+R6	REQ	the plugin is self-contained under its own root
+R7	REQ	hooks are best-effort and never break the triggering action
+R8	REQ	tq owns its store; never native task tools
+R9	PRIN	no hardcoded language/framework allowlists
+R10	PRIN	native-first for hooks/statusLine/AskUserQuestion/permissions
+R11	PRIN	run-in-auto; recommended owner settings
+R12	PRIN	proportionality over maximalism
+R13	PRIN	verification + simplicity over methodology labels
+R14	PRIN	non-technical-owner posture — autonomy vs consent line
+R15	PRIN	subtractive force + quiet injection
+R16	PRIN	clean is not correct
+R17	PRIN	critique posture
+R18	RETIRED	doc-inventory state file
+R19	ADR	decided against a plugin-owned destructive-action gate
+R20	ADR	decided against native plan mode
+R21	ADR	decided against a single CLAUDE.md
+R22	RETIRED	decided against consolidating the plugins — later reversed
+R23	PRIN	anti-rework floors are detect-not-decide
+R24	ADR	architecture: one steering document + a tiny enforced core
+R25	RETIRED	clean-as-you-touch hook
+R26	REQ	autopilot is enforced and persisted per repo
+R27	RETIRED	two enforced work-gates
+R28	ADR	the hook/steering boundary is decided by a component's nature
+R29	REQ	/companion:advise exists and is critique-only
+R30	ADR	nine owner-decided deltas, all built (history)
+R31	REQ	playtests are autopilot-conditional
+R32	ADR	advise self-critique bundle, all shipped (history)
+R33	REQ	under autopilot, taste choices are parked not auto-decided
+R34	REQ	ship-mode auto-commits to a work branch
+R35	REQ	ship-it merges to default and prunes merged branches
+R36	PRIN	autopilot means keep-going, not owner-away
+R37	REQ	GLOSSARY layer, consulted on demand
+R38	REQ	autopilot-off starts the parked-pile review
+R39	REQ	resume is a triage handoff, class-preserving
+R40	REQ	ship-it output is review-optimized
+R41	REQ	/companion:docs grounds the ledger, tiered
+R42	REQ	parked/blocked is a prefix-view, never a status value
+R43	REQ	the secret gate covers every content-writing tool
+R44	REQ	tq writes are atomic
+R45	RETIRED	second default-branch check
+R46	RETIRED	tab-delimited reads — superseded by the US separator
+R47	REQ	tq report is compact and never renders done_when
+R48	PRIN	the suite is the executable half of the enforced core
+R49	PRIN	the recommendation contract — overlaps R5 and R80
+R50	REQ	per-repo flags gate the enforced core; fail-safe lock
+R51	ADR	no advisory hooks (retires R25)
+R52	PRIN	the product is the propose to queue to drain loop
+R53	PRIN	ledger-honesty rules (meta)
+R54	ADR	direction: contract-preserving regenerative advise
+R55	REQ	redesign logs UX and quality attributes only
+R56	ADR	complete the behaviour net before whole-app redesign
+R57	REQ	ship-it is contract-aware
+R58	REQ	the living contract stays accurate
+R59	REQ	decisive mode
+R60	REQ	portable queue over git
+R61	REQ	anti-drift gate on flow test references
+R62	RETIRED	human-first flow pages — reversed
+R63	REQ	task-store scoping keys on a per-worktree identity
+R64	REQ	no plugin-generated file at a governed repo's root
+R65	REQ	the open queue stays minimal-blast; decompose-park
+R66	PRIN	every generated document is Claude-facing
+R67	PRIN	domain context arrives via MCP; truth flows inward
+R68	PRIN	hook admission criteria (safety envelope)
+R69	REQ	injected artifacts are byte-capped; steering is two-tier
+R69·b	ADR	the cap moved 12288 to 6144 to 6656 (history + withdrawn claims)
+R70	REQ	docs produces the boundary contract
+R71	REQ	the deterministic spine runs on a rail
+R72	REQ	one-call cross-machine handoff
+R73	ADR	command-review sweep (history)
+R74	REQ	land enforces a CI watch
+R75	REQ	a command's parameters are visible where it is invoked
+R76	REQ	the status line shows account rate-limit usage
+R77	REQ	sweep mode
+R78	REQ	the mutation gate refuses to certify what it did not observe
+R79	REQ	a watch that gives up does not report success
+R80	REQ	the posture is a stated default; the verdict is unconditional
+R81	REQ	a hook's cost stays bounded, and the bound is measured
+R82	REQ	burn-down mode
+R83	REQ	a review is transparent to autopilot
+R84	REQ	a blocked question parks itself
