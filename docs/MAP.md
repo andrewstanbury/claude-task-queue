@@ -12,6 +12,10 @@ the secret gate guards every write (see ROADMAP "The loop").
 |---|---|
 | `dev/` | **The verification kit — NOT shipped.** `mutate-gate.sh` · `doc-lint.sh` · `hook-budget.sh` · `tests/`. These verify the plugin; they are not part of it, and a user installing the plugin has no use for them. Moved out of `plugins/companion/` 2026-08-01 (owner-asked): the plugin dir is what gets installed, so anything in it is shipped. `.companion/da-paths` still covers `^dev/` — leaving the plugin must not mean leaving scrutiny. |
 | `CLAUDE.md` | What this repo is + hard constraints + pointer to the steering doc. |
+| `docs/needs.yaml` | **LEVEL 0 — user needs.** 7, in outcome language, no mechanism. The one level that cannot be delegated: needs define "useful", so an agent authoring its own has no falsifiable standard left. |
+| `docs/requirements.yaml` | **LEVEL 1 — requirements.** 45, each satisfying a real need and naming real `@test` titles (or marked `judgment:` where no case can hold it). Gated by `dev/trace.sh`. |
+| `docs/adr/README.md` | **Decisions, architecture choices and rejected options** — 20 rows moved out of the ledger 2026-08-02. History, not requirements: nothing to verify, only to remember. |
+| `dev/trace.sh` | **The V's closing gate** — needs ← requirements ← tests, checked BOTH ways. The uncomfortable direction (every test claimed by a requirement) found 99 unclaimed tests and two misclassified requirements on its first run. |
 | `docs/REQUIREMENTS.md` | The **requirements ledger** — durable requirements/decisions with 🔒/🔓/⚰️ status. Source of truth. |
 | `docs/ROADMAP.md` | Direction and backlog. |
 | `docs/MAP.md` | This file. |
