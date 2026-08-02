@@ -63,7 +63,7 @@ case "${1:-}" in
     # is the highest-probability real-world instance of the fail-open class, and da-paths is a file
     # strangers are told to author (R1/R9).
     re="${re//$'\r'/}"
-    [ -n "$re" ] && [ -n "${re//[[:space:]]/}" ] || exit 0   # comments only ⇒ no patterns ⇒ no gate
+    [ -n "$re" ] && [ -n "${re//[[:space:]]/}" ] || exit 0   # sc2015-ok: comments only ⇒ no patterns ⇒ no gate
     # `$?` on the assignment, NOT PIPESTATUS: the pipeline runs in a command substitution, so the
     # parent shell never sees its PIPESTATUS and the fail-closed branch silently never fired
     # (measured: an invalid da-paths shipped at exit 0). pipefail is set above, so grep's error

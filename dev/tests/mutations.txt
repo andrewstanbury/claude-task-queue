@@ -58,3 +58,6 @@ plugins/companion/bin/autopilot.sh::s@if ! { mkdir -p "$(dirname "$aflag")" 2>/d
 plugins/companion/bin/tq::s@if ( set -o noclobber; : > "$DIR/$id.json" ) 2>/dev/null; then@if true; then@::tq id allocation races again — concurrent adds silently overwrite each other
 plugins/companion/bin/burndown-branch.sh::s@case "$slug" in "$def"|main|master) die "slug@case "$slug" in zzzNEVER) die "slug@::start mints a branch discard can never remove
 plugins/companion/bin/ask-guard.sh::s@_tq="$(cd "$(dirname "$SELF")" 2>/dev/null \&\& pwd)/tq"@_tq="$(dirname "$SELF")/tq"@::a relatively-invoked hook silently writes no task while reporting success
+plugins/companion/bin/prompt-continue.sh::s@\[ "$pile" -gt 0 \] || exit 0@[ 1 -eq 1 ] || exit 0@::a bare 'continue' nags about review even when nothing is parked
+plugins/companion/bin/prompt-continue.sh::s@  \*) exit 0 ;;@  *) : ;;@::any prompt is treated as 'continue', hijacking real instructions
+check.sh::s@case "$hit" in \*sc2015-ok\*) continue ;; esac@case "$hit" in zzzNEVER) continue ;; esac@::the SC2015 guard stops honouring its own exemption marker

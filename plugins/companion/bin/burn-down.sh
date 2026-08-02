@@ -64,7 +64,12 @@ evaluate() {
   case "${ts:-}" in ''|*[!0-9]*) say "snapshot unreadable"; return ;; esac
   [ "$now" -gt 0 ] || { say "no usable clock — cannot forecast"; return; }
   age=$(( now - ts ))
-  [ "$age" -ge 0 ] && [ "$age" -le "$FRESH" ] || { say "snapshot is ${age}s old (max ${FRESH}s) — stale data is not a forecast"; return; }
+  # `if`, not `A && B || C`: with two conditions the || arm fires when A is FALSE too, so the guard
+  # reads as if-then-else while behaving differently. CI's shellcheck flags this (SC2015); the
+  # local build does not, which is precisely how it slipped through.
+  if [ "$age" -lt 0 ] || [ "$age" -gt "$FRESH" ]; then
+    say "snapshot is ${age}s old (max ${FRESH}s) — stale data is not a forecast"; return
+  fi
 
   # The 5h window has to have room or the work stalls the moment it starts.
   case "${u5:-}" in ''|*[!0-9.]*) : ;; *) if [ "$(( 100 - ${u5%%.*} ))" -lt "$HEADROOM5" ]; then

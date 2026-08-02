@@ -46,7 +46,7 @@ _mut_complete() {  # $1 rc · $2 output · $3 expected test count
   [ "$1" -ne 0 ] || return 1
   plan="$(printf '%s\n' "$2" | sed -n 's/^1\.\.\([0-9][0-9]*\)$/\1/p' | head -1)"
   res="$(printf '%s\n' "$2" | grep -cE '^(ok|not ok) ')"
-  [ "$plan" = "$3" ] && [ "$res" = "$3" ] || return 1
+  [ "$plan" = "$3" ] && [ "$res" = "$3" ] || return 1   # sc2015-ok: "unless both held" is the intent
   printf '%s\n' "$2" | grep -q '^not ok'
 }
 trap '_mut_restore' EXIT INT TERM HUP

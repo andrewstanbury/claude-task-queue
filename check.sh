@@ -64,6 +64,21 @@ else
   echo "  SKIP — shellcheck not installed (CI runs it)"
 fi
 
+# `A && B || C` — SC2015. THIS HAS SHIPPED RED CI THREE TIMES (3.16.0, 3.17.0, and again today),
+# every time because the LOCAL shellcheck build does not emit SC2015 where CI's does, so the gate
+# is green right up until it is not. LESSONS has said "never write it" since the second time; a
+# lesson injected into every session did not prevent the third. Prevention beats detection (N7):
+# this grep is version-independent, so the local gate now fails wherever CI would.
+# The shape is legitimate when the `||` arm really is "unless both held" — mark those `# sc2015-ok`
+# so the exemption is a deliberate, reviewable act rather than a silent habit.
+section "A && B || C (SC2015 — local shellcheck under-reports this; CI does not)"
+sc2015=0
+while IFS= read -r hit; do
+  case "$hit" in *sc2015-ok*) continue ;; esac
+  echo "  FAIL $hit"; sc2015=1; fail=1
+done < <(grep -nE '\][[:space:]]*&&[[:space:]]*\[[^]]*\][[:space:]]*\|\|' "${scripts[@]}" 2>/dev/null | grep -vE ':[0-9]+:[[:space:]]*#')
+[ "$sc2015" -eq 0 ] && echo "  ok (none unmarked)"
+
 section "Secret scan"
 if have gitleaks; then
   if gitleaks detect --source . --no-git --redact; then echo "  ok"; else fail=1; fi

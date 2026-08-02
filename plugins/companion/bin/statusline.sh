@@ -203,9 +203,14 @@ RL="$(rlbar "${RL5:-}" 5h "${RL5R:-}")$(rlbar "${RL7:-}" 7d "${RL7R:-}" 604800)"
 # non-event — the forecaster treats a missing or stale snapshot as "cannot forecast" and holds.
 if [ -n "${RL7:-}" ] || [ -n "${RL5:-}" ]; then
   _rlsnap="$(companion_rl_snapshot)"
-  mkdir -p "${_rlsnap%/*}" 2>/dev/null &&
-    printf '%s %s %s %s %s\n' "$NOW" "${RL5:-}" "${RL5R:-}" "${RL7:-}" "${RL7R:-}" \
-      > "$_rlsnap.tmp$$" 2>/dev/null && mv -f "$_rlsnap.tmp$$" "$_rlsnap" 2>/dev/null || true
+  # `if`, not a && chain ending in `|| true` — SC2015: the final arm also fires when an EARLIER
+  # link fails, so the chain does not mean what it reads like. CI's shellcheck catches it.
+  if mkdir -p "${_rlsnap%/*}" 2>/dev/null; then
+    if printf '%s %s %s %s %s\n' "$NOW" "${RL5:-}" "${RL5R:-}" "${RL7:-}" "${RL7R:-}" \
+         > "$_rlsnap.tmp$$" 2>/dev/null; then
+      mv -f "$_rlsnap.tmp$$" "$_rlsnap" 2>/dev/null || true
+    fi
+  fi
   rm -f "$_rlsnap.tmp$$" 2>/dev/null || true
 fi
 [ -n "$RL" ] && out="$out $DIVC$RL"

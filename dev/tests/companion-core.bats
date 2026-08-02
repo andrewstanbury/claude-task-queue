@@ -1840,3 +1840,32 @@ _bd_setup() {
   [ "$status" -eq 9 ]
   [ "$(git -C "$d" branch --list 'burndown/*' | wc -l)" -eq 0 ]
 }
+
+@test "prompt-continue: a bare 'continue' with a parked pile routes to review FIRST (R85)" {
+  # The owner types "continue" and gets more building on top of decisions they were never asked
+  # about. As STEERING prose this is a reflex the model can skip; as an injection it cannot be,
+  # and it costs nothing in every session where nothing is parked.
+  local d st tk; d="$(mktemp -d)"; git -C "$d" init -q; st="$(mktemp -d)"; tk="$(mktemp -d)"
+  mkdir -p "$tk/sP"; printf '%s' "$d" > "$tk/sP/.root"
+  _pc() { run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' \
+            _ "$(jq -nc --arg c "$d" --arg p "$1" '{cwd:$c,session_id:"sP",prompt:$p}')" "$st" "$tk" "$ROOT/bin/prompt-continue.sh"; }
+
+  _pc continue; [ "$status" -eq 0 ]; [ -z "$output" ]        # empty queue → silent
+  jq -n '{id:"1",subject:"plain buildable work",status:"pending"}' > "$tk/sP/1.json"
+  _pc continue; [ -z "$output" ]                              # buildable work → just drain, silently
+  jq -n '{id:"2",subject:"❓ [parked] pick a backend; rec: A",status:"pending"}' > "$tk/sP/2.json"
+  _pc continue
+  [[ "$output" == *"/companion:review"* ]]; [[ "$output" == *"WHOLE pile"* ]]
+  [[ "$output" == *"no pause is needed"* ]]                   # autopilot off
+  # ARMED: it must say pause first, because the ask-guard would otherwise PARK the review's own
+  # questions instead of asking them — the review would silently accomplish nothing.
+  mkdir -p "$st/autopilot"; touch "$st/autopilot/$(printf '%s' "$d" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  _pc continue
+  [[ "$output" == *"autopilot.sh pause"* ]] && [[ "$output" == *"resume"* ]]
+  # A ⏳ alone counts too — manual jobs are equally the owner's.
+  rm "$tk/sP/2.json"; jq -n '{id:"3",subject:"⏳ [blocked] go plug in the device",status:"pending"}' > "$tk/sP/3.json"
+  _pc continue; [[ "$output" == *"/companion:review"* ]]
+  # A REAL instruction is never second-guessed, even when it starts with the word.
+  _pc "continue by refactoring the parser"; [ -z "$output" ]
+  _pc "Keep going."; [[ "$output" == *"/companion:review"* ]]   # punctuation and case tolerated
+}

@@ -22,7 +22,7 @@
 # rather than treat the epoch as "now" and render a 56-year countdown.
 rlsecs() {  # $1 resets_at (epoch|"") → seconds remaining · "" when unreadable
   local rst="${1%%.*}" left
-  [ -n "$rst" ] && [ "$NOW" -gt 0 ] || return 0
+  [ -n "$rst" ] && [ "$NOW" -gt 0 ] || return 0   # sc2015-ok: unreadable unless both hold
   # A non-numeric timestamp (an ISO string, anything) must never reach $(( )) — the arithmetic
   # would abort mid-line and take the whole status line with it (R68: best-effort, always renders).
   case "$rst" in *[!0-9]*) return 0;; esac
