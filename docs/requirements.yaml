@@ -1,0 +1,477 @@
+# LEVEL 1 — SYSTEM REQUIREMENTS. Right-arm partner: the bats suite (verified_by) or, where a
+# requirement is judgement-shaped, human validation (judgment: with a reason).
+#
+# Rules that keep this a requirements artifact rather than the decision log it grew out of:
+#   1. One observable behaviour per entry.
+#   2. `satisfies` names a real need in needs.yaml — nothing here exists for its own sake.
+#   3. `verified_by` names REAL @test titles. dev/trace.sh fails on any mismatch, either way.
+#   4. Rationale, history and rejected options do NOT live here. They live in adr/.
+#
+# Generated from the 43 REQ rows in dev/ledger-classification.tsv. The prose of each
+# requirement still needs sharpening one at a time — this file establishes the STRUCTURE and
+# the traces; `note:` carries the original ledger summary until each is rewritten.
+
+- id: R6
+  satisfies: [UN-6]
+  requirement: >
+    the plugin is self-contained under its own root
+  verified_by:
+    - "the plugin is SELF-CONTAINED — it runs with nothing outside its own root (R6)"
+
+- id: R7
+  satisfies: [UN-1]
+  requirement: >
+    hooks are best-effort and never break the triggering action
+  verified_by:
+    - "bin/lib scripts use no bash-4-only builtins — macOS CI runs bash 3.2 (regression guard)"
+    - "fuzz: every stdin-reading hook survives empty / garbage / truncated / huge input"
+    - "fuzz: hooks don't choke on multibyte / emoji content (bash 3.2 byte-splitting)"
+    - "mutation gate: refuses to run CONCURRENTLY on one tree (R78/R7)"
+    - "status line: an absurd percentage is clamped with NO stderr spew (R7/R68, R76)"
+
+- id: R8
+  satisfies: [UN-4]
+  requirement: >
+    tq owns its store; never native task tools
+  verified_by:
+    - "tq: cancel retracts a task — cancelled, excluded from report counts, file kept (R32)"
+    - "tq: no session id errors cleanly"
+    - "tq note: appends to .notes[] cumulatively, never overwrites (R56 G4 — PR #126)"
+    - "tq: stamps the session .root with the actual git toplevel (R56 G8 — cross-session scope)"
+    - "tq: add/doing/done write the companion store + stamp the repo root; report groups by state"
+    - "tq: writes go temp-file + mv, never in-place jq (R44 crash-safety)"
+
+- id: R26
+  satisfies: [UN-1]
+  requirement: >
+    autopilot is enforced and persisted per repo
+  verified_by:
+    - "autopilot: the Stop block REASON carries the nudge — next #id, done-when, both park tokens (R56 G1)"
+    - "autopilot: toggle persists, and is enforced (ask-guard deny + Stop auto-continue)"
+
+- id: R29
+  satisfies: [UN-2]
+  requirement: >
+    /companion:advise exists and is critique-only
+  judgment: "advise is a critique ritual — its value is the quality of the critique, not a code path"
+  verified_by: []
+
+- id: R31
+  satisfies: [UN-1]
+  requirement: >
+    playtests are autopilot-conditional
+  judgment: "whether a playtest is worth raising is a read of the situation"
+  verified_by: []
+
+- id: R33
+  satisfies: [UN-2]
+  requirement: >
+    under autopilot, taste choices are parked not auto-decided
+  verified_by:
+    - "ask-guard: a blocked question is PARKED, not just denied (R36 + owner-asked)"
+
+- id: R34
+  satisfies: [UN-3]
+  requirement: >
+    ship-mode auto-commits to a work branch
+  verified_by:
+    - "ship-mode: off → Stop does NOT auto-commit (work stays uncommitted)"
+    - "ship-mode (R34): toggle, and Stop auto-commits work to an autopilot/* branch — NEVER main"
+    - "ship-mode: refuses to auto-commit a hardcoded credential (R34)"
+    - "status line: 📦 ship-mode icon shows only when ship-mode is armed (R34)"
+    - "status line: sections render in R34 plugin-relevance order — beacon → features → queue → git (R56 #24)"
+
+- id: R35
+  satisfies: [UN-3]
+  requirement: >
+    ship-it merges to default and prunes merged branches
+  verified_by:
+    - "ship.sh land: happy path — commit, ff-merge to default, push, prune shipped branch (local+remote)"
+    - "ship.sh land: merged-branch sweep is LIST-ONLY without --prune-all; --prune-all deletes with -d, never the default"
+
+- id: R37
+  satisfies: [UN-4]
+  requirement: >
+    GLOSSARY layer, consulted on demand
+  judgment: "a glossary term is useful or it is not; no assertion decides that"
+  verified_by: []
+
+- id: R38
+  satisfies: [UN-2]
+  requirement: >
+    autopilot-off starts the parked-pile review
+  verified_by:
+    - "session start: LESSONS is two-tier — only the core above the marker is injected (R69/R30·d7)"
+
+- id: R39
+  satisfies: [UN-4]
+  requirement: >
+    resume is a triage handoff, class-preserving
+  verified_by:
+    - "session start: injects STEERING and resumes THIS repo's tasks only (scoped by .root)"
+    - "session start: re-anchors on a compaction with queue+pointer, NOT the full STEERING — R30·d2 / R32"
+    - "manual resume: lists THIS repo's open tasks on demand (and says so when none)"
+    - "resume: BATCHED scan — many dirs x many files in one jq, newline-less markers still match"
+    - "session start: the compaction re-anchor keeps the recommendation-contract clause (R56 G3 — R49)"
+    - "resume: ONE corrupt task file loses only ITSELF, never the whole backlog (DA blocker)"
+    - "manual resume: turns autopilot OFF first, announced when on and quiet when off (R39)"
+
+- id: R40
+  satisfies: [UN-2]
+  requirement: >
+    ship-it output is review-optimized
+  judgment: ""review-optimized" is a judgement about prose a reviewer reads"
+  verified_by: []
+
+- id: R41
+  satisfies: [UN-4]
+  requirement: >
+    /companion:docs grounds the ledger, tiered
+  verified_by:
+    - "command prompts retain their critical gate steps (R56 P3 — structural guard for prose)"
+
+- id: R42
+  satisfies: [UN-4]
+  requirement: >
+    parked/blocked is a prefix-view, never a status value
+  verified_by:
+    - "parked/blocked (❓/⏳) is a prefix-view over pending, NOT a status value (R42)"
+
+- id: R43
+  satisfies: [UN-3]
+  requirement: >
+    the secret gate covers every content-writing tool
+  verified_by:
+    - "secret gate: blocks a real AWS key (exit 2)"
+    - "secret gate: a generic name=value literal WARNS but does not block (exit 0) — R32"
+    - "secret gate: allows a placeholder (exit 0)"
+    - "secret gate: allows ordinary code (exit 0)"
+    - "secret gate: disabled via CLAUDE_COMPANION_SECSCAN=0"
+    - "secret gate: blocks non-AWS anchored keys too — GH/Slack/Stripe/Google/PEM (R56 — INVARIANTS claim)"
+    - "ship-mode never commits to the default branch, even from detached HEAD (R45)"
+    - "secret gate: an EMPTY edit never scans the FILE PATH as content (no false block)"
+    - "secret gate: covers NotebookEdit's new_source — key blocked, clean cell passes (R43)"
+    - "secret gate: NON-STRING content (NotebookEdit array/object) still BLOCKS — no fail-open (R43)"
+
+- id: R44
+  satisfies: [UN-4]
+  requirement: >
+    tq writes are atomic
+  verified_by:
+    - "tq: writes go temp-file + mv, never in-place jq (R44 crash-safety)"
+    - "tq export (R60): one corrupt task file is skipped, the backlog is NOT zeroed (R44-class robustness)"
+
+- id: R47
+  satisfies: [UN-2]
+  requirement: >
+    tq report is compact and never renders done_when
+  verified_by:
+    - "tq report: a park shows its rec:, and 'next' names the decision when nothing is buildable"
+    - "tq report: a parks-only queue names the next action, not just the counts"
+    - "tq: done-when — --done on add + the done-when subcommand STORE it; report omits it (D/R47, resurfaced on resume)"
+    - "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)"
+    - "tq report: glyph-count header + → next pointer (R56 G3/G4 — R47 spec)"
+
+- id: R50
+  satisfies: [UN-3]
+  requirement: >
+    per-repo flags gate the enforced core; fail-safe lock
+  verified_by:
+    - "secret gate: honors a per-repo secret=off flag — ALLOWS there but still BLOCKS elsewhere (isolated, R50/R54)"
+    - "secret gate FAIL-SAFE: a flag file that isn't exactly 'secret=off' still BLOCKS (R50/R54 never-fails-open)"
+    - "secret gate is self-contained: sources no lib (R50/R54 never-fails-open via a dependency)"
+    - "steering off (per-repo flag): SessionStart drops the working agreement (resume/lessons unaffected, R50)"
+
+- id: R55
+  satisfies: [UN-3]
+  requirement: >
+    redesign logs UX and quality attributes only
+  verified_by:
+    - "status line: beacon animates under autopilot even with no in-progress task (R55 dogfood gap)"
+
+- id: R57
+  satisfies: [UN-4]
+  requirement: >
+    ship-it is contract-aware
+  verified_by:
+    - "ship.sh preflight: gate + drift + export + summary in one call; no gate -> exit 3"
+
+- id: R58
+  satisfies: [UN-4]
+  requirement: >
+    the living contract stays accurate
+  verified_by:
+    - "contract-drift: warns when behaviour changed without a contract doc, silent otherwise (R58)"
+
+- id: R59
+  satisfies: [UN-1]
+  requirement: >
+    decisive mode
+  verified_by:
+    - "autopilot decisive (R59): toggle persists, and flips the ask-guard guidance park→decide"
+    - "autopilot sweep: an IRREVERSIBLE park (no rev: marker) is never eligible (R77/R59)"
+    - "status line: ⚡ decisive indicator shows only when autopilot AND decisive are on (R59)"
+
+- id: R60
+  satisfies: [UN-4]
+  requirement: >
+    portable queue over git
+  verified_by:
+    - "tq import (R60): refuses when the session is bound to a DIFFERENT repo (no wrong-.root landing)"
+    - "tq import (R60): a merge-conflicted queue.json is a LOUD no-op, not a silent one"
+    - "tq export/import (R60): carries the open queue to a NEW clone path, re-stamped + idempotent"
+    - "tq import (R60): dedups across ALL statuses — a task completed here is not resurrected"
+    - "tq export (R60): one corrupt task file is skipped, the backlog is NOT zeroed (R44-class robustness)"
+    - "tq import (R60): two DISTINCT tasks sharing a subject line both import (no subject-collision collapse)"
+
+- id: R61
+  satisfies: [UN-5]
+  requirement: >
+    anti-drift gate on flow test references
+  verified_by:
+    - "docs/flows index lists every shipped command + the count matches (contract can't silently drift)"
+    - "docs/flows: every [E] flow test resolves to a real @test (anti-drift gate — R61/R62)"
+    - "docs/flows anti-drift gate FAILS on a phantom test + PASSES a real one — via the real matcher (R61/R62)"
+
+- id: R63
+  satisfies: [UN-4]
+  requirement: >
+    task-store scoping keys on a per-worktree identity
+  verified_by:
+    - "resume survives a repo MOVE — scoping keys on a per-worktree identity, not the abspath (R63)"
+    - "resume ISOLATES git worktrees — same history, separate trees, separate queues (R63: not root-SHA)"
+
+- id: R64
+  satisfies: [UN-6]
+  requirement: >
+    no plugin-generated file at a governed repo's root
+  verified_by:
+    - "tq: add/doing/done write the companion store + stamp the repo root; report groups by state"
+
+- id: R65
+  satisfies: [UN-3]
+  requirement: >
+    the open queue stays minimal-blast; decompose-park
+  verified_by:
+    - "autopilot sweep: ⏳, decompose:, unrecorded and prose-only markers stay excluded (R77/R65)"
+
+- id: R69
+  satisfies: [UN-7]
+  requirement: >
+    injected artifacts are byte-capped; steering is two-tier
+  verified_by:
+    - "session start: injects the STEERING CORE only — rationale below the marker excluded; missing marker fails OPEN (R69)"
+    - "tq delta (R69): add/doing print a one-line counts delta, NOT the full queue; done prints the full report"
+    - "session start: LESSONS is two-tier — only the core above the marker is injected (R69/R30·d7)"
+    - "session start: autopilot mode prose rides ONLY when the mode is armed (R69)"
+
+- id: R70
+  satisfies: [UN-4]
+  requirement: >
+    docs produces the boundary contract
+  judgment: "the boundary contract is a modelling judgement, not an output to diff"
+  verified_by: []
+
+- id: R71
+  satisfies: [UN-7]
+  requirement: >
+    the deterministic spine runs on a rail
+  verified_by:
+    - "ship.sh land: --gate accepts a MULTI-WORD gate (slurps trailing args, matching preflight)"
+
+- id: R72
+  satisfies: [UN-4]
+  requirement: >
+    one-call cross-machine handoff
+  verified_by:
+    - "ship.sh handoff: on a feature branch — commits in place and pushes; a staged credential is refused"
+    - "ship.sh handoff: clean tree + no queue delta -> exit 6; no remote -> exit 8"
+    - "ship.sh handoff: on the default branch — WIP moves to a wip/* branch, default untouched, queue rides the commit"
+
+- id: R74
+  satisfies: [UN-5]
+  requirement: >
+    land enforces a CI watch
+  verified_by:
+    - "ship.sh land: gate failure aborts BEFORE any commit (exit 4)"
+    - "ship.sh land: a staged credential shape is refused BEFORE commit (exit 9)"
+    - "ship.sh land: non-ff merge bails (exit 7), hands back ON the feature branch, default untouched"
+    - "ship.sh land: retry path — nothing staged but unmerged commits exist -> still ships"
+    - "ship.sh land: on the default branch — commit + push, no merge, no prune"
+    - "ship.sh land: clean tree and no unmerged commits -> exit 6, nothing shipped"
+    - "ship.sh land: check.sh itself counts as enforced core (R78)"
+    - "ship.sh land: rename bypasses are closed — both sides of a rename count (R78)"
+    - "ship.sh land: paths with spaces and non-ASCII are still seen (R78)"
+    - "ship.sh land: NO .companion/da-paths means NO gate — a stranger's repo is untouched (R78/R9)"
+    - "ship.sh land: --da rejects a flag or a whitespace-only value (R78)"
+    - "ship.sh land: the trailer does not orphan Co-Authored-By, and retries don't duplicate (R78)"
+    - "ship.sh land: genuinely no CI to watch still exits 0, not 12 (R74)"
+    - "ci-watch.sh is callable standalone and reports its own exit codes (R74/R78)"
+    - "ship.sh land: a RUBBER-STAMP --da is refused; a substantive clean note passes (R78)"
+    - "ship.sh land: a COMMENT in da-paths cannot disable the gate, and an invalid one FAILS CLOSED (R78)"
+    - "ship.sh land: on the DEFAULT branch, committed-but-unpushed work still ships (retry path)"
+    - "ship.sh land: ENFORCES the CI watch — GREEN run exits 0 (R74)"
+    - "ship.sh land: CI RED after a successful push exits 10 — SHIPPED, fix-forward not un-shipped (R74)"
+    - "ship.sh land: SHIP_CI_WATCH=0 opts out of the watch (R74)"
+    - "ship.sh land: a run still in flight at timeout exits 12 — SHIPPED but UNWATCHED (R74)"
+
+- id: R75
+  satisfies: [UN-2]
+  requirement: >
+    a command's parameters are visible where it is invoked
+  verified_by:
+    - "doc-lint frontmatter: rejects shapes the HOST throws on (R75/R78)"
+
+- id: R76
+  satisfies: [UN-7]
+  requirement: >
+    the status line shows account rate-limit usage
+  verified_by:
+    - "status line: renders version · model · tokens · task count · project · branch (no shield when gate on)"
+    - "status line: task split (◻ open · ❓ parked · ⏳ blocked) and git ahead/behind"
+    - "status line: 🛡✗ when the secret gate is disabled"
+    - "status line: 🛡✗ when the secret gate is off per-repo via the secret=off flag (R50)"
+    - "status line: a space in the model name / project path doesn't corrupt the parse (R32·1)"
+    - "status line: beacon animates only on activity (static ● when idle, spins on in-progress)"
+    - "status line: semantic colors — red shield when gate off, yellow beacon under autopilot (R56 #24)"
+    - "status line: usage bar severity colors — green <60, yellow 60-84, red >=85 (R76)"
+    - "status line: reset countdown shows whenever resets_at is present, at ANY usage (R76 amended)"
+    - "status line: a FAILED clock suppresses the countdown, never renders a 56-year one (R76/R68)"
+    - "status line: the ▴/▾ pace marker says whether the 7d window will be spent (R76)"
+    - "status line: a control character in the payload cannot truncate the line (R76)"
+    - "status line: usage bars sit between the queue and the model (R34 order, R76)"
+    - "status line: a sub-1% window is distinguishable from an idle one (R76)"
+    - "status line: the git segment is CACHED for its TTL, and a hit skips git entirely (R81)"
+    - "status line: a garbled or future-dated cache line falls back to LIVE git, never renders junk"
+    - "status line: an unwritable state dir still renders — the cache is best-effort (R68)"
+    - "status line: 5h + 7d usage bars render both windows from .rate_limits (R76)"
+    - "status line: no .rate_limits (API-key user / pre-first-response) renders NO bar (R76)"
+    - "status line: one window absent renders ONLY the other — no field shift (R76)"
+    - "status line: usage bar clamps >100, keeps 87% distinguishable from 100% (R76)"
+
+- id: R77
+  satisfies: [UN-1]
+  requirement: >
+    sweep mode
+  verified_by:
+    - "autopilot sweep TERMINATES: bounded by a counter no completion resets (R77)"
+    - "autopilot sweep: flag persists per-repo and is independent of ship/decisive (R77)"
+    - "autopilot sweep: OFF stops on a parked-only queue, ON works a rev: park (R77)"
+    - "autopilot sweep: an IRREVERSIBLE park (no rev: marker) is never eligible (R77/R59)"
+    - "autopilot sweep: ⏳, decompose:, unrecorded and prose-only markers stay excluded (R77/R65)"
+
+- id: R78
+  satisfies: [UN-5]
+  requirement: >
+    the mutation gate refuses to certify what it did not observe
+  verified_by:
+    - "da-gate match: the widened path set is evaluated by the REAL gate, not a re-implementation"
+    - "da-gate match: FAILS CLOSED on an unusable config, and CRLF cannot disable it"
+    - "da-gate note: rejects stamps and trailer injection, ACCEPTS a non-ASCII finding (R1)"
+    - "mutation gate: only a COMPLETE run that failed counts as caught (R78)"
+    - "mutation gate: a suite ALREADY RED is refused — it would score every mutation caught (R78)"
+    - "mutation gate: --shard partitions the set with no gaps and no overlap (R78)"
+    - "mutation gate: an UNPARSEABLE suite is refused up front, not scored (R78)"
+    - "check.sh actually INVOKES the portability lint, both halves (wiring guard)"
+    - "portability-lint: catches the two traps that keep shipping red CI, and honours its markers"
+    - "ship.sh land: an enforced-core diff is REFUSED without --da (exit 11, R78)"
+    - "ship.sh land: --da lets an enforced-core diff ship and records the trailer (R78)"
+    - "ship.sh land: a NON-core diff still ships with no --da (R78 stays narrow)"
+    - "ship.sh land: lib/ counts as enforced core too (R78)"
+
+- id: R79
+  satisfies: [UN-5]
+  requirement: >
+    a watch that gives up does not report success
+  verified_by:
+    - "ship.sh land: a run still in flight at timeout exits 12 — SHIPPED but UNWATCHED (R74)"
+
+- id: R80
+  satisfies: [UN-2]
+  requirement: >
+    the posture is a stated default; the verdict is unconditional
+  verified_by:
+    - "session start: the compact re-anchor carries BOTH halves of the posture, not the core (R80)"
+    - "status line: a DRAINED queue renders no queue section at all (R80)"
+
+- id: R81
+  satisfies: [UN-7]
+  requirement: >
+    a hook's cost stays bounded, and the bound is measured
+  verified_by:
+    - "autopilot: Stop yields after the no-progress cap (can't spin forever)"
+    - "autopilot: the no-progress cap RESETS when a task completes — a productive drain keeps going (R56 G5)"
+    - "tq prune: age protects a RECENT finished store, and --dry-run deletes nothing"
+    - "autopilot RUN bound: the wall-clock deadline yields, and 0 disables both bounds (R81)"
+    - "autopilot RUN bound: an OLD 3-field continue-file still works (no migration, no lost run)"
+    - "tq prune: an UNREADABLE task file means KEEP, never delete (jq exit status, not stdout)"
+    - "tq prune: a SYMLINKED session dir is skipped — rm -rf must not recurse through the link"
+    - "R81 hook budget: measures under a COMMA-DECIMAL locale (LC_ALL=C is load-bearing)"
+    - "R81 hook budget: the gate CATCHES a store-scaling hook and PASSES a bounded one"
+    - "R81 hook budget: a missing jq/git SKIPS clean — the gate never false-reds the environment"
+    - "tq prune: removes FINISHED old stores, never one with open/parked/blocked work (R81)"
+    - "autopilot RUN bound: the TURN cap stops a PRODUCTIVE drain the stall cap never could (R81)"
+
+- id: R82
+  satisfies: [UN-1]
+  requirement: >
+    burn-down mode
+  verified_by:
+    - "burn-down: HOLD is the default and every unknown resolves to it"
+    - "burn-down: burns ONLY on a forecast underspend, never when on track"
+    - "burn-down: real queued work outranks generated work"
+    - "burn-down: unreviewed branches apply backpressure — the loop is self-limiting"
+    - "burn-down: refuses when the 5h window has no room to actually work"
+    - "candidates: never invents while a recorded signal remains, and labels it when it does"
+    - "burndown-branch: work is containerised — never on main, never pushed, always discardable"
+    - "candidates: does not feed on prose ABOUT markers, only real annotations"
+    - "burn-down: a branch can NEVER exist without a manifest, even with the mode ARMED (R82)"
+    - "burn-down: parks and blocked items are NOT buildable work and must not block it (R82)"
+    - "burndown-branch: a slug cannot escape the manifest dir (R82)"
+    - "burndown-branch: refuses a slug that collides with the default branch (R82)"
+
+- id: R83
+  satisfies: [UN-1]
+  requirement: >
+    a review is transparent to autopilot
+  verified_by:
+    - "autopilot pause/resume: a review is transparent to the drain (R83)"
+    - "autopilot pause: refuses to disarm when it cannot record the paused state (R83)"
+    - "autopilot resume: refuses and KEEPS the marker when it cannot re-arm (R83)"
+
+- id: R84
+  satisfies: [UN-2]
+  requirement: >
+    a blocked question parks itself
+  verified_by:
+    - "ask-guard: the deny REASON carries park-with-full-options guidance (R56 G5)"
+    - "prompt-continue: a bare 'continue' with a parked pile routes to review FIRST (R85)"
+    - "tq: concurrent adds cannot lose a task — a HOOK is now a writer (R84)"
+    - "ask-guard: parks into the PAYLOAD's repo and survives a relative invocation (R84)"
+
+- id: R53
+  satisfies: [UN-5]
+  requirement: >
+    ledger-honesty rules — a hard measurement must name its evidence, and the lint that
+    enforces this fails loudly rather than passing vacuously on unreadable input.
+  note: >
+    Reclassified from PRIN to REQ on 2026-08-02: it was filed as a principle, but doc-lint.sh
+    enforces it and seven tests cover it. The trace gate is what surfaced that — the tests had
+    nowhere to attach, which is the orphan-test direction earning its keep on its first run.
+  verified_by:
+    - "doc-lint frontmatter: accepts shapes the HOST accepts (no false positives) (R78)"
+    - "doc-lint frontmatter: rejects shapes the HOST throws on (R75/R78)"
+    - "doc-lint ledger: a hard measurement needs evidence; a rhetorical figure does not (R78)"
+    - "check.sh actually INVOKES doc-lint for both subcommands (R78 wiring guard)"
+    - "doc-lint: CRLF and BOM do not silently disable the frontmatter lint (R78)"
+    - "doc-lint: folded and literal block scalars are valid YAML, not indicators (R78)"
+    - "doc-lint ledger: the ~ exemption works on MULTI-digit numbers (R78)"
+    - "doc-lint ledger: a missing file FAILS loudly instead of reporting ok (R78)"
+
+- id: R48
+  satisfies: [UN-5]
+  requirement: >
+    the gates are wired — check.sh actually invokes each lint and gate it claims to run, so one
+    can never quietly stop firing while the suite stays green.
+  verified_by:
+    - "check.sh actually INVOKES the traceability gate (wiring guard)"

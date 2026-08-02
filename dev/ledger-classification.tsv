@@ -58,12 +58,12 @@ R44	REQ	tq writes are atomic
 R45	RETIRED	second default-branch check
 R46	RETIRED	tab-delimited reads — superseded by the US separator
 R47	REQ	tq report is compact and never renders done_when
-R48	PRIN	the suite is the executable half of the enforced core
+R48	REQ	the gates are WIRED — check.sh invokes what it claims (reclassified: it has a wiring guard)
 R49	PRIN	the recommendation contract — overlaps R5 and R80
 R50	REQ	per-repo flags gate the enforced core; fail-safe lock
 R51	ADR	no advisory hooks (retires R25)
 R52	PRIN	the product is the propose to queue to drain loop
-R53	PRIN	ledger-honesty rules (meta)
+R53	REQ	ledger-honesty rules — ENFORCED by doc-lint (reclassified from PRIN: the trace gate found 7 tests for it)
 R54	ADR	direction: contract-preserving regenerative advise
 R55	REQ	redesign logs UX and quality attributes only
 R56	ADR	complete the behaviour net before whole-app redesign

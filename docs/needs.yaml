@@ -1,0 +1,77 @@
+# LEVEL 0 — USER NEEDS. The top of the V, and the one level that cannot be delegated: needs are
+# the definition of "useful", so an agent that authors its own has no falsifiable standard left.
+#
+# Written in the owner's language, about outcomes. No mechanism, no R-IDs, no implementation. If a
+# need names HOW, it has leaked down a level and belongs in requirements.yaml.
+#
+# Derived from the 22 PRIN rows in docs/REQUIREMENTS.md (see dev/ledger-classification.tsv). Those
+# rows are the closest thing this project had to needs — but almost every one was phrased as a
+# CONSTRAINT ON THE IMPLEMENTATION ("no hardcoded allowlists", "hooks are best-effort") rather than
+# as something a person wanted. Recovering the want behind each constraint is the whole point of
+# this file; the constraints themselves survive as requirements, traced back up to here.
+#
+# Seven. If this list grows past ten, the product has acquired a second purpose and should be split
+# rather than described.
+
+- id: UN-1
+  need: >
+    I want to hand work to Claude and have it keep going without me — and come back to find the
+    work done, not a list of questions it could have answered itself.
+  because: >
+    The value is unattended progress. A tool that stops on every choice costs more attention than
+    doing the work by hand, which is the failure mode this whole project exists to avoid.
+  from: [R11, R12, R36, R52]
+
+- id: UN-2
+  need: >
+    I want the decisions that are genuinely mine to reach me intact — with the real options and a
+    recommendation — and I do not want anything else pretending to be one.
+  because: >
+    Autonomy is only safe if the exceptions are honest. A thin "what do you think?" makes the
+    review a rubber stamp; a flat answer to a real choice takes the decision away from me quietly.
+  from: [R5, R14, R49, R17]
+
+- id: UN-3
+  need: >
+    I want to be able to undo anything it did, and to review before I am committed to it.
+  because: >
+    Reversibility is what makes delegation affordable. If a mistake is cheap to discard I do not
+    need to predict it, which is the only workable standard for unattended work.
+  from: [R14, R23, R68]
+
+- id: UN-4
+  need: >
+    I want nothing lost when a session ends, crashes, or is compacted — the work in flight, the
+    reasoning behind it, and what I already decided should all still be there.
+  because: >
+    Context loss is the tax that makes long work impossible. Re-deciding something I already
+    decided is worse than not starting.
+  from: [R2, R15, R53]
+
+- id: UN-5
+  need: >
+    I want to trust the green tick. When it says the work is verified, that must mean something
+    was actually observed — not that a check ran and had nothing to say.
+  because: >
+    This project's recorded failure mode is a green gate certifying broken work. A check that
+    cannot fail is worse than no check, because it also removes the suspicion that would have
+    caught the problem.
+  from: [R13, R48, R3]
+
+- id: UN-6
+  need: >
+    I want it to work on other people's projects, in whatever language and shape they use, without
+    them having to tell it about their stack.
+  because: >
+    This is a product for a wide audience, not a personal rig. Anything hardcoded to how I work is
+    a defect for everyone else.
+  from: [R1, R9, R10, R66, R67]
+
+- id: UN-7
+  need: >
+    I want it to be cheap to have running — in tokens, in latency, and in how much of my attention
+    it asks for when it has nothing useful to say.
+  because: >
+    Everything injected is rent paid in every session forever, and every unnecessary interruption
+    is the cost the autonomy was supposed to remove.
+  from: [R3, R15, R16, R51]

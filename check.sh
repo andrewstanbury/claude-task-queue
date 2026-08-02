@@ -248,6 +248,14 @@ section "Mutation patterns still apply (no stale/orphaned declarations)"
 if out="$(dev/mutate-gate.sh --validate 2>&1)"; then printf '%s\n' "$out"
 else printf '%s\n' "$out"; fail=1; fi
 
+# The V: needs <- requirements <- tests, checked in BOTH directions. The uncomfortable one is
+# test->requirement: an orphan test is a claim about the system that no requirement will own. On
+# its first run it found 99 unclaimed tests and a misclassified requirement (R53 was filed as a
+# principle while doc-lint enforced it with 8 cases).
+section "Traceability (needs <- requirements <- tests, both directions)"
+if out="$(dev/trace.sh 2>&1)"; then printf '%s\n' "$out"
+else printf '%s\n' "$out"; fail=1; fi
+
 section "Tests (bats)"
 if have bats; then
   # One suite, one location — the tests moved to dev/ with the gates they run (they verify the

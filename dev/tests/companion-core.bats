@@ -1990,3 +1990,37 @@ _bd_setup() {
   run "$L" all "$d/ok-sc.sh" "$d/ok-bre.sh" "$d/ere.sh"; [ "$status" -eq 0 ]
 }
 
+
+@test "the plugin is SELF-CONTAINED — it runs with nothing outside its own root (R6)" {
+  # Claude Code installs a plugin's subdirectory alone, so anything the shipped code reaches for
+  # outside plugins/companion/ simply is not there for a user. This went untested until 2026-08-02
+  # even though the whole 3.33.0 split turned on it — verified twice by hand, never by a case.
+  local iso; iso="$(_tmpd)"
+  cp -R "$ROOT" "$iso/companion"
+  # Nothing from dev/ (the verification kit) or the repo root travels with it.
+  [ ! -e "$iso/dev" ] && [ ! -e "$iso/companion/tests" ] && [ ! -e "$iso/companion/../check.sh" ]
+  run grep -rlE '(\.\./)+(dev|check\.sh)' "$iso/companion/bin" "$iso/companion/lib"
+  [ -z "$output" ]                       # no shipped file reaches up and out
+
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local st tk; st="$(_tmpd)"; tk="$(_tmpd)"
+  # The entry points a user actually triggers, run from the isolated copy.
+  run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' \
+      _ "$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')" "$st" "$tk" "$iso/companion/bin/session-start.sh"
+  [ "$status" -eq 0 ]; [[ "$output" == *"Working agreement"* ]]
+  run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" NO_COLOR=1 bash "$3"' \
+      _ "$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"s",cwd:$c}')" "$st" "$iso/companion/bin/statusline.sh"
+  [ "$status" -eq 0 ]
+  run env CLAUDE_COMPANION_SESSION_ID=iso CLAUDE_COMPANION_TASKS_DIR="$tk" "$iso/companion/bin/tq" add "works standalone"
+  [ "$status" -eq 0 ]
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" status' _ "$repo" "$st" "$iso/companion/bin/autopilot.sh"
+  [ "$status" -eq 0 ]
+}
+
+@test "check.sh actually INVOKES the traceability gate (wiring guard)" {
+  # bats cannot run check.sh (check.sh runs bats), so this is structural — same shape as the
+  # doc-lint and portability wiring guards. Without it check.sh could stop running trace.sh and
+  # every requirement could drift out of its tests with the suite still green.
+  run grep -c 'dev/trace\.sh' "$ROOT/../../check.sh"
+  [ "$output" -ge 1 ]
+}
