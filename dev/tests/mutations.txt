@@ -68,3 +68,4 @@ check.sh::s@dev/portability-lint.sh fixtures dev/tests/\*.bats@true dev/tests@::
 plugins/companion/bin/ship.sh::s@\[ "$cur" = "$def" \] &&@[ "$cur" = zzzNEVER ] \&\&@::committed-but-unpushed work on the default branch reports 'nothing to commit' again
 dev/mutate-gate.sh::s@if \[ "$shard_m" -gt 1 \] \&\& \[ $(( (idx - 1) % shard_m )) -ne "$shard_n" \]; then@if false; then@::--shard stops partitioning — every shard runs every mutation
 check.sh::s@dev/trace.sh 2>&1@:@::check.sh stops running the traceability gate
+plugins/companion/bin/prompt-continue.sh::s@STOP — DO NOT START ANY OTHER WORK YET@Note:@::the continue hook stops asserting that unblocking outranks other work

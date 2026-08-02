@@ -1920,12 +1920,17 @@ _bd_setup() {
   jq -n '{id:"2",subject:"❓ [parked] pick a backend; rec: A",status:"pending"}' > "$tk/sP/2.json"
   _pc continue
   [[ "$output" == *"/companion:review"* ]]; [[ "$output" == *"WHOLE pile"* ]]
+  # The ordering is the whole point of the hook, so pin it: unblocking outranks everything, and
+  # the model must not answer a parked decision on the owner's behalf.
+  [[ "$output" == *"HIGHEST PRIORITY"* ]]
+  [[ "$output" == *"do not answer one of these on their behalf"* ]]
   [[ "$output" == *"no pause is needed"* ]]                   # autopilot off
   # ARMED: it must say pause first, because the ask-guard would otherwise PARK the review's own
   # questions instead of asking them — the review would silently accomplish nothing.
   mkdir -p "$st/autopilot"; touch "$(_flagpath "$st" autopilot "$d")"
   _pc continue
   [[ "$output" == *"autopilot.sh pause"* ]] && [[ "$output" == *"resume"* ]]
+  [[ "$output" == *"never leave autopilot off"* ]]     # resume is not optional
   # A ⏳ alone counts too — manual jobs are equally the owner's.
   rm "$tk/sP/2.json"; jq -n '{id:"3",subject:"⏳ [blocked] go plug in the device",status:"pending"}' > "$tk/sP/3.json"
   _pc continue; [[ "$output" == *"/companion:review"* ]]
