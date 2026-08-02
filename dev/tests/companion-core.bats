@@ -1467,6 +1467,15 @@ _bd() {  # $1=used7 $2=used5 $3=age-offset → run the forecaster against a fres
 # `mktemp -d` returns /var/folders/... and git resolves it to /private/var/folders/..., so any test
 # that hand-encodes the mktemp path creates a flag the product never looks at — green on Linux,
 # vacuous on macOS. Always go through git, exactly like companion_root does.
+# Stamp a session store with the RESOLVED repo root, the way tq and companion_root do. Writing the
+# raw mktemp path is the same macOS trap as _flagpath: git resolves /var/... to /private/var/...,
+# the stamp never matches, companion_open_tasks returns nothing, and a test asserting "the queue
+# holds work" silently asserts nothing at all.
+_stamp_root() {  # $1=session dir · $2=repo dir
+  local r; r="$(git -C "$2" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$2")"
+  printf '%s' "$r" > "$1/.root"
+}
+
 _flagpath() {  # $1=state dir · $2=flag kind (autopilot|burndown|ship|…) · $3=repo dir
   local r; r="$(git -C "$3" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$3")"
   printf '%s/%s/%s' "$1" "$2" "$(printf '%s' "$r" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
@@ -1515,7 +1524,7 @@ _bd_setup() {
 
 @test "burn-down: real queued work outranks generated work" {
   _bd_setup
-  mkdir -p "$BD_TASKS/sQ"; printf '%s' "$BD_REPO" > "$BD_TASKS/sQ/.root"
+  mkdir -p "$BD_TASKS/sQ"; _stamp_root "$BD_TASKS/sQ" "$BD_REPO"
   jq -n '{id:"1",subject:"something the owner asked for",status:"pending"}' > "$BD_TASKS/sQ/1.json"
   _bd 10
   [[ "$output" == HOLD:* ]]; [[ "$output" == *"still queued"* ]]
@@ -1573,7 +1582,7 @@ _bd_setup() {
   _cand; [[ "$output" == 3\|todo\|* ]]
 
   # A parked decision carrying a recommendation outranks EVERYTHING — the owner already reasoned it.
-  mkdir -p "$tk/sP"; printf '%s' "$d" > "$tk/sP/.root"
+  mkdir -p "$tk/sP"; _stamp_root "$tk/sP" "$d"
   jq -n '{id:"1",subject:"❓ [parked] pick a cache backend — options: A) sqlite B) files; rec: sqlite",status:"pending"}' \
     > "$tk/sP/1.json"
   _cand; [[ "$output" == 1\|parked\|* ]]; [[ "$output" == *"rec: sqlite"* ]]
@@ -1730,7 +1739,7 @@ _bd_setup() {
   # 3-branch backpressure unreachable. One long-lived ⏳ disabled the mode permanently.
   local d st tk; d="$(mktemp -d)"; st="$(mktemp -d)"; tk="$(mktemp -d)"
   git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
-  mkdir -p "$st/burndown" "$tk/s1"; printf '%s' "$d" > "$tk/s1/.root"
+  mkdir -p "$st/burndown" "$tk/s1"; _stamp_root "$tk/s1" "$d"
   touch "$(_flagpath "$st" burndown "$d")"
   local n; n="$(date +%s)"
   printf '%s 20 %s 10 %s\n' "$n" "$((n+7200))" "$((n+86400))" > "$st/ratelimit"
@@ -1836,7 +1845,9 @@ _bd_setup() {
       _ "$pay" "$st" "$tk" "bin/ask-guard.sh" "$ROOT"
   [ "$status" -eq 0 ]
   [ "$(ls "$tk/sPay"/*.json 2>/dev/null | wc -l)" -eq 1 ]      # the task actually got written
-  [ "$(cat "$tk/sPay/.root")" = "$d" ]                          # stamped with the PAYLOAD's repo
+  # Compare against the RESOLVED root — tq stamps what git reports, which on macOS is the
+  # /private/var/... form rather than the raw mktemp path.
+  [ "$(cat "$tk/sPay/.root")" = "$(git -C "$d" rev-parse --show-toplevel)" ]   # the PAYLOAD's repo
   [[ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecisionReason')" == *"ALREADY PARKED FOR YOU"* ]]
 }
 
@@ -1855,7 +1866,7 @@ _bd_setup() {
   # about. As STEERING prose this is a reflex the model can skip; as an injection it cannot be,
   # and it costs nothing in every session where nothing is parked.
   local d st tk; d="$(mktemp -d)"; git -C "$d" init -q; st="$(mktemp -d)"; tk="$(mktemp -d)"
-  mkdir -p "$tk/sP"; printf '%s' "$d" > "$tk/sP/.root"
+  mkdir -p "$tk/sP"; _stamp_root "$tk/sP" "$d"
   _pc() { run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' \
             _ "$(jq -nc --arg c "$d" --arg p "$1" '{cwd:$c,session_id:"sP",prompt:$p}')" "$st" "$tk" "$ROOT/bin/prompt-continue.sh"; }
 
