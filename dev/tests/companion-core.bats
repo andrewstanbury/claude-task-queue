@@ -1940,6 +1940,10 @@ _bd_setup() {
   # one half, and every test above would still pass while the gate protected nothing.
   run grep -c 'portability-lint\.sh all' "$ROOT/../../check.sh"
   [ "$output" -ge 1 ]
+  # The fixtures invocation is a SEPARATE call over the test files, so `all` being wired says
+  # nothing about it — CI caught exactly that as a hole.
+  run grep -c 'portability-lint\.sh fixtures' "$ROOT/../../check.sh"
+  [ "$output" -ge 1 ]
 }
 
 @test "portability-lint: catches the two traps that keep shipping red CI, and honours its markers" {
