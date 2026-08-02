@@ -21,8 +21,8 @@ work here too.**
   the companion owns its store; never native task tools, R8/R10) · `statusline.sh` ·
   autopilot (`stop-autopilot.sh` auto-continues the drain, `ask-guard.sh` blocks asking;
   ship-mode auto-commits to `autopilot/*`, never main) · `lib/companion.sh` (shared helpers).
-- **Commands** — `setup` · `autopilot` · `ship-it` · `resume` · `review` · `advise` ·
-  `redesign` · `docs` · `cover`. Per-file responsibilities live in
+- **Commands** — `setup` · `autopilot` · `ship-it` · `handoff` · `resume` · `review` ·
+  `advise` · `redesign` · `docs` · `cover` · `burn-down`. Per-file responsibilities live in
   **[docs/MAP.md](./docs/MAP.md)** — read it before touching the core.
 - **The hook/steering line (R28/R51)** — code only where it must *block* (secret gate),
   *inject context* (session-start), or *guarantee control-flow* (autopilot). Everything

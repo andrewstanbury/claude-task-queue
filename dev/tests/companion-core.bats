@@ -1777,3 +1777,66 @@ _bd_setup() {
   run env CLAUDE_COMPANION_SESSION_ID=sAsk CLAUDE_COMPANION_TASKS_DIR="$tk" "$TQ" list
   [ "$(printf '%s' "$output" | grep -c 'Which cache backend')" -eq 1 ]
 }
+
+@test "autopilot resume: refuses and KEEPS the marker when it cannot re-arm (R83)" {
+  # The mirror of the pause fix, and it was missed: resume deleted the marker FIRST, then tried to
+  # arm without checking, then printed "RESUMED" unconditionally — leaving autopilot off, the marker
+  # gone, and no way back. A half-corrected defect class is worse than an uncorrected one, because
+  # the ledger says it is handled.
+  local d st; d="$(mktemp -d)"; git -C "$d" init -q; st="$(mktemp -d)"
+  _ar() { run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" "${@:4}"' _ "$d" "$st" "$ROOT/bin/autopilot.sh" "$@"; }
+  _ar on >/dev/null; _ar pause >/dev/null
+  rm -rf "$st/autopilot"; chmod 555 "$st"
+  _ar resume
+  chmod 755 "$st"
+  [ "$status" -ne 0 ]; [[ "$output" == *"NOT resumed"* ]]
+  [ "$(find "$st/autopilot-paused" -type f | wc -l)" -eq 1 ]   # marker KEPT — recoverable
+  _ar resume; [[ "$output" == *"RESUMED"* ]]                    # and the retry works
+  _ar status; [ "$output" = on ]
+}
+
+@test "tq: concurrent adds cannot lose a task — a HOOK is now a writer (R84)" {
+  # tq's header said id allocation needed no locking because "one model drives tq serially". The
+  # ask-guard made that false: two writers computed the same id and the second mv silently
+  # overwrote the first, so parked DECISIONS disappeared while the model was told they were saved.
+  export CLAUDE_COMPANION_SESSION_ID=sRace
+  local i
+  for i in 1 2 3 4 5 6; do "$TQ" add "concurrent subject $i" >/dev/null 2>&1 & done
+  wait
+  local dir="$CLAUDE_COMPANION_TASKS_DIR/sRace"
+  [ "$(ls "$dir"/*.json | wc -l)" -eq 6 ]
+  [ "$(cat "$dir"/*.json | jq -r .subject | sort -u | wc -l)" -eq 6 ]   # none lost
+  [ "$(cat "$dir"/*.json | jq -r .id | sort | uniq -d | wc -l)" -eq 0 ] # no duplicate ids
+}
+
+@test "ask-guard: parks into the PAYLOAD's repo and survives a relative invocation (R84)" {
+  # Two silent failures in one path. (1) tq stamps a session store from $PWD, so running the hook
+  # from elsewhere poisoned the whole session's queue — invisible to resume, review, burn-down and
+  # the status line, while the model was told the decision was parked. (2) $SELF is RELATIVE when
+  # the hook is invoked by a relative path, so cd-ing to the repo broke tq resolution entirely:
+  # no task written, success still reported.
+  local d st tk elsewhere; d="$(mktemp -d)"; git -C "$d" init -q
+  st="$(mktemp -d)"; tk="$(mktemp -d)"; elsewhere="$(mktemp -d)"
+  ( cd "$d" && CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/autopilot.sh" on ) >/dev/null
+  local pay; pay="$(jq -nc --arg c "$d" '{cwd:$c,session_id:"sPay",tool_input:{questions:[{question:"Which backend?",options:[{label:"A"},{label:"B"}]}]}}')"
+  # Invoked BY A RELATIVE PATH (cwd = the plugin dir, script = bin/ask-guard.sh) while the payload
+  # points at a different repo. An absolute path here would not exercise the bug at all — the whole
+  # failure is that $SELF stays relative and stops resolving once the hook cd's into the payload's
+  # repo. Asserting "relative" while passing an absolute path is a test that cannot fail.
+  run bash -c 'cd "$5" && printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' \
+      _ "$pay" "$st" "$tk" "bin/ask-guard.sh" "$ROOT"
+  [ "$status" -eq 0 ]
+  [ "$(ls "$tk/sPay"/*.json 2>/dev/null | wc -l)" -eq 1 ]      # the task actually got written
+  [ "$(cat "$tk/sPay/.root")" = "$d" ]                          # stamped with the PAYLOAD's repo
+  [[ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecisionReason')" == *"ALREADY PARKED FOR YOU"* ]]
+}
+
+@test "burndown-branch: refuses a slug that collides with the default branch (R82)" {
+  # `discard` refuses anything named like the default branch, so minting one created a branch that
+  # could never be removed and counted against the backpressure cap forever.
+  local d st; d="$(mktemp -d)"; st="$(mktemp -d)"
+  git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" start "1|parked|Main!"
+  [ "$status" -eq 9 ]
+  [ "$(git -C "$d" branch --list 'burndown/*' | wc -l)" -eq 0 ]
+}

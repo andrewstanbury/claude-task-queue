@@ -147,7 +147,7 @@ for f in plugins/companion/commands/*.md; do
   hraw="$(printf '%s\n' "$fm" | awk -F'argument-hint: ' '/^argument-hint: /{print $2; exit}')"
   d="$(unquote "$draw")"; hint="$(unquote "$hraw")"
 
-  # Frontmatter lint lives in bin/doc-lint.sh so the SUITE can exercise it (R78) — check.sh runs
+  # Frontmatter lint lives in dev/doc-lint.sh so the SUITE can exercise it (R78) — check.sh runs
   # bats, so anything inline here is untestable by construction and was a named gap.
   if ! out="$("$PWD/dev/doc-lint.sh" frontmatter "$f")"; then
     printf '%s\n' "$out"; tok_fail=1; fail=1
@@ -207,7 +207,7 @@ $dp
 EOF
   fi
 done
-# Ledger evidence lint — also in bin/doc-lint.sh, same reason (R78).
+# Ledger evidence lint — also in dev/doc-lint.sh, same reason (R78).
 led_fail=0
 if ! out="$(dev/doc-lint.sh ledger docs/REQUIREMENTS.md)"; then
   printf '%s\n' "$out"; led_fail=1; fail=1
@@ -222,7 +222,7 @@ fi
 # the ONE boundary where drift is real and actionable: /companion:ship-it's contract-sync step.
 
 section "Hook budget (R81 — hooks stay O(1) in store size; MEASURED, not asserted)"
-# Lives in bin/hook-budget.sh so the SUITE can exercise it (same reason as doc-lint, R78).
+# Lives in dev/hook-budget.sh so the SUITE can exercise it (same reason as doc-lint, R78).
 # Primary assertion is a SCALING RATIO, not a wall-clock cap — see that file's header for why an
 # absolute-ms budget is machine-dependent and self-defeating. This is the gate that would have
 # stopped the 2085ms->16108ms session-start scan (measured 8.06x, caught) from ever shipping.

@@ -44,8 +44,17 @@ case "$cmd" in
        fi ;;
   resume) pflag="$(companion_autopilot_paused_flag "$root")"
        if [ -f "$pflag" ]; then
+         # SAME ORDER RULE AS `pause`, and it was missing here: ARM FIRST, and only destroy the
+         # marker once arming has actually succeeded. Deleting the marker first meant an unwritable
+         # state dir left autopilot OFF, the marker GONE, and "RESUMED" printed — unrecoverable,
+         # and the exact defect `pause` had just been fixed for. A half-corrected class is worse
+         # than an uncorrected one: the ledger says it is handled.
+         aflag="$(companion_autopilot_flag "$root")"
+         if ! { mkdir -p "$(dirname "$aflag")" 2>/dev/null && : > "$aflag" 2>/dev/null; }; then
+           echo "autopilot NOT resumed — could not re-arm at $aflag. The paused marker is KEPT, so run resume again once the state dir is writable." >&2
+           exit 1
+         fi
          rm -f "$pflag" 2>/dev/null || true
-         mkdir -p "$(dirname "$(companion_autopilot_flag "$root")")" 2>/dev/null && : > "$(companion_autopilot_flag "$root")"
          echo "✈️  autopilot RESUMED for $root — picking the drain back up where the review interrupted it."
        else
          echo "autopilot was not paused by a review — leaving it off."

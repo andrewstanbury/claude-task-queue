@@ -46,6 +46,11 @@
     "status": "in_progress",
     "done_when": "origin/main == HEAD and the CI run for the pushed commit concludes green (or red is fixed forward)",
     "description": "",
-    "notes": []
+    "notes": [
+      {
+        "ts": "2026-08-02T00:53:28Z",
+        "text": "ABORTED before land: DA found 3 blockers. Nothing pushed."
+      }
+    ]
   }
 ]

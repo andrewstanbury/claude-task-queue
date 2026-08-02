@@ -79,6 +79,11 @@ cmd_start() {
   slug="$(slugify "$text")"; [ -n "$slug" ] || slug="candidate"
   branch="burndown/$slug"
   def="$(default_branch)"
+  # `discard` refuses any slug named like the default branch, so minting one here created a branch
+  # that could never be removed and counted against the backpressure cap forever. Refuse at the
+  # point of creation instead — the guard on the delete side protects nothing, since the delete
+  # target is always `burndown/<slug>` and can never BE the default branch.
+  case "$slug" in "$def"|main|master) die "slug '$slug' collides with the default branch name — discard would refuse it forever" 9 ;; esac
   git -C "$root" rev-parse --verify --quiet "$def" >/dev/null 2>&1 || die "no default branch '$def' to branch from"
   git -C "$root" rev-parse --verify --quiet "$branch" >/dev/null 2>&1 && die "branch $branch already exists" 3
 

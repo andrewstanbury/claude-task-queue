@@ -88,7 +88,17 @@ SID="s0"   # a session dir that exists in both stores, for the session-scoped ho
 jq -nc --arg c "$REPO" --arg s "$SID" '{cwd:$c,session_id:$s,source:"startup"}'      > "$TMP/in-ss"
 jq -nc --arg c "$REPO" --arg s "$SID" '{cwd:$c,session_id:$s,tool_name:"Edit",
   tool_input:{file_path:($c+"/f"),new_string:"hello world"}}'                        > "$TMP/in-sg"
-jq -nc --arg c "$REPO" --arg s "$SID" '{cwd:$c,session_id:$s,tool_name:"AskUserQuestion"}' > "$TMP/in-ask"
+# ask-guard needs a REAL questions payload AND autopilot armed, or it exits at its disable-guard and
+# this gate measures a no-op. It did exactly that until 2026-08-02 — so the one hook that started
+# WRITING to the task store (R84) was the one hook this budget could not see, and its real cost
+# against a large store was ~2825ms, well past the 1500ms stall cap enforced here. "An unmeasured
+# budget is not a budget" (CLAUDE.md) has to apply hardest to the hook that just changed.
+mkdir -p "$TMP/state/autopilot" 2>/dev/null || true
+: > "$TMP/state/autopilot/$(printf '%s' "$REPO" | sed -e 's:%:%25:g' -e 's:/:%2F:g')" 2>/dev/null || true
+jq -nc --arg c "$REPO" --arg s "$SID" '{cwd:$c,session_id:$s,tool_name:"AskUserQuestion",
+  tool_input:{questions:[{question:"Which backend should we use for the cache layer?",header:"Cache",
+    options:[{label:"sqlite (Recommended)",description:"one file, dependency already vendored"},
+             {label:"plain files",description:"no dependency, slower on large sets"}]}]}}' > "$TMP/in-ask"
 jq -nc --arg c "$REPO" --arg s "$SID" '{cwd:$c,session_id:$s,stop_hook_active:false}' > "$TMP/in-stop"
 jq -nc --arg c "$REPO" --arg s "$SID" '{model:{display_name:"Opus"},session_id:$s,
   workspace:{current_dir:$c},context_window:{total_input_tokens:1,total_output_tokens:1}}' > "$TMP/in-sl"

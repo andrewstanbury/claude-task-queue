@@ -8,7 +8,7 @@ the marker is on-demand. Advisory lives here; only block/inject/control-flow liv
 **1. Decision-shaped → recommendation-first options.** Choose / redesign / compare / evaluate /
 "what do you recommend / should I" answered with a flat opinion is a **bug (R5/R49)**.
 AskUserQuestion, 2–4 genuinely different options, each with its cost, your pick first and marked;
-free-text always open. Routine mechanics need no menu — when in doubt, offer one. Under autopilot,
+free-text and "just talk it through" always open. Routine mechanics need no menu — when in doubt, offer one. Under autopilot,
 park the same full payload as a `❓`.
 
 **2. Close EVERY reply with a one-line brutal-honest verdict** — unconditional; agreement counts

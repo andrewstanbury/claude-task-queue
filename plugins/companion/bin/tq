@@ -4,7 +4,9 @@
 # `tq` is the whole queue, writing a JSON-per-task store the companion owns. The model drives
 # it: `tq add/doing/note/done-when/done/cancel/list/report`. Best-effort + never destructive
 # (nothing is deleted — `cancel` sets a status; the file stays for audit); self-contained.
-# **Single-writer by design:** one model drives `tq` serially, so id allocation (`next_id`) is
+# **Concurrent-safe id allocation (was single-writer):** `claim_id` reserves an id with O_EXCL
+# because a HOOK now writes here too (R84). The older note below is kept for context — its premise
+# no longer holds, which is exactly why the allocation changed. Historic note: id allocation was
 # not locked — concurrent `add`s could in principle collide on an id, but that isn't a real
 # usage pattern; don't add locking for it.
 # Store: CLAUDE_COMPANION_TASKS_DIR (its OWN dir, not ~/.claude/tasks). Each session dir is
@@ -41,6 +43,19 @@ EOF
 
 next_id() { local f n max=0; for f in "$DIR"/*.json; do [ -f "$f" ] || continue
   n="$(basename "$f" .json)"; case "$n" in ''|*[!0-9]*) continue;; esac; [ "$n" -gt "$max" ] && max="$n"; done; printf '%d' $((max+1)); }
+# CLAIM an id atomically, then fill it. `next_id`+write raced: two writers computed the same id and
+# the second `mv` silently overwrote the first — one task simply vanished. That was acceptable while
+# "one model drives tq serially" held, but the ask-guard now writes from a HOOK (R84), so the store
+# has genuinely concurrent writers and the old premise is void. `set -o noclobber` gives O_EXCL:
+# exactly one racer can create a given path, everyone else retries at the next free id.
+# The reserved file is briefly EMPTY; `jq -s` ignores an empty input (verified), so a crash in that
+# window costs a gap in the numbering, never a corrupted or lost task.
+claim_id() { local id try=0
+  while :; do
+    id="$(next_id)"
+    if ( set -o noclobber; : > "$DIR/$id.json" ) 2>/dev/null; then printf '%s' "$id"; return 0; fi
+    try=$((try+1)); [ "$try" -lt 100 ] || { printf '%s' "$id"; return 1; }
+  done; }
 # Every write goes to a temp file then `mv` over the target — atomic-rename is deliberate crash-safety
 # (R44), NOT idiom: a task file is never left half-written if jq errors or the process dies mid-write,
 # which is what protects crash-resume (breadcrumbs + done-when surviving a crash). jq can't edit in
@@ -158,10 +173,10 @@ case "$cmd" in
     # without reading any native session transcript. tq runs in the repo the model is working.
     [ -f "$DIR/.root" ] || { r="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")"; printf '%s' "$r" > "$DIR/.root" 2>/dev/null || true; }
     [ -f "$DIR/.repo" ] || printf '%s' "$(repo_id)" > "$DIR/.repo" 2>/dev/null || true   # path-stable identity (survives moves)
-    id="$(next_id)"
     for s in "${subs[@]}"; do [ -n "$s" ] || continue
+      id="$(claim_id)"          # claimed per subject, so a multi-add cannot stride over a racer
       jq -n --arg id "$id" --arg s "$s" --arg dw "$dw" '{id:$id,subject:$s,status:"pending",done_when:$dw,blocks:[],blockedBy:[]}' >"$DIR/.$id.tmp" && mv "$DIR/.$id.tmp" "$DIR/$id.json"
-      echo "added #$id  $s${dw:+  (done when: $dw)}"; id=$((id+1)); done
+      echo "added #$id  $s${dw:+  (done when: $dw)}"; done
     delta ;;
   doing) { [ "$#" -ge 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" in_progress "${2:-}"; echo "#$1 → in_progress"; delta ;;
   done) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" completed ""; echo "#$1 → completed"; echo; report ;;

@@ -95,7 +95,7 @@ Formatting is now a steering nudge, not enforced. The remaining hooks all *block
                     # hole — a test that cannot fail (R78). Full set is CI-only (minutes);
                     # ./check.sh --mutate <file>... runs just that file's mutations, which is what
                     # `ship.sh land` does for the paths a ship touches (R79)
-# The two document checks live in plugins/companion/bin/doc-lint.sh so bats can exercise them —
+# The two document checks live in dev/doc-lint.sh so bats can exercise them —
 # anything inline in check.sh is untestable, since check.sh is what runs bats.
 ```
 

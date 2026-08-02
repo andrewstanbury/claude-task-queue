@@ -51,10 +51,26 @@ subject="$(printf '%s' "$in" | jq -r '
   end' 2>/dev/null | head -c 900 | tr -d '\n\r' || true)"
 if [ -n "$subject" ] && [ -n "$sid" ]; then
   # Do not stack duplicates: a retried question would otherwise park itself again on every attempt.
-  if ! CLAUDE_COMPANION_SESSION_ID="$sid" "$(dirname "$SELF")/tq" list 2>/dev/null | grep -qF "${subject:0:120}"; then
-    parked_id="$(CLAUDE_COMPANION_SESSION_ID="$sid" "$(dirname "$SELF")/tq" add "$subject" 2>/dev/null \
+  # DEDUP BY RAW GREP, not `tq list`. `list` renders every task through jq, which put an O(store)
+  # jq pass on a hook that fires on every question — measured 2825ms against a 400-task store,
+  # breaching the R81 stall cap of 1500ms. A fixed-string grep over the session's own JSON files
+  # is the same answer for ~1/100th of the cost, and stays inside this session's directory.
+  _store="$(companion_tasks_dir)/$sid"
+  # ABSOLUTE path to tq, resolved BEFORE the cd. $SELF is relative whenever the hook is invoked by a
+  # relative path, so `$(dirname "$SELF")/tq` silently stopped resolving the moment this started
+  # cd-ing into the payload's repo — tq never ran, no task was written, and the model was still told
+  # its question had been parked. A silent no-op behind a success message is the worst outcome here.
+  _tq="$(cd "$(dirname "$SELF")" 2>/dev/null && pwd)/tq"
+  _dup=0; grep -qsF "${subject:0:120}" "$_store"/*.json 2>/dev/null && _dup=1
+  if [ "$_dup" -eq 0 ] && [ -x "$_tq" ]; then
+    parked_id="$( ( cd "$root" 2>/dev/null && CLAUDE_COMPANION_SESSION_ID="$sid" "$_tq" add "$subject" 2>/dev/null ) \
                  | sed -n 's/^added #\([0-9][0-9]*\).*/\1/p' | head -1 || true)"
   fi
+fi
+if [ -z "$parked_id" ] && [ "${_dup:-0}" -eq 1 ]; then
+  # ALREADY in the queue from an earlier denial. Saying nothing sent the model off to park it a
+  # second time by hand, which is the duplicate the dedup exists to prevent.
+  reason="ALREADY PARKED — this exact question is already on the queue as a ❓ from an earlier attempt. Do NOT re-ask and do NOT add it again. Move on to other work; /companion:review will walk it. ${reason}"
 fi
 if [ -n "$parked_id" ]; then
   reason="ALREADY PARKED FOR YOU as task #${parked_id} — the question you just asked has been written to the queue with its options and your recommendation, so nothing is lost and you do not need to re-park it. Do NOT re-ask and do NOT re-add it. Keep going with the rest of the work; /companion:review will walk it (it asks the whole pile at once and resumes autopilot afterwards, R83). NOTE: the auto-park deliberately omits the \`rev:\` marker, so it is treated as IRREVERSIBLE and will never be swept — if this choice is in fact reversible and safe for sweep mode to apply, re-add it yourself with \`rev:\`. ${reason}"
