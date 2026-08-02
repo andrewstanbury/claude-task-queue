@@ -505,3 +505,28 @@ NOGH
   [ "$status" -eq 11 ]
   [[ "$output" == *"refusing to ship UNGATED"* ]]
 }
+
+@test "ship.sh land: on the DEFAULT branch, committed-but-unpushed work still ships (retry path)" {
+  # The retry path was gated on `cur != def`, so on the default branch it could never fire: being
+  # ON main makes `def..HEAD` empty by definition. A clean tree with unpushed commits therefore
+  # reported "nothing to commit" and shipped nothing — which is precisely the state a land that
+  # bailed after committing leaves you in, on the branch most people work from. Hit for real
+  # while shipping this session.
+  local up repo msg; up="$(_tmpd)"; git init -q --bare "$up"
+  repo="$(_tmpd)"; git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  git -C "$repo" remote add origin "$up"; git -C "$repo" push -q -u origin main
+  printf '#!/bin/sh\nexit 0\n' > "$repo/gate.sh"; chmod +x "$repo/gate.sh"
+  git -C "$repo" add -A; git -C "$repo" -c user.email=t@t -c user.name=t commit -q -m gate
+  # Clean tree, one unpushed commit, standing on the default branch.
+  [ -z "$(git -C "$repo" status --porcelain)" ]
+  msg="$(mktemp "$BATS_TEST_TMPDIR/m.XXXXXX")"; printf 'ship it\n' > "$msg"
+  run bash -c 'cd "$1" && SHIP_CI_WATCH=0 bash "$2" land -F "$3" --gate ./gate.sh' _ "$repo" "$SHIP" "$msg"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"unpushed commit"* ]]
+  # The remote actually advanced — the whole point.
+  [ "$(git -C "$up" rev-parse main)" = "$(git -C "$repo" rev-parse HEAD)" ]
+  # And a genuinely empty state still exits 6 rather than pushing nothing.
+  run bash -c 'cd "$1" && SHIP_CI_WATCH=0 bash "$2" land -F "$3" --gate ./gate.sh' _ "$repo" "$SHIP" "$msg"
+  [ "$status" -eq 6 ]
+}

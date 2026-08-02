@@ -157,6 +157,14 @@ land() {
     if [ "$cur" != "$def" ] && [ "$(git rev-list --count "$def..HEAD" 2>/dev/null || printf 0)" -gt 0 ]; then
       printf '== ship.sh: nothing staged; shipping the %s existing commit(s) on %s\n' \
         "$(git rev-list --count "$def..HEAD")" "$cur"
+    # ON the default branch, "unshipped" cannot mean "ahead of $def" — you ARE $def, so that count
+    # is always 0 and the retry path could never fire. It means ahead of the UPSTREAM. Without this
+    # a clean tree with committed-but-unpushed work on main reported "nothing to commit" and
+    # shipped nothing, which is exactly the state a `land` that bailed after committing leaves you
+    # in — the retry path failing on the one branch most people work from.
+    elif [ "$cur" = "$def" ] && [ "$(git rev-list --count "@{u}..HEAD" 2>/dev/null || printf 0)" -gt 0 ]; then
+      printf '== ship.sh: nothing staged; pushing the %s unpushed commit(s) on %s\n' \
+        "$(git rev-list --count "@{u}..HEAD" 2>/dev/null || printf 0)" "$cur"
     else
       die 6 "nothing to commit"
     fi
