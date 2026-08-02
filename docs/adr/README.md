@@ -1,6 +1,6 @@
 # ADR — decisions, architecture choices, and rejected options
 
-Moved out of `docs/REQUIREMENTS.md` on 2026-08-02. These are **history, not requirements**:
+Moved out of `docs/adr/PROVENANCE.md` on 2026-08-02. These are **history, not requirements**:
 there is nothing here to verify, only something to remember. Keeping them in the ledger is
 what made "which tests verify R__?" an archaeology problem — half the table had no answer
 because half the table was never a requirement.
@@ -87,3 +87,38 @@ and command prose still resolves.
 ## R73 — DECISION 🔓
 
 **Command-review sweep (3-panel + DA) — one enforced outcome, the rest prose.** A ground-up review of all 10 command prompts by three independent lenses (cost · simplicity/coherence · UX) + a devil's-advocate on the ship diff. **Enforced (durable):** `check.sh` now byte-caps each command's `description:` frontmatter at **140B** — it's always-loaded per-session injection (the whole command list rides every session), the exact silently-growing class **R69** capped for STEERING/CLAUDE.md/LESSONS but had missed here; ceiling with working room over the 116B max (`handoff.md`), prevention > detection (N7). **Prose fixes (R28, freely amendable, not individually locked):** autopilot.md now documents the `decisive` arg (functional gap — script/MAP/flows referenced it, the command didn't); the handoff→resume **receiving end** is lit up (resume clears autopilot early, then checks for an un-checked-out waiting handoff branch — `wip/*` from a default-branch handoff *or* the relayed feature-branch name — and points at `/companion:handoff`, killing the pre-R72 manual-export prose; prose-only per R28, `resume.sh` still just clears+imports); docs.md preamble deduped (routing table stated once, honesty machinery kept verbatim — owner-picked moderate cut); advise gained the standard step-0 + a docs-prerequisite pointer; redesign negotiates its interruption budget up front (D2 run-mode pick + exit ramp); shared step-0s defer the R38 pile-review (mechanical-unblock ≠ off-ritual); history-asides stripped from runtime prose. **Set stays at 10** — every merge/split/delete candidate checked, none ripe. | 2026-07-23, three-panel review + DA, owner walked all 14 deltas recommendation-first (provenance `stated`). The DA also caught a real ship defect pre-merge (`land --gate` single-token vs `preflight` varargs) — fixed in 3.16.0 before it landed. Amends **R69** (adds the description cap to the enforced injection budget); composes R28 (prose = judgment, most fixes un-lockable), R41/R59/R72 (the gaps closed), R3 (density).
+
+## HUD-1 — RETIRED ⚰️ (the companion-hud experiment, and the provider seam it proved)
+
+**The status line was extracted to a standalone repo with its own V, then folded back.** Salvaged
+here on 2026-08-02 because the repo held the only copy — it had **no remote**, so deleting it would
+have destroyed the reasoning permanently, and the code it carried had already diverged 108 lines
+from the plugin's own status line.
+
+**What the experiment was for, and what it returned.** It proved the needs → requirements → design
+→ tests trace matrix end to end on a small artifact, which is the approach then applied to this
+whole repo (`docs/needs.yaml`, `docs/requirements.yaml`, `dev/trace.sh`). That was its value and it
+was paid in full; the *artifact* had no further job.
+
+**Why it was folded back (owner-decided, 2026-08-02, from a 3-option menu).** A status line is the
+product's front door, and shipping it separately means users install two things for the feature they
+see most. The alternative — keep both and sync them — is what **R4** was retired for. The owner's
+stated rule, broader than this decision: *don't duplicate if you don't need to; drift should not be
+something we have to manage.*
+
+**The decision worth keeping (its ADR-0001).** *The optional segments come from a provider process,
+not a library.* The extracted renderer had called eight library functions and read the plugin's
+private task store directly — coupling that broke it three times in one day. Rejected: linking the
+library (preserves the coupling with extra steps); inlining the state reading (coupled *and*
+duplicated, breaks whenever the queue changes storage); a config file describing where state lives
+(reintroduces the coupling as data, and makes the renderer parse formats it cannot verify). Chosen:
+a provider process with a text protocol — the renderer cannot know what a task is, where a queue
+lives, or which plugin is installed, so none of those can break it. The provider is **untrusted**:
+output length-capped, line-capped and character-stripped, and any failure yields absent segments
+rather than a broken line. Cost: one extra fork per repaint, the same order as the `git` call
+already on that path. Consequence accepted deliberately: the renderer can never show a *correct*
+task count on its own — it shows a count it was handed, or nothing.
+
+**Still applicable here.** The plugin's `statusline.sh` reads companion state directly, which is
+fine *because it ships with that state*. If the line is ever extracted again, this is the seam —
+and the untrusted-provider rules are the load-bearing part, not the fork.

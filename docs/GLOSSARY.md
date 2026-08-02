@@ -3,7 +3,8 @@
 Claude-facing (R37). A *coined domain term → its meaning*: when a concept recurs and its plain
 description is long, one word carries twenty and naming stays consistent. Consult before naming
 something new; reuse a term rather than mint a synonym. **Vocabulary only** — gotchas are in
-[LESSONS.md](./LESSONS.md), decisions in [REQUIREMENTS.md](./REQUIREMENTS.md), work in the `tq` queue.
+[LESSONS.md](./LESSONS.md), requirements in [requirements.yaml](./requirements.yaml), decisions in
+[adr/](./adr/README.md), work in the `tq` queue.
 Loaded on demand (not injected each session).
 
 | Term | Means |
@@ -14,7 +15,7 @@ Loaded on demand (not injected each session).
 | **the hook/steering line** (R28) | The deciding rule for where a behavior lives: *execute or block → hook; judgment or nudge → steering.* |
 | **the queue / `tq`** | The companion's self-owned task store + CLI — deliberately **not** Claude Code's native task tools (R8/R10). |
 | **done-when** | A task's own acceptance test (`tq add --done`) — re-read after a compaction, it re-derives the next action instead of guessing (R30·d1). |
-| **the ledger** | `REQUIREMENTS.md` — the single source of truth for durable requirements/decisions (R2). |
+| **the ledger** | Retired term. The contract is `docs/requirements.yaml`; decisions live in `docs/adr/`, and the old ledger is frozen as `docs/adr/PROVENANCE.md`. |
 | **R-ID** | A ledger entry (e.g. R28), with status **🔒 locked / 🔓 open / ⚰️ retired**. Recommendations cite the R-IDs they touch (R5). |
 | **blast radius** | What a change ripples into (callers, dependents) — grep the symbol, cover them before changing (criterion 1). |
 | **the secret gate** | The PreToolUse floor that blocks a write committing a credential (`secret-guard.sh`) — the one sanctioned edit-breaker (R19). |

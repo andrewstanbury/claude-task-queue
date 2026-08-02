@@ -2,7 +2,7 @@
 
 A living **design record**: direction, durable decisions, and what's next. Per-version
 history is in `git`, not here. Read [AGENTS.md](../AGENTS.md) for conventions and
-[docs/REQUIREMENTS.md](./REQUIREMENTS.md) for the status-tagged requirements ledger.
+[docs/adr/PROVENANCE.md](./adr/PROVENANCE.md) for the status-tagged requirements ledger.
 
 The goal: a Claude Code plugin that lets you **vibe-code a project** while Claude keeps it
 clean, well-documented, and low-debt — proactively, with minimal input, through the CLI. The
@@ -71,7 +71,7 @@ advisory — the nudges, the recommendation contract, clean-as-you-go — is **S
 
 ## Durable decisions → the ledger
 
-Durable requirements and decisions live in [docs/REQUIREMENTS.md](./REQUIREMENTS.md) as
+Durable requirements and decisions live in [docs/adr/PROVENANCE.md](./adr/PROVENANCE.md) as
 status-tagged entries (🔒 locked / 🔓 open / ⚰️ retired) — challenge or reverse one *there*,
 never silently. The arc: **R1–R23** carry the original design decisions (native-first,
 run-in-auto, non-technical-owner posture, the critique/recommendation posture, the

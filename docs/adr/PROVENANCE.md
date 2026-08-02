@@ -1,3 +1,24 @@
+# PROVENANCE — the evidence behind each requirement (frozen history)
+
+**This is NOT the contract.** `docs/requirements.yaml` is what a requirement *says*, and
+`dev/trace.sh` gates it in both directions against `docs/needs.yaml` and the suite. Renamed and
+frozen 2026-08-02 when the owner ruled that requirements.yaml is authoritative, with the broader
+rule: *don't duplicate if you don't need to; drift should not be something we have to manage.*
+
+**What survives here and why it was not deleted.** The yaml carries the statement; these rows carry
+the *evidence* — the measured symptom, the numbers, the cause, the options weighed and rejected.
+R81 is the clearest example: the yaml says "a hook's cost stays bounded, and the bound is measured";
+this file records the 1136-file / 4.9MB store, the 2085ms scan, the 16108ms at 8x, and the fact that
+it shipped anyway under 80 numbered requirements. Deleting that to remove duplication would have
+destroyed the only record of why the rule exists.
+
+**It is frozen, so there is nothing to keep in sync.** Do not edit these rows and do not add to
+them. A new requirement goes in `docs/requirements.yaml`; a new decision goes in
+[README.md](./README.md) alongside it. The requirement statements below are superseded wherever
+they disagree with the yaml.
+
+---
+
 # REQUIREMENTS — the locked / challengeable ledger
 
 > **Levelled 2026-08-02.** This file holds **requirements** — things with something to verify.

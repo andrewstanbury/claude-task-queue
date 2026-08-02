@@ -27,7 +27,7 @@ read-only critique it grew out of.
    one line, don't walk the pile first.
 
 1. **Scope + understand.** Resolve the target. Read what you genuinely need to critique it
-   honestly: the relevant code, the requirements ledger (`REQUIREMENTS.md`), `docs/MAP.md`, and —
+   honestly: the relevant code, the contract (`docs/requirements.yaml`), `docs/MAP.md`, and —
    if the target is the whole project — its complete current functionality. **If the ledger /
    `docs/flows` are missing or thin, say so and recommend `/companion:docs` first** — critiquing
    undocumented ground is guessing, and advise is the producer's consumer (R41). Restate in one line

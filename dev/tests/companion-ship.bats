@@ -443,7 +443,7 @@ NOGH
     [ "$status" -eq 1 ] || { echo "NOT GATED: $p (rc=$status)" >&2; return 1; }
   done
   # pure prose stays OUT on purpose — a gate that fires on a typo trains a reflexive "clean"
-  for p in docs/REQUIREMENTS.md README.md; do
+  for p in docs/adr/PROVENANCE.md README.md; do
     run bash -c 'cd "$1" && printf "%s\n" "$2" | "$3" match' _ "$repo" "$p" "$dg"
     [ "$status" -eq 0 ] || { echo "UNEXPECTEDLY GATED: $p (rc=$status)" >&2; return 1; }
   done

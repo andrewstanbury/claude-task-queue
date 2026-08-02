@@ -93,7 +93,7 @@ and ledger. `/companion:ship-it` keeps this index current (R57).
 
 - **[docs/flows/](docs/flows/)** — the user-experience contract: one dense spec per user flow (`when · why · steps · quality · tests · changes` — machine shape, R66), with shared [conventions](docs/flows/_patterns.md) and a global [quality bar](docs/flows/_quality-bar.md).
 - **[docs/INVARIANTS.md](docs/INVARIANTS.md)** — the safety/correctness net: the must-holds, each tied to an executable check.
-- **[docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)** — the requirements ledger (🔒 locked / 🔓 open / ⚰️ retired), the source of truth for durable decisions.
+- **[docs/adr/PROVENANCE.md](docs/adr/PROVENANCE.md)** — the requirements ledger (🔒 locked / 🔓 open / ⚰️ retired), the source of truth for durable decisions.
 - **[docs/MAP.md](docs/MAP.md)** — the code map: every file and what it does.
 - **[docs/ROADMAP.md](docs/ROADMAP.md)** — where it's heading.
 - **[docs/GLOSSARY.md](docs/GLOSSARY.md)** — the coined vocabulary.

@@ -586,14 +586,23 @@ _ux_flow_check() {
   [[ "$output" == *"⏳ [blocked]"* ]]          # the block-an-owner-action instruction
   [[ "$output" == *"DO NOT stop"* ]]           # the keep-going instruction
 
+}
+
+@test "Stop: the pointer is the first STARTABLE task, and every blocker counts (R87)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  local sid=depT d="$CLAUDE_COMPANION_TASKS_DIR/depT"
+  mkdir -p "$d"; _stamp_root "$d" "$repo"
+  # Re-arm before each fire: a dry queue DISARMS autopilot (R88), so each case is its own scenario.
+  _reason() { ( cd "$repo" && "$AP" on ) >/dev/null
+              jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" 2>/dev/null; }
+
   # The id it names must be the first STARTABLE task, not merely the first open one. A subject
   # saying "after #N" is not startable while #N is live — the same rule `tq report` applies.
-  local d="$CLAUDE_COMPANION_TASKS_DIR/$sid"
   # Re-arm before each fire: a dry queue now DISARMS autopilot, so every case below is its own
   # scenario with the mode on — otherwise the first ALLOW would silence all the later assertions.
   _reason() { ( cd "$repo" && "$AP" on ) >/dev/null
               jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" 2>/dev/null; }
-  rm "$d/7.json"
   jq -n '{id:"38",subject:"❓ [parked] pick one",status:"pending"}'    > "$d/38.json"
   jq -n '{id:"50",subject:"sharpen it (after #38)",status:"pending"}' > "$d/50.json"
   [ -z "$(_reason)" ]                          # blocker live → nothing startable → the drain ENDS
@@ -624,6 +633,39 @@ _ux_flow_check() {
   [[ "$(_reason | jq -r .reason)" != *"#40"* ]]      # still held: #60 is open
   jq -n '{id:"60",subject:"second blocker",status:"completed"}'                         > "$d/60.json"
   [[ "$(_reason | jq -r .reason)" == *"#40"* ]]      # both closed → startable
+}
+
+@test "autopilot DISARMS itself when the queue runs dry, both ways (R88)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local sid=dryT d="$CLAUDE_COMPANION_TASKS_DIR/dryT"
+  mkdir -p "$d"; _stamp_root "$d" "$repo"
+  _fire() { jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1; }
+  _ap()   { ( cd "$repo" && "$AP" status ); }
+
+  # work remains → stays armed
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  jq -n '{id:"1",subject:"real work",status:"pending"}' > "$d/1.json"
+  _fire; [ "$(_ap)" = "on" ]
+
+  # WAY 1 — nothing open at all
+  jq -n '{id:"1",subject:"real work",status:"completed"}' > "$d/1.json"
+  _fire; [ "$(_ap)" = "off" ]
+
+  # WAY 2 — open work remains, but every task waits on an unanswered park. This is the case that
+  # nagged four turns in a row: the queue is NOT empty, so an open-count test alone misses it.
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  rm "$d/1.json"
+  jq -n '{id:"38",subject:"❓ [parked] decide",status:"pending"}' > "$d/38.json"
+  jq -n '{id:"50",subject:"blocked work (after #38)",status:"pending"}' > "$d/50.json"
+  _fire; [ "$(_ap)" = "off" ]
+
+  # NO STORE AT ALL stays ARMED — deliberately not the same as "ran dry". A store with only
+  # completed tasks is evidence a drain happened and finished; an empty one is evidence of
+  # nothing, and is the normal state of a session where the owner just armed autopilot and no
+  # task has been queued yet. Disarming there would undo `autopilot on` on its very first stop.
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  rm -f "$d"/*.json
+  _fire; [ "$(_ap)" = "on" ]
 }
 
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
@@ -2194,7 +2236,7 @@ _bd_setup() {
   # would make autopilot useless, which is the failure mode worth guarding against here.
   _cg "$d/plugins/companion/bin/tq";        [ -z "$output" ]
   _cg "$d/docs/MAP.md";                     [ -z "$output" ]
-  _cg "$d/docs/REQUIREMENTS.md";            [ -z "$output" ]
+  _cg "$d/docs/adr/PROVENANCE.md";            [ -z "$output" ]
   _cg "$d/src/needs.yaml.backup";           [ -z "$output" ]   # not the contract path
   # Relative paths are the same file.
   _cg "docs/needs.yaml"

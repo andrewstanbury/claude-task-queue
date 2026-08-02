@@ -16,7 +16,7 @@ the secret gate guards every write (see ROADMAP "The loop").
 | `docs/requirements.yaml` | **LEVEL 1 — requirements.** 45, each satisfying a real need and naming real `@test` titles (or marked `judgment:` where no case can hold it). Gated by `dev/trace.sh`. |
 | `docs/adr/README.md` | **Decisions, architecture choices and rejected options** — 20 rows moved out of the ledger 2026-08-02. History, not requirements: nothing to verify, only to remember. |
 | `dev/trace.sh` | **The V's closing gate** — needs ← requirements ← tests, checked BOTH ways. The uncomfortable direction (every test claimed by a requirement) found 99 unclaimed tests and two misclassified requirements on its first run. |
-| `docs/REQUIREMENTS.md` | The **requirements ledger** — durable requirements/decisions with 🔒/🔓/⚰️ status. Source of truth. |
+| `docs/adr/PROVENANCE.md` | **Frozen history** — the evidence behind each requirement (measured symptom, numbers, cause, options rejected), which the yaml does not carry. Renamed from the old ledger 2026-08-02 when `requirements.yaml` became authoritative. Never edited; superseded wherever it disagrees with the yaml. |
 | `docs/ROADMAP.md` | Direction and backlog. |
 | `docs/MAP.md` | This file. |
 | `docs/GLOSSARY.md` | The companion's **coined vocabulary** — a *term → meaning* index (R37). Claude-facing, terse, **loaded on demand** (not injected each session); vocabulary only (gotchas → LESSONS, decisions → ledger). |

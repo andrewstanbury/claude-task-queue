@@ -31,9 +31,12 @@ work here too.**
 
 ## Hard constraints
 
-- **Requirements ledger is the source of truth.** Durable requirements/decisions live in
-  **[docs/REQUIREMENTS.md](./docs/REQUIREMENTS.md)** with status (🔒 locked / 🔓 open / ⚰️
-  retired). Reverse one *there*, as a visible trade-off — never silently.
+- **[docs/requirements.yaml](./docs/requirements.yaml) is the contract** — one entry per observable
+  behaviour, each satisfying a need in [docs/needs.yaml](./docs/needs.yaml) and naming the tests
+  that verify it; `dev/trace.sh` gates both directions. Add or reverse one *there*, visibly — never
+  silently. Decisions and rejected options go to **[docs/adr/](./docs/adr/README.md)**; the evidence
+  behind the older requirements is frozen in
+  [adr/PROVENANCE.md](./docs/adr/PROVENANCE.md), which is history and is never edited.
 - **Generic (R9).** No hardcoded language/framework/ecosystem allowlists — delegate
   *recognition* to the model, detect *structure* generically. Wide-audience product (R1).
 - **Files ≤ 300 lines; best-effort hooks** (never break the action that triggered them — R68).
@@ -51,5 +54,5 @@ work here too.**
   about tests, never about mutation coverage.
 
 Project docs: **[docs/MAP.md](./docs/MAP.md)** · **[docs/ROADMAP.md](./docs/ROADMAP.md)** ·
-**[AGENTS.md](./AGENTS.md)** · **[docs/REQUIREMENTS.md](./docs/REQUIREMENTS.md)** ·
+**[AGENTS.md](./AGENTS.md)** · **[docs/adr/PROVENANCE.md](./docs/adr/PROVENANCE.md)** ·
 **[docs/GLOSSARY.md](./docs/GLOSSARY.md)** (coined vocabulary, R37 — on-demand, not injected).

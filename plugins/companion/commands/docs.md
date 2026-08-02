@@ -13,7 +13,7 @@ provenance rules, and the routing are identical. Say the scope back in one line,
 finish, name what was **out of scope** — a scoped sweep leaves the rest of the repo just as
 undocumented as before, and the recap must not read as whole-repo coverage.
 
-`docs` is the **producer** side of advise (R41): advise (R29) *consumes* `REQUIREMENTS.md`;
+`docs` is the **producer** side of advise (R41): advise (R29) *consumes* `docs/requirements.yaml`;
 `docs` *populates* it. It is judgment + workflow, not enforcement — it proposes, you choose, it
 records (R28). It's owner-present by nature (it asks questions), so it's meant for when autopilot is
 **off**. It reuses the `/companion:advise` recommendation-first loop (R29) — don't build a second
@@ -134,7 +134,7 @@ the ledger. Homes (R64): all contract docs live under `docs/`; a generated gate 
      `check.sh` / lint / test script); if the repo has none, create **`.companion/check.sh`** (R64 —
      plugin-generated files never land at the repo root). Add a one-line ledger pointer to it.
      Verify it passes on the current tree before moving on.
-   - **🔒 / 🔓 judgment constraint** → a **terse** `REQUIREMENTS.md` entry (R3 — dense, not an essay):
+   - **🔒 / 🔓 judgment constraint** → a **terse** `docs/requirements.yaml` entry (R3 — dense, not an essay):
      the constraint · its **status** (🔒/🔓) · **provenance** (stated/inferred/unknown) · the **why**
      (or an explicit "why unknown"). If a decision touches an existing locked requirement, cite the
      R-ID (R5).

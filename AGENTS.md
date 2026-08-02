@@ -49,7 +49,7 @@ architecture exists to prevent — and it recurs (R27, R30·d2), so R28 is the s
 
 ## Source of truth
 
-**Durable requirements/decisions live in [docs/REQUIREMENTS.md](./docs/REQUIREMENTS.md)** —
+**Durable requirements/decisions live in [docs/adr/PROVENANCE.md](./docs/adr/PROVENANCE.md)** —
 the ledger, with status (🔒 locked / 🔓 open / ⚰️ retired). CLAUDE.md and ROADMAP reference it
 by R-ID. Reverse one *there*, as a visible trade-off, never silently.
 
@@ -60,7 +60,7 @@ by R-ID. Reverse one *there*, as a visible trade-off, never silently.
 .github/workflows/ci.yml          # runs ./check.sh on push
 check.sh                          # single source of truth for "what we check"
 CLAUDE.md  AGENTS.md  README.md    # this file = maintainer SSOT; README = discoverability
-docs/REQUIREMENTS.md  docs/ROADMAP.md  docs/MAP.md
+docs/adr/PROVENANCE.md  docs/ROADMAP.md  docs/MAP.md
 plugins/companion/
   .claude-plugin/plugin.json       # version == the marketplace entry
   hooks/hooks.json                 # SessionStart · PreToolUse[Write|Edit,AskUserQuestion] · Stop

@@ -488,3 +488,31 @@
   verified_by:
     - "contract-guard: unattended work may SATISFY the contract, never rewrite it (R86)"
     - "the contract bound is stated where it is armed, not only in the guard (R86)"
+
+- id: R87
+  satisfies: [UN-1]
+  requirement: >
+    a task whose subject names an unfinished blocker is never offered as startable, and the
+    selection exists in exactly one place
+  note: >
+    The drain offered the same blocked task four turns running because "first startable task"
+    was implemented twice — in tq and again in stop-autopilot.sh — and the two diverged. The
+    selection now lives only in `tq stopfields`; the hook reads it and passes the sweep flag
+    through. Convention is the subject text `after #N`; EVERY such reference counts, and a
+    dangling one never strands work. Owner-decided 2026-08-02 from a 3-option menu.
+  verified_by:
+    - "Stop: the pointer is the first STARTABLE task, and every blocker counts (R87)"
+
+- id: R88
+  satisfies: [UN-1]
+  requirement: >
+    autopilot disarms itself once the queue runs dry, including when work remains that cannot start
+  note: >
+    Owner-asked 2026-08-02. Left armed, the next stop re-reads the same undrainable queue and nags
+    again. Disarming is also the handoff: autopilot-off is what starts the parked-pile review
+    (R38), so a drain that runs dry lands the owner exactly where the remaining decisions are.
+    An EMPTY store is deliberately excluded — that is a session where autopilot was just armed and
+    nothing has been queued yet, and disarming there would undo the owner's own command.
+  verified_by:
+    - "autopilot DISARMS itself when the queue runs dry, both ways (R88)"
+

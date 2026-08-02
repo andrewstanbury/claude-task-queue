@@ -4,7 +4,7 @@
 # Written in the owner's language, about outcomes. No mechanism, no R-IDs, no implementation. If a
 # need names HOW, it has leaked down a level and belongs in requirements.yaml.
 #
-# Derived from the 22 PRIN rows in docs/REQUIREMENTS.md (see dev/ledger-classification.tsv). Those
+# Derived from the 22 PRIN rows in docs/adr/PROVENANCE.md (see dev/ledger-classification.tsv). Those
 # rows are the closest thing this project had to needs — but almost every one was phrased as a
 # CONSTRAINT ON THE IMPLEMENTATION ("no hardcoded allowlists", "hooks are best-effort") rather than
 # as something a person wanted. Recovering the want behind each constraint is the whole point of

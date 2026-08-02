@@ -226,7 +226,7 @@ EOF
 done
 # Ledger evidence lint — also in dev/doc-lint.sh, same reason (R78).
 led_fail=0
-if ! out="$(dev/doc-lint.sh ledger docs/REQUIREMENTS.md)"; then
+if ! out="$(dev/doc-lint.sh ledger docs/adr/PROVENANCE.md)"; then
   printf '%s\n' "$out"; led_fail=1; fail=1
 fi
 [ "$led_fail" -eq 0 ] && echo "  ok (ledger measurements cite their evidence)"
