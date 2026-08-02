@@ -112,6 +112,10 @@ companion_tasks_dir() { printf '%s' "${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude
 # never drift into printing different things for the same task.
 _COMPANION_TASK_RENDER='select(.status=="pending" or .status=="in_progress") | "  ◻ " + (.subject // "") + (if (.done_when//"")!="" then "\n       └ done when: " + .done_when else "" end) + (if ((.notes//[])|length)>0 then "\n       └ note: " + ((.notes[-1].text)//"") elif (.description//"")!="" then "\n       └ note: " + .description else "" end)'
 
+# NOTE: $1 must be a RESOLVED root (what companion_root returns). The `.root` stamps are written
+# resolved, so passing an unresolved path — e.g. $PWD after cd-ing through a symlink, which stays
+# logical — compares apples to oranges and silently matches NOTHING. Every shipped caller already
+# goes through companion_root; a test that did not spent a while looking like a product bug.
 companion_open_tasks() {
   local root="$1" store d id rid rroot f out; local -a files=()
   store="$(companion_tasks_dir)"; [ -d "$store" ] || return 0

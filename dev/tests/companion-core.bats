@@ -416,7 +416,7 @@ _ux_flow_check() {
 
 @test "session start: injects STEERING and resumes THIS repo's tasks only (scoped by .root)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sMine"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/sMine/.root"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sMine"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/sMine" "$repo"
   jq -n '{id:"1",subject:"resume me",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sMine/1.json"
   # an unrelated repo's task must NOT leak
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sOther"; printf '/other/x' > "$CLAUDE_COMPANION_TASKS_DIR/sOther/.root"
@@ -452,7 +452,7 @@ _ux_flow_check() {
 
 @test "session start: re-anchors on a compaction with queue+pointer, NOT the full STEERING — R30·d2 / R32" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/xc"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/xc/.root"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/xc"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/xc" "$repo"
   jq -n '{id:"1",subject:"resume me",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/xc/1.json"
   run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"x\",source:\"compact\"}" | "$2" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$SS"
   [ "$status" -eq 0 ]
@@ -464,7 +464,7 @@ _ux_flow_check() {
 
 @test "manual resume: lists THIS repo's open tasks on demand (and says so when none)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sM"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/sM/.root"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sM"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/sM" "$repo"
   jq -n '{id:"1",subject:"pick me up",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/sM/1.json"
   jq -n '{id:"2",subject:"already shipped",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/sM/2.json"
   run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
@@ -486,11 +486,13 @@ _ux_flow_check() {
   #      whole session dir.
   #   2. a batched jq that mishandles multi-file input drops files after the first.
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  local rid; rid="$(cd "$repo" && bash -c 'source "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
+  # Compute the identity from the RESOLVED root, not the possibly-symlinked mktemp path — the
+  # readers all resolve, so a fixture that does not writes an id nothing will match.
+  local rid; rid="$(cd "$(git -C "$repo" rev-parse --show-toplevel)" && bash -c 'source "$1"; companion_repo_id "$PWD"' _ "$ROOT/lib/companion.sh")"
   # dir A matches on the path-stable .repo identity, dir B on the legacy .root abspath — both
   # newline-less, exactly as `tq` writes them. Several files each, so batching has to span dirs.
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sA"; printf '%s' "$rid"  > "$CLAUDE_COMPANION_TASKS_DIR/sA/.repo"
-  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sB"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/sB/.root"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sB"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/sB" "$repo"
   jq -n '{id:"1",subject:"alpha A1",status:"pending"}'     > "$CLAUDE_COMPANION_TASKS_DIR/sA/1.json"
   jq -n '{id:"2",subject:"alpha A2",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/sA/2.json"
   jq -n '{id:"3",subject:"alpha A3",status:"completed"}'   > "$CLAUDE_COMPANION_TASKS_DIR/sA/3.json"
@@ -502,7 +504,10 @@ _ux_flow_check() {
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sD"
   jq -n '{id:"1",subject:"UNSTAMPED",status:"pending"}'    > "$CLAUDE_COMPANION_TASKS_DIR/sD/1.json"
 
-  run bash -c 'cd "$1" && source "$2" && companion_open_tasks "$PWD"' _ "$repo" "$ROOT/lib/companion.sh"
+  # Pass a RESOLVED root, which is what every real caller does (they go through companion_root).
+  # `cd` into a symlinked path leaves $PWD logical, so passing it compares an unresolved path
+  # against a resolved stamp and silently matches nothing.
+  run bash -c 'cd "$1" && source "$2" && companion_open_tasks "$(git rev-parse --show-toplevel)"' _ "$repo" "$ROOT/lib/companion.sh"
   [ "$status" -eq 0 ]
   # every OPEN task across BOTH matching dirs survives the batch — the count is the real assertion
   [ "$(printf '%s\n' "$output" | grep -c '◻')" -eq 4 ]
@@ -545,7 +550,7 @@ _ux_flow_check() {
   [ "$output" = "deny" ]
 
   # Stop auto-continues while non-deferred work remains
-  local sid=apT; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  local sid=apT; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"1",subject:"do it",status:"pending"}'   > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   jq -n '{id:"2",subject:"❓ decide",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
   run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3" | jq -r ".decision // \"allow\""' _ "$repo" "$sid" "$STOP"
@@ -568,7 +573,7 @@ _ux_flow_check() {
 @test "autopilot: the Stop block REASON carries the nudge — next #id, done-when, both park tokens (R56 G1)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
-  local sid=apR; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  local sid=apR; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"7",subject:"real work",status:"pending",done_when:"it works"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/7.json"
   run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3" | jq -r ".reason // \"\""' _ "$repo" "$sid" "$STOP"
   [[ "$output" == *"#7"* ]]                    # names the next task id
@@ -580,7 +585,7 @@ _ux_flow_check() {
 
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"1",subject:"carry me",status:"pending",done_when:"green tests",notes:[{ts:"t1",text:"first crumb"},{ts:"t2",text:"latest crumb"}]}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
   [ "$status" -eq 0 ]
@@ -691,7 +696,7 @@ _ux_flow_check() {
   ( cd "$repo" && "$AP" ship on ) >/dev/null
   [ "$(cd "$repo" && "$AP" ship status)" = "on" ]
   ( cd "$repo" && "$AP" on ) >/dev/null                      # auto-commit requires autopilot on too
-  local sid=shipT; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  local sid=shipT; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"1",subject:"do it",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   printf 'work\n' > "$repo/newfile.txt"                      # uncommitted work while HEAD is on main
   jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1 || true
@@ -706,7 +711,7 @@ _ux_flow_check() {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   ( cd "$repo" && "$AP" on ) >/dev/null                      # autopilot on, ship-mode OFF
-  local sid=noShip; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  local sid=noShip; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"1",subject:"do it",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   printf 'work\n' > "$repo/newfile.txt"
   jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1 || true
@@ -720,7 +725,7 @@ _ux_flow_check() {
   ( cd "$repo" && "$AP" ship on ) >/dev/null; ( cd "$repo" && "$AP" on ) >/dev/null
   local k="AKIA""ABCDEFGHIJKLMNOP"                          # split so THIS file isn't a secret
   printf 'AWS = "%s"\n' "$k" > "$repo/creds.py"             # a real-shaped key in the work
-  local sid=secT; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  local sid=secT; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"1",subject:"x",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1 || true
   ! git -C "$repo" log --all --oneline | grep -q 'autopilot: checkpoint'   # no checkpoint committed
@@ -730,7 +735,7 @@ _ux_flow_check() {
 @test "autopilot: Stop yields after the no-progress cap (can't spin forever)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
-  local sid=apC; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  local sid=apC; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"1",subject:"stuck",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   # With MAX=3 and no task ever completing: stops 1-2 still block, the 3rd no-progress stop yields.
   local i r; for i in 1 2; do
@@ -744,7 +749,7 @@ _ux_flow_check() {
 @test "autopilot: the no-progress cap RESETS when a task completes — a productive drain keeps going (R56 G5)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
-  local sid=apRst; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  local sid=apRst; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"1",subject:"a",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   jq -n '{id:"2",subject:"b",status:"pending"}'     > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
   local i r
@@ -772,7 +777,7 @@ _ux_flow_check() {
 @test "parked/blocked (❓/⏳) is a prefix-view over pending, NOT a status value (R42)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
-  local sid=pkv; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  local sid=pkv; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"1",subject:"did it",status:"completed"}'   > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   jq -n '{id:"2",subject:"❓ decide X",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
   run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
@@ -808,7 +813,7 @@ _ux_flow_check() {
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   git -C "$repo" checkout -q --detach 2>/dev/null           # detached HEAD (cur=="HEAD")
   ( cd "$repo" && "$AP" ship on ) >/dev/null; ( cd "$repo" && "$AP" on ) >/dev/null
-  local sid=det; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  local sid=det; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"1",subject:"x",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   printf 'work\n' > "$repo/newfile.txt"
   jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1 || true
@@ -1157,7 +1162,7 @@ EOS
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   local sid=apTurns; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"
-  printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"9",subject:"always open",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/9.json"
   local i r
   for i in 1 2 3; do
@@ -1176,7 +1181,7 @@ EOS
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   local sid=apClock; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"
-  printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"1",subject:"open work",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   # one turn to create the counter file
   local r; r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" | jq -r '.decision // "allow"')"
@@ -1201,7 +1206,7 @@ EOS
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   local sid=apOld; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"
-  printf '%s' "$repo" > "$CLAUDE_COMPANION_TASKS_DIR/$sid/.root"
+  _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"1",subject:"open work",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   local cf="$CLAUDE_COMPANION_STATE_DIR/autopilot/continue-$sid"
   mkdir -p "$(dirname "$cf")"; printf '0 1 0' > "$cf"     # pre-2026-07-29 format
@@ -1478,6 +1483,8 @@ _bd() {  # $1=used7 $2=used5 $3=age-offset → run the forecaster against a fres
 # holds work" silently asserts nothing at all.
 _stamp_root() {  # $1=session dir · $2=repo dir
   local r; r="$(git -C "$2" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$2")"
+  # NOT a recursive call: the bulk rewrite that introduced this helper matched its OWN body and
+  # turned the write into a self-call, which spun forever and looked exactly like a hung test.
   printf '%s' "$r" > "$1/.root"
 }
 
