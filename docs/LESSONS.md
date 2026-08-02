@@ -40,6 +40,9 @@ Not decisions (the ledger) nor in-flight work (the queue).
 - **Measuring "did the suite go RED?" is meaningless if it was ALREADY red** — one pre-existing
   failure makes EVERY mutation report "caught", the most dangerous output this gate has: a clean
   bill of health for coverage it never observed. Require a green baseline before mutating.
+- **"Green in the repo" is not "running for you."** Claude Code runs the plugin from its CACHE,
+  not your checkout. A whole day's hooks were inert in the owner's own session while CI was green
+  and the work was reported as shipped. Say which VERSION ran, not whether the tree is green.
 - **Three ways a check silently CANNOT FAIL.** (1) It re-implements the logic — one re-grepped a
   gate's config and passed with that gate **deleted**. (2) It reads "nonzero = detected" —
   `--mutate` scored a KILLED suite (124, nothing run) as "caught", so a real hole read as covered,
@@ -107,6 +110,19 @@ the area, or when a gate points here.
   `check.sh` left the old `shift` in the new script, so `--mutate <file>` dropped the file and ran
   the FULL 31-mutation set (~35 min instead of ~2). CI never noticed — it passes no filter, so the
   only broken path was the one only humans use. Ask what CI does NOT exercise.
+- **An unescaped `&` in a sed REPLACEMENT expands to the whole match** — so a mutation can change
+  the file (and pass validation) while re-inserting the very string it was meant to remove. It then
+  reads as a HOLE in whatever guard searches for that string, sending you to debug the guard. Four
+  sed-escaping traps in one session, all in mutation declarations, all invisible until CI: two
+  delimiter collisions (`"$@"`), one `@{u}`, and this. `--validate` now catches three of the four.
+- **A bulk regex over a file that also DEFINES the thing being rewritten will eat its own
+  definition.** A rewrite introducing a `_stamp_root` helper matched the helper's own body and
+  turned its write into a self-call — infinite recursion that presented as a hung test, costing
+  three runs and two timeouts before it was read as recursion. Exclude the definition, or add the
+  helper after the rewrite.
+- **A permanently-failing test makes every mutation look CAUGHT.** Mutation verification is only
+  meaningful against a passing test; check the test is green before trusting "ok caught". Twice in
+  one session that produced verification worth nothing.
 - **A mutation gate must distinguish "the suite failed" from "the suite never ran."** bats exits
   nonzero when KILLED (124) and when it cannot gather tests (a well-formed `1..1 / not ok
   bats-gather-tests`) — both having run nothing. Calibrate with `bats --count`, then require plan ==
