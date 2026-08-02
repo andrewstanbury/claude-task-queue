@@ -84,6 +84,10 @@ the area, or when a gate points here.
 - **jq 1.7 + broken pipe:** `jq … | hook` where the hook exits at a disable-guard *before reading
   stdin* races into a closed pipe; jq prints "Broken pipe" to stderr, which bats
   merges into `$output` → flaky `[ -z "$output" ]`. Add `2>/dev/null` to the producing jq.
+- **An apostrophe inside a single-quoted jq program ENDS the program.** Demoted below this line
+  earlier the same day as "shellcheck catches it" — then written straight into a `tq` comment
+  (`owner's`) an hour later, breaking the script. The linter is not a substitute for the rule when
+  you are editing INSIDE the quoted program.
 - **jq array-length precedence:** `[ [$o[]|select(..)]|length ]` mis-parses; use
   `[ ($s|map(select(..))|length) ]`. (A literal `'` in a single-quoted jq program also breaks it —
   shellcheck SC1036/SC2026 catches that one for you.)

@@ -2148,3 +2148,34 @@ _bd_setup() {
   run bash -c 'printf "%s" "{garbage" | CLAUDE_COMPANION_STATE_DIR="$1" bash "$2"' _ "$st" "$ROOT/bin/contract-guard.sh"
   [ "$status" -eq 0 ]; [ -z "$output" ]
 }
+
+@test "tq report: next skips work that waits on an unanswered item (R47)" {
+  # The drain loop offered the same blocked task four times in a row, because the queue could not
+  # express "waiting on #N" — work blocked by an unanswered park looked identical to work that was
+  # ready. Convention: the subject names `after #N`.
+  export CLAUDE_COMPANION_SESSION_ID=sWait
+  local d="$CLAUDE_COMPANION_TASKS_DIR/sWait"; mkdir -p "$d"
+  jq -n '{id:"1",subject:"❓ [parked] pick the source of truth; rec: A",status:"pending"}' > "$d/1.json"
+  jq -n '{id:"2",subject:"sharpen the prose (after #1)",status:"pending"}'                 > "$d/2.json"
+  jq -n '{id:"3",subject:"an unrelated ready task",status:"pending"}'                      > "$d/3.json"
+  run "$TQ" report
+  [[ "$output" == *"→ next: #3"* ]]        # the READY task, not the blocked one
+  [[ "$output" != *"→ next: #2"* ]]
+
+  # With only the blocked task left, say so rather than pointing at work that cannot start.
+  rm "$d/3.json"
+  run "$TQ" report
+  [[ "$output" == *"nothing STARTABLE"* ]]
+  [[ "$output" != *"→ next: #2"* ]]
+
+  # Answering the dependency makes it startable — the block must lift on its own.
+  jq -n '{id:"1",subject:"picked",status:"completed"}' > "$d/1.json"
+  run "$TQ" report
+  [[ "$output" == *"→ next: #2"* ]]
+
+  # A task waiting on something that never existed is not blocked forever.
+  jq -n '{id:"4",subject:"waits on a ghost (after #999)",status:"pending"}' > "$d/4.json"
+  rm "$d/2.json"
+  run "$TQ" report
+  [[ "$output" == *"→ next: #4"* ]]
+}

@@ -75,3 +75,4 @@ plugins/companion/bin/contract-guard.sh::s@  \*/docs/needs.yaml|docs/needs.yaml)
 plugins/companion/STEERING.md::s@Satisfy the contract; never rewrite it@Satisfy the contract@::the steering core stops stating that the contract must not be rewritten
 plugins/companion/bin/candidates.sh::s@| grep -vF 'decision:' | grep -vF 'decompose:'@| cat@::decision parks are offered as buildable work again, and can starve every other rank
 plugins/companion/bin/ask-guard.sh::s@"❓ \[parked\] decision: "@"❓ [parked] "@::auto-parked questions stop being marked as decisions
+plugins/companion/bin/tq::s@map(select(waits as $w | $w=="" or ($live|index($w))==null))@map(select(true))@::the next pointer points at work that cannot start again

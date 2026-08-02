@@ -169,6 +169,7 @@
   verified_by:
     - "tq report: a park shows its rec:, and 'next' names the decision when nothing is buildable"
     - "tq report: a parks-only queue names the next action, not just the counts"
+    - "tq report: next skips work that waits on an unanswered item (R47)"
     - "tq: done-when — --done on add + the done-when subcommand STORE it; report omits it (D/R47, resurfaced on resume)"
     - "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)"
     - "tq report: glyph-count header + → next pointer (R56 G3/G4 — R47 spec)"
