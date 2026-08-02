@@ -8,8 +8,13 @@
 # unattended generation defensible at all.
 #
 # Ranked, highest signal first:
-#   1 parked   a ❓ park carrying `rec:` — the owner deferred THIS decision and a recommendation
-#              is already written. Strongest signal in the repo: chosen, reasoned, not yet done.
+#   1 parked   a ❓ park carrying `rec:` — the owner deferred THIS work and a recommendation is
+#              already written. Strongest signal in the repo: chosen, reasoned, not yet done.
+#              EXCLUDES `decision:` parks (written by the ask-guard from an intercepted question —
+#              a decision by construction, the owner's to ANSWER, never work to build) and
+#              `decompose:` parks (R65 — they exist because context is MISSING). Both exclusions
+#              close recorded R82 soft spots: rank 1 stopped offering decisions as buildable work,
+#              and auto-parks can no longer crowd ranks 2-4 out of the candidate list entirely.
 #   2 roadmap  an unchecked `- [ ]` item in a ROADMAP — stated intent, explicitly not yet built.
 #   3 todo     a TODO/FIXME/XXX in tracked source — a note-to-self left at the point of pain.
 #   4 gap      a contract page documenting behaviour with NO automated test referenced.
@@ -44,7 +49,8 @@ while IFS= read -r line; do
   [ -n "$line" ] || continue
   emit 1 parked "${line###* }"
 done < <(companion_open_tasks "$root" 2>/dev/null \
-         | sed -n 's/^  ◻ *//p' | grep '^❓' | grep -F 'rec:' | head -"$LIMIT")
+         | sed -n 's/^  ◻ *//p' | grep '^❓' | grep -F 'rec:' \
+         | grep -vF 'decision:' | grep -vF 'decompose:' | head -"$LIMIT")
 
 # 2 — ROADMAP intent. Generic: any ROADMAP-ish markdown, unchecked task-list items only.
 if [ "$found" -lt "$LIMIT" ]; then

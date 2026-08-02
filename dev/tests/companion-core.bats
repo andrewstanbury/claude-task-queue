@@ -1673,6 +1673,37 @@ _bd_setup() {
   [ "$(git -C "$d" rev-list --count main)" -eq 1 ]
 }
 
+@test "candidates: a DECISION park is never offered as buildable work (R82 soft spots)" {
+  # Two limitations R82 recorded as unsolved, closed by one observation: a park written BY THE
+  # ASK-GUARD came from a question, so it is a decision by construction and can be marked as one.
+  #   (1) rank 1 stops offering decisions as work — building one would make the owner's choice.
+  #   (2) auto-parks stop crowding ranks 2-4 out of the list entirely.
+  local d tk; d="$(_tmpd)"; git -C "$d" init -q; tk="$(_tmpd)"
+  mkdir -p "$tk/sD"; _stamp_root "$tk/sD" "$d"
+  printf '# R\n- [ ] add a dark theme\n' > "$d/ROADMAP.md"
+  _cd2() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" bash "$ROOT/bin/candidates.sh"; }
+
+  jq -n '{id:"1",subject:"❓ [parked] decision: which cache backend? — options: A) x B) y; rec: A",status:"pending"}' > "$tk/sD/1.json"
+  _cd2
+  [[ "$output" != *"which cache backend"* ]]      # a decision is the owner's to ANSWER, not work
+  [[ "$output" == *"dark theme"* ]]               # ...and rank 2 is reachable behind it
+
+  # A park describing WORK still ranks 1 — the exclusion must be narrow, or the strongest signal
+  # in the repo is lost with it.
+  jq -n '{id:"2",subject:"❓ [parked] add retry backoff — options: A) simple B) jitter; rec: B",status:"pending"}' > "$tk/sD/2.json"
+  _cd2; [[ "$output" == 1\|parked\|*"retry backoff"* ]]
+
+  # SATURATION: many auto-parks must not fill the list and starve every other signal.
+  local i
+  for i in 3 4 5 6 7 8; do
+    jq -n --arg i "$i" '{id:$i,subject:("❓ [parked] decision: q" + $i + " — options: A) x; rec: A"),status:"pending"}' > "$tk/sD/$i.json"
+  done
+  _cd2; [[ "$output" == *"dark theme"* ]]
+  # decompose: parks stay excluded too (R65 — they exist because context is MISSING).
+  jq -n '{id:"9",subject:"❓ [parked] decompose: big thing — need: X; rec: split",status:"pending"}' > "$tk/sD/9.json"
+  _cd2; [[ "$output" != *"big thing"* ]]
+}
+
 @test "candidates: does not feed on prose ABOUT markers, only real annotations" {
   # The first run of this generator against its own repo returned four candidates that were all
   # documentation EXPLAINING what a TODO signal is — including its own source comments. A
@@ -1834,6 +1865,10 @@ _bd_setup() {
   [[ "$output" == *"Which cache backend?"* ]]
   [[ "$output" == *"sqlite"* ]] && [[ "$output" == *"plain files"* ]]   # the real options, not a stub
   [[ "$output" != *"rev:"* ]]        # NEVER rev: — the hook cannot know if it is reversible
+  # MARKED `decision:` — this park came from a QUESTION, so it is a decision by construction.
+  # candidates.sh relies on that marker to keep decisions out of buildable work (R82); without it
+  # burn-down would offer the owner's own unanswered question back to itself as a task.
+  [[ "$output" == *"❓ [parked] decision:"* ]]
   # Re-asking must not stack a duplicate.
   run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' _ "$pay" "$st" "$tk" "$ROOT/bin/ask-guard.sh"
   run env CLAUDE_COMPANION_SESSION_ID=sAsk CLAUDE_COMPANION_TASKS_DIR="$tk" "$TQ" list

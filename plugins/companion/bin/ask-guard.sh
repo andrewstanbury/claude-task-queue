@@ -44,7 +44,7 @@ parked_id=""
 sid="$(printf '%s' "$in" | jq -r '.session_id // empty' 2>/dev/null || true)"
 subject="$(printf '%s' "$in" | jq -r '
   (.tool_input.questions // []) | if length == 0 then empty else
-  ("❓ [parked] " + (.[0].question // "a decision"))
+  ("❓ [parked] decision: " + (.[0].question // "a decision"))
   + " — options: " + ([ .[0].options[]? | (.label // "") + (if (.description//"")!="" then " (" + (.description|.[0:80]) + ")" else "" end) ] | join(" · "))
   + "; rec: " + ((.[0].options[0].label // "the first option"))
   + (if length > 1 then " [+" + ((length-1)|tostring) + " more question(s) in the same ask]" else "" end)

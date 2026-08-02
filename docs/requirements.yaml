@@ -424,6 +424,7 @@
     - "burn-down: unreviewed branches apply backpressure — the loop is self-limiting"
     - "burn-down: refuses when the 5h window has no room to actually work"
     - "candidates: never invents while a recorded signal remains, and labels it when it does"
+    - "candidates: a DECISION park is never offered as buildable work (R82 soft spots)"
     - "burndown-branch: work is containerised — never on main, never pushed, always discardable"
     - "candidates: does not feed on prose ABOUT markers, only real annotations"
     - "burn-down: a branch can NEVER exist without a manifest, even with the mode ARMED (R82)"

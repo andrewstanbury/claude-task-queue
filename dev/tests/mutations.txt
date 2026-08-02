@@ -40,7 +40,7 @@ plugins/companion/bin/burn-down.sh::s@companion_burndown_on "$root" ||@false ||@
 plugins/companion/bin/burn-down.sh::s@\[ "$open" -eq 0 \] ||@[ 1 -eq 1 ] ||@::generated work stops yielding to real queued work
 plugins/companion/bin/burn-down.sh::s@\[ "$nb" -lt "$MAXBRANCH" \] ||@[ 1 -eq 1 ] ||@::unreviewed-branch backpressure stops applying
 plugins/companion/bin/burn-down.sh::s@\[ "$projected" -lt "$TARGET" \] ||@[ 1 -eq 1 ] ||@::burn-down fires even when the forecast is ON TARGET
-plugins/companion/bin/candidates.sh::s@| grep -F 'rec:' | head@| head@::a park with NO recommendation becomes a build candidate — guessing for the owner
+plugins/companion/bin/candidates.sh::s@grep -F 'rec:'@cat@::a park with NO recommendation becomes a build candidate — guessing for the owner
 plugins/companion/bin/candidates.sh::s@if \[ "$found" -eq 0 \]; then@if true; then@::invention is emitted even when recorded signals exist
 plugins/companion/bin/burndown-branch.sh::s@\[ -z "$(git -C "$root" status --porcelain 2>/dev/null)" \] ||@[ 1 -eq 1 ] ||@::autonomous work starts on top of the owner's uncommitted changes
 plugins/companion/bin/burndown-branch.sh::s@\[ "$cur" = "burndown/$slug" \] &&@[ 1 -eq 2 ] \&\&@::discard deletes the branch you are standing on
@@ -73,3 +73,5 @@ plugins/companion/bin/session-start.sh::s@if \[ -n "$_ver_tree" \] \&\& \[ "$_ve
 plugins/companion/bin/contract-guard.sh::s@companion_autopilot_on "$root" || exit 0@false || exit 0@::the contract guard fires when the owner is present, or stops firing when they are not
 plugins/companion/bin/contract-guard.sh::s@  \*/docs/needs.yaml|docs/needs.yaml)@  zzzNEVERzzz)@::needs.yaml becomes editable by an unattended agent
 plugins/companion/STEERING.md::s@Satisfy the contract; never rewrite it@Satisfy the contract@::the steering core stops stating that the contract must not be rewritten
+plugins/companion/bin/candidates.sh::s@| grep -vF 'decision:' | grep -vF 'decompose:'@| cat@::decision parks are offered as buildable work again, and can starve every other rank
+plugins/companion/bin/ask-guard.sh::s@"❓ \[parked\] decision: "@"❓ [parked] "@::auto-parked questions stop being marked as decisions
