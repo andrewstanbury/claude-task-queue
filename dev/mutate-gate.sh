@@ -23,6 +23,19 @@ mfile="dev/tests/mutations.txt"
 # so every `--mutate <file>` silently ran the whole 31-mutation set — ~35 minutes instead of ~2,
 # which is what made every local filtered run look like a hang. CI never noticed: it passes no
 # filter, so the bug was invisible to the one place that runs this gate on every push.
+# --shard N/M: run every Mth declared mutation, offset N. 65 mutations x a ~50s suite is ~55
+# minutes serially, and on GitHub a long job ALSO blocks `gh run view --log-failed` for the whole
+# run — so a red check lane could not be read until this one finished, which cost real time today.
+# Each mutation is independent by construction, so this parallelises cleanly.
+shard_n=0; shard_m=1
+if [ "${1:-}" = "--shard" ]; then
+  case "${2:-}" in
+    [0-9]*/[0-9]*) shard_n="${2%%/*}"; shard_m="${2##*/}"; shift 2 ;;
+    *) echo "usage: --shard N/M" >&2; exit 2 ;;
+  esac
+fi
+case "$shard_m" in ''|*[!0-9]*) shard_m=1 ;; esac
+[ "$shard_m" -ge 1 ] || shard_m=1
 mfilter=("$@")
 command -v bats >/dev/null 2>&1 || { echo "  SKIP — bats not installed"; exit 0; }
 # RESTORE ON ANY EXIT. This mutates the live working tree — including `secret-guard.sh`, a hook
@@ -83,7 +96,7 @@ if [ "$brc" -ne 0 ]; then
   printf '%s\n' "$bout" | grep '^not ok' | head -5 | sed 's/^/        | /'
   exit 2
 fi
-holes=0; errs=0; ran=0; keep=0; want=""
+holes=0; errs=0; ran=0; keep=0; want=""; idx=0
 while IFS= read -r line; do
   case "$line" in ''|'#'*) continue ;; esac
   tgt="${line%%::*}"; tmp="${line#*::}"; sedscript="${tmp%%::*}"; what="${tmp#*::}"
@@ -101,6 +114,12 @@ while IFS= read -r line; do
   if cmp -s "$tgt" "$tgt.mutbak"; then
     mv "$tgt.mutbak" "$tgt"
     echo "  FAIL mutation matched NOTHING (stale pattern): $what"; holes=$((holes+1)); continue
+  fi
+  # Shard AFTER the filter and AFTER the stale-pattern checks, so every shard still validates
+  # that each pattern it reads actually matches something.
+  idx=$((idx+1))
+  if [ "$shard_m" -gt 1 ] && [ $(( (idx - 1) % shard_m )) -ne "$shard_n" ]; then
+    mv "$tgt.mutbak" "$tgt"; continue
   fi
   ran=$((ran+1))
   # A nonzero exit is NOT proof a test failed. bats exits nonzero when it is KILLED (124, nothing

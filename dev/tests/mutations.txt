@@ -66,3 +66,4 @@ check.sh::s@dev/portability-lint.sh all@dev/portability-lint.sh sc2015@::check.s
 dev/portability-lint.sh::s|grep -HnF '$(mktemp -d)'|grep -HnF 'zzzNEVERzzz'|::the fixture-leak lint stops detecting a bare mktemp -d
 check.sh::s@dev/portability-lint.sh fixtures dev/tests/\*.bats@true dev/tests@::check.sh stops running the fixture-leak lint
 plugins/companion/bin/ship.sh::s@elif \[ "$cur" = "$def" \] \&\& \[ "$(git rev-list --count "@{u}..HEAD" 2>/dev/null || printf 0)" -gt 0 \]; then@elif false; then@::committed-but-unpushed work on the default branch reports 'nothing to commit' again
+dev/mutate-gate.sh::s@if \[ "$shard_m" -gt 1 \] \&\& \[ $(( (idx - 1) % shard_m )) -ne "$shard_n" \]; then@if false; then@::--shard stops partitioning — every shard runs every mutation

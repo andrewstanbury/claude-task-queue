@@ -1396,6 +1396,38 @@ _shim() {
   [ "$output" = "VALUE=1" ]
 }
 
+@test "mutation gate: --shard partitions the set with no gaps and no overlap (R78)" {
+  # 65 mutations x a ~50s suite is ~55 minutes serially, and a long job blocks log access for the
+  # WHOLE CI run — a red check lane could not be read until the mutation lane finished. Sharding
+  # is only safe if the shards are a true partition: every mutation runs exactly once across them.
+  local d="$BATS_TEST_TMPDIR/mgshard"
+  mkdir -p "$d/dev/tests" "$d/plugins/companion" "$d/shim"
+  cp "$DEV/mutate-gate.sh" "$d/dev/"
+  local i
+  for i in 1 2 3 4 5; do printf 'V%s=1\n' "$i" >> "$d/plugins/companion/target.sh"; done
+  for i in 1 2 3 4 5; do
+    printf 'plugins/companion/target.sh::s@V%s=1@V%s=2@::mutation %s\n' "$i" "$i" "$i"
+  done > "$d/dev/tests/mutations.txt"
+  printf '%s\n' "$(_shim 'echo "1..3"; echo "ok 1 a"; echo "not ok 2 b"; echo "ok 3 c"; exit 1')" > "$d/shim/bats"
+  chmod +x "$d/shim/bats"
+  _run_shard() {  # $1 = shard spec, or "" for the whole set
+    rm -f "$d/shim/bats.n"
+    ( cd "$d" && PATH="$d/shim:$PATH" ./dev/mutate-gate.sh ${1:+--shard "$1"} 2>&1 | tail -1 )
+  }
+  # Every shard runs SOME, and the parts sum to the whole — no mutation skipped, none run twice.
+  local a b whole
+  a="$(_run_shard 0/2)"; b="$(_run_shard 1/2)"; whole="$(_run_shard '')"
+  [[ "$a" =~ all\ ([0-9]+)\ mutations ]]; local na="${BASH_REMATCH[1]}"
+  [[ "$b" =~ all\ ([0-9]+)\ mutations ]]; local nb="${BASH_REMATCH[1]}"
+  [[ "$whole" =~ all\ ([0-9]+)\ mutations ]]; local nw="${BASH_REMATCH[1]}"
+  [ "$nw" -eq 5 ]
+  [ "$(( na + nb ))" -eq "$nw" ]
+  [ "$na" -gt 0 ] && [ "$nb" -gt 0 ]
+  # A malformed spec is refused rather than silently running everything.
+  run bash -c 'cd "$1" && ./dev/mutate-gate.sh --shard nonsense' _ "$d"
+  [ "$status" -eq 2 ]
+}
+
 @test "mutation gate: an UNPARSEABLE suite is refused up front, not scored (R78)" {
   # bats answers a suite it cannot parse with a perfectly well-formed `1..1 / not ok
   # bats-gather-tests` — zero tests run. Demanding "a ^not ok" therefore does NOT distinguish it,

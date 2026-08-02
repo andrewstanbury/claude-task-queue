@@ -49,14 +49,21 @@ jobs:
   # stays green is a hole — a test that cannot fail. Kept OFF the `check` job on purpose: it costs
   # a full suite run per mutation, and the default gate has to stay fast enough to run constantly.
   # Linux-only: it is asserting test sensitivity, not platform behaviour, which `check` covers.
+  # SHARDED: 65 mutations x a ~50s suite is ~55 minutes serially, and a long job also blocks
+  # `gh run view --log-failed` for the WHOLE run — so a red check lane cannot be read until the
+  # mutation lane finishes. Each mutation is independent, so this parallelises cleanly.
   mutate:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v5
       - name: Install tools
         run: sudo apt-get update && sudo apt-get install -y bats
-      - name: Mutation gate
+      - name: Mutation gate (shard ${{ matrix.shard }} of 6)
         env:
           GIT_CONFIG_GLOBAL: /dev/null
           GIT_CONFIG_NOSYSTEM: "1"
-        run: ./check.sh --mutate
+        run: ./check.sh --mutate --shard ${{ matrix.shard }}/6
