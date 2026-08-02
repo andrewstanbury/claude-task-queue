@@ -90,11 +90,15 @@ marker_n="$(grep -c 'injection stops here' plugins/companion/STEERING.md || true
 # silently truncates the core at the first occurrence while this gate keeps reading green.
 if [ "${marker_n:-0}" -ne 1 ]; then
   echo "  FAIL STEERING.md: 'injection stops here' marker count is ${marker_n:-0}, must be exactly 1"; tok_fail=1; fail=1
-elif [ "${core_b:-0}" -gt 6144 ]; then
-  # Lowered 12288 -> 6144 when the core was cut 11097B -> 5919B (owner-asked). A cap left at twice
-  # the actual size is not a budget, it is permission to grow back; the whole point of measuring
-  # per-session injection is that it is rent paid in every session forever.
-  echo "  FAIL STEERING.md injected core: ${core_b}B > 6144B"; tok_fail=1; fail=1
+elif [ "${core_b:-0}" -gt 6656 ]; then
+  # 12288 -> 6144 when the core was cut 11097B -> 5919B, then 6144 -> 6656 once a devil's-advocate
+  # pass proved that 5919B core had silently DROPPED EIGHT BEHAVIOURAL RULES. The old cap was
+  # calibrated against a defective measurement, so defending it meant compressing real instructions
+  # to protect a number derived from bad data — which is how the rules got lost in the first place.
+  # This is still a 40% cut from 11097B, with the eight restored and ~380B of honest headroom.
+  # A cap should track what the content genuinely needs; it stops being a budget the moment it
+  # starts deciding what the content is allowed to say.
+  echo "  FAIL STEERING.md injected core: ${core_b}B > 6656B"; tok_fail=1; fail=1
 fi
 # LESSONS is two-tier like STEERING (owner-picked 2026-08-01): the cap applies to what is actually
 # INJECTED, not to the file. Without the split the file was 5B under its ceiling while the process
@@ -210,7 +214,7 @@ if ! out="$(dev/doc-lint.sh ledger docs/REQUIREMENTS.md)"; then
 fi
 [ "$led_fail" -eq 0 ] && echo "  ok (ledger measurements cite their evidence)"
 
-[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/6144B; command descriptions ≤140B; arg-taking commands hinted)"
+[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/6656B; command descriptions ≤140B; arg-taking commands hinted)"
 
 # NOTE: the contract-drift backstop (bin/contract-drift.sh) deliberately does NOT run here
 # (R58 amended 2026-07-22): a warning on every mid-work gate run — where drift is the normal

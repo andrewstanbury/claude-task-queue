@@ -27,7 +27,16 @@ case "$cmd" in
   # (the ask-guard blocks questions), and the owner should not have to re-arm by hand afterwards.
   pause) pflag="$(companion_autopilot_paused_flag "$root")"
        if companion_autopilot_on "$root"; then
-         mkdir -p "$(dirname "$pflag")" 2>/dev/null && : > "$pflag"
+         # ORDER IS THE WHOLE GUARANTEE: record that autopilot was armed BEFORE disarming it, and
+         # refuse to disarm at all if that record cannot be written. The first version cleared the
+         # flag unconditionally, so an unwritable state dir silently and permanently lost autopilot
+         # while printing a message promising it would come back — destroying the exact state this
+         # verb exists to protect. Failing loudly with autopilot still ON is the safe direction:
+         # the review cannot ask, which is visible, rather than the drain quietly never resuming.
+         if ! { mkdir -p "$(dirname "$pflag")" 2>/dev/null && : > "$pflag" 2>/dev/null; }; then
+           echo "autopilot NOT paused — could not record the paused state at $pflag, so refusing to disarm (autopilot stays ON)." >&2
+           exit 1
+         fi
          companion_autopilot_clear "$root"
          echo "autopilot PAUSED for $root — disarmed so the review can ask; it will re-arm when the review finishes."
        else

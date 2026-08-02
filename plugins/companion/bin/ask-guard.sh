@@ -27,4 +27,37 @@ else
   reason="Autopilot is ON — keep going, do not stop to ask (asking = stopping; the owner may be present and adding tasks). Decide it yourself ONLY if it is a reversible, taste-neutral mechanic (record the call). A visual/design/direction/wording choice belongs to the owner — PARK it even if it is reversible (do NOT pick for them). Park with the FULL payload you would have asked live, not a thin guess — it all goes in the subject (the parked-pile review, /companion:review, reads it back via \`tq list\`): \`tq add \"❓ [parked] rev: <the choice> — options: A) … (cost) B) … (cost) C) … (cost); rec: <your pick> + why\"\` (or \`⏳ [blocked] <owner-only action>\`), then move on. The \`rev:\` marker is LOAD-BEARING (R77): it means *reversible, but the call is yours* — a taste/design/wording/direction choice you could cleanly undo. Write it ONLY when that is true. An IRREVERSIBLE, externally-binding or destructive park (a push, a delete, spending money) must NOT carry \`rev:\` — omit it, or use \`⏳\`. Sweep mode acts on \`rev:\` parks and nothing else, so a wrong marker is the one mistake that lets an unattended run decide something it must not. A \`❓\` with a one-line guess instead of the options makes the later review a rubber-stamp — carry the 2–4 options + each cost + your recommendation. The owner reviews parked items whenever they check in."
 fi
 
+# AUTO-PARK THE INTERCEPTED QUESTION (owner-asked 2026-08-01). Denying alone made the block a dead
+# end: the guard is enforced, but the parking that is supposed to follow it was advisory — exactly
+# the advisory-vs-enforced gap this plugin exists to close. The hook already HAS the payload, so it
+# can write a real park carrying the actual options rather than leaving a thin guess to be
+# reconstructed from memory.
+#
+# NEVER writes the `rev:` marker. `rev:` means "reversible, but the call is yours" and is what
+# sweep mode acts on (R77); this hook cannot know whether a choice is reversible, and a wrong
+# marker is the single mistake that lets an unattended run decide something it must not. Omitting
+# it means the park is treated as irreversible and is never swept — the safe direction.
+#
+# Best-effort throughout: if anything here fails the denial still goes out unchanged. A guard that
+# breaks the session because its convenience feature broke is worse than one that just denies.
+parked_id=""
+sid="$(printf '%s' "$in" | jq -r '.session_id // empty' 2>/dev/null || true)"
+subject="$(printf '%s' "$in" | jq -r '
+  (.tool_input.questions // []) | if length == 0 then empty else
+  ("❓ [parked] " + (.[0].question // "a decision"))
+  + " — options: " + ([ .[0].options[]? | (.label // "") + (if (.description//"")!="" then " (" + (.description|.[0:80]) + ")" else "" end) ] | join(" · "))
+  + "; rec: " + ((.[0].options[0].label // "the first option"))
+  + (if length > 1 then " [+" + ((length-1)|tostring) + " more question(s) in the same ask]" else "" end)
+  end' 2>/dev/null | head -c 900 | tr -d '\n\r' || true)"
+if [ -n "$subject" ] && [ -n "$sid" ]; then
+  # Do not stack duplicates: a retried question would otherwise park itself again on every attempt.
+  if ! CLAUDE_COMPANION_SESSION_ID="$sid" "$(dirname "$SELF")/tq" list 2>/dev/null | grep -qF "${subject:0:120}"; then
+    parked_id="$(CLAUDE_COMPANION_SESSION_ID="$sid" "$(dirname "$SELF")/tq" add "$subject" 2>/dev/null \
+                 | sed -n 's/^added #\([0-9][0-9]*\).*/\1/p' | head -1 || true)"
+  fi
+fi
+if [ -n "$parked_id" ]; then
+  reason="ALREADY PARKED FOR YOU as task #${parked_id} — the question you just asked has been written to the queue with its options and your recommendation, so nothing is lost and you do not need to re-park it. Do NOT re-ask and do NOT re-add it. Keep going with the rest of the work; /companion:review will walk it (it asks the whole pile at once and resumes autopilot afterwards, R83). NOTE: the auto-park deliberately omits the \`rev:\` marker, so it is treated as IRREVERSIBLE and will never be swept — if this choice is in fact reversible and safe for sweep mode to apply, re-add it yourself with \`rev:\`. ${reason}"
+fi
+
 jq -cn --arg r "$reason" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'

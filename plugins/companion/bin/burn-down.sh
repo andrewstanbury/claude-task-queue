@@ -85,8 +85,15 @@ evaluate() {
   detail="7d ${u7%%.*}% used, ${elapsed}s of ${WINDOW}s elapsed → tracking to ${projected}% (target ${TARGET}%)"
   [ "$projected" -lt "$TARGET" ] || { say "forecast ${projected}% ≥ target ${TARGET}% — on track, no spare capacity"; return; }
 
-  # Real queued work always wins. The meter never competes with the backlog; it only fills behind it.
-  open="$(companion_open_tasks "$root" | grep -c '^  ◻' || true)"
+  # Real queued work always wins — but "real work" means work I COULD DO, i.e. plain 📋 open tasks.
+  # A ❓ park is a decision waiting on the owner and a ⏳ is their manual job; neither is something
+  # this loop could pick up, so counting them meant:
+  #   · a rank-1 candidate (a park carrying `rec:`) was itself sufficient to make burn-down refuse,
+  #     so the highest-signal source could NEVER be built;
+  #   · the documented loop could not iterate — step 6 parks a ❓, which blocked step 1;
+  #   · the 3-unreviewed-branch backpressure was unreachable, making R82's "it stops itself" false;
+  #   · one long-lived ⏳ (which R83 explicitly expects to sit for weeks) disabled the mode forever.
+  open="$(companion_open_tasks "$root" | grep '^  ◻' | grep -cv '^  ◻ *[❓⏳]' || true)"
   case "$open" in ''|*[!0-9]*) open=0 ;; esac
   [ "$open" -eq 0 ] || { say "$open task(s) still queued — real work outranks generated work"; return; }
 

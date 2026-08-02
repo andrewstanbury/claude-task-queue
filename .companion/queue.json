@@ -42,9 +42,9 @@
     "notes": []
   },
   {
-    "subject": "raise SHIP_CI_TIMEOUT past the ~19min mutate job so land actually watches (R74)",
-    "status": "pending",
-    "done_when": "land exits 0/10 on a real verdict instead of 12; the default is documented wherever SHIP_CI_TIMEOUT is",
+    "subject": "ship 3.33.0–3.37.0: preflight, adversarial pass, land, watch CI to conclusion",
+    "status": "in_progress",
+    "done_when": "origin/main == HEAD and the CI run for the pushed commit concludes green (or red is fixed forward)",
     "description": "",
     "notes": []
   }

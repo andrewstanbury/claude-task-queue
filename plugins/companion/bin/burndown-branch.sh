@@ -33,7 +33,13 @@ root="$(companion_root "${BURNDOWN_ROOT:-$PWD}")"
 # OUTSIDE the repo, deliberately. A manifest committed to the burndown branch disappears the
 # moment you check out the default branch — which is exactly when you want to read it. Keeping it
 # in the state dir also means reviewing generates no diff and discarding leaves no trace.
-MANIFEST_DIR="$(companion_state_dir)/burndown/$(companion_enc "$root")"
+#
+# `burndown-manifests`, NOT `burndown`: the mode's ON flag is a FILE at $STATE/burndown/<enc>, and
+# this was a DIRECTORY at the identical path. Armed — the only state the mode can actually run in —
+# `mkdir` failed, no manifest was written, and `start` still exited 0 with a branch created. The
+# feature's headline guarantee was void on every real run, and the tests missed it because they
+# never armed the flag in the same state dir. Separate namespaces so the two can never collide.
+MANIFEST_DIR="$(companion_state_dir)/burndown-manifests/$(companion_enc "$root")"
 
 die() { printf 'burndown-branch: %s\n' "$1" >&2; exit "${2:-2}"; }
 
@@ -44,6 +50,18 @@ default_branch() {
   [ -n "$d" ] || d="$(git -C "$root" config --get init.defaultBranch 2>/dev/null)"
   [ -n "$d" ] || d=main
   printf '%s' "$d"
+}
+
+# A slug reaches the filesystem as "$MANIFEST_DIR/$slug.md" and git as "burndown/$slug", so it is
+# untrusted input on both. `slugify` produces safe values, but `discard`/`show` take a slug the
+# CALLER supplies — and `discard '../../victim'` deleted a file outside the state dir entirely.
+# Validate at the point of USE, not only at the point of creation.
+valid_slug() {
+  case "${1:-}" in
+    ''|*/*|*..*) return 1 ;;                    # no separators, no traversal
+    *[!a-z0-9-]*) return 1 ;;                   # exactly what slugify can emit
+    *) return 0 ;;
+  esac
 }
 
 slugify() {  # a branch-safe, filesystem-safe, bounded slug
@@ -68,8 +86,10 @@ cmd_start() {
   # in flight, or "discard the branch" silently discards the owner's uncommitted work too.
   [ -z "$(git -C "$root" status --porcelain 2>/dev/null)" ] || die "working tree is dirty — refusing to start autonomous work on top of it" 4
 
+  # Manifest FIRST, and fatally: a branch without one is precisely what this tool exists to make
+  # impossible, so a failed write must abort before the branch exists — not after.
+  mkdir -p "$MANIFEST_DIR" || die "cannot create $MANIFEST_DIR — refusing to open a branch with no manifest" 7
   git -C "$root" checkout -q -b "$branch" "$def" || die "could not create $branch"
-  mkdir -p "$MANIFEST_DIR"
   cat > "$MANIFEST_DIR/$slug.md" <<EOF
 # $slug
 
@@ -124,6 +144,7 @@ cmd_list() {
 cmd_discard() {
   local slug="${1:-}" def cur
   [ -n "$slug" ] || die "discard needs a slug"
+  valid_slug "$slug" || die "refusing a slug that is not [a-z0-9-]: '$slug'" 8
   def="$(default_branch)"
   cur="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)"
   # Refuse to delete the branch you are standing on, and never touch the default branch.
@@ -137,7 +158,9 @@ cmd_discard() {
 case "${1:-list}" in
   start)   shift; cmd_start "${1:-}" ;;
   list)    cmd_list ;;
-  show)    shift; [ -n "${1:-}" ] || die "show needs a slug"; cat "$MANIFEST_DIR/$1.md" 2>/dev/null || die "no manifest for $1" 1 ;;
+  show)    shift; [ -n "${1:-}" ] || die "show needs a slug"
+           valid_slug "${1:-}" || die "refusing a slug that is not [a-z0-9-]: '$1'" 8
+           cat "$MANIFEST_DIR/$1.md" 2>/dev/null || die "no manifest for $1" 1 ;;
   discard) shift; cmd_discard "${1:-}" ;;
   *)       die "usage: burndown-branch.sh [start <candidate>|list|show <slug>|discard <slug>]" ;;
 esac

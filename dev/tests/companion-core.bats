@@ -1689,3 +1689,91 @@ _bd_setup() {
   [[ "$output" == *"/companion:review"* ]]
   [[ "$output" == *"resumes autopilot if it was on"* ]]
 }
+
+@test "burn-down: a branch can NEVER exist without a manifest, even with the mode ARMED (R82)" {
+  # THE GAP THAT HID THIS: every earlier test used a state dir where the burn-down flag was never
+  # set — so the suite only ever exercised the one state the feature cannot really run in. The ON
+  # flag is a FILE at $STATE/burndown/<enc>; the manifest dir was a DIRECTORY at the same path, so
+  # armed, mkdir failed, no manifest was written, and start still exited 0 with a branch created.
+  local d st; d="$(mktemp -d)"; st="$(mktemp -d)"
+  git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  ( cd "$d" && CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/autopilot.sh" burndown on ) >/dev/null
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" start "1|parked|add retry backoff"
+  [ "$status" -eq 0 ]
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" show add-retry-backoff
+  [ "$status" -eq 0 ]; [[ "$output" == *"must default to OFF"* ]]
+  # ...and arming still works afterwards — the two must not fight over one path.
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" burndown status' _ "$d" "$st" "$ROOT/bin/autopilot.sh"
+  [ "$output" = on ]
+  # An unwritable manifest dir must abort BEFORE the branch exists, not after.
+  local d2 st2; d2="$(mktemp -d)"; st2="$(mktemp -d)"
+  git -C "$d2" init -q -b main; git -C "$d2" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  chmod 555 "$st2"
+  run env BURNDOWN_ROOT="$d2" CLAUDE_COMPANION_STATE_DIR="$st2" bash "$ROOT/bin/burndown-branch.sh" start "1|parked|thing"
+  chmod 755 "$st2"
+  [ "$status" -eq 7 ]
+  [ "$(git -C "$d2" branch --list 'burndown/*' | wc -l)" -eq 0 ]
+}
+
+@test "burn-down: parks and blocked items are NOT buildable work and must not block it (R82)" {
+  # Counting ❓/⏳ as "queued work" made rank 1 — the highest-signal source — unreachable, stopped
+  # the documented loop after one iteration (step 6 parks a ❓, which blocked step 1), and made the
+  # 3-branch backpressure unreachable. One long-lived ⏳ disabled the mode permanently.
+  local d st tk; d="$(mktemp -d)"; st="$(mktemp -d)"; tk="$(mktemp -d)"
+  git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  mkdir -p "$st/burndown" "$tk/s1"; printf '%s' "$d" > "$tk/s1/.root"
+  touch "$st/burndown/$(printf '%s' "$d" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  local n; n="$(date +%s)"
+  printf '%s 20 %s 10 %s\n' "$n" "$((n+7200))" "$((n+86400))" > "$st/ratelimit"
+  _bd2() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" CLAUDE_COMPANION_TASKS_DIR="$tk" bash "$ROOT/bin/burn-down.sh" status; }
+  jq -n '{id:"1",subject:"❓ [parked] a decision; rec: A",status:"pending"}'    > "$tk/s1/1.json"
+  jq -n '{id:"2",subject:"⏳ [blocked] go plug in the device",status:"pending"}' > "$tk/s1/2.json"
+  _bd2; [[ "$output" == BURN:* ]]                      # neither is work this loop could pick up
+  jq -n '{id:"3",subject:"actual buildable work",status:"pending"}' > "$tk/s1/3.json"
+  _bd2; [[ "$output" == HOLD:* ]]; [[ "$output" == *"still queued"* ]]   # real work still wins
+}
+
+@test "autopilot pause: refuses to disarm when it cannot record the paused state (R83)" {
+  # The first version cleared the flag unconditionally, so an unwritable state dir silently and
+  # PERMANENTLY lost autopilot while printing a message promising it would come back — destroying
+  # the exact state this verb exists to protect.
+  local d st; d="$(mktemp -d)"; git -C "$d" init -q; st="$(mktemp -d)"
+  _ap2() { run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" "${@:4}"' _ "$d" "$st" "$ROOT/bin/autopilot.sh" "$@"; }
+  _ap2 on >/dev/null
+  chmod 555 "$st"
+  _ap2 pause
+  chmod 755 "$st"
+  [ "$status" -ne 0 ]; [[ "$output" == *"NOT paused"* ]]
+  _ap2 status; [ "$output" = on ]        # still ARMED — failing loud beats losing it silently
+}
+
+@test "burndown-branch: a slug cannot escape the manifest dir (R82)" {
+  local d st; d="$(mktemp -d)"; st="$(mktemp -d)"
+  git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  printf 'keep me\n' > "$st/victim.md"
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" discard '../../victim'
+  [ "$status" -eq 8 ]
+  [ -f "$st/victim.md" ]                 # discard reached OUTSIDE the state dir before this guard
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" show '../../victim'
+  [ "$status" -eq 8 ]
+}
+
+@test "ask-guard: a blocked question is PARKED, not just denied (R36 + owner-asked)" {
+  # Denying alone made the block a dead end: the guard is enforced, the parking that should follow
+  # was advisory. The hook already holds the payload, so it writes a park carrying the real options.
+  local d st tk; d="$(mktemp -d)"; git -C "$d" init -q; st="$(mktemp -d)"; tk="$(mktemp -d)"
+  ( cd "$d" && CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/autopilot.sh" on ) >/dev/null
+  local pay; pay="$(jq -nc --arg c "$d" '{cwd:$c,session_id:"sAsk",tool_input:{questions:[{question:"Which cache backend?",header:"Cache",options:[{label:"sqlite (Recommended)",description:"dep already vendored"},{label:"plain files",description:"no dep, slower"}]}]}}')"
+  run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' _ "$pay" "$st" "$tk" "$ROOT/bin/ask-guard.sh"
+  [ "$status" -eq 0 ]
+  [ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ]
+  [[ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecisionReason')" == *"ALREADY PARKED FOR YOU"* ]]
+  run env CLAUDE_COMPANION_SESSION_ID=sAsk CLAUDE_COMPANION_TASKS_DIR="$tk" "$TQ" list
+  [[ "$output" == *"Which cache backend?"* ]]
+  [[ "$output" == *"sqlite"* ]] && [[ "$output" == *"plain files"* ]]   # the real options, not a stub
+  [[ "$output" != *"rev:"* ]]        # NEVER rev: — the hook cannot know if it is reversible
+  # Re-asking must not stack a duplicate.
+  run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' _ "$pay" "$st" "$tk" "$ROOT/bin/ask-guard.sh"
+  run env CLAUDE_COMPANION_SESSION_ID=sAsk CLAUDE_COMPANION_TASKS_DIR="$tk" "$TQ" list
+  [ "$(printf '%s' "$output" | grep -c 'Which cache backend')" -eq 1 ]
+}
