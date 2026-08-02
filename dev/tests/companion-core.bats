@@ -2029,3 +2029,35 @@ _bd_setup() {
   run grep -c 'dev/trace\.sh' "$ROOT/../../check.sh"
   [ "$output" -ge 1 ]
 }
+
+@test "session start: warns when the INSTALLED plugin lags this working tree (R6)" {
+  # Claude Code runs the plugin from its CACHE, not the checkout you are editing. On 2026-08-02 a
+  # session opened on a cache with no UserPromptSubmit registration at all, so every hook added
+  # that day was inert while the repo was green — six hours of work reported as shipped that was
+  # not running. Nothing surfaced it; the status line showed the old version and neither of us
+  # read it as a warning.
+  local repo st tk pay running
+  repo="$(_tmpd)"; git -C "$repo" init -q; st="$(_tmpd)"; tk="$(_tmpd)"
+  mkdir -p "$repo/plugins/companion/.claude-plugin"
+  running="$(jq -r .version "$ROOT/.claude-plugin/plugin.json")"
+  pay="$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')"
+  _ss2() { run bash -c 'cd "$5" && printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' \
+             _ "$pay" "$st" "$tk" "$SS" "$repo"; }
+
+  # Tree AHEAD of the running build → warn, and name both versions.
+  jq -n '{name:"companion",version:"9.9.9"}' > "$repo/plugins/companion/.claude-plugin/plugin.json"
+  _ss2; [ "$status" -eq 0 ]
+  [[ "$output" == *"RUNNING v${running}"* ]]; [[ "$output" == *"9.9.9"* ]]; [[ "$output" == *"INERT"* ]]
+
+  # Same version → silent. A warning that fires when nothing is wrong is noise nobody reads.
+  jq -n --arg v "$running" '{name:"companion",version:$v}' > "$repo/plugins/companion/.claude-plugin/plugin.json"
+  _ss2; [[ "$output" != *"RUNNING v"* ]]
+
+  # A DIFFERENT plugin's manifest is not this plugin — must not warn on someone else's repo (R9).
+  jq -n '{name:"somebody-elses-plugin",version:"0.0.1"}' > "$repo/plugins/companion/.claude-plugin/plugin.json"
+  _ss2; [[ "$output" != *"RUNNING v"* ]]
+
+  # An ordinary repo with no plugin manifest at all → silent.
+  rm -rf "$repo/plugins"
+  _ss2; [ "$status" -eq 0 ]; [[ "$output" != *"RUNNING v"* ]]
+}

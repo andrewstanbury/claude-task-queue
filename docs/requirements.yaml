@@ -17,6 +17,7 @@
     the plugin is self-contained under its own root
   verified_by:
     - "the plugin is SELF-CONTAINED — it runs with nothing outside its own root (R6)"
+    - "session start: warns when the INSTALLED plugin lags this working tree (R6)"
 
 - id: R7
   satisfies: [UN-1]

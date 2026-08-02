@@ -59,6 +59,30 @@ fi
 carry="$(companion_open_tasks "$root")"
 [ -n "$carry" ] && msg="$msg"$'\n\n'"── Open tasks carried over from an earlier session (reinstate before new work) ──"$'\n'"$carry"
 
+# INSTALLED-VS-WORKING-TREE VERSION LAG. Claude Code runs the plugin from its CACHE, not from the
+# checkout you are editing — so a session can spend hours reporting work as shipped while the hooks
+# actually firing are an older build. That happened on 2026-08-02: the session opened on a cache
+# that had no UserPromptSubmit registration at all, so every hook added that day was inert while
+# the repo was green. Nothing surfaced the gap; the status line showed the OLD version the whole
+# time and neither of us read it as a warning.
+#
+# Only fires when the repo you are IN is the one that builds this plugin — a manifest under
+# plugins/*/.claude-plugin/ whose name matches the running plugin. Bounded: one glob, one jq, once
+# per session, and silent on every failure (R7/R68).
+_ver_running="$(jq -r '.version // empty' "$PLUGIN_DIR/.claude-plugin/plugin.json" 2>/dev/null || true)"
+_ver_name="$(jq -r '.name // empty' "$PLUGIN_DIR/.claude-plugin/plugin.json" 2>/dev/null || true)"
+if [ -n "$_ver_running" ] && [ -n "$_ver_name" ]; then
+  for _m in "$root"/plugins/*/.claude-plugin/plugin.json; do
+    [ -f "$_m" ] || continue
+    [ "$(jq -r '.name // empty' "$_m" 2>/dev/null || true)" = "$_ver_name" ] || continue
+    _ver_tree="$(jq -r '.version // empty' "$_m" 2>/dev/null || true)"
+    if [ -n "$_ver_tree" ] && [ "$_ver_tree" != "$_ver_running" ]; then
+      msg="$msg"$'\n\n'"⚠️  RUNNING v${_ver_running}, BUT THIS WORKING TREE IS v${_ver_tree}. The hooks and commands firing in this session come from the installed cache, NOT from the code you are about to edit — so anything you add here is INERT until the plugin is reinstalled. Do not report a change as working because the repo is green; say which version actually ran. (Seen 2026-08-02: six hours of work was inert in the owner's own session.)"
+    fi
+    break
+  done
+fi
+
 # This repo's accumulated gotchas (R30·d7) — model-maintained; first match wins.
 for lf in "$root/docs/LESSONS.md" "$root/LESSONS.md" "$root/.companion/LESSONS.md"; do
   [ -f "$lf" ] || continue
