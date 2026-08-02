@@ -1994,6 +1994,11 @@ _bd_setup() {
   # The ordering is the whole point of the hook, so pin it: unblocking outranks everything, and
   # the model must not answer a parked decision on the owner's behalf.
   [[ "$output" == *"HIGHEST PRIORITY"* ]]
+  # The OPENING imperative, not just the ranking further down: a declared mutation replaced
+  # "STOP — DO NOT START ANY OTHER WORK YET" with a mild "Note:" and the suite stayed green for
+  # three shipped commits, because every assertion here read a LATER sentence. An injection that
+  # opens with "Note:" is advisory, which is exactly what this hook exists not to be.
+  [[ "$output" == *"STOP — DO NOT START ANY OTHER WORK YET"* ]]
   [[ "$output" == *"do not answer one of these on their behalf"* ]]
   [[ "$output" == *"no pause is needed"* ]]                   # autopilot off
   # ARMED: it must say pause first, because the ask-guard would otherwise PARK the review's own
