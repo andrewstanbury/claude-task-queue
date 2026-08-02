@@ -50,7 +50,18 @@
       {
         "ts": "2026-08-02T00:53:28Z",
         "text": "ABORTED before land: DA found 3 blockers. Nothing pushed."
+      },
+      {
+        "ts": "2026-08-02T02:19:52Z",
+        "text": "ABORTED AGAIN: 2nd DA pass found 4 more blockers, incl. one in the ask-guard change and the unfixed mirror of the pause fix."
       }
     ]
+  },
+  {
+    "subject": "tests leak mktemp dirs — one session exhausted /tmp inodes (37k dirs)",
+    "status": "pending",
+    "done_when": "the suite removes its fixtures (teardown or BATS_TEST_TMPDIR); a full run leaves no net new /tmp/tmp.* dirs",
+    "description": "",
+    "notes": []
   }
 ]
