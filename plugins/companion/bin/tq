@@ -122,7 +122,9 @@ report() {
     # offered one four times in a row before this existed). Such a task stays plain: it is not
     # parked and not a manual job, it is simply not next.
     # NOTE: no apostrophes anywhere in this jq program — a single quote ENDS it (LESSONS).
-    def waits: ((.subject//"") | capture("after #(?<n>[0-9]+)") | .n) // "";
+    # EVERY "after #N" in the subject, not just the first: a task naming two blockers must wait
+    # for both. `capture` returns only the first match, so it started as soon as blocker one closed.
+    def waits: [((.subject//"") | match("after #([0-9]+)";"g").captures[0].string)];
     (map(select(.status=="pending" or .status=="in_progress")) | map(.id|tostring)) as $live
     |(map(select(.status=="in_progress"))|sort_by(.id|tonumber)) as $ip
     |(map(select(.status=="pending" and (pk|not) and (bl|not)))|sort_by(.id|tonumber)) as $op
@@ -136,7 +138,7 @@ report() {
         (if($d|length)>0 then "✔\($d|length)" else empty end)]|join(" ")) as $h
     |("📋"+(if $h=="" then " Task queue — (all clear)" else "  "+$h end)),
      ($ip[]|ln("▸")),($op[]|ln("◻")),($p[]|lnr("❓")),($b[]|lnr("⏳")),
-     (([$ip[], $op[]] | map(select(waits as $w | $w=="" or ($live|index($w))==null)) | .[0]) as $nx
+     (([$ip[], $op[]] | map(select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)) | .[0]) as $nx
       | if $nx then "  → next: #\($nx.id)"
        elif ([$ip[], $op[]]|length) > 0 then
          "  → nothing STARTABLE — " + (([$ip[], $op[]]|length)|tostring)

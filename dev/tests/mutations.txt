@@ -75,4 +75,9 @@ plugins/companion/bin/contract-guard.sh::s@  \*/docs/needs.yaml|docs/needs.yaml)
 plugins/companion/STEERING.md::s@Satisfy the contract; never rewrite it@Satisfy the contract@::the steering core stops stating that the contract must not be rewritten
 plugins/companion/bin/candidates.sh::s@| grep -vF 'decision:' | grep -vF 'decompose:'@| cat@::decision parks are offered as buildable work again, and can starve every other rank
 plugins/companion/bin/ask-guard.sh::s@"❓ \[parked\] decision: "@"❓ [parked] "@::auto-parked questions stop being marked as decisions
-plugins/companion/bin/tq::s@map(select(waits as $w | $w=="" or ($live|index($w))==null))@map(select(true))@::the next pointer points at work that cannot start again
+plugins/companion/bin/tq::s@map(select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0))@map(select(true))@::the next pointer points at work that cannot start again
+plugins/companion/bin/stop-autopilot.sh::s@IFS=$'\\x1f' read -r OPEN@IFS=$'\\t' read -r OPEN@::the Stop hook reads tab-delimited again, so an empty done_when collapses two delimiters and shifts every later field
+plugins/companion/bin/stop-autopilot.sh::s@ || \[ "$STARTABLE" -eq 0 \]@@::the drain pushes on when every remaining task waits on an earlier item
+plugins/companion/bin/stop-autopilot.sh::s@$st\[0\].id@$o[0].id@::the Stop hook offers the first OPEN task rather than the first STARTABLE one
+plugins/companion/bin/stop-autopilot.sh::s@select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)@select(true)@::the Stop hook forgets dependencies entirely
+plugins/companion/bin/stop-autopilot.sh::s@match("after #(\[0-9\]+)";"g")@capture("after #(?<n>[0-9]+)")@::the Stop hook honours only the FIRST blocker, so a task with two starts early

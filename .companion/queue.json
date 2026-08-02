@@ -42,25 +42,51 @@
     "notes": []
   },
   {
-    "subject": "ship 3.33.0–3.37.0: preflight, adversarial pass, land, watch CI to conclusion",
-    "status": "in_progress",
-    "done_when": "origin/main == HEAD and the CI run for the pushed commit concludes green (or red is fixed forward)",
+    "subject": "❓ [parked] TWO sources of truth now exist for requirements — resolve before either drifts — options: A) requirements.yaml becomes authoritative; REQUIREMENTS.md rows are folded into its prose and the .md retires to a generated view B) the .md stays authoritative and the .yaml is generated from it by a script C) leave both and gate them against each other; rec: A — the yaml is what trace.sh gates and what a machine can check, and a 111KB prose table is the thing that got us here",
+    "status": "pending",
+    "done_when": "",
     "description": "",
-    "notes": [
-      {
-        "ts": "2026-08-02T00:53:28Z",
-        "text": "ABORTED before land: DA found 3 blockers. Nothing pushed."
-      },
-      {
-        "ts": "2026-08-02T02:19:52Z",
-        "text": "ABORTED AGAIN: 2nd DA pass found 4 more blockers, incl. one in the ask-guard change and the unfixed mirror of the pause fix."
-      }
-    ]
+    "notes": []
   },
   {
-    "subject": "tests leak mktemp dirs — one session exhausted /tmp inodes (37k dirs)",
+    "subject": "⏳ [blocked] observe whether 7d used_percentage ever FALLS mid-session — settles the ▴/▾ marker's premise",
     "status": "pending",
-    "done_when": "the suite removes its fixtures (teardown or BATS_TEST_TMPDIR); a full run leaves no net new /tmp/tmp.* dirs",
+    "done_when": "owner reports whether the number ever drops while working; R76/R82 record the answer and the marker is corrected or confirmed",
+    "description": "",
+    "notes": []
+  },
+  {
+    "subject": "sharpen requirements.yaml prose — 45 entries carry the old ledger summary as note: (after #38)",
+    "status": "pending",
+    "done_when": "no entry has a note: standing in for its requirement text; each states ONE observable behaviour",
+    "description": "",
+    "notes": []
+  },
+  {
+    "subject": "move the 22 PRIN rows out of the ledger — needs.yaml already derives from them (after #38)",
+    "status": "pending",
+    "done_when": "docs/REQUIREMENTS.md holds requirements only; principles live once, not twice",
+    "description": "",
+    "notes": []
+  },
+  {
+    "subject": "❓ [parked] the status line now exists TWICE and has already diverged 108 lines — options: A) fold companion-hud back: delete that repo, keep the plugin's one status line — one install, one source; the hud experiment already paid for itself by proving the trace-matrix approach we then applied repo-wide B) retire the plugin's status line: users install TWO things, cleanest separation but worst install story for a feature that is the product's front door C) vendor/sync the hud into the plugin at build time — contraindicated by R4, retired for exactly this D) accept the duplication and gate the two against each other; rec: A — a status line is the one thing every user sees, two installs for it is a real cost, and R4 says this repo has already tried and abandoned the sync route",
+    "status": "pending",
+    "done_when": "",
+    "description": "",
+    "notes": []
+  },
+  {
+    "subject": "❓ [parked] rev: requirements.yaml: ADD a requirement for the dependency-aware pointer — 'a task whose subject says after #N is not offered as startable while #N is still open, in BOTH tq report and the Stop hook, and a dangling reference never strands work'; because: 3.53.0 and today's stop-hook fix both implement it and neither is in the contract, so the trace gate counts their 5 tests as orphans; rec: add it — the behaviour already exists in two places and an unrecorded requirement is exactly the drift R58 exists to stop",
+    "status": "pending",
+    "done_when": "",
+    "description": "",
+    "notes": []
+  },
+  {
+    "subject": "❓ [parked] rev: the SAME decision was implemented twice and diverged — tq report grew the dependency filter, the Stop hook did not, and the hook then offered unstartable work for four turns; options: A) the Stop hook shells out to `tq` for its pointer instead of re-deriving it in its own jq B) extract the selection jq into lib/ and source it from both C) leave both and rely on the mutation pair to keep them honest; rec: A — one implementation, and the hook already depends on the store layout anyway; cost is one subprocess per stop",
+    "status": "pending",
+    "done_when": "",
     "description": "",
     "notes": []
   }

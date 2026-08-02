@@ -61,9 +61,11 @@ fi
 dir="${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}/$sid"
 files=("$dir"/*.json); [ -e "${files[0]}" ] || allow
 # open = pending/in_progress and NOT deferred (❓/⏳); done = completed (progress signal).
-# IFS=$'\t' on the read is load-bearing (R46): the fields are tab-joined and the subject (NEXT) can
-# carry spaces — a default-IFS split would corrupt it the moment a field order changes (the R32·1
-# space-in-value bug the status line already hit; keep the two parses consistent).
+# Split on US (0x1f), NOT tab — the same fix statusline.sh carries at its own read, applied here
+# late. Tab is IFS *whitespace*, so `IFS=$'\t' read` COLLAPSES a run of them: an empty done_when
+# merged its two delimiters into one and every later field shifted left by one. That stayed
+# invisible while done_when was last in the list and surfaced the moment a field was appended
+# after it. US is not IFS whitespace, so empty fields keep their place.
 # SWEEP (R77): with the flag on, an already-parked ❓ stops counting as "deferred" and the drain
 # keeps going instead of declaring the run finished. Eligibility is a POSITIVE MARKER the parker
 # wrote, never an inference over prose: `rev:` means *reversible, but the owner's call* (a taste /
@@ -74,8 +76,12 @@ files=("$dir"/*.json); [ -e "${files[0]}" ] || allow
 # NEVER eligible in any mode: `⏳` (blocked ON THE OWNER acting in the world — no mode clears it)
 # and `decompose:` parks (R65 — questions, not options), matched case-insensitively.
 sweep=false; companion_sweep_on "$root" && sweep=true
-IFS=$'\t' read -r OPEN PLAIN DONE NEXT NID DONEWHEN < <(jq -rs --argjson sw "$sweep" '
+IFS=$'\x1f' read -r OPEN PLAIN DONE NEXT NID DONEWHEN STARTABLE < <(jq -rs --argjson sw "$sweep" '
   def subj: ((.subject//"")|sub("^\\s+";""));
+  # DEPENDENCY (mirrors tq report): a subject saying "after #N" is not startable while #N is still
+  # live. Without this the hook offered a task whose blocker was an unanswered ❓ four turns running
+  # — `tq` knew, this did not, because the pointer was computed twice in two places.
+  def waits: [(subj | match("after #([0-9]+)";"g").captures[0].string)];   # ALL refs, not the first
   def parked: (subj|startswith("❓"));
   def sweepable: parked
     and ((subj|ascii_downcase|contains("decompose:"))|not)
@@ -84,14 +90,23 @@ IFS=$'\t' read -r OPEN PLAIN DONE NEXT NID DONEWHEN < <(jq -rs --argjson sw "$sw
   def pk: (subj|startswith("⏳")) or (parked and (($sw and sweepable)|not));
   ([.[]|select((.status=="pending" or .status=="in_progress") and (pk|not))]) as $o
   | ([$o[]|select((subj|startswith("❓"))|not)]) as $plain
-  | "\($o|length)\t\($plain|length)\t\([.[]|select(.status=="completed")]|length)\t\(($o[0].subject // "")|gsub("\t";" "))\t\($o[0].id // "")\t\(($o[0].done_when // "")|gsub("\t";" "))"' "${files[@]}" 2>/dev/null)
+  # $live spans EVERY open task, parked ones included: a task waiting on an unanswered ❓ is exactly
+  # the case this exists for, so a dependency does not stop counting just because it is deferred.
+  | ([.[]|select(.status=="pending" or .status=="in_progress")]|map(.id|tostring)) as $live
+  # `waits` MUST be bound before the index: an argument to index() is evaluated against the input
+  # of index() itself, so `$live|index(waits)` re-runs `waits` with `.` set to the ARRAY and dies.
+  | ([$o[]|select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)]) as $st
+  | "\($o|length)\u001f\($plain|length)\u001f\([.[]|select(.status=="completed")]|length)\u001f\(($st[0].subject // "")|gsub("\u001f";" "))\u001f\($st[0].id // "")\u001f\(($st[0].done_when // "")|gsub("\u001f";" "))\u001f\($st|length)"' "${files[@]}" 2>/dev/null)
 OPEN="${OPEN:-0}"; PLAIN="${PLAIN:-0}"; DONE="${DONE:-0}"; NID="${NID:-}"; DONEWHEN="${DONEWHEN:-}"
+case "${STARTABLE:-}" in ''|*[!0-9]*) STARTABLE=0 ;; esac
 case "$OPEN" in ''|*[!0-9]*) OPEN=0 ;; esac
 case "$PLAIN" in ''|*[!0-9]*) PLAIN=0 ;; esac
 case "$DONE" in ''|*[!0-9]*) DONE=0 ;; esac
 
 cfile="$(companion_state_dir)/autopilot/continue-$(printf '%s' "${sid:-x}" | sed 's:/:-:g')"
-if [ "$OPEN" -eq 0 ]; then rm -f "$cfile" 2>/dev/null; allow; fi   # nothing workable left → genuinely done
+# Nothing workable left → genuinely done. STARTABLE covers the second way a drain ends: open tasks
+# remain, but every one of them waits on an earlier item, so pushing is asking for the impossible.
+if [ "$OPEN" -eq 0 ] || [ "$STARTABLE" -eq 0 ]; then rm -f "$cfile" 2>/dev/null; allow; fi
 
 # No-progress cap: reset the stall counter whenever a task completed since last stop.
 # Five fields since 2026-07-29; a 3-field file from an older version reads back with the two new

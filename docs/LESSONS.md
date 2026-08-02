@@ -22,8 +22,8 @@ Not decisions (the ledger) nor in-flight work (the queue).
   grep exit 2, the caller reads an empty match, and the gate **silently does not fire**. Strip
   `^#`/blanks first; treat grep's exit ≥2 as fail-CLOSED.
 - **TAB is IFS *whitespace*: `IFS=$'\t' read` COLLAPSES repeats**, so every field after an EMPTY
-  one shifts left, silently. Safe only where no field can be empty (`stop-autopilot.sh`); with any
-  optional field use **US `$'\x1f'`** (`statusline.sh`). `@tsv` escapes `\n\r\t`; `join` does not.
+  one shifts left. **Always US `$'\x1f'` — no carve-out** (the old `stop-autopilot.sh` exemption
+  rested on its optional field being LAST). `@tsv` escapes `\n\r\t`; `join` does not.
 
 ## Tests (bats)
 - **git identity:** `git commit` in a test needs `-c user.email=t@t -c user.name=t` — CI's bare
@@ -87,7 +87,12 @@ the area, or when a gate points here.
 - **An apostrophe inside a single-quoted jq program ENDS the program.** Demoted below this line
   earlier the same day as "shellcheck catches it" — then written straight into a `tq` comment
   (`owner's`) an hour later, breaking the script. The linter is not a substitute for the rule when
-  you are editing INSIDE the quoted program.
+  you are editing INSIDE the quoted program. **Third strike: `index()'s`, written into a
+  `stop-autopilot.sh` jq COMMENT that was itself explaining the fix.** A `#` comment inside the
+  program is still inside the bash string — the quote does not care that the text is a comment.
+  The tell is a hook that silently degrades (every field empty, so it fails open) rather than
+  erroring: extract the program with `awk` and run it standalone and it works fine, because the
+  extraction is what dropped the bash quoting.
 - **jq array-length precedence:** `[ [$o[]|select(..)]|length ]` mis-parses; use
   `[ ($s|map(select(..))|length) ]`. (A literal `'` in a single-quoted jq program also breaks it —
   shellcheck SC1036/SC2026 catches that one for you.)

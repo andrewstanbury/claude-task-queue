@@ -581,6 +581,42 @@ _ux_flow_check() {
   [[ "$output" == *"❓ [parked]"* ]]           # the park-a-decision instruction
   [[ "$output" == *"⏳ [blocked]"* ]]          # the block-an-owner-action instruction
   [[ "$output" == *"DO NOT stop"* ]]           # the keep-going instruction
+
+  # The id it names must be the first STARTABLE task, not merely the first open one. A subject
+  # saying "after #N" is not startable while #N is live — the same rule `tq report` applies.
+  local d="$CLAUDE_COMPANION_TASKS_DIR/$sid"
+  _reason() { jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" 2>/dev/null; }
+  rm "$d/7.json"
+  jq -n '{id:"38",subject:"❓ [parked] pick one",status:"pending"}'    > "$d/38.json"
+  jq -n '{id:"50",subject:"sharpen it (after #38)",status:"pending"}' > "$d/50.json"
+  [ -z "$(_reason)" ]                          # blocker live → nothing startable → the drain ENDS
+  jq -n '{id:"38",subject:"❓ [parked] pick one",status:"completed"}'  > "$d/38.json"
+  [[ "$(_reason | jq -r .reason)" == *"#50"* ]]           # answered → #50 is offered
+
+  # Only a queue whose waiting task sorts BEFORE its blocker separates "first startable" from
+  # "first open": with #10 waiting on #90, an $o[0] pointer would offer the blocked #10.
+  rm "$d/50.json"
+  jq -n '{id:"10",subject:"needs the other first (after #90)",status:"pending"}' > "$d/10.json"
+  jq -n '{id:"90",subject:"the prerequisite",status:"pending"}'                  > "$d/90.json"
+  [[ "$(_reason | jq -r .reason)" == *"#90"* ]]
+  [[ "$(_reason | jq -r .reason)" != *"#10"* ]]
+
+  # A dangling reference must not strand work forever, and an EMPTY done_when must not eat a
+  # field: tab is IFS whitespace, so the old IFS=$'\t' read collapsed its two delimiters and
+  # shifted every later field left, silently zeroing the startable count.
+  rm "$d/10.json" "$d/90.json"
+  jq -n '{id:"60",subject:"orphan ref (after #999)",status:"pending"}' > "$d/60.json"
+  [[ "$(_reason | jq -r .reason)" == *"#60"* ]]
+
+  # EVERY blocker counts, not just the first. `capture` reads one match, so a task naming two
+  # started the moment blocker one closed — found by adversarial probe, not by the cases above.
+  rm "$d/60.json"
+  jq -n '{id:"40",subject:"two blockers (after #50) and (after #60)",status:"pending"}' > "$d/40.json"
+  jq -n '{id:"50",subject:"first blocker",status:"completed"}'                          > "$d/50.json"
+  jq -n '{id:"60",subject:"second blocker",status:"pending"}'                           > "$d/60.json"
+  [[ "$(_reason | jq -r .reason)" != *"#40"* ]]      # still held: #60 is open
+  jq -n '{id:"60",subject:"second blocker",status:"completed"}'                         > "$d/60.json"
+  [[ "$(_reason | jq -r .reason)" == *"#40"* ]]      # both closed → startable
 }
 
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
