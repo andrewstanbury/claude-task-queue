@@ -38,7 +38,7 @@ dev/mutate-gate.sh::s@if ! mkdir "$_mut_lock" 2>/dev/null; then@if false; then@:
 plugins/companion/bin/session-start.sh::s@if \[ -f "$PLUGIN_DIR/STEERING.md" \] && companion_autopilot_on "$root"; then@if [ -f "$PLUGIN_DIR/STEERING.md" ]; then@::autopilot mode prose is injected unconditionally again, re-taxing every session
 plugins/companion/bin/burn-down.sh::s@companion_burndown_on "$root" ||@false ||@::burn-down runs without being armed
 plugins/companion/bin/burn-down.sh::s@\[ "$open" -eq 0 \] ||@[ 1 -eq 1 ] ||@::generated work stops yielding to real queued work
-plugins/companion/bin/burn-down.sh::s@\[ "$nb" -lt "$MAXBRANCH" \] ||@[ 1 -eq 1 ] ||@::unreviewed-branch backpressure stops applying
+plugins/companion/bin/burn-down.sh::s@\[ "$nb" -lt "$cap" \] ||@[ 1 -eq 1 ] ||@::unreviewed-branch backpressure stops applying
 plugins/companion/bin/burn-down.sh::s@\[ "$projected" -lt "$TARGET" \] ||@[ 1 -eq 1 ] ||@::burn-down fires even when the forecast is ON TARGET
 plugins/companion/bin/candidates.sh::s@grep -F 'rec:'@cat@::a park with NO recommendation becomes a build candidate — guessing for the owner
 plugins/companion/bin/candidates.sh::s@if \[ "$found" -eq 0 \]; then@if true; then@::invention is emitted even when recorded signals exist
@@ -82,3 +82,7 @@ plugins/companion/bin/tq::s@$st\[0\].id@$o[0].id@::the startable pointer reverts
 plugins/companion/bin/tq::s@select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)\]@select(true)]@::the stopfields pointer forgets dependencies entirely
 plugins/companion/bin/tq::s@\[(subj | match("after #(\[0-9\]+)";"g").captures\[0\].string)\]@[(subj|capture("after #(?<n>[0-9]+)").n)]@::stopfields honours only the FIRST blocker, so a task with two starts early
 plugins/companion/bin/stop-autopilot.sh::s@  companion_autopilot_clear "$root"@  :@::a drained queue leaves autopilot ARMED, so the next stop re-reads the same undrainable queue and nags again
+check.sh::s@    \*) FAILED_SECTIONS="${FAILED_SECTIONS}${FAILED_SECTIONS:+;}$CUR" ;;@    *) : ;;@::a red verdict stops naming the section it went red in
+plugins/companion/bin/burn-down.sh::s@  if \[ "$left" -ge "$FINAL" \]; then@  if true; then@::the final stretch stops mattering — a projection keeps holding in the last hours, which is exactly the spend that never happens
+plugins/companion/bin/burn-down.sh::s@\[ "$left" -ge "$FINAL" \] || cap="$MAXBRANCH_FINAL"@:@::the branch cap stops lifting near the reset, so the real limiter never moves
+plugins/companion/bin/burn-down.sh::s@needed=$(( (TARGET - used_i) \* WINDOW / left ))@needed=0@::the required rate is no longer computed, so the report cannot say what it would take

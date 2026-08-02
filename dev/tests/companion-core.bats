@@ -668,6 +668,24 @@ _ux_flow_check() {
   _fire; [ "$(_ap)" = "on" ]
 }
 
+@test "check.sh: a red verdict NAMES the section it went red in, and never double-counts (R89)" {
+  # Sources the REAL definitions out of check.sh rather than restating them — a re-implementation
+  # would pass while the gate itself regressed, which is the failure mode this suite already
+  # rejects elsewhere. Running the whole gate here is not an option: check.sh runs bats.
+  run bash -c '
+    cd "$1" || exit 1
+    fail=0
+    eval "$(sed -n "/^CUR=\"(startup)\"/,/^}/p" check.sh)"
+    section "Alpha" >/dev/null; failsec; failsec
+    section "Beta"  >/dev/null; failsec
+    section "Gamma" >/dev/null
+    printf "fail=%s sections=%s\n" "$fail" "$FAILED_SECTIONS"
+  ' _ "$BATS_TEST_DIRNAME/../.."
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"fail=1"* ]]
+  [[ "$output" == *"sections=Alpha;Beta"* ]]   # Alpha once despite two failures; Gamma clean, absent
+}
+
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
@@ -1592,8 +1610,14 @@ EOF
 
 # ── burn-down mode (the only mode that AUTHORS work) ───────────────────────────────────────────
 _bd() {  # $1=used7 $2=used5 $3=age-offset → run the forecaster against a fresh fixture
+  # 7d reset is +172800 (2 days), NOT +86400. At exactly one day the fixture sat ON the FINAL
+  # STRETCH boundary, and burn-down reads its own clock a beat after the payload is built — so
+  # `left` came out 86399, tipped into the stretch, and the projection-based hold this helper's
+  # callers rely on stopped applying at random. Same class as "never assert an exact countdown
+  # from date +%s". Two days keeps every caller's HOLD/BURN outcome and stays clear of the edge;
+  # the stretch itself is covered deliberately by its own test.
   printf '%s %s %s %s %s\n' "$(( $(date +%s) - ${3:-0} ))" "${2:-20}" "$(( $(date +%s)+7200 ))" \
-    "${1:-10}" "$(( $(date +%s)+86400 ))" > "$BD_STATE/ratelimit"
+    "${1:-10}" "$(( $(date +%s)+172800 ))" > "$BD_STATE/ratelimit"
   run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
       BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
 }
@@ -1656,6 +1680,45 @@ _bd_setup() {
   run env BURNDOWN_TARGET_PCT=10 CLAUDE_COMPANION_STATE_DIR="$BD_STATE" \
       CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
   [[ "$output" == HOLD:* ]]
+}
+
+@test "burn-down: in the FINAL STRETCH only actual usage counts, and the branch cap lifts (R82)" {
+  _bd_setup
+  # snapshot fields: ts · used5 · reset5 · used7 · reset7
+  _bd_left() {  # $1=used7 · $2=seconds left in the 7d window
+    printf '%s %s %s %s %s\n' "$(date +%s)" 20 "$(( $(date +%s)+7200 ))" "$1" "$(( $(date +%s)+$2 ))" \
+      > "$BD_STATE/ratelimit"
+    run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+        BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
+  }
+
+  # OUTSIDE the stretch, a projection is sound: 90% with a full day left tracks to ~105%, so the
+  # sustained rate gets there on its own and there is no spare capacity to fill.
+  _bd_left 90 86400; [[ "$output" == HOLD:* ]]; [[ "$output" == *"on track"* ]]
+
+  # INSIDE it, that same projection is exactly what loses budget — it assumes you keep spending at
+  # your average, and a night asleep in the last hours is spending that never happens. Only what is
+  # ACTUALLY used counts, so the same 90% now burns.
+  # 80000s, NOT 3600s: with an hour left the projection collapses to ~= actual usage, so both rules
+  # agree and the case proves nothing — it reported "caught" while the stretch test was mutated to
+  # `if true`. Just inside the boundary the projection still reads 103% while usage is 90%, which is
+  # the only shape where the two rules genuinely disagree.
+  _bd_left 90 80000; [[ "$output" == BURN:* ]]
+  [[ "$output" =~ needs\ [1-9][0-9]*%/window ]]  # a REAL required rate — `needs 0%` also matched before
+
+  # ...but at or past the target there is genuinely nothing left to burn, in any stretch.
+  _bd_left 100 3600; [[ "$output" == HOLD:* ]]; [[ "$output" == *"nothing left to burn"* ]]
+
+  # The cap is what actually stops the burn, so it lifts inside the stretch and not outside it.
+  git -C "$BD_REPO" checkout -q -b burndown/a && git -C "$BD_REPO" -c user.email=t@t -c user.name=t \
+    commit -q --allow-empty -m a
+  git -C "$BD_REPO" checkout -q -b burndown/b && git -C "$BD_REPO" -c user.email=t@t -c user.name=t \
+    commit -q --allow-empty -m b
+  git -C "$BD_REPO" checkout -q -b burndown/c && git -C "$BD_REPO" -c user.email=t@t -c user.name=t \
+    commit -q --allow-empty -m c
+  git -C "$BD_REPO" checkout -q main
+  _bd_left 50 86400; [[ "$output" == HOLD:* ]]; [[ "$output" == *"max 3"* ]]   # 3 is the wall
+  _bd_left 50 3600;  [[ "$output" == BURN:* ]]                                 # ...until the last day
 }
 
 @test "burn-down: real queued work outranks generated work" {

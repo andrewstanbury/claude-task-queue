@@ -30,8 +30,8 @@ Not decisions (the ledger) nor in-flight work (the queue).
   runner has none and fails 128. **Same for a hook that commits** (ship-mode): fall back to
   `git -c user.name=… commit`, or it silently captures nothing on an unconfigured machine.
 - **`--print-output-on-failure`** on the `bats` call is what surfaces a flaky test's `$output` in CI.
-- **Never assert an exact countdown from `date +%s`** — `now + 42m` floors to `41m` the moment a
-  second passes. Assert unit and presence (`↻[0-9]+m`), never the count.
+- **Never assert an exact countdown from `date +%s`, nor pin a fixture ON a threshold** — the code
+  reads its clock a beat later, so `now+86400` arrives as 86399. Offset it.
 - **An INTERRUPTED `--mutate` leaves enforced core MUTATED in the tree**, and `git status` is the
   only tell. A killed run left `doc-lint.sh` with BOM-stripping off and `ship.sh` blind to
   untracked critical paths — two gates failing OPEN, staged by the next `git add -A`. Two
@@ -88,6 +88,14 @@ the area, or when a gate points here.
   Running mutations only for the files you touched has the same blind spot by construction: a hole
   elsewhere is invisible precisely because you did not touch it. Before claiming a change is
   verified, either run the full `--mutate` or say plainly that mutation coverage was not checked.
+- **Never assert ABSENCE against a whole rendered line that embeds environment text.** The status
+  line prints the project directory name; `_tmpd` generates a random one; a directory whose name
+  happens to contain `5h` failed `[[ "$output" != *"5h"* ]]`. That is a red gate roughly once in
+  hundreds of runs, unreproducible on rerun (31 clean), and it blocked the mutation gate — whose
+  baseline guard correctly refused to measure against an already-red suite. Anchor absence to the
+  STRUCTURE you mean (`[[ ! "$output" =~ 5h[[:space:]]*[▰▱] ]]` — the label slot before the bar),
+  then prove the anchored form still fails on a real regression, or you have swapped a flake for a
+  vacuous test.
 - **jq 1.7 + broken pipe:** `jq … | hook` where the hook exits at a disable-guard *before reading
   stdin* races into a closed pipe; jq prints "Broken pipe" to stderr, which bats
   merges into `$output` → flaky `[ -z "$output" ]`. Add `2>/dev/null` to the producing jq.

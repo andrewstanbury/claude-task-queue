@@ -432,6 +432,7 @@
     - "burn-down: parks and blocked items are NOT buildable work and must not block it (R82)"
     - "burndown-branch: a slug cannot escape the manifest dir (R82)"
     - "burndown-branch: refuses a slug that collides with the default branch (R82)"
+    - "burn-down: in the FINAL STRETCH only actual usage counts, and the branch cap lifts (R82)"
 
 - id: R83
   satisfies: [UN-1]
@@ -515,4 +516,17 @@
     nothing has been queued yet, and disarming there would undo the owner's own command.
   verified_by:
     - "autopilot DISARMS itself when the queue runs dry, both ways (R88)"
+
+- id: R89
+  satisfies: [UN-5]
+  requirement: >
+    a red gate names the section it went red in
+  note: >
+    check.sh once printed "FAILURES — see above" with no FAIL line anywhere in its output and
+    passed on the next three runs. A failure with no named cause cannot be acted on, and trains
+    re-running until green — which is how a real failure gets waved through. Every fail site now
+    stamps the current section. The test sources the REAL definitions out of check.sh rather than
+    restating them, because the gate cannot run itself (check.sh runs bats).
+  verified_by:
+    - "check.sh: a red verdict NAMES the section it went red in, and never double-counts (R89)"
 

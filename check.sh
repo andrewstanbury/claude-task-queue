@@ -21,20 +21,31 @@ shopt -s nullglob
 
 fail=0
 have()    { command -v "$1" >/dev/null 2>&1; }
-section() { printf '\n== %s ==\n' "$1"; }
+# A red verdict MUST name its cause. check.sh once printed "FAILURES — see above" with no FAIL
+# line anywhere in its output, and passed on the next three runs — a failure you cannot act on,
+# which trains re-running until green. `section` now records the current heading and `failsec`
+# stamps it, so the Result block can say WHERE it went red even when the detail line is lost.
+CUR="(startup)"; FAILED_SECTIONS=""
+section() { CUR="$1"; printf '\n== %s ==\n' "$1"; }
+failsec() { fail=1   # NOT failsec — this is the definition, and a bulk rewrite ate it once
+  case ";$FAILED_SECTIONS;" in
+    *";$CUR;"*) ;;
+    *) FAILED_SECTIONS="${FAILED_SECTIONS}${FAILED_SECTIONS:+;}$CUR" ;;
+  esac
+}
 
 scripts=(check.sh plugins/*/bin/*.sh plugins/*/lib/*.sh)
 manifests=(plugins/*/.claude-plugin/plugin.json plugins/*/hooks/hooks.json)
 
 section "JSON valid"
 for f in .claude-plugin/marketplace.json "${manifests[@]}"; do
-  if jq empty "$f" 2>/dev/null; then echo "  ok   $f"; else echo "  FAIL $f"; fail=1; fi
+  if jq empty "$f" 2>/dev/null; then echo "  ok   $f"; else echo "  FAIL $f"; failsec; fi
 done
 
 section "Marketplace manifest"
 if have claude; then
   if claude plugin validate . >/dev/null 2>&1; then echo "  ok"; else
-    echo "  FAIL — claude plugin validate ."; claude plugin validate . 2>&1 | sed 's/^/    /'; fail=1
+    echo "  FAIL — claude plugin validate ."; claude plugin validate . 2>&1 | sed 's/^/    /'; failsec
   fi
 else
   echo "  SKIP — claude CLI not installed (run locally before publishing)"
@@ -47,11 +58,11 @@ for pj in plugins/*/.claude-plugin/plugin.json; do
   pv=$(jq -r '.version // empty' "$pj")
   mkt=$(jq -r --arg n "$name" '.plugins[] | select(.name==$n) | .version' .claude-plugin/marketplace.json)
   if [ -z "$name" ] || [ -z "$pv" ]; then
-    echo "  FAIL $pj: missing name/version"; vm_fail=1; fail=1
+    echo "  FAIL $pj: missing name/version"; vm_fail=1; failsec
   elif [ -z "$mkt" ] || [ "$mkt" = "null" ]; then
-    echo "  FAIL $name: no marketplace entry"; vm_fail=1; fail=1
+    echo "  FAIL $name: no marketplace entry"; vm_fail=1; failsec
   elif [ "$pv" != "$mkt" ]; then
-    echo "  FAIL $name: plugin.json $pv != marketplace $mkt"; vm_fail=1; fail=1
+    echo "  FAIL $name: plugin.json $pv != marketplace $mkt"; vm_fail=1; failsec
   fi
 done
 [ "$vm_fail" -eq 0 ] && echo "  ok"
@@ -59,7 +70,7 @@ done
 section "ShellCheck"
 if have shellcheck; then
   # SC1091: libs are sourced by a computed path at runtime — expected.
-  if shellcheck -e SC1091 "${scripts[@]}"; then echo "  ok"; else fail=1; fi
+  if shellcheck -e SC1091 "${scripts[@]}"; then echo "  ok"; else failsec; fi
 else
   echo "  SKIP — shellcheck not installed (CI runs it)"
 fi
@@ -69,15 +80,15 @@ fi
 # mutation gate correctly reported them as HOLES.
 section "Portability lint (SC2015 · GNU-only regex escapes)"
 if out="$(dev/portability-lint.sh all "${scripts[@]}")"; then echo "  ok (none unmarked)"
-else printf '%s\n' "$out"; fail=1; fi
+else printf '%s\n' "$out"; failsec; fi
 # Fixture hygiene, scanned over the TESTS: a bare `$(mktemp -d)` leaks, and one session of leaks
 # exhausted this machine's /tmp inode table.
 if out="$(dev/portability-lint.sh fixtures dev/tests/*.bats)"; then echo "  ok (no leaking fixtures)"
-else printf '%s\n' "$out"; fail=1; fi
+else printf '%s\n' "$out"; failsec; fi
 
 section "Secret scan"
 if have gitleaks; then
-  if gitleaks detect --source . --no-git --redact; then echo "  ok"; else fail=1; fi
+  if gitleaks detect --source . --no-git --redact; then echo "  ok"; else failsec; fi
 else
   echo "  SKIP — gitleaks not installed (CI runs it)"
 fi
@@ -86,7 +97,7 @@ section "File size (<= 300 lines; decompose only when this fires)"
 size_fail=0
 for f in "${scripts[@]}"; do
   n=$(wc -l < "$f")
-  if [ "$n" -gt 300 ]; then echo "  FAIL $f: $n > 300"; size_fail=1; fail=1; fi
+  if [ "$n" -gt 300 ]; then echo "  FAIL $f: $n > 300"; size_fail=1; failsec; fi
 done
 [ "$size_fail" -eq 0 ] && echo "  ok"
 
@@ -100,7 +111,7 @@ marker_n="$(grep -c 'injection stops here' plugins/companion/STEERING.md || true
 # Marker must appear EXACTLY once: zero → the whole doc gets injected; two+ → the awk cut
 # silently truncates the core at the first occurrence while this gate keeps reading green.
 if [ "${marker_n:-0}" -ne 1 ]; then
-  echo "  FAIL STEERING.md: 'injection stops here' marker count is ${marker_n:-0}, must be exactly 1"; tok_fail=1; fail=1
+  echo "  FAIL STEERING.md: 'injection stops here' marker count is ${marker_n:-0}, must be exactly 1"; tok_fail=1; failsec
 elif [ "${core_b:-0}" -gt 7040 ]; then
   # 12288 -> 6144 -> 6656 -> 7040. The last move (2026-08-02) funds fusing the two posture
   # reflexes: the owner reported for the SECOND time (cf. R80, 2026-07-29) that recommendations
@@ -115,7 +126,7 @@ elif [ "${core_b:-0}" -gt 7040 ]; then
   # This is still a 40% cut from 11097B, with the eight restored and ~380B of honest headroom.
   # A cap should track what the content genuinely needs; it stops being a budget the moment it
   # starts deciding what the content is allowed to say.
-  echo "  FAIL STEERING.md injected core: ${core_b}B > 7040B"; tok_fail=1; fail=1
+  echo "  FAIL STEERING.md injected core: ${core_b}B > 7040B"; tok_fail=1; failsec
 fi
 # LESSONS is two-tier like STEERING (owner-picked 2026-08-01): the cap applies to what is actually
 # INJECTED, not to the file. Without the split the file was 5B under its ceiling while the process
@@ -124,13 +135,13 @@ fi
 # two+ → the awk cut truncates at the first while this gate still reads green.
 les_n="$(grep -c 'lessons injection stops here' docs/LESSONS.md 2>/dev/null || true)"
 if [ -f docs/LESSONS.md ] && [ "${les_n:-0}" -ne 1 ]; then
-  echo "  FAIL docs/LESSONS.md: 'lessons injection stops here' marker count is ${les_n:-0}, must be exactly 1"; tok_fail=1; fail=1
+  echo "  FAIL docs/LESSONS.md: 'lessons injection stops here' marker count is ${les_n:-0}, must be exactly 1"; tok_fail=1; failsec
 fi
 for spec in "CLAUDE.md:4096" "docs/LESSONS.md:6144"; do
   f="${spec%%:*}"; cap="${spec##*:}"; [ -f "$f" ] || continue
   # Measure what session-start actually injects (same awk, same fail-open) — not the whole file.
   b="$(awk '/lessons injection stops here/{exit} {print}' "$f" | wc -c | tr -d '[:space:]')"
-  if [ "${b:-0}" -gt "$cap" ]; then echo "  FAIL $f: ${b}B injected > ${cap}B (injected every session)"; tok_fail=1; fail=1; fi
+  if [ "${b:-0}" -gt "$cap" ]; then echo "  FAIL $f: ${b}B injected > ${cap}B (injected every session)"; tok_fail=1; failsec; fi
 done
 # Command `description:` frontmatter is ALSO always-loaded injection (the whole command list rides
 # every session), yet R69 never capped it — the same silent-growth class. Cap each at 140B (a label,
@@ -167,26 +178,26 @@ for f in plugins/companion/commands/*.md; do
   # Frontmatter lint lives in dev/doc-lint.sh so the SUITE can exercise it (R78) — check.sh runs
   # bats, so anything inline here is untestable by construction and was a named gap.
   if ! out="$("$PWD/dev/doc-lint.sh" frontmatter "$f")"; then
-    printf '%s\n' "$out"; tok_fail=1; fail=1
+    printf '%s\n' "$out"; tok_fail=1; failsec
   fi
 
   db="$(printf '%s' "$d" | wc -c | tr -d '[:space:]')"
-  if [ "${db:-0}" -gt 140 ]; then echo "  FAIL $(basename "$f") description: ${db}B > 140B (per-session command-list injection)"; tok_fail=1; fail=1; fi
+  if [ "${db:-0}" -gt 140 ]; then echo "  FAIL $(basename "$f") description: ${db}B > 140B (per-session command-list injection)"; tok_fail=1; failsec; fi
 
   # A body that reads $ARGUMENTS must declare a hint; a hint must not promise params the body ignores.
   takes_args=0
   # shellcheck disable=SC2016  # the literal string "$ARGUMENTS" is the target; expansion is wrong here
   grep -qF '$ARGUMENTS' "$f" && takes_args=1
   if [ "$takes_args" = 1 ] && [ -z "${hint// /}" ]; then
-    echo "  FAIL $(basename "$f") reads \$ARGUMENTS but has no non-empty frontmatter argument-hint: (R75 — params must be visible in the / menu)"; tok_fail=1; fail=1
+    echo "  FAIL $(basename "$f") reads \$ARGUMENTS but has no non-empty frontmatter argument-hint: (R75 — params must be visible in the / menu)"; tok_fail=1; failsec
   fi
   if [ "$takes_args" = 0 ] && [ -n "${hint// /}" ]; then
-    echo "  FAIL $(basename "$f") declares argument-hint: but the body never reads \$ARGUMENTS (R75 — the / menu would promise params the command ignores)"; tok_fail=1; fail=1
+    echo "  FAIL $(basename "$f") declares argument-hint: but the body never reads \$ARGUMENTS (R75 — the / menu would promise params the command ignores)"; tok_fail=1; failsec
   fi
   # The hint renders with `truncate-end`, so the tail — usually the second parameter — is what
   # silently disappears. 80 chars is generous.
   if [ "${#hint}" -gt 80 ]; then
-    echo "  FAIL $(basename "$f") argument-hint: ${#hint} chars > 80 (truncates in the / input box — name the params, don't document them)"; tok_fail=1; fail=1
+    echo "  FAIL $(basename "$f") argument-hint: ${#hint} chars > 80 (truncates in the / input box — name the params, don't document them)"; tok_fail=1; failsec
   fi
 
   # description <-> argument-hint AGREEMENT, BOTH directions (R75 amended). The description is what
@@ -194,10 +205,10 @@ for f in plugins/companion/commands/*.md; do
   # places now state one fact, so neither may name a parameter the other doesn't.
   hp="$(cmd_params "$hint")"; dp="$(cmd_params "$d")"
   if [ -n "${hint// /}" ] && [ -z "$hp" ]; then
-    echo "  FAIL $(basename "$f") argument-hint names no parameter in [brackets] — the agreement check cannot see it (R75)"; tok_fail=1; fail=1
+    echo "  FAIL $(basename "$f") argument-hint names no parameter in [brackets] — the agreement check cannot see it (R75)"; tok_fail=1; failsec
   fi
   if [ -z "${hint// /}" ] && [ -n "$dp" ]; then
-    echo "  FAIL $(basename "$f") description promises $(echo "$dp" | tr '\n' ' ')but there is no argument-hint (R75 — agree, or say '(no args)')"; tok_fail=1; fail=1
+    echo "  FAIL $(basename "$f") description promises $(echo "$dp" | tr '\n' ' ')but there is no argument-hint (R75 — agree, or say '(no args)')"; tok_fail=1; failsec
   fi
   if [ -n "$hp" ]; then
     while IFS= read -r p; do
@@ -211,14 +222,14 @@ for f in plugins/companion/commands/*.md; do
       else
         case "$d" in *"$p"*) continue ;; esac
       fi
-      echo "  FAIL $(basename "$f") argument-hint names \`$p\` but the description does not (R75 — the / menu and the autocomplete must agree)"; tok_fail=1; fail=1
+      echo "  FAIL $(basename "$f") argument-hint names \`$p\` but the description does not (R75 — the / menu and the autocomplete must agree)"; tok_fail=1; failsec
     done <<EOF
 $hp
 EOF
     while IFS= read -r p; do
       [ -n "$p" ] || continue
       case "$(printf '\n%s\n' "$hp")" in *"$(printf '\n%s\n' "$p")"*) continue ;; esac
-      echo "  FAIL $(basename "$f") description names \`$p\` but the argument-hint does not (R75 — agreement is both ways)"; tok_fail=1; fail=1
+      echo "  FAIL $(basename "$f") description names \`$p\` but the argument-hint does not (R75 — agreement is both ways)"; tok_fail=1; failsec
     done <<EOF
 $dp
 EOF
@@ -227,7 +238,7 @@ done
 # Ledger evidence lint — also in dev/doc-lint.sh, same reason (R78).
 led_fail=0
 if ! out="$(dev/doc-lint.sh ledger docs/adr/PROVENANCE.md)"; then
-  printf '%s\n' "$out"; led_fail=1; fail=1
+  printf '%s\n' "$out"; led_fail=1; failsec
 fi
 [ "$led_fail" -eq 0 ] && echo "  ok (ledger measurements cite their evidence)"
 
@@ -244,7 +255,7 @@ section "Hook budget (R81 — hooks stay O(1) in store size; MEASURED, not asser
 # absolute-ms budget is machine-dependent and self-defeating. This is the gate that would have
 # stopped the 2085ms->16108ms session-start scan (measured 8.06x, caught) from ever shipping.
 if ! "$PWD/dev/hook-budget.sh"; then
-  echo "  FAIL — a hook's cost grows with the task store (R81)"; fail=1
+  echo "  FAIL — a hook's cost grows with the task store (R81)"; failsec
 fi
 
 # Declared mutations must still APPLY. Stale patterns are this repo's most repeated defect —
@@ -252,7 +263,7 @@ fi
 # locally, surfacing only on CI where it reddens every shard. This costs seconds, not minutes.
 section "Mutation patterns still apply (no stale/orphaned declarations)"
 if out="$(dev/mutate-gate.sh --validate 2>&1)"; then printf '%s\n' "$out"
-else printf '%s\n' "$out"; fail=1; fi
+else printf '%s\n' "$out"; failsec; fi
 
 # The V: needs <- requirements <- tests, checked in BOTH directions. The uncomfortable one is
 # test->requirement: an orphan test is a claim about the system that no requirement will own. On
@@ -260,7 +271,7 @@ else printf '%s\n' "$out"; fail=1; fi
 # principle while doc-lint enforced it with 8 cases).
 section "Traceability (needs <- requirements <- tests, both directions)"
 if out="$(dev/trace.sh 2>&1)"; then printf '%s\n' "$out"
-else printf '%s\n' "$out"; fail=1; fi
+else printf '%s\n' "$out"; failsec; fi
 
 section "Tests (bats)"
 if have bats; then
@@ -269,15 +280,18 @@ if have bats; then
   d=dev/tests
   if [ -d "$d" ]; then
     echo "  -- $d --"
-    bats --print-output-on-failure "$d" || fail=1
+    bats --print-output-on-failure "$d" || failsec
   else
-    echo "  FAIL — $d missing"; fail=1
+    echo "  FAIL — $d missing"; failsec
   fi
 else
-  echo "  FAIL — bats not installed (required to run tests)"; fail=1
+  echo "  FAIL — bats not installed (required to run tests)"; failsec
 fi
 
 section "Result"
-if [ "$fail" -eq 0 ]; then echo "  PASS"; else echo "  FAILURES — see above"; fi
+if [ "$fail" -eq 0 ]; then echo "  PASS"; else
+  echo "  FAILURES in: $(printf '%s' "${FAILED_SECTIONS:-(unattributed)}" | sed 's/;/, /g')"
+  echo "  (see those sections above)"
+fi
 exit "$fail"
 

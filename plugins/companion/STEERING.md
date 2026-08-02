@@ -40,9 +40,9 @@ live choice belongs in 1. Decays first; itself challengeable.
   Changing or adding one is the owner's — park the delta. Authoring a **need** is never yours:
   needs define what "useful" means, so writing your own leaves nothing to measure against.
   Enforced under autopilot, not advisory.
-- **`⏳` = MANUAL WORK ONLY THE OWNER CAN DO** (deploy, buy, approve where I can't reach) — their
-  to-do list, nothing else. A choice I could implement once decided is `❓`; merely *waiting* on
-  something needs no human, so it stays open with a note.
+- **`⏳` = WORK ONLY THE OWNER CAN DO BY HAND** — nothing else. Anything I *could* execute but need
+  permission for is a **`❓`**: needing approval is not being unable to act. Every `❓` offers
+  **approve → I do it**, and picking it IS the go-ahead. *Waiting* needs no human: stays open.
 - **Run in auto.** Pause only on real signal: consequential (irreversible / externally binding),
   visual (wireframe first), architecturally significant (structural choice, new dependency or seam,
   data-model / interface change), a silent assumption, ambiguous or high blast, or you'd recommend

@@ -214,7 +214,10 @@ _feature_off() {  # $1=feature  $2=repo-dir
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"sRL2",cwd:$c}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
   [ "$status" -eq 0 ]
-  [[ "$output" != *"5h"* ]]; [[ "$output" != *"7d"* ]]
+  # Anchor to the BAR, not the whole line: the status line renders the project directory name,
+  # `_tmpd` generates a random one, and a name that happens to contain "5h" (or "7d") turned this
+  # into a rare, unreproducible red — seen once in a full gate run, then 31 clean reruns.
+  [[ ! "$output" =~ 5h[[:space:]]*[▰▱] ]]; [[ ! "$output" =~ 7d[[:space:]]*[▰▱] ]]
   [[ "$output" != *"▰"* ]]; [[ "$output" != *"▱"* ]]
   [[ "$output" != *"0%"* ]]     # never invent a zero for a number we were not given
   [[ "$output" == *"Opus"* ]]   # the rest of the line still renders
@@ -229,7 +232,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
     rate_limits:{seven_day:{used_percentage:41.2}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
   [ "$status" -eq 0 ]
-  [[ "$output" != *"5h"* ]]      # absent window is silent...
+  [[ ! "$output" =~ 5h[[:space:]]*[▰▱] ]]   # absent window is silent (anchored to the bar)...
   [[ "$output" == *"7d"* ]]      # ...and the present one keeps its own label
   [[ "$output" == *"41%"* ]]     # and its own value — NOT re-labelled as 5h
 }
@@ -287,7 +290,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
     rate_limits:{five_hour:{used_percentage:3,resets_at:$r}}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$low" "$SL"
   [[ "$output" =~ ↻[0-9]+m\ ▰ ]]     # countdown, space, then the bar — the label slot itself
-  [[ "$output" != *"5h"* ]]          # the window name it replaced is gone, not merely moved
+  [[ ! "$output" =~ 5h[[:space:]]*[▰▱] ]]   # the window name it replaced is gone, not merely moved
   # high usage still shows it, in minutes
   local high; high="$(jq -nc --arg c "$repo" --argjson r "$soon" '{model:{display_name:"Opus"},session_id:"sRL7",cwd:$c,
     rate_limits:{five_hour:{used_percentage:90,resets_at:$r}}}')"
