@@ -2062,6 +2062,22 @@ _bd_setup() {
   _ss2; [ "$status" -eq 0 ]; [[ "$output" != *"RUNNING v"* ]]
 }
 
+@test "the contract bound is stated where it is armed, not only in the guard (R86)" {
+  # A guard that refuses without the rule being visible reads as a malfunction. The bound is in the
+  # INJECTED steering core (so it governs every unattended session) and in the arming message (so it
+  # is visible at the moment the owner turns autopilot on) — and it is one rule, not a fifth mode.
+  local core; core="$(awk '/injection stops here/{exit} {print}' "$ROOT/STEERING.md")"
+  [[ "$core" == *"never rewrite it"* ]]
+  [[ "$core" == *"Authoring a **need** is never yours"* ]]
+  local d st; d="$(_tmpd)"; git -C "$d" init -q; st="$(_tmpd)"
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" on' _ "$d" "$st" "$ROOT/bin/autopilot.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"R86"* ]]; [[ "$output" == *"never mine to edit"* ]]
+  # And no new mode was introduced — the four existing toggles are still the whole set.
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" contract on' _ "$d" "$st" "$ROOT/bin/autopilot.sh"
+  [ "$status" -ne 0 ]
+}
+
 @test "contract-guard: unattended work may SATISFY the contract, never rewrite it (R86)" {
   # Trace-bounded autonomy. Enforceable only because the contract is now FILES: "does this edit the
   # contract?" is a path comparison, where "is this an L2 task?" would have been a judgement made by

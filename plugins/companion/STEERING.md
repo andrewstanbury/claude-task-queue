@@ -31,6 +31,10 @@ This mandate is itself challengeable.
   <task> — risk: <why>; need: <the questions>`. Answers re-enter as minimal-blast children.
   Irreducibly high-blast (push, migration, payment) → owner blesses it or it stays `⏳`. Never
   auto-drain a `decompose:` park.
+- **Satisfy the contract; never rewrite it (R86).** Meeting an existing requirement is ordinary.
+  Changing or adding one is the owner's — park the delta. Authoring a **need** is never yours:
+  needs define what "useful" means, so writing your own leaves nothing to measure against.
+  Enforced under autopilot, not advisory.
 - **`⏳` = MANUAL WORK ONLY THE OWNER CAN DO** (deploy, buy, approve where I can't reach) — their
   to-do list, nothing else. A choice I could implement once decided is `❓`; merely *waiting* on
   something needs no human, so it stays open with a note.

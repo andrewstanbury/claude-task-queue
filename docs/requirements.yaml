@@ -485,3 +485,4 @@
     is refused with instructions to park the proposed delta for the owner.
   verified_by:
     - "contract-guard: unattended work may SATISFY the contract, never rewrite it (R86)"
+    - "the contract bound is stated where it is armed, not only in the guard (R86)"

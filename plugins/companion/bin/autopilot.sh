@@ -17,7 +17,7 @@ root="$(companion_root "$PWD")"
 flag="$(companion_autopilot_flag "$root")"
 case "$cmd" in
   on)  mkdir -p "$(dirname "$flag")" 2>/dev/null && : > "$flag" \
-       && echo "✈️  autopilot ON for $root — I'll keep draining the queue and PARK decisions (❓) / owner-actions (⏳) until you turn it off." ;;
+       && echo "✈️  autopilot ON for $root — I'll keep draining the queue and PARK decisions (❓) / owner-actions (⏳) until you turn it off. I may SATISFY the recorded contract but not rewrite it (R86): a change to docs/requirements.yaml gets parked for you, and docs/needs.yaml is never mine to edit." ;;
   off) companion_autopilot_clear "$root"
        # An explicit OFF outranks any pending resume: clear the paused marker so a review that
        # runs later cannot silently re-arm something the owner deliberately turned off.
