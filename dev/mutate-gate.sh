@@ -27,6 +27,8 @@ mfile="dev/tests/mutations.txt"
 # minutes serially, and on GitHub a long job ALSO blocks `gh run view --log-failed` for the whole
 # run — so a red check lane could not be read until this one finished, which cost real time today.
 # Each mutation is independent by construction, so this parallelises cleanly.
+do_validate=0
+if [ "${1:-}" = "--validate" ]; then do_validate=1; shift; fi
 shard_n=0; shard_m=1
 if [ "${1:-}" = "--shard" ]; then
   case "${2:-}" in
@@ -85,6 +87,30 @@ if [ "$expect" -lt 2 ]; then
   echo "  FAIL cannot enumerate the suite (bats --count gave '${expect}') — a gate that cannot"
   echo "       count its own tests cannot certify anything about them"; exit 2
 fi
+# --validate: check that every declared mutation APPLIES to its target, without running the suite.
+# Seconds instead of ~10 minutes, so it belongs in the default gate. Stale patterns have been this
+# repo's most repeated defect — seven orphaned by extractions, three more by sed-delimiter
+# collisions (a pattern containing the delimiter, e.g. `@{u}` or `"$@"` under `s@…@…@`). Every one
+# of those was invisible locally and only surfaced on CI, where it reddened every shard at once.
+if [ "$do_validate" = 1 ]; then
+  vbad=0; vn=0
+  while IFS= read -r line; do
+    case "$line" in ''|'#'*) continue ;; esac
+    tgt="${line%%::*}"; tmp="${line#*::}"; sedscript="${tmp%%::*}"; what="${tmp#*::}"
+    [ -f "$tgt" ] || { echo "  FAIL missing target: $tgt ($what)"; vbad=1; continue; }
+    vn=$((vn+1))
+    cp "$tgt" "$tgt.mutbak"
+    if ! sed -i.bak "$sedscript" "$tgt" 2>/dev/null; then
+      echo "  FAIL sed script is invalid (delimiter collision?): $what"; vbad=1
+    elif cmp -s "$tgt" "$tgt.mutbak"; then
+      echo "  FAIL pattern matches NOTHING (stale — was the target edited or moved?): $what"; vbad=1
+    fi
+    rm -f "$tgt.bak"; mv "$tgt.mutbak" "$tgt"
+  done < "$mfile"
+  [ "$vbad" -eq 0 ] && echo "  ok ($vn declared mutations all still apply)"
+  exit "$vbad"
+fi
+
 # THE BASELINE MUST BE GREEN. Every verdict below is "did the suite go RED?" — which measures
 # nothing if it was already red. One pre-existing failure makes EVERY mutation report "caught",
 # and that is the most dangerous reading this gate can produce: a clean bill of health for

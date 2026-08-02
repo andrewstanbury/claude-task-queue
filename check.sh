@@ -241,6 +241,13 @@ if ! "$PWD/dev/hook-budget.sh"; then
   echo "  FAIL — a hook's cost grows with the task store (R81)"; fail=1
 fi
 
+# Declared mutations must still APPLY. Stale patterns are this repo's most repeated defect —
+# seven orphaned by extractions, three by sed-delimiter collisions — and every one was invisible
+# locally, surfacing only on CI where it reddens every shard. This costs seconds, not minutes.
+section "Mutation patterns still apply (no stale/orphaned declarations)"
+if out="$(dev/mutate-gate.sh --validate 2>&1)"; then printf '%s\n' "$out"
+else printf '%s\n' "$out"; fail=1; fi
+
 section "Tests (bats)"
 if have bats; then
   # One suite, one location — the tests moved to dev/ with the gates they run (they verify the
