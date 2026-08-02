@@ -81,6 +81,13 @@ Not decisions (the ledger) nor in-flight work (the queue).
 These earned a place in the record but not in every session's context. Read them when working in
 the area, or when a gate points here.
 
+- **`./check.sh` does NOT run the mutation gate — only `./check.sh --mutate` does, and CI runs it
+  sharded.** So "PASS, N tests" is evidence about tests, never about mutation coverage, and
+  reporting it as though the run were fully verified is how a declared HOLE shipped three times
+  (4a86f91, a9d5ea6, 7c389d1 — each landed green locally, red in CI, on the same hole).
+  Running mutations only for the files you touched has the same blind spot by construction: a hole
+  elsewhere is invisible precisely because you did not touch it. Before claiming a change is
+  verified, either run the full `--mutate` or say plainly that mutation coverage was not checked.
 - **jq 1.7 + broken pipe:** `jq … | hook` where the hook exits at a disable-guard *before reading
   stdin* races into a closed pipe; jq prints "Broken pipe" to stderr, which bats
   merges into `$output` → flaky `[ -z "$output" ]`. Add `2>/dev/null` to the producing jq.
