@@ -64,37 +64,12 @@ else
   echo "  SKIP — shellcheck not installed (CI runs it)"
 fi
 
-# `A && B || C` — SC2015. THIS HAS SHIPPED RED CI THREE TIMES (3.16.0, 3.17.0, and again today),
-# every time because the LOCAL shellcheck build does not emit SC2015 where CI's does, so the gate
-# is green right up until it is not. LESSONS has said "never write it" since the second time; a
-# lesson injected into every session did not prevent the third. Prevention beats detection (N7):
-# this grep is version-independent, so the local gate now fails wherever CI would.
-# The shape is legitimate when the `||` arm really is "unless both held" — mark those `# sc2015-ok`
-# so the exemption is a deliberate, reviewable act rather than a silent habit.
-section "A && B || C (SC2015 — local shellcheck under-reports this; CI does not)"
-sc2015=0
-while IFS= read -r hit; do
-  case "$hit" in *sc2015-ok*) continue ;; esac
-  echo "  FAIL $hit"; sc2015=1; fail=1
-done < <(grep -nE '\][[:space:]]*&&[[:space:]]*\[[^]]*\][[:space:]]*\|\|' "${scripts[@]}" 2>/dev/null | grep -vE ':[0-9]+:[[:space:]]*#')
-[ "$sc2015" -eq 0 ] && echo "  ok (none unmarked)"
-
-# GNU-only BRE escapes in sed/grep. LESSONS: "BSD is not GNU — shipped red CI three times.
-# \?/\+/\| in sed/grep are GNU extensions BSD reads as LITERALS." Today made four: `slugify`
-# used `\+`, so on the macOS lane every multi-word candidate produced a branch name with SPACES
-# and burn-down was simply broken there — while the Linux lane stayed green. Same reasoning as the
-# SC2015 guard above: the local toolchain cannot reproduce the other platform, so the gate has to
-# know the rule rather than hope the developer remembers it. Use `sed -E`/`grep -E` and plain
-# `+ ? |`; mark a deliberate literal `# bre-ok`.
-section "GNU-only regex escapes (BSD reads these as literals)"
-bre=0
-while IFS= read -r hit; do
-  case "$hit" in *bre-ok*) continue ;; esac
-  echo "  FAIL $hit"; bre=1; fail=1
-done < <(grep -nE '(sed|grep)[[:space:]]+[^|]*\\[+?|]' "${scripts[@]}" 2>/dev/null \
-         | grep -vE ':[0-9]+:[[:space:]]*#' \
-         | grep -vE '(sed|grep)[[:space:]]+(-[a-zA-Z]*[Er][a-zA-Z]*[[:space:]])')
-[ "$bre" -eq 0 ] && echo "  ok (none unmarked)"
+# The two platform traps live in dev/portability-lint.sh so the SUITE can exercise them (R78,
+# same reason as doc-lint.sh). Inline here they had declared mutations and no tests, and the
+# mutation gate correctly reported them as HOLES.
+section "Portability lint (SC2015 · GNU-only regex escapes)"
+if out="$(dev/portability-lint.sh all "${scripts[@]}")"; then echo "  ok (none unmarked)"
+else printf '%s\n' "$out"; fail=1; fi
 
 section "Secret scan"
 if have gitleaks; then

@@ -51,7 +51,7 @@ plugins/companion/bin/autopilot.sh::s@rm -f "$(companion_autopilot_paused_flag "
 plugins/companion/bin/tq::s@Run /companion:review — it asks the whole pile at once@Run it@::a parks-only queue stops naming the command that clears it
 plugins/companion/bin/burndown-branch.sh::s@mkdir -p "$MANIFEST_DIR" || die@mkdir -p "$MANIFEST_DIR" 2>/dev/null; true || die@::a branch is opened even when its manifest cannot be written
 plugins/companion/bin/burndown-branch.sh::s@valid_slug "$slug" || die@true || die@::a slug can escape the manifest dir again via ../
-plugins/companion/bin/burn-down.sh::s@| grep -cv '\^  ◻ \*\[❓⏳\]'@| grep -c '^  ◻'@::parks and blocked items block burn-down again, making rank 1 unreachable
+plugins/companion/bin/burn-down.sh::s@grep -cv -e '\^  ◻ \*❓' -e '\^  ◻ \*⏳'@grep -c '^  ◻'@::parks and blocked items block burn-down again, making rank 1 unreachable
 plugins/companion/bin/autopilot.sh::s@if ! { mkdir -p "$(dirname "$pflag")" 2>/dev/null \&\& : > "$pflag" 2>/dev/null; }; then@if false; then@::pause disarms autopilot without recording that it was armed
 plugins/companion/bin/ask-guard.sh::s@if \[ -n "$parked_id" \]; then@if false; then@::a blocked question is denied without being parked — the block becomes a dead end
 plugins/companion/bin/autopilot.sh::s@if ! { mkdir -p "$(dirname "$aflag")" 2>/dev/null \&\& : > "$aflag" 2>/dev/null; }; then@if false; then@::resume destroys the paused marker without re-arming
@@ -60,5 +60,6 @@ plugins/companion/bin/burndown-branch.sh::s@case "$slug" in "$def"|main|master) 
 plugins/companion/bin/ask-guard.sh::s@_tq="$(cd "$(dirname "$SELF")" 2>/dev/null \&\& pwd)/tq"@_tq="$(dirname "$SELF")/tq"@::a relatively-invoked hook silently writes no task while reporting success
 plugins/companion/bin/prompt-continue.sh::s@\[ "$pile" -gt 0 \] || exit 0@[ 1 -eq 1 ] || exit 0@::a bare 'continue' nags about review even when nothing is parked
 plugins/companion/bin/prompt-continue.sh::s@  \*) exit 0 ;;@  *) : ;;@::any prompt is treated as 'continue', hijacking real instructions
-check.sh::s@case "$hit" in \*sc2015-ok\*) continue ;; esac@case "$hit" in zzzNEVER) continue ;; esac@::the SC2015 guard stops honouring its own exemption marker
-check.sh::s@case "$hit" in \*bre-ok\*) continue ;; esac@case "$hit" in zzzNEVER) continue ;; esac@::the GNU-escape guard stops honouring its exemption marker
+dev/portability-lint.sh::s@case "$hit" in \*sc2015-ok\*) continue ;; esac@case "$hit" in zzzNEVER) continue ;; esac@::the SC2015 guard stops honouring its own exemption marker
+dev/portability-lint.sh::s@case "$hit" in \*bre-ok\*) continue ;; esac@case "$hit" in zzzNEVER) continue ;; esac@::the GNU-escape guard stops honouring its exemption marker
+check.sh::s@dev/portability-lint.sh all@dev/portability-lint.sh sc2015@::check.sh stops running the GNU-escape half of the portability lint

@@ -1889,3 +1889,43 @@ _bd_setup() {
   _pc "continue by refactoring the parser"; [ -z "$output" ]
   _pc "Keep going."; [[ "$output" == *"/companion:review"* ]]   # punctuation and case tolerated
 }
+
+@test "check.sh actually INVOKES the portability lint, both halves (wiring guard)" {
+  # bats cannot run check.sh (check.sh runs bats), so this is structural — the same shape as the
+  # doc-lint wiring guard. Without it, check.sh could quietly stop calling the linter, or call only
+  # one half, and every test above would still pass while the gate protected nothing.
+  run grep -c 'portability-lint\.sh all' "$ROOT/../../check.sh"
+  [ "$output" -ge 1 ]
+}
+
+@test "portability-lint: catches the two traps that keep shipping red CI, and honours its markers" {
+  # These two guards were written INLINE in check.sh with declared mutations and no tests, so the
+  # mutation gate correctly reported both as HOLES — a guard that cannot fail is not a guard. They
+  # live in dev/ now for the same reason doc-lint does: so the suite can reach them.
+  local d; d="$BATS_TEST_TMPDIR/pl"; mkdir -p "$d"
+  local L="$DEV/portability-lint.sh"
+
+  # SC2015: `A && B || C` reads as if-then-else and is not. CI's shellcheck flags it; the local
+  # build does not, which is exactly how it shipped red three times.
+  printf '%s\n' '[ -n "$a" ] && [ -n "$b" ] || exit 1' > "$d/bad-sc.sh"
+  run "$L" sc2015 "$d/bad-sc.sh"; [ "$status" -eq 1 ]; [[ "$output" == *"bad-sc.sh"* ]]
+  printf '%s\n' '[ -n "$a" ] && [ -n "$b" ] || exit 1   # sc2015-ok: unless both held' > "$d/ok-sc.sh"
+  run "$L" sc2015 "$d/ok-sc.sh"; [ "$status" -eq 0 ]; [ -z "$output" ]
+
+  # GNU-only escapes: BSD sed/grep read \+ \? \| as LITERALS. This one made burn-down unable to
+  # create a single branch on macOS while Linux stayed green.
+  printf '%s\n' "x=\$(printf a | sed -e 's/[a-z]\\+/-/g')" > "$d/bad-bre.sh"
+  run "$L" bre "$d/bad-bre.sh"; [ "$status" -eq 1 ]; [[ "$output" == *"bad-bre.sh"* ]]
+  # An escaped pipe inside an ERE is correct, not a violation — -E/-r invocations are exempt.
+  printf '%s\n' "grep -nE 'a\\|b' f" > "$d/ere.sh"
+  run "$L" bre "$d/ere.sh"; [ "$status" -eq 0 ]
+  printf '%s\n' "sed -e 's/a\\+/b/' f   # bre-ok: deliberate literal plus" > "$d/ok-bre.sh"
+  run "$L" bre "$d/ok-bre.sh"; [ "$status" -eq 0 ]
+
+  # A comment mentioning the shape is not code.
+  printf '%s\n' '# never write [ a ] && [ b ] || c' > "$d/comment.sh"
+  run "$L" all "$d/comment.sh"; [ "$status" -eq 0 ]
+  # `all` fails if EITHER lints fail.
+  run "$L" all "$d/bad-sc.sh" "$d/bad-bre.sh"; [ "$status" -eq 1 ]
+  run "$L" all "$d/ok-sc.sh" "$d/ok-bre.sh" "$d/ere.sh"; [ "$status" -eq 0 ]
+}
