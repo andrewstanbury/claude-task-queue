@@ -28,6 +28,15 @@
             "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/ask-guard.sh\""
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/contract-guard.sh\""
+          }
+        ]
       }
     ],
     "Stop": [

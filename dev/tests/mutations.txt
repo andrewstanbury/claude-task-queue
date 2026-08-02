@@ -70,3 +70,5 @@ dev/mutate-gate.sh::s@if \[ "$shard_m" -gt 1 \] \&\& \[ $(( (idx - 1) % shard_m 
 check.sh::s@dev/trace.sh 2>&1@:@::check.sh stops running the traceability gate
 plugins/companion/bin/prompt-continue.sh::s@STOP — DO NOT START ANY OTHER WORK YET@Note:@::the continue hook stops asserting that unblocking outranks other work
 plugins/companion/bin/session-start.sh::s@if \[ -n "$_ver_tree" \] \&\& \[ "$_ver_tree" != "$_ver_running" \]; then@if false; then@::a stale installed plugin stops being announced — work looks shipped while inert
+plugins/companion/bin/contract-guard.sh::s@companion_autopilot_on "$root" || exit 0@false || exit 0@::the contract guard fires when the owner is present, or stops firing when they are not
+plugins/companion/bin/contract-guard.sh::s@  \*/docs/needs.yaml|docs/needs.yaml)@  zzzNEVERzzz)@::needs.yaml becomes editable by an unattended agent

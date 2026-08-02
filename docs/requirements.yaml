@@ -476,3 +476,12 @@
     can never quietly stop firing while the suite stays green.
   verified_by:
     - "check.sh actually INVOKES the traceability gate (wiring guard)"
+
+- id: R86
+  satisfies: [UN-3, UN-2]
+  requirement: >
+    while autopilot is armed, an agent may do work that SATISFIES the recorded contract but may not
+    change it: an edit to the needs layer is refused outright, and an edit to the requirements layer
+    is refused with instructions to park the proposed delta for the owner.
+  verified_by:
+    - "contract-guard: unattended work may SATISFY the contract, never rewrite it (R86)"

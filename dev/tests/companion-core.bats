@@ -2061,3 +2061,39 @@ _bd_setup() {
   rm -rf "$repo/plugins"
   _ss2; [ "$status" -eq 0 ]; [[ "$output" != *"RUNNING v"* ]]
 }
+
+@test "contract-guard: unattended work may SATISFY the contract, never rewrite it (R86)" {
+  # Trace-bounded autonomy. Enforceable only because the contract is now FILES: "does this edit the
+  # contract?" is a path comparison, where "is this an L2 task?" would have been a judgement made by
+  # the very agent the bound exists to constrain.
+  local d st; d="$(_tmpd)"; git -C "$d" init -q; st="$(_tmpd)"
+  _cg() { run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" bash "$3"' _ \
+            "$(jq -nc --arg c "$d" --arg p "$1" '{cwd:$c,tool_name:"Edit",tool_input:{file_path:$p}}')" \
+            "$st" "$ROOT/bin/contract-guard.sh"; }
+
+  # Autopilot OFF: the owner is present and can simply decide. Silence, not a nag.
+  _cg "$d/docs/needs.yaml"; [ "$status" -eq 0 ]; [ -z "$output" ]
+
+  mkdir -p "$st/autopilot"; touch "$(_flagpath "$st" autopilot "$d")"
+  # NEEDS are never the agent's — this is the one refusal with no escape hatch in the message.
+  _cg "$d/docs/needs.yaml"
+  [ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ]
+  [[ "$output" == *"never yours to write"* ]]; [[ "$output" == *"PARK it as a proposal"* ]]
+  # REQUIREMENTS: refused, but with the exact park format, because the delta IS the owner's choice.
+  _cg "$d/docs/requirements.yaml"
+  [ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ]
+  [[ "$output" == *"quietly rewrites what it is measured against"* ]]
+  [[ "$output" == *"Satisfying an EXISTING requirement needs no permission"* ]]
+  # Everything else is ordinary work and must be untouched — a guard that fires on normal edits
+  # would make autopilot useless, which is the failure mode worth guarding against here.
+  _cg "$d/plugins/companion/bin/tq";        [ -z "$output" ]
+  _cg "$d/docs/MAP.md";                     [ -z "$output" ]
+  _cg "$d/docs/REQUIREMENTS.md";            [ -z "$output" ]
+  _cg "$d/src/needs.yaml.backup";           [ -z "$output" ]   # not the contract path
+  # Relative paths are the same file.
+  _cg "docs/needs.yaml"
+  [ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ]
+  # Malformed input must never block a write (R7/R68).
+  run bash -c 'printf "%s" "{garbage" | CLAUDE_COMPANION_STATE_DIR="$1" bash "$2"' _ "$st" "$ROOT/bin/contract-guard.sh"
+  [ "$status" -eq 0 ]; [ -z "$output" ]
+}
