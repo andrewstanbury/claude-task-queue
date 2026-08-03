@@ -560,3 +560,19 @@
     - "UN-6 foreign repos: the plugin works in ecosystems and paths it has never seen (R91)"
     - "UN-6 foreign repos: the DRAIN and the burn loop work there too (R91)"
 
+- id: R92
+  satisfies: [UN-5]
+  requirement: >
+    a test fixture cannot silently sit on a threshold the product compares against
+  note: >
+    The code reads its own clock after the fixture is built, so a value written as now+86400
+    against an 86400s boundary arrives as 86399 and tips the branch at random — green locally, red
+    on CI. It reddened both lanes twice in one day, the second time inside the test that DEFINES
+    that threshold, hours after the prose lesson against it was written. Prose had its chance.
+    Constants are derived from the shipped source rather than listed, so the lint cannot rot when a
+    threshold moves; only values >= 600 count, because magnitude is the sole available signal for
+    telling a duration from a percentage and a first cut at >= 60 swept in TARGET=100. Deliberate
+    boundary tests carry a reviewable `# boundary-ok`.
+  verified_by:
+    - "boundary lint: derives thresholds from SOURCE and catches a pinned fixture (R92)"
+

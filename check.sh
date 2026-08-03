@@ -21,10 +21,8 @@ shopt -s nullglob
 
 fail=0
 have()    { command -v "$1" >/dev/null 2>&1; }
-# A red verdict MUST name its cause. check.sh once printed "FAILURES — see above" with no FAIL
-# line anywhere in its output, and passed on the next three runs — a failure you cannot act on,
-# which trains re-running until green. `section` now records the current heading and `failsec`
-# stamps it, so the Result block can say WHERE it went red even when the detail line is lost.
+# A red verdict MUST name its cause: this once printed "FAILURES — see above" with no FAIL line
+# anywhere, then passed three times. `failsec` stamps the current section so Result can say where.
 CUR="(startup)"; FAILED_SECTIONS=""
 section() { CUR="$1"; printf '\n== %s ==\n' "$1"; }
 failsec() { fail=1   # NOT failsec — this is the definition, and a bulk rewrite ate it once
@@ -84,6 +82,10 @@ else printf '%s\n' "$out"; failsec; fi
 # Fixture hygiene, scanned over the TESTS: a bare `$(mktemp -d)` leaks, and one session of leaks
 # exhausted this machine's /tmp inode table.
 if out="$(dev/portability-lint.sh fixtures dev/tests/*.bats)"; then echo "  ok (no leaking fixtures)"
+else printf '%s\n' "$out"; failsec; fi
+# A fixture pinned to a threshold the product compares against reddens CI at random (now+86400
+# arrives as 86399). Broke both lanes twice in one day — see dev/portability-lint.sh.
+if out="$(dev/portability-lint.sh boundary dev/tests/*.bats)"; then echo "  ok (no fixture pinned to a threshold)"
 else printf '%s\n' "$out"; failsec; fi
 
 section "Secret scan"

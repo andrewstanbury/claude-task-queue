@@ -90,3 +90,5 @@ plugins/companion/bin/burn-down.sh::s@  \[ "$sdiff" -le "$SAMPLETOL" \] ||@  [ 1
 plugins/companion/bin/burn-down.sh::s@  \[ "$prev_ts" != "$ts" \] ||@  [ 1 -eq 1 ] ||@::the same unrefreshed sample counts as its own second opinion
 plugins/companion/bin/candidates.sh::s@grep -nIE .(TODO|FIXME|XXX)\[: \]. -- .@grep -nIE '(TODO|FIXME|XXX)[: ]' -- '*.sh' @::TODO detection acquires an ecosystem allowlist — every non-shell project silently loses its recorded signals and gets INVENTED work instead
 plugins/companion/bin/burndown-branch.sh::s@  \[ -z "$(git -C "$root" status --porcelain 2>/dev/null)" \] ||@  [ 1 -eq 1 ] ||@::autonomous work starts on top of someone else's uncommitted changes
+dev/portability-lint.sh::s@  \[ -n "$vals" \] || { echo "  FAIL boundary: derived NO threshold constants — the lint would pass vacuously"; return 1; }@  :@::the boundary lint passes vacuously when it derives no constants at all
+check.sh::s@if out="$(dev/portability-lint.sh boundary dev/tests/\*.bats)"; then@if true; then@::check.sh stops invoking the boundary lint — the guard exists but never runs

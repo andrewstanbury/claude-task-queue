@@ -58,6 +58,34 @@ lint_fixtures() {
   return "$rc"
 }
 
+# boundary — a test fixture pinned to the EXACT value of a threshold the product compares against.
+# The code reads its own clock a beat after the fixture is built, so a reset written as `now+86400`
+# against a 86400s boundary arrives as 86399 and tips the branch at random: green locally, red on
+# CI, and it reddened both lanes TWICE in one day. The prose lesson against this was written the
+# same morning it was violated, in the test that DEFINES the threshold — which is this repo's own
+# bar for making a rule mechanical.
+#
+# Constants are DERIVED from the source, never listed here (R9): any `NAME="${ENV:-<digits>}"` in
+# the shipped bin/. Only values >= 600 count. Magnitude is the only signal available for telling a
+# DURATION from a percentage or a count, and the first cut at >= 60 swept in TARGET=100, flagging
+# six innocent "100%" assertions in the status-line tests — burying the two real hits. 600s is
+# comfortably above any percentage or tally this product uses and below its smallest real timeout.
+# A deliberate boundary test marks the line `# boundary-ok`.
+lint_boundary() {
+  local rc=0 v hit vals
+  vals="$(grep -hoE '^[A-Z_]+="\$\{[A-Z_]+:-[0-9]+\}"' plugins/companion/bin/*.sh 2>/dev/null \
+          | sed 's/.*:-//; s/}"//' | sort -u)"
+  [ -n "$vals" ] || { echo "  FAIL boundary: derived NO threshold constants — the lint would pass vacuously"; return 1; }
+  for v in $vals; do
+    [ "$v" -ge 600 ] 2>/dev/null || continue
+    while IFS= read -r hit; do
+      case "$hit" in *boundary-ok*) continue ;; esac
+      echo "  FAIL $hit"; echo "       ^ pinned to the ${v}s threshold — offset it, or mark the line # boundary-ok"; rc=1
+    done < <(grep -HnE "(^|[^0-9])$v([^0-9]|\$)" "$@" 2>/dev/null | grep -vE ':[0-9]+:[[:space:]]*#')
+  done
+  return "$rc"
+}
+
 mode="${1:-all}"; shift || true
 [ "$#" -gt 0 ] || { echo "usage: portability-lint.sh [sc2015|bre|all] <file...>" >&2; exit 2; }
 rc=0
@@ -65,7 +93,8 @@ case "$mode" in
   sc2015)   lint_sc2015 "$@" || rc=1 ;;
   bre)      lint_bre "$@"    || rc=1 ;;
   fixtures) lint_fixtures "$@" || rc=1 ;;
+  boundary) lint_boundary "$@" || rc=1 ;;
   all)      lint_sc2015 "$@" || rc=1; lint_bre "$@" || rc=1 ;;
-  *)        echo "usage: portability-lint.sh [sc2015|bre|fixtures|all] <file...>" >&2; exit 2 ;;
+  *)        echo "usage: portability-lint.sh [sc2015|bre|fixtures|boundary|all] <file...>" >&2; exit 2 ;;
 esac
 exit "$rc"

@@ -790,6 +790,35 @@ _ux_flow_check() {
   [ "$(cd "$repo" && "$AP" status)" = "off" ]                  # ...and now it disarms
 }
 
+@test "boundary lint: derives thresholds from SOURCE and catches a pinned fixture (R92)" {
+  # A lint nobody invokes is a hole, and one that derives nothing passes vacuously — both failure
+  # modes have happened in this repo, so this pins the real script rather than a re-implementation.
+  local d; d="$(_tmpd)"; mkdir -p "$d/plugins/companion/bin" "$d/dev"
+  printf 'FINAL="${BURNDOWN_FINAL_STRETCH:-86400}"\nTARGET="${T:-100}"\n' > "$d/plugins/companion/bin/x.sh"  # boundary-ok: this IS the lint's fixture
+  cp "$ROOT/../../dev/portability-lint.sh" "$d/dev/" 2>/dev/null || cp dev/portability-lint.sh "$d/dev/"
+
+  # a fixture pinned to the derived 86400 threshold → caught
+  printf 'run _bd_left 50 86400\n' > "$d/t.bats"   # boundary-ok: sample input for the lint under test
+  run bash -c 'cd "$1" && dev/portability-lint.sh boundary t.bats' _ "$d"
+  [ "$status" -ne 0 ]; [[ "$output" == *"86400s threshold"* ]]   # boundary-ok: sample input for the lint under test
+
+  # the same line marked as a reviewed exemption → allowed
+  printf 'run _bd_left 50 86400   # boundary-ok\n' > "$d/t.bats"
+  run bash -c 'cd "$1" && dev/portability-lint.sh boundary t.bats' _ "$d"
+  [ "$status" -eq 0 ]
+
+  # a PERCENTAGE-sized constant must NOT be flagged — the first cut used >=60 and buried the real
+  # hits under six innocent "100%" assertions
+  printf 'assert "$out" = "100%%"\n' > "$d/t.bats"
+  run bash -c 'cd "$1" && dev/portability-lint.sh boundary t.bats' _ "$d"
+  [ "$status" -eq 0 ]
+
+  # deriving NOTHING must FAIL loudly rather than pass vacuously
+  rm "$d/plugins/companion/bin/x.sh"
+  run bash -c 'cd "$1" && dev/portability-lint.sh boundary t.bats' _ "$d"
+  [ "$status" -ne 0 ]; [[ "$output" == *"vacuously"* ]]
+}
+
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
@@ -1822,7 +1851,9 @@ _bd_setup() {
   [[ "$output" =~ needs\ [1-9][0-9]*%/window ]]  # a REAL required rate — `needs 0%` also matched before
 
   # ...but at or past the target there is genuinely nothing left to burn, in any stretch.
-  _bd_left 100 3600; [[ "$output" == HOLD:* ]]; [[ "$output" == *"nothing left to burn"* ]]
+  # 3600 below is SECONDS-LEFT, deep inside the 86400s stretch; it only coincides with FRESH=3600,
+  # which measures snapshot AGE, and the age here is 0.
+  _bd_left 100 3600; [[ "$output" == HOLD:* ]]; [[ "$output" == *"nothing left"* ]]  # boundary-ok
 
   # The cap is what actually stops the burn, so it lifts inside the stretch and not outside it.
   git -C "$BD_REPO" checkout -q -b burndown/a && git -C "$BD_REPO" -c user.email=t@t -c user.name=t \
@@ -1837,7 +1868,7 @@ _bd_setup() {
   # own clock a beat after the payload is built, so 86400 arrives as 86399 — one second inside the
   # stretch — and the cap had already lifted to 8. Green locally, red on both CI lanes.
   _bd_left 50 90000; [[ "$output" == HOLD:* ]]; [[ "$output" == *"max 3"* ]]   # 3 is the wall
-  _bd_left 50 3600;  [[ "$output" == BURN:* ]]                                 # ...until the last day
+  _bd_left 50 3600;  [[ "$output" == BURN:* ]]   # boundary-ok: seconds-left, not snapshot age
 }
 
 @test "burn-down: a BURN needs TWO agreeing readings — one sample is not evidence (R90)" {
@@ -2302,6 +2333,10 @@ _bd_setup() {
   # The fixtures invocation is a SEPARATE call over the test files, so `all` being wired says
   # nothing about it — CI caught exactly that as a hole.
   run grep -c 'portability-lint\.sh fixtures' "$ROOT/../../check.sh"
+  [ "$output" -ge 1 ]
+  # ...and so is `boundary`. The mutation gate reported this exact hole when the lint shipped: the
+  # guard existed, was tested, and check.sh never called it.
+  run grep -c 'portability-lint\.sh boundary' "$ROOT/../../check.sh"
   [ "$output" -ge 1 ]
 }
 
