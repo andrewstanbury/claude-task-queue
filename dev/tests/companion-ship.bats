@@ -80,6 +80,12 @@ _repo() {  # $1=default-branch name
   run "$SHIP" land -F "$WORK/msg.txt"
   [ "$status" -eq 4 ]
   [ "$(git rev-parse HEAD)" = "$before" ]                                      # nothing committed
+  # ...and the failure is COUNTED (R94). A gate that fails without being recorded lets the defect
+  # rate be narrated instead of measured, which is the habit the ledger exists to remove. CI found
+  # this as a hole: the recording shipped with nothing that could redden if it were removed.
+  run env CLAUDE_COMPANION_STATE_DIR="$CLAUDE_COMPANION_STATE_DIR" REWORK_ROOT="$PWD" \
+      bash "$ROOT/bin/rework.sh" report
+  [[ "$output" == *"gate-fail"* ]]
 }
 
 @test "ship.sh land: a staged credential shape is refused BEFORE commit (exit 9)" {

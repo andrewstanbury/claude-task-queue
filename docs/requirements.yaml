@@ -609,4 +609,5 @@
     rebuild, which is how a component gets chased instead of replaced.
   verified_by:
     - "rework ledger: counts FAILURES not touches, flags a rebuild candidate, injects itself (R94)"
+    - "ship.sh land: gate failure aborts BEFORE any commit (exit 4)"
 

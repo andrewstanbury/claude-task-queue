@@ -41,7 +41,12 @@ case "${1:-report}" in
     recent="$(tail -n 500 "$f" 2>/dev/null | awk -v c="$cut" '$1 >= c')"
     [ -n "$recent" ] || { echo "rework: none in the last ${days}d"; exit 0; }
     echo "rework in the last ${days}d:"
-    printf '%s\n' "$recent" | awk '{print $2}' | sort | uniq -c | sort -rn | sed 's/^/  /'
+    # Count EVENTS, not rows. One `record` writes a row per implicated file, so tallying rows
+    # reported ONE red CI across eleven files as "11 ci-red" — an inflated defect rate is as
+    # dishonest as a hidden one, and this metric exists precisely to be trusted. A single event
+    # shares one timestamp+label, so the distinct pairs are the events.
+    printf '%s\n' "$recent" | awk '{print $1" "$2}' | sort -u | awk '{print $2}' \
+      | sort | uniq -c | sort -rn | sed 's/^/  /'
     # A file implicated in repeated FAILURES is a rebuild candidate — a file merely touched often
     # is just work, which is why this counts events and not commits.
     printf '%s\n' "$recent" | awk '$3 != "-" {print $3}' | sort | uniq -c | sort -rn \
