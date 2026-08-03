@@ -114,8 +114,20 @@ marker_n="$(grep -c 'injection stops here' plugins/companion/STEERING.md || true
 # silently truncates the core at the first occurrence while this gate keeps reading green.
 if [ "${marker_n:-0}" -ne 1 ]; then
   echo "  FAIL STEERING.md: 'injection stops here' marker count is ${marker_n:-0}, must be exactly 1"; tok_fail=1; failsec
-elif [ "${core_b:-0}" -gt 7040 ]; then
-  # 12288 -> 6144 -> 6656 -> 7040. The last move (2026-08-02) funds fusing the two posture
+elif [ "${core_b:-0}" -gt 7808 ]; then
+  # 7360 -> 7808 (2026-08-03, same incident, second pass). The first rule was insufficient and the
+  # owner said so: they had CONFIRMED the innocent component twice and it kept being re-opened, and
+  # the true culprit was infrastructure CLAUDE had built wrong — trusted precisely because it was
+  # ours. Neither is a timeline problem, so two rules were added: suspect your own recent work
+  # first, and treat an owner confirmation as closing a hypothesis. Rework is the failure this
+  # product exists to prevent; paying ~110 tokens/session to attack its most expensive form is the
+  # trade this budget is FOR.
+  # 7040 -> 7360 (2026-08-03) funds "debug the TIMELINE before the subsystem", owner-asked after a
+  # real incident: days lost to an Apple-login config hunt whose actual cause was a recent AWS
+  # change. ~80 tokens/session against a failure that cost days, and the owner chose the ALWAYS
+  # INJECTED form over an on-demand command precisely because the moment you need it is the moment
+  # you are already committed to a wrong hypothesis and would never type the command.
+  # 12288 -> 6144 -> 6656 -> 7040. The 7040 move (2026-08-02) funds fusing the two posture
   # reflexes: the owner reported for the SECOND time (cf. R80, 2026-07-29) that recommendations
   # arrive only when asked and the honest read lands as a closing verdict AFTER the choice. R80
   # split "options" and "verdict" into separate reflexes, which is what produced that symptom, so
@@ -128,7 +140,7 @@ elif [ "${core_b:-0}" -gt 7040 ]; then
   # This is still a 40% cut from 11097B, with the eight restored and ~380B of honest headroom.
   # A cap should track what the content genuinely needs; it stops being a budget the moment it
   # starts deciding what the content is allowed to say.
-  echo "  FAIL STEERING.md injected core: ${core_b}B > 7040B"; tok_fail=1; failsec
+  echo "  FAIL STEERING.md injected core: ${core_b}B > 7808B"; tok_fail=1; failsec
 fi
 # LESSONS is two-tier like STEERING (owner-picked 2026-08-01): the cap applies to what is actually
 # INJECTED, not to the file. Without the split the file was 5B under its ceiling while the process
@@ -155,7 +167,7 @@ if ! out="$(dev/doc-lint.sh ledger docs/adr/PROVENANCE.md)"; then
 fi
 [ "$led_fail" -eq 0 ] && echo "  ok (ledger measurements cite their evidence)"
 
-[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/7040B; command descriptions ≤140B; arg-taking commands hinted)"
+[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/7808B; command descriptions ≤140B; arg-taking commands hinted)"
 
 # NOTE: the contract-drift backstop (bin/contract-drift.sh) deliberately does NOT run here
 # (R58 amended 2026-07-22): a warning on every mid-work gate run — where drift is the normal

@@ -47,6 +47,15 @@ live choice belongs in 1. Decays first; itself challengeable.
   visual (wireframe first), architecturally significant (structural choice, new dependency or seam,
   data-model / interface change), a silent assumption, ambiguous or high blast, or you'd recommend
   against it. *You* judge — a keyword can't.
+- **Debug the TIMELINE, and suspect YOUR OWN recent work FIRST.** A symptom names where it
+  SURFACED, not what broke it. Establish last-known-good and enumerate what changed since —
+  *including outside the repo* (consoles, DNS, provider settings, hand-edits no `git log` sees),
+  and **especially anything you built or configured recently**: your own work is the most trusted
+  and least examined suspect, which is exactly backwards.
+- **The owner confirming something CLOSES it.** "I checked that" — once — eliminates that
+  hypothesis. Record it as ruled out and do not re-open it without NEW evidence you can name out
+  loud. Re-investigating a confirmed component is the rework this whole loop exists to prevent,
+  and it feels like diligence while it happens.
 - **Verify observably** — exercise, don't assert; existing checks green before "done"; recap what
   now works in one plain line. TDD as design discipline, not ritual: `--done` states the acceptance;
   write a real test where it earns a *durable* safety net (irreversible / un-eyeball-able, R48/R51).
@@ -70,7 +79,7 @@ complexity, inline it) · one job per unit, split on "and" · ~300 lines is a se
 cohesion, not to trim length · early-return over deep nesting · YAGNI: the burden of proof is on
 *adding*.
 
-## Nudging (recommend from context — don't wait to be asked)
+## Nudging (recommend from context)
 
 Debt / duplication / a `TODO` spotted → offer a `tq` paydown task (don't silently leave it *and*
 don't silently fix it) · a change ripples wide → offer to narrow or split · owner hand-approving a
