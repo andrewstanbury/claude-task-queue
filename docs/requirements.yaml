@@ -516,6 +516,7 @@
     nothing has been queued yet, and disarming there would undo the owner's own command.
   verified_by:
     - "autopilot DISARMS itself when the queue runs dry, both ways (R88)"
+    - "modes COMPOSE: sweep keeps a rev: park workable, so the dry-queue disarm does not fire (R88/R77)"
 
 - id: R89
   satisfies: [UN-5]
@@ -557,4 +558,5 @@
     an apostrophe, and the status line rendering where there is no git repo at all.
   verified_by:
     - "UN-6 foreign repos: the plugin works in ecosystems and paths it has never seen (R91)"
+    - "UN-6 foreign repos: the DRAIN and the burn loop work there too (R91)"
 

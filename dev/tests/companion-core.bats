@@ -724,6 +724,72 @@ _ux_flow_check() {
   [ "$status" -eq 0 ]; [ -n "$output" ]
 }
 
+@test "UN-6 foreign repos: the DRAIN and the burn loop work there too (R91)" {
+  # The gap named when R91 shipped: the matrix covered candidates, flags and the status line, but
+  # nothing drove the Stop hook or burn-down through a foreign repo. A path WITH A SPACE is the
+  # shape most likely to break an unquoted expansion, so every repo here has one.
+  local base st tk; base="$(_tmpd)"; st="$(_tmpd)"; tk="$(_tmpd)"
+  local r="$base/my app"; mkdir -p "$r"; git -C "$r" init -q -b main
+  git -C "$r" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
+  printf '{"name":"widget"}\n' > "$r/package.json"
+
+  # --- the drain ---
+  local sid=fgn d="$tk/fgn"; mkdir -p "$d"; _stamp_root "$d" "$r"
+  jq -n '{id:"1",subject:"ship the widget",status:"pending"}' > "$d/1.json"
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" "$3" on' _ "$r" "$st" "$AP"
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | CLAUDE_COMPANION_STATE_DIR="$3" CLAUDE_COMPANION_TASKS_DIR="$4" "$5"' \
+      _ "$r" "$sid" "$st" "$tk" "$STOP"
+  [[ "$output" == *"#1"* ]]                       # it drains a repo it has never seen
+  jq -n '{id:"1",subject:"ship the widget",status:"completed"}' > "$d/1.json"
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | CLAUDE_COMPANION_STATE_DIR="$3" CLAUDE_COMPANION_TASKS_DIR="$4" "$5"' \
+      _ "$r" "$sid" "$st" "$tk" "$STOP"
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" "$3" status' _ "$r" "$st" "$AP"
+  [ "$output" = "off" ]                           # ...and disarms there too (R88)
+
+  # --- the burn loop: two agreeing samples, then a real branch ---
+  mkdir -p "$st/burndown"; touch "$(_flagpath "$st" burndown "$r")"
+  local n; n="$(date +%s)"
+  _fsnap() { printf '%s 20 %s %s %s\n' "$1" "$((n+7200))" "$2" "$((n+172800))" > "$st/ratelimit"; }
+  _fbd()   { run env CLAUDE_COMPANION_STATE_DIR="$st" CLAUDE_COMPANION_TASKS_DIR="$tk" \
+                 BURNDOWN_ROOT="$r" bash "$ROOT/bin/burn-down.sh" status; }
+  _fsnap "$((n-9))" 10; _fbd; [[ "$output" == HOLD:* ]]
+  _fsnap "$((n-8))" 10; _fbd; [[ "$output" == BURN:* ]]
+
+  # The dirty-tree refusal must hold in a foreign repo too — package.json is untracked here, and
+  # starting autonomous work on top of someone else's uncommitted changes is the one thing this
+  # guard exists to stop. (Found by this test: the first version left it untracked and got exit 4.)
+  run env CLAUDE_COMPANION_STATE_DIR="$st" BURNDOWN_ROOT="$r" \
+      bash "$ROOT/bin/burndown-branch.sh" start '3|todo|add offline mode'
+  [ "$status" -eq 4 ]; [[ "$output" == *"dirty"* ]]
+  git -C "$r" add -A; git -C "$r" -c user.email=t@t -c user.name=t commit -q -m manifest
+
+  # a NON-ASCII candidate must still yield a usable branch and a manifest, in a spaced path
+  run env CLAUDE_COMPANION_STATE_DIR="$st" BURNDOWN_ROOT="$r" \
+      bash "$ROOT/bin/burndown-branch.sh" start '3|todo|añadir modo sin conexión'
+  [ "$status" -eq 0 ]
+  git -C "$r" branch | grep -q 'burndown/'
+  [ -n "$(ls "$st/burndown-manifests" 2>/dev/null)" ]
+}
+
+@test "modes COMPOSE: sweep keeps a rev: park workable, so the dry-queue disarm does not fire (R88/R77)" {
+  # Five independent mode flags mean 32 combinations, and this project's own notes blame mode
+  # INTERACTION for most of its defects. The disarm added in 3.55.0 and sweep are the pair that can
+  # contradict each other: sweep says a marked park IS work, disarm says an unworkable queue ends
+  # the run. Nothing covered the pair until now.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local sid=cmp d="$CLAUDE_COMPANION_TASKS_DIR/cmp"; mkdir -p "$d"; _stamp_root "$d" "$repo"
+  jq -n '{id:"1",subject:"❓ [parked] rev: pick a colour — options: A) dark B) light; rec: A + matches",status:"pending"}' > "$d/1.json"
+  _fire() { run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"; }
+
+  ( cd "$repo" && "$AP" on && "$AP" sweep on ) >/dev/null
+  _fire; [[ "$output" == *"block"* ]]                          # sweep: the park IS work...
+  [ "$(cd "$repo" && "$AP" status)" = "on" ]                   # ...so the disarm must NOT fire
+
+  ( cd "$repo" && "$AP" on && "$AP" sweep off ) >/dev/null
+  _fire; [ -z "$output" ]                                      # no sweep: nothing workable...
+  [ "$(cd "$repo" && "$AP" status)" = "off" ]                  # ...and now it disarms
+}
+
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"

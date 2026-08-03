@@ -89,3 +89,4 @@ plugins/companion/bin/burn-down.sh::s@needed=$(( (TARGET - used_i) \* WINDOW / l
 plugins/companion/bin/burn-down.sh::s@  \[ "$sdiff" -le "$SAMPLETOL" \] ||@  [ 1 -eq 1 ] ||@::a single transient reading can trigger a BURN again — the 21-point rollover swing becomes phantom headroom
 plugins/companion/bin/burn-down.sh::s@  \[ "$prev_ts" != "$ts" \] ||@  [ 1 -eq 1 ] ||@::the same unrefreshed sample counts as its own second opinion
 plugins/companion/bin/candidates.sh::s@grep -nIE .(TODO|FIXME|XXX)\[: \]. -- .@grep -nIE '(TODO|FIXME|XXX)[: ]' -- '*.sh' @::TODO detection acquires an ecosystem allowlist — every non-shell project silently loses its recorded signals and gets INVENTED work instead
+plugins/companion/bin/burndown-branch.sh::s@  \[ -z "$(git -C "$root" status --porcelain 2>/dev/null)" \] ||@  [ 1 -eq 1 ] ||@::autonomous work starts on top of someone else's uncommitted changes
