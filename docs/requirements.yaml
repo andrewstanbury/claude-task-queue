@@ -323,6 +323,7 @@
     a command's parameters are visible where it is invoked
   verified_by:
     - "doc-lint frontmatter: rejects shapes the HOST throws on (R75/R78)"
+    - "command-lint: the COMMAND CONTRACT checks can now fail — they could not while inline (R75)"
 
 - id: R76
   satisfies: [UN-7]

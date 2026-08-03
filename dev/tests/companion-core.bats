@@ -819,6 +819,30 @@ _ux_flow_check() {
   [ "$status" -ne 0 ]; [[ "$output" == *"vacuously"* ]]
 }
 
+@test "command-lint: the COMMAND CONTRACT checks can now fail — they could not while inline (R75)" {
+  # These checks lived inline in check.sh, where the suite could not reach them, so their declared
+  # mutations had nothing that could redden. Extraction (2026-08-03, size guard) is what makes them
+  # testable; this is the test that makes the extraction worth anything.
+  local d; d="$(_tmpd)"; mkdir -p "$d/plugins/companion/commands" "$d/dev"
+  cp dev/doc-lint.sh dev/command-lint.sh "$d/dev/"
+  _cl() { run bash -c 'cd "$1" && dev/command-lint.sh' _ "$d"; }
+
+  # a well-formed command passes
+  printf -- '---\ndescription: Do the thing\n---\n\nBody with no arguments.\n' \
+    > "$d/plugins/companion/commands/ok.md"
+  _cl; [ "$status" -eq 0 ]
+
+  # an over-long description is per-session injection and must FAIL
+  printf -- '---\ndescription: %s\n---\n\nBody.\n' "$(printf 'x%.0s' $(seq 1 200))" \
+    > "$d/plugins/companion/commands/ok.md"
+  _cl; [ "$status" -ne 0 ]; [[ "$output" == *"> 140B"* ]]
+
+  # a body reading $ARGUMENTS with no argument-hint leaves the parameter invisible where it is typed
+  printf -- '---\ndescription: Do the thing\n---\n\nUse $ARGUMENTS here.\n' \
+    > "$d/plugins/companion/commands/ok.md"
+  _cl; [ "$status" -ne 0 ]; [[ "$output" == *"argument-hint"* ]]
+}
+
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
@@ -1230,7 +1254,10 @@ _sw_repo() {
   # both invocations stubbed out the whole suite stayed green while the gate silently checked
   # nothing. bats cannot run check.sh (check.sh runs bats), so this is a structural guard — the
   # same shape as the R56·P3 guard over command prose.
-  run grep -c 'doc-lint\.sh" frontmatter' "$ROOT/../../check.sh"
+  # The frontmatter caller MOVED to dev/command-lint.sh with the 2026-08-03 extraction, so this
+  # guard follows it. Leaving it pointed at check.sh is the third extraction trap in LESSONS — a
+  # moved failure mode — and it fired here: the guard went red for the right reason.
+  run grep -c 'doc-lint\.sh" frontmatter' "$DEV/command-lint.sh"
   [ "$output" -ge 1 ]
   run grep -c 'doc-lint\.sh ledger' "$ROOT/../../check.sh"
   [ "$output" -ge 1 ]
@@ -2337,6 +2364,13 @@ _bd_setup() {
   # ...and so is `boundary`. The mutation gate reported this exact hole when the lint shipped: the
   # guard existed, was tested, and check.sh never called it.
   run grep -c 'portability-lint\.sh boundary' "$ROOT/../../check.sh"
+  [ "$output" -ge 1 ]
+  # command-lint was extracted out of check.sh when the 300-line guard fired; an extraction that
+  # leaves the caller behind is the same hole in a new place.
+  # Match the INVOCATION, not the name: grepping for the bare filename also matched the comment
+  # ABOVE the call, so stubbing the call out left this green — the mutation gate caught exactly
+  # that. Same family as the TODO scanner that fed on prose about TODO markers.
+  run grep -c '\$(dev/command-lint\.sh)' "$ROOT/../../check.sh"
   [ "$output" -ge 1 ]
 }
 

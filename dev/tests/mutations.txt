@@ -15,7 +15,7 @@ dev/doc-lint.sh::s@\\"\*|\\'\*)@\\"ZZZ*)@::frontmatter stops rejecting an unterm
 dev/doc-lint.sh::s@-gt 1 @-gt 99 @::frontmatter stops rejecting a duplicate key
 dev/doc-lint.sh::s@^        \[.*\]\*)$@        ZZZNEVERMATCH)@::frontmatter stops rejecting a leading YAML indicator (logic, not the message)
 dev/doc-lint.sh::s@measured (R78)"; rc=1@measured (R78)"; rc=0@::ledger stops FAILING on an unevidenced measurement
-check.sh::s@doc-lint.sh" frontmatter@doc-lint.sh" ZZZfrontmatter@::check.sh stops invoking the frontmatter lint
+dev/command-lint.sh::s@doc-lint.sh" frontmatter@doc-lint.sh" ZZZfrontmatter@::command-lint stops invoking the frontmatter lint
 check.sh::s@doc-lint.sh ledger@doc-lint.sh ZZZledger@::check.sh stops invoking the ledger lint
 dev/doc-lint.sh::s@{sub(/\\r$/,"")}@{}@::CRLF stops being stripped, re-opening the fail-open frontmatter hole
 dev/doc-lint.sh::s@NR==1{sub(/\^\[^-\]\*/,"")}@NR==1{}@::a BOM stops being stripped
@@ -92,3 +92,4 @@ plugins/companion/bin/candidates.sh::s@grep -nIE .(TODO|FIXME|XXX)\[: \]. -- .@g
 plugins/companion/bin/burndown-branch.sh::s@  \[ -z "$(git -C "$root" status --porcelain 2>/dev/null)" \] ||@  [ 1 -eq 1 ] ||@::autonomous work starts on top of someone else's uncommitted changes
 dev/portability-lint.sh::s@  \[ -n "$vals" \] || { echo "  FAIL boundary: derived NO threshold constants — the lint would pass vacuously"; return 1; }@  :@::the boundary lint passes vacuously when it derives no constants at all
 check.sh::s@if out="$(dev/portability-lint.sh boundary dev/tests/\*.bats)"; then@if true; then@::check.sh stops invoking the boundary lint — the guard exists but never runs
+check.sh::s@if out="$(dev/command-lint.sh)"; then@if true; then@::check.sh stops invoking the command-contract lint — the guard exists but never runs
