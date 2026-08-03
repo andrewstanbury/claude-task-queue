@@ -544,3 +544,17 @@
   verified_by:
     - "burn-down: a BURN needs TWO agreeing readings — one sample is not evidence (R90)"
 
+- id: R91
+  satisfies: [UN-6]
+  requirement: >
+    the plugin works in ecosystems and paths it has never seen
+  note: >
+    UN-6 was the least-verified need in the matrix — two requirements against UN-4's twelve, and
+    not one fixture carried a package.json, pyproject.toml, go.mod or Cargo.toml. Every fixture was
+    a bare git init, i.e. a repo shaped like this one, so the wide-audience promise (R1/R9) rested
+    on nothing. Probing found no defect, which is the point: this pins it. Covers TODO detection
+    across four ecosystems, per-repo flags round-tripping through paths with spaces, non-ASCII and
+    an apostrophe, and the status line rendering where there is no git repo at all.
+  verified_by:
+    - "UN-6 foreign repos: the plugin works in ecosystems and paths it has never seen (R91)"
+

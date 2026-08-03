@@ -686,6 +686,44 @@ _ux_flow_check() {
   [[ "$output" == *"sections=Alpha;Beta"* ]]   # Alpha once despite two failures; Gamma clean, absent
 }
 
+@test "UN-6 foreign repos: the plugin works in ecosystems and paths it has never seen (R91)" {
+  # UN-6 is "it works on other people's projects, in whatever language and shape they use", and it
+  # was the LEAST verified need in the matrix — 2 requirements to UN-4's twelve, with zero fixtures
+  # carrying a package.json, pyproject.toml, go.mod or Cargo.toml. Every fixture was a bare git
+  # init, i.e. a repo shaped like this one. Probing found no defect; this keeps it that way.
+  local base; base="$(_tmpd)"
+  local st tk; st="$(_tmpd)"; tk="$(_tmpd)"
+
+  # 1. TODO detection must be GENERIC (R9: no ecosystem allowlists). One marker, four languages.
+  _eco() {  # $1 dir · $2 file · $3 marker line · $4 manifest name · $5 manifest body
+    local r="$base/$1"; mkdir -p "$r/src"; git -C "$r" init -q
+    printf '%s\n' "$3" > "$r/src/$2"; printf '%s\n' "$5" > "$r/$4"
+    git -C "$r" add -A; git -C "$r" -c user.email=t@t -c user.name=t commit -q -m i
+    run env CLAUDE_COMPANION_STATE_DIR="$st" CLAUDE_COMPANION_TASKS_DIR="$tk" \
+        bash -c 'cd "$1" && "$2"' _ "$r" "$ROOT/bin/candidates.sh"
+    [[ "$output" == *"3|todo|"* ]]
+  }
+  _eco js "app.js"   "// TODO: retry the upload"      package.json   '{"name":"w"}'
+  _eco py "app.py"   "# TODO: handle the timeout"     pyproject.toml '[project]'
+  _eco go "main.go"  "// TODO: bound the retry loop"  go.mod         'module w'
+  _eco rs "main.rs"  "// FIXME: unwrap can panic"     Cargo.toml     '[package]'
+
+  # 2. The per-repo flag must round-trip through paths the encoder has to escape.
+  local d
+  for d in "with space" "ünïcodé" "quo'te"; do
+    mkdir -p "$base/$d"; git -C "$base/$d" init -q
+    run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" "$3" on >/dev/null && cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" "$3" status' _ "$base/$d" "$st" "$AP"
+    [ "$output" = "on" ]
+    run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" "$3" off >/dev/null && cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" "$3" status' _ "$base/$d" "$st" "$AP"
+    [ "$output" = "off" ]
+  done
+
+  # 3. The status line renders in a directory that is not a git repo at all.
+  mkdir -p "$base/nogit"
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"f\",model:{display_name:\"Opus\"}}" | NO_COLOR=1 "$2"' _ "$base/nogit" "$SL"
+  [ "$status" -eq 0 ]; [ -n "$output" ]
+}
+
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"

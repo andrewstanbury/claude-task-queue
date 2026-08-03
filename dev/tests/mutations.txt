@@ -88,3 +88,4 @@ plugins/companion/bin/burn-down.sh::s@\[ "$left" -ge "$FINAL" \] || cap="$MAXBRA
 plugins/companion/bin/burn-down.sh::s@needed=$(( (TARGET - used_i) \* WINDOW / left ))@needed=0@::the required rate is no longer computed, so the report cannot say what it would take
 plugins/companion/bin/burn-down.sh::s@  \[ "$sdiff" -le "$SAMPLETOL" \] ||@  [ 1 -eq 1 ] ||@::a single transient reading can trigger a BURN again — the 21-point rollover swing becomes phantom headroom
 plugins/companion/bin/burn-down.sh::s@  \[ "$prev_ts" != "$ts" \] ||@  [ 1 -eq 1 ] ||@::the same unrefreshed sample counts as its own second opinion
+plugins/companion/bin/candidates.sh::s@grep -nIE .(TODO|FIXME|XXX)\[: \]. -- .@grep -nIE '(TODO|FIXME|XXX)[: ]' -- '*.sh' @::TODO detection acquires an ecosystem allowlist — every non-shell project silently loses its recorded signals and gets INVENTED work instead
