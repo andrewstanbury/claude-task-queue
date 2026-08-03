@@ -18,6 +18,12 @@
 # Deliberately NOT a YAML parser: this reads the two files with grep/sed so it has no dependency
 # beyond coreutils. The files are written to a fixed shape and this gate enforces that shape.
 set -uo pipefail
+# BYTE-WISE, not locale-collated. `sort -u` under a UTF-8 collation can judge two byte-DISTINCT
+# lines equal and silently drop one, which is how a requirement claim vanished on the macOS lane
+# while the Linux lane stayed green and the bytes on both sides were provably identical. Every
+# comparison here is an identity test between a test title and a claim, so collation has no
+# business in it. (Same family as the LC_ALL=C already required by the timing gate — LESSONS.)
+export LC_ALL=C
 cd "$(dirname "$0")/.." || exit 2
 
 fail=0

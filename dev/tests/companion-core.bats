@@ -1809,7 +1809,7 @@ _bd_setup() {
 
   # OUTSIDE the stretch, a projection is sound: 90% with a full day left tracks to ~105%, so the
   # sustained rate gets there on its own and there is no spare capacity to fill.
-  _bd_left 90 86400; [[ "$output" == HOLD:* ]]; [[ "$output" == *"on track"* ]]
+  _bd_left 90 90000; [[ "$output" == HOLD:* ]]; [[ "$output" == *"on track"* ]]   # clear of the boundary
 
   # INSIDE it, that same projection is exactly what loses budget — it assumes you keep spending at
   # your average, and a night asleep in the last hours is spending that never happens. Only what is
@@ -1832,7 +1832,11 @@ _bd_setup() {
   git -C "$BD_REPO" checkout -q -b burndown/c && git -C "$BD_REPO" -c user.email=t@t -c user.name=t \
     commit -q --allow-empty -m c
   git -C "$BD_REPO" checkout -q main
-  _bd_left 50 86400; [[ "$output" == HOLD:* ]]; [[ "$output" == *"max 3"* ]]   # 3 is the wall
+  # 90000s, NOT 86400s: pinning a fixture ON the threshold is the exact trap this repo recorded
+  # today, and I walked into it again in the test that DEFINES the threshold. burn-down reads its
+  # own clock a beat after the payload is built, so 86400 arrives as 86399 — one second inside the
+  # stretch — and the cap had already lifted to 8. Green locally, red on both CI lanes.
+  _bd_left 50 90000; [[ "$output" == HOLD:* ]]; [[ "$output" == *"max 3"* ]]   # 3 is the wall
   _bd_left 50 3600;  [[ "$output" == BURN:* ]]                                 # ...until the last day
 }
 
@@ -2123,11 +2127,11 @@ _bd_setup() {
   mkdir -p "$st/burndown" "$tk/s1"; _stamp_root "$tk/s1" "$d"
   touch "$(_flagpath "$st" burndown "$d")"
   local n; n="$(date +%s)"
-  printf '%s 20 %s 10 %s\n' "$((n-5))" "$((n+7200))" "$((n+86400))" > "$st/ratelimit"
+  printf '%s 20 %s 10 %s\n' "$((n-5))" "$((n+7200))" "$((n+172800))" > "$st/ratelimit"
   # seed the corroborating first reading (a BURN needs two distinct agreeing samples)
   env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" CLAUDE_COMPANION_TASKS_DIR="$tk" \
       bash "$ROOT/bin/burn-down.sh" status >/dev/null 2>&1 || true
-  printf '%s 20 %s 10 %s\n' "$n" "$((n+7200))" "$((n+86400))" > "$st/ratelimit"
+  printf '%s 20 %s 10 %s\n' "$n" "$((n+7200))" "$((n+172800))" > "$st/ratelimit"
   _bd2() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" CLAUDE_COMPANION_TASKS_DIR="$tk" bash "$ROOT/bin/burn-down.sh" status; }
   jq -n '{id:"1",subject:"❓ [parked] a decision; rec: A",status:"pending"}'    > "$tk/s1/1.json"
   jq -n '{id:"2",subject:"⏳ [blocked] go plug in the device",status:"pending"}' > "$tk/s1/2.json"
