@@ -93,4 +93,31 @@ for lf in "$root/docs/LESSONS.md" "$root/LESSONS.md" "$root/.companion/LESSONS.m
   break
 done
 
+# RECENT OUT-OF-BAND CHANGES (R93). git is already the timeline for everything IN the repo; what
+# no `git log` can show is the change made in a console, a DNS panel, a provider dashboard or a
+# credential rotation — and that is the class that cost the owner days on another project, where a
+# recent AWS change was the cause while an innocent, twice-confirmed login config was investigated.
+#
+# Injected rather than read on demand because the failure mode is CONTEXT LOSS: clear the state,
+# open a bug, and the fact that something relevant changed last week is simply gone. A rule that
+# says "go look" cannot survive that; a fact that arrives unasked can.
+#
+# The token cost is near zero because the window is TIME-BOUNDED: entries older than the window are
+# not injected, so a repo with no recent out-of-band change contributes nothing at all. Bounded for
+# R81 the same way: only the tail of the file is read, so the work does not grow with its history.
+# Dates compare as STRINGS (ISO-8601 sorts lexically) — no GNU-only date arithmetic on the values.
+_win="${CLAUDE_COMPANION_CHANGE_WINDOW_DAYS:-14}"
+case "$_win" in ''|*[!0-9]*) _win=14 ;; esac
+_cut="$(date -u -d "-${_win} days" +%Y-%m-%d 2>/dev/null || date -u -v-"${_win}"d +%Y-%m-%d 2>/dev/null || true)"
+if [ -n "$_cut" ]; then
+  for cf in "$root/docs/CHANGES-OUTSIDE-GIT.md" "$root/CHANGES-OUTSIDE-GIT.md" "$root/.companion/CHANGES-OUTSIDE-GIT.md"; do
+    [ -f "$cf" ] || continue
+    _recent="$(tail -n 200 "$cf" 2>/dev/null | awk -v c="$_cut" '
+      /^- [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/ { f = ($2 >= c) }
+      f' 2>/dev/null | head -c 2000)"
+    [ -n "$_recent" ] && msg="$msg"$'\n\n'"── Changed OUTSIDE this repo in the last ${_win} days — git cannot show these, and they are the first thing to suspect when something breaks ──"$'\n'"$_recent"
+    break
+  done
+fi
+
 jq -cn --arg m "$msg" '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$m}}'

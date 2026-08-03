@@ -93,3 +93,5 @@ plugins/companion/bin/burndown-branch.sh::s@  \[ -z "$(git -C "$root" status --p
 dev/portability-lint.sh::s@  \[ -n "$vals" \] || { echo "  FAIL boundary: derived NO threshold constants — the lint would pass vacuously"; return 1; }@  :@::the boundary lint passes vacuously when it derives no constants at all
 check.sh::s@if out="$(dev/portability-lint.sh boundary dev/tests/\*.bats)"; then@if true; then@::check.sh stops invoking the boundary lint — the guard exists but never runs
 check.sh::s@if out="$(dev/command-lint.sh)"; then@if true; then@::check.sh stops invoking the command-contract lint — the guard exists but never runs
+plugins/companion/bin/session-start.sh::s@      /^- \[0-9\]\[0-9\]\[0-9\]\[0-9\]-\[0-9\]\[0-9\]-\[0-9\]\[0-9\]/ { f = ($2 >= c) }@      /^-/ { f = 1 }@::the change ledger stops honouring its time window — every entry ever written injects on every session
+plugins/companion/bin/session-start.sh::s@    \[ -n "$_recent" \] && msg=@    [ -z "$_recent" ] \&\& msg=@::recent out-of-band changes stop being injected, so a cleared context loses them entirely

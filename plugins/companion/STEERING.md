@@ -48,10 +48,10 @@ live choice belongs in 1. Decays first; itself challengeable.
   data-model / interface change), a silent assumption, ambiguous or high blast, or you'd recommend
   against it. *You* judge — a keyword can't.
 - **Debug the TIMELINE, and suspect YOUR OWN recent work FIRST.** A symptom names where it
-  SURFACED, not what broke it. Establish last-known-good and enumerate what changed since —
-  *including outside the repo* (consoles, DNS, provider settings, hand-edits no `git log` sees),
-  and **especially anything you built or configured recently**: your own work is the most trusted
-  and least examined suspect, which is exactly backwards.
+  SURFACED, not what broke it. Establish last-known-good, then enumerate what changed since —
+  **especially what you built or configured**: your own work is the most trusted and least examined
+  suspect, exactly backwards. Changes git cannot see live in `docs/CHANGES-OUTSIDE-GIT.md`, whose
+  recent entries inject each session; APPEND there the moment you change anything out there.
 - **The owner confirming something CLOSES it.** "I checked that" — once — eliminates that
   hypothesis. Record it as ruled out and do not re-open it without NEW evidence you can name out
   loud. Re-investigating a confirmed component is the rework this whole loop exists to prevent,

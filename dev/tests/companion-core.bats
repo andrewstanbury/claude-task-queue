@@ -843,6 +843,32 @@ _ux_flow_check() {
   _cl; [ "$status" -ne 0 ]; [[ "$output" == *"argument-hint"* ]]
 }
 
+@test "session start: RECENT out-of-band changes inject; old ones and no-file cost nothing (R93)" {
+  # The failure this exists for is CONTEXT LOSS: clear the state, open a bug, and the fact that
+  # something relevant changed last week is gone. A rule saying "go look" cannot survive that.
+  local r; r="$(_tmpd)"; git -C "$r" init -q; mkdir -p "$r/docs"
+  local today old
+  today="$(date -u +%Y-%m-%d)"
+  old="$(date -u -d '-60 days' +%Y-%m-%d 2>/dev/null || date -u -v-60d +%Y-%m-%d)"
+  printf '## Log\n\n- %s · aws · widened the RDS security group\n  could break: auth callbacks\n- %s · dns · moved the apex A record\n' \
+    "$today" "$old" > "$r/docs/CHANGES-OUTSIDE-GIT.md"
+  _ctx() { run bash -c 'jq -nc --arg c "$1" --arg so "$2" "{cwd:\$c,source:\$so}" | "$3" 2>/dev/null | jq -r ".hookSpecificOutput.additionalContext"' _ "$1" "$2" "$SS"; }
+
+  _ctx "$r" startup
+  [[ "$output" == *"widened the RDS security group"* ]]   # recent entry rides in, unasked
+  [[ "$output" == *"could break: auth callbacks"* ]]      # ...with its continuation line
+  [[ "$output" != *"apex A record"* ]]                    # 60 days old: history, not noise
+
+  # a COMPACTION is the owner's "cleared state" case — it must fire there too, not only at startup
+  _ctx "$r" compact
+  [[ "$output" == *"widened the RDS security group"* ]]
+
+  # a repo with NO ledger contributes NOTHING — the whole cost argument rests on this
+  local p2; p2="$(_tmpd)"; git -C "$p2" init -q
+  _ctx "$p2" startup
+  [[ "$output" != *"Changed OUTSIDE"* ]]
+}
+
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"

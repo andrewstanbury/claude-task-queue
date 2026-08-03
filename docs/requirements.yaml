@@ -577,3 +577,19 @@
   verified_by:
     - "boundary lint: derives thresholds from SOURCE and catches a pinned fixture (R92)"
 
+- id: R93
+  satisfies: [UN-4]
+  requirement: >
+    recent changes git cannot see arrive unasked in every session
+  note: >
+    An owner lost days on another project chasing an Apple login configuration they had CONFIRMED
+    twice; the cause was a recent AWS change — infrastructure an agent had built wrong and trusted
+    because it was ours. Nothing in the repo recorded it, so clearing state erased the only place
+    that knowledge lived. git is already the timeline for in-repo changes, so this records ONLY
+    what git cannot: consoles, DNS, provider settings, rotations, hand-edits. Injected rather than
+    read on demand because the failure IS context loss — a rule saying "go look" cannot survive a
+    state clear, but a fact that arrives unasked can. Time-bounded to a 14-day window, so a repo
+    with no recent out-of-band change contributes nothing, and only the file's tail is read (R81).
+  verified_by:
+    - "session start: RECENT out-of-band changes inject; old ones and no-file cost nothing (R93)"
+
