@@ -530,3 +530,17 @@
   verified_by:
     - "check.sh: a red verdict NAMES the section it went red in, and never double-counts (R89)"
 
+- id: R90
+  satisfies: [UN-5]
+  requirement: >
+    generated work is never triggered by a single rate-limit reading
+  note: >
+    Measured 2026-08-02 across a 5h rollover: the 7d figure read 82% then 61% then 82% within about
+    twenty seconds while its reset time never moved. A lone low sample inside the final stretch
+    would report roughly twenty points of headroom that do not exist and start building on it. A
+    BURN now needs two distinct readings that agree within a tolerance; disagreement HOLDs. The
+    sample is recorded before any verdict can return — recording it after the on-track hold left
+    the history blank exactly when usage was high, which is when it matters.
+  verified_by:
+    - "burn-down: a BURN needs TWO agreeing readings — one sample is not evidence (R90)"
+

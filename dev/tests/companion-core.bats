@@ -1616,6 +1616,13 @@ _bd() {  # $1=used7 $2=used5 $3=age-offset → run the forecaster against a fres
   # callers rely on stopped applying at random. Same class as "never assert an exact countdown
   # from date +%s". Two days keeps every caller's HOLD/BURN outcome and stays clear of the edge;
   # the stretch itself is covered deliberately by its own test.
+  # A BURN now needs TWO distinct agreeing readings, because one was measured swinging 21 points at
+  # a 5h rollover. So seed an earlier, identical sample first — that is what the status line does in
+  # reality by repainting. The seeding run is discarded; only the second is asserted on.
+  printf '%s %s %s %s %s\n' "$(( $(date +%s) - ${3:-0} - 5 ))" "${2:-20}" "$(( $(date +%s)+7200 ))" \
+    "${1:-10}" "$(( $(date +%s)+172800 ))" > "$BD_STATE/ratelimit"
+  env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+      BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status >/dev/null 2>&1 || true
   printf '%s %s %s %s %s\n' "$(( $(date +%s) - ${3:-0} ))" "${2:-20}" "$(( $(date +%s)+7200 ))" \
     "${1:-10}" "$(( $(date +%s)+172800 ))" > "$BD_STATE/ratelimit"
   run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
@@ -1686,6 +1693,10 @@ _bd_setup() {
   _bd_setup
   # snapshot fields: ts · used5 · reset5 · used7 · reset7
   _bd_left() {  # $1=used7 · $2=seconds left in the 7d window
+    printf '%s %s %s %s %s\n' "$(( $(date +%s) - 5 ))" 20 "$(( $(date +%s)+7200 ))" "$1" "$(( $(date +%s)+$2 ))" \
+      > "$BD_STATE/ratelimit"
+    env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+        BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status >/dev/null 2>&1 || true
     printf '%s %s %s %s %s\n' "$(date +%s)" 20 "$(( $(date +%s)+7200 ))" "$1" "$(( $(date +%s)+$2 ))" \
       > "$BD_STATE/ratelimit"
     run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
@@ -1719,6 +1730,42 @@ _bd_setup() {
   git -C "$BD_REPO" checkout -q main
   _bd_left 50 86400; [[ "$output" == HOLD:* ]]; [[ "$output" == *"max 3"* ]]   # 3 is the wall
   _bd_left 50 3600;  [[ "$output" == BURN:* ]]                                 # ...until the last day
+}
+
+@test "burn-down: a BURN needs TWO agreeing readings — one sample is not evidence (R90)" {
+  _bd_setup
+  # Timestamps go BACKWARDS from now, never forward: the freshness check rejects a future snapshot
+  # ("-1s old") as a bad clock, which silently swallowed the first version of this test.
+  _snap() { printf '%s 20 %s %s %s\n' "$1" "$(( $(date +%s)+7200 ))" "$2" "$(( $(date +%s)+172800 ))" \
+              > "$BD_STATE/ratelimit"; }
+  _run()  { run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+                BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status; }
+  local n; n="$(date +%s)"
+
+  # FIRST reading ever: the forecast says burn, but there is nothing to corroborate it.
+  _snap "$((n-9))" 10; _run
+  [[ "$output" == HOLD:* ]]; [[ "$output" == *"one rate-limit reading"* ]]
+
+  # A second DISTINCT reading that agrees → now it may burn.
+  _snap "$((n-8))" 10; _run
+  [[ "$output" == BURN:* ]]
+
+  # The SAME sample re-read is not a second opinion — the snapshot has not refreshed.
+  _run
+  [[ "$output" == HOLD:* ]]; [[ "$output" == *"not a second opinion"* ]]
+
+  # Establish a settled high baseline (the jump from 10 to 82 is itself a disagreement, and holds).
+  _snap "$((n-7))" 82; _run; [[ "$output" == HOLD:* ]]
+  _snap "$((n-6))" 82; _run
+
+  # THE MEASURED TRANSIENT: 82 → 61 across a 5h rollover. The low reading must NOT be actioned —
+  # a 21-point phantom of headroom is exactly what would start generating work on nothing.
+  _snap "$((n-5))" 61; _run
+  [[ "$output" == HOLD:* ]]; [[ "$output" == *"disagree by 21 points"* ]]
+
+  # ...and once the reading settles, two agreeing samples let it proceed again.
+  _snap "$((n-4))" 61; _run
+  [[ "$output" == BURN:* ]]
 }
 
 @test "burn-down: real queued work outranks generated work" {
@@ -1972,6 +2019,10 @@ _bd_setup() {
   mkdir -p "$st/burndown" "$tk/s1"; _stamp_root "$tk/s1" "$d"
   touch "$(_flagpath "$st" burndown "$d")"
   local n; n="$(date +%s)"
+  printf '%s 20 %s 10 %s\n' "$((n-5))" "$((n+7200))" "$((n+86400))" > "$st/ratelimit"
+  # seed the corroborating first reading (a BURN needs two distinct agreeing samples)
+  env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" CLAUDE_COMPANION_TASKS_DIR="$tk" \
+      bash "$ROOT/bin/burn-down.sh" status >/dev/null 2>&1 || true
   printf '%s 20 %s 10 %s\n' "$n" "$((n+7200))" "$((n+86400))" > "$st/ratelimit"
   _bd2() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" CLAUDE_COMPANION_TASKS_DIR="$tk" bash "$ROOT/bin/burn-down.sh" status; }
   jq -n '{id:"1",subject:"❓ [parked] a decision; rec: A",status:"pending"}'    > "$tk/s1/1.json"

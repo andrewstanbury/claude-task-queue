@@ -38,6 +38,14 @@ MAXBRANCH_FINAL="${BURNDOWN_MAX_UNREVIEWED_FINAL:-8}"   # the lifted cap inside 
 # unreachable. Reported, never a refusal: the owner asked to land at 100% "or as close as
 # possible", so a hopeless target still burns — it just stops claiming it will get there.
 UNREACH="${BURNDOWN_UNREACHABLE_FACTOR:-3}"
+# TWO AGREEING SAMPLES (owner-decided 2026-08-02, after measurement). The rate-limit reading is
+# live but NOT trustworthy sample-by-sample: across the 16:10 5h rollover the 7d figure was
+# observed at 82% -> 61% -> 82% within ~20 seconds while r7 never moved. A single low sample
+# inside the final stretch would report ~20 points of headroom that do not exist and start
+# generating work on a phantom; a single high one would suppress a warranted burn. So a BURN now
+# needs two DISTINCT readings that agree. Disagreement HOLDs, which is the safe direction
+# everywhere else in this mode. The honest cost: a legitimate burn can be delayed by one cycle.
+SAMPLETOL="${BURNDOWN_SAMPLE_TOLERANCE:-5}"     # max points two readings may differ and still count
 HEADROOM5="${BURNDOWN_MIN_5H_HEADROOM:-15}"     # refuse when the 5h window is nearly spent
 
 root="$(companion_root "${BURNDOWN_ROOT:-$PWD}")"
@@ -97,6 +105,19 @@ evaluate() {
   # which under-states the projection slightly — the safe direction, since a lower projection is
   # what argues FOR generating work, so flooring makes the trigger slightly harder to fire.
   used_i="${u7%%.*}"
+
+  # Record this reading IMMEDIATELY, before any verdict can return. It first sat lower down, after
+  # the on-track hold — so every high reading held early and never seeded the comparison, leaving
+  # the history blank exactly when usage was high and a later low sample looked like a huge drop.
+  # A sample is evidence regardless of what this run decides.
+  prevf="$(companion_state_dir)/burndown-lastsample"
+  prev_ts=""; prev_u7=""
+  [ -f "$prevf" ] && read -r prev_ts prev_u7 < "$prevf" 2>/dev/null
+  if mkdir -p "${prevf%/*}" 2>/dev/null; then
+    if printf '%s %s\n' "$ts" "$used_i" > "$prevf.tmp$$" 2>/dev/null; then
+      mv -f "$prevf.tmp$$" "$prevf" 2>/dev/null || true
+    fi
+  fi
   projected=$(( used_i * WINDOW / elapsed ))
 
   # REQUIRED RATE (owner-decided 2026-08-02). `projected` answers "where do I land if nothing
@@ -141,6 +162,17 @@ evaluate() {
   open="$(companion_open_tasks "$root" | grep '^  ◻' | grep -cv -e '^  ◻ *❓' -e '^  ◻ *⏳' || true)"
   case "$open" in ''|*[!0-9]*) open=0 ;; esac
   [ "$open" -eq 0 ] || { say "$open task(s) still queued — real work outranks generated work"; return; }
+
+  # Record this reading for the NEXT run, then require the PREVIOUS one to corroborate it. Writing
+  # happens unconditionally so a HOLD still seeds the comparison — otherwise the mode could never
+  # accumulate the second sample it now requires. Best-effort: an unwritable state dir degrades to
+  # "no previous sample", which HOLDs (R7/R68).
+  case "${prev_ts:-}" in ''|*[!0-9]*) say "only one rate-limit reading so far — a single sample was measured swinging 21 points at a 5h rollover, so one is not evidence"; return ;; esac
+  case "${prev_u7:-}" in ''|*[!0-9]*) say "previous reading unusable — holding rather than acting on one sample"; return ;; esac
+  [ "$prev_ts" != "$ts" ] || { say "the snapshot has not refreshed since the last check — same sample, not a second opinion"; return; }
+  [ "$(( now - prev_ts ))" -le "$FRESH" ] || { say "previous reading is $(( now - prev_ts ))s old (max ${FRESH}s) — too stale to corroborate"; return; }
+  sdiff=$(( used_i - prev_u7 )); [ "$sdiff" -ge 0 ] || sdiff=$(( 0 - sdiff ))
+  [ "$sdiff" -le "$SAMPLETOL" ] || { say "the last two readings disagree by ${sdiff} points (max ${SAMPLETOL}) — that is the rollover transient, not headroom"; return; }
 
   # The cap lifts only inside the final stretch, and only there — outside it, three unreviewed
   # branches still means stop, because generating past what you are reviewing is waste by
