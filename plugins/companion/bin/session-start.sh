@@ -120,4 +120,17 @@ if [ -n "$_cut" ]; then
   done
 fi
 
+# REWORK, surfaced not narrated (R94). The owner's words: "Claude seems to be making more and more
+# obvious mistakes requiring rework then telling me about how it caught the mistakes." A caught
+# mistake reported as an apparatus win reframes a defect rate as a success; a count cannot be spun.
+# Zero bytes when nothing was recorded, which is the intended steady state.
+_rw="$(companion_rework_file "$root")"
+if [ -f "$_rw" ]; then
+  _rwout="$(REWORK_ROOT="$root" "$(dirname "$SELF")/rework.sh" report 2>/dev/null | head -c 800)"
+  case "${_rwout:-}" in
+    ''|rework:\ none*) : ;;
+    *) msg="$msg"$'\n\n'"── REWORK already recorded here (work that had to be done twice — read it as your own defect rate, not as a list of catches) ──"$'\n'"$_rwout" ;;
+  esac
+fi
+
 jq -cn --arg m "$msg" '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$m}}'

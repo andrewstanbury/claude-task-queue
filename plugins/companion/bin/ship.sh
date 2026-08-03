@@ -57,7 +57,7 @@ resolve_gate() {
 
 run_gate() { # $@ = gate command
   printf '== ship.sh: gate: %s\n' "$*"
-  "$@" || die 4 "gate FAILED — do not ship; fix and retry"
+  "$@" || { companion_rework_from_diff "$root" gate-fail ""; die 4 "gate FAILED — do not ship; fix and retry"; }
 }
 
 # Bash-3.2-safe (macOS CI): read resolve_gate's one-arg-per-line output into an array with a
@@ -246,7 +246,14 @@ land() {
 # The CI watch lives in bin/ci-watch.sh (R74; extracted when ship.sh hit its 300-line cap).
 # Exit codes pass straight through: 10 = SHIPPED but CI RED (fix forward), 12 = SHIPPED but
 # UNWATCHED (a run was in flight and the watch gave up — no longer reported as a pass).
-watch_ci() { "$here/ci-watch.sh" "$(git rev-parse HEAD 2>/dev/null || true)"; }
+watch_ci() {
+  local sha rc; sha="$(git rev-parse HEAD 2>/dev/null || true)"
+  "$here/ci-watch.sh" "$sha"; rc=$?
+  # A red CI after a successful push is rework by definition (R94): it shipped, then had to be
+  # done again. Recorded against that COMMIT's files — the working tree is already clean.
+  [ "$rc" -eq 10 ] && companion_rework_from_diff "$root" ci-red "$sha"
+  return "$rc"
+}
 
 # Cross-machine handoff (R72): checkpoint the WIP + queue for another machine — NOT a ship.
 # The gate is deliberately not run (a red tree mid-work is normal; the gate fires at `land`),

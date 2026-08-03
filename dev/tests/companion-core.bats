@@ -869,6 +869,42 @@ _ux_flow_check() {
   [[ "$output" != *"Changed OUTSIDE"* ]]
 }
 
+@test "rework ledger: counts FAILURES not touches, flags a rebuild candidate, injects itself (R94)" {
+  # Owner: "Claude seems to be making more and more obvious mistakes requiring rework then telling
+  # me about how it caught the mistakes." A caught mistake reported as an apparatus win reframes a
+  # defect rate as a success. This makes the rate a number, and surfaces it unasked.
+  local r st; r="$(_tmpd)"; git -C "$r" init -q; st="$(_tmpd)"
+  local RW="$ROOT/bin/rework.sh"
+  _rw() { run env CLAUDE_COMPANION_STATE_DIR="$st" REWORK_ROOT="$r" bash "$RW" "$@"; }
+
+  _rw report; [ "$status" -eq 0 ]; [[ "$output" == *"none recorded"* ]]
+
+  # the event that matters most: the owner had to supply the answer
+  _rw record owner-supplied; [ "$status" -eq 0 ]
+  _rw report; [[ "$output" == *"owner-supplied"* ]]
+
+  # three FAILURES against one file make it a rebuild candidate; the offer names the command
+  _rw record gate-fail src/auth.js
+  _rw record ci-red   src/auth.js
+  _rw record hole     src/auth.js
+  _rw report
+  [[ "$output" == *"src/auth.js"* ]]; [[ "$output" == *"redesign"* ]]
+
+  # ...but a file seen ONCE is not a candidate — this counts failures, not churn
+  [[ "$output" != *"src/other.js"* ]]
+  _rw record gate-fail src/other.js
+  _rw report; [[ "$output" != *"⟳ src/other.js"* ]]
+
+  # and it injects itself at session start, including after a compaction
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,source:\"compact\"}" | CLAUDE_COMPANION_STATE_DIR="$2" "$3" 2>/dev/null | jq -r ".hookSpecificOutput.additionalContext"' _ "$r" "$st" "$SS"
+  [[ "$output" == *"REWORK already recorded"* ]]
+
+  # a repo with nothing recorded contributes NOTHING
+  local clean; clean="$(_tmpd)"; git -C "$clean" init -q
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,source:\"startup\"}" | CLAUDE_COMPANION_STATE_DIR="$2" "$3" 2>/dev/null | jq -r ".hookSpecificOutput.additionalContext"' _ "$clean" "$st" "$SS"
+  [[ "$output" != *"REWORK already recorded"* ]]
+}
+
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"

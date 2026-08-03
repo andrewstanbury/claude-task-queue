@@ -30,6 +30,39 @@ companion_repo_id() { local d="${1:-$PWD}" f id
   printf '%s' "$id" > "$f" 2>/dev/null || true
   printf '%s' "$id"; }
 
+# REWORK LEDGER (R94). Counts FAILURE events, never touch counts: a file touched three times is
+# just work, while a file implicated in three failed gates or red CI runs is genuinely troublesome.
+# That distinction was measured, not assumed — a file-churn metric on this repo ranked version
+# manifests, the queue and LESSONS at the top, i.e. pure ceremony, and would have fired constantly.
+# One append per event: `<epoch> <label> <file>`. Best-effort; a failure to record never blocks.
+companion_rework_file() { printf '%s/rework/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
+companion_rework_record() {  # $1 root · $2 label · $3.. files
+  local f root="${1:-}" label="${2:-}"; shift 2 2>/dev/null || return 0
+  if [ -z "$root" ] || [ -z "$label" ]; then return 0; fi
+  f="$(companion_rework_file "$root")"
+  mkdir -p "${f%/*}" 2>/dev/null || return 0
+  local now; now="$(date +%s 2>/dev/null || echo 0)"
+  for p in "$@"; do
+    [ -n "$p" ] || continue
+    printf '%s %s %s\n' "$now" "$label" "$p" >> "$f" 2>/dev/null || return 0
+  done
+  return 0
+}
+
+# Record an event against the files in play. `$3` empty = working tree vs HEAD (a failed gate);
+# `$3` = a ref means that commit's files (a red CI, where the tree is already clean).
+companion_rework_from_diff() {  # $1 root · $2 label · $3 ref|""
+  local files
+  if [ -n "${3:-}" ]; then
+    files="$(git -C "$1" show --name-only --pretty=format: "$3" 2>/dev/null | grep -v '^$' | head -20)"
+  else
+    files="$(git -C "$1" diff --name-only HEAD 2>/dev/null | head -20)"
+  fi
+  # shellcheck disable=SC2086
+  if [ -n "$files" ]; then companion_rework_record "$1" "$2" $files
+  else companion_rework_record "$1" "$2" "-"; fi
+}
+
 companion_autopilot_flag() { printf '%s/autopilot/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_autopilot_on()   { [ -n "${1:-}" ] && [ -f "$(companion_autopilot_flag "$1")" ]; }
 # Clear the flag (single source of truth — autopilot.sh `off` and resume.sh both use this so the

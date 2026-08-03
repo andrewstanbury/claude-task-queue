@@ -593,3 +593,20 @@
   verified_by:
     - "session start: RECENT out-of-band changes inject; old ones and no-file cost nothing (R93)"
 
+- id: R94
+  satisfies: [UN-5]
+  requirement: >
+    rework is counted and surfaced, and a repeatedly-failing component triggers a rebuild offer
+  note: >
+    Owner, verbatim: "Claude seems to be making more and more obvious mistakes requiring rework then
+    telling me about how it caught the mistakes." Reporting a caught mistake as an apparatus win
+    reframes a defect rate as a success; a count cannot be spun. It records FAILURE events, never
+    touch counts — measured before building: a file-churn metric on this repo ranked version
+    manifests, the queue and LESSONS at the top, pure ceremony, and would have fired constantly.
+    The heaviest event is owner-supplied — the owner having to identify the fix is the most
+    expensive defect this product has, being exactly what they pay not to do. Three failures against
+    one file offers /companion:redesign, because each next patch always looks cheaper than a
+    rebuild, which is how a component gets chased instead of replaced.
+  verified_by:
+    - "rework ledger: counts FAILURES not touches, flags a rebuild candidate, injects itself (R94)"
+
