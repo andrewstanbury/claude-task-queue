@@ -659,4 +659,5 @@
     and is now scoped to that. First stage of the state move; the task store and ledgers follow.
   verified_by:
     - "modes are REPO state: they survive a wiped state dir and do not block burn-down (R96)"
+    - "the QUEUE is repo state: it survives into a fresh clone with no home state (R96 stage 2)"
 

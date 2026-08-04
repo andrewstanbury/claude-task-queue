@@ -17,8 +17,19 @@ command -v jq >/dev/null 2>&1 || { echo "tq: jq required" >&2; exit 1; }
 
 SID="${CLAUDE_COMPANION_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"
 [ -n "$SID" ] || { echo "tq: no session id (CLAUDE_CODE_SESSION_ID unset)" >&2; exit 1; }
-STORE="${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}"
+# THE QUEUE IS REPO STATE (R96 stage 2) — mirrors lib/companion.sh companion_session_dir, which tq
+# cannot source because it is deliberately standalone. An explicit CLAUDE_COMPANION_TASKS_DIR wins
+# absolutely; otherwise the store lives in the repo so a fresh container inherits the queue instead
+# of starting empty. A session already in the legacy home store keeps working there, so upgrading
+# never orphans an in-flight queue.
+_qroot="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -n "${CLAUDE_COMPANION_TASKS_DIR:-}" ]; then STORE="$CLAUDE_COMPANION_TASKS_DIR"
+elif [ -n "$_qroot" ]; then STORE="$_qroot/.companion/tasks"
+else STORE="$HOME/.claude/companion/tasks"; fi
 DIR="$STORE/$SID"
+if [ -z "${CLAUDE_COMPANION_TASKS_DIR:-}" ] && [ ! -d "$DIR" ] && [ -d "$HOME/.claude/companion/tasks/$SID" ]; then
+  STORE="$HOME/.claude/companion/tasks"; DIR="$STORE/$SID"
+fi
 
 usage() { cat >&2 <<'EOF'
 tq — fallback task queue (native task tools gated off)

@@ -58,7 +58,7 @@ if companion_ship_on "$root" && [ -n "$(git -C "$cwd" status --porcelain 2>/dev/
   ) >/dev/null 2>&1 || true
 fi
 
-dir="${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}/$sid"
+dir="$(companion_session_dir "$root" "$sid")"
 files=("$dir"/*.json); [ -e "${files[0]}" ] || allow
 # open = pending/in_progress and NOT deferred (❓/⏳); done = completed (progress signal).
 # Split on US (0x1f), NOT tab: tab is IFS whitespace, so a run of them collapses and every field

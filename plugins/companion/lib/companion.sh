@@ -163,7 +163,26 @@ companion_feature_off()   { [ -n "${2:-}" ] && grep -qs "^${1:-}=off\$" "$(compa
 companion_secret_re() { printf '%s' 'AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,}|xox[baprs]-[0-9A-Za-z-]{10,}|sk_live_[0-9A-Za-z]{16,}|AIza[0-9A-Za-z_-]{35}|-----BEGIN [A-Z ]*PRIVATE KEY-----'; }
 
 # The companion's own task store (not native tasks).
-companion_tasks_dir() { printf '%s' "${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}"; }
+# THE QUEUE IS REPO STATE (R96 stage 2). The queue IS the product, so a cloud agent that starts
+# with an empty one has nothing to drain — the same machine-bound problem the mode flags had.
+# An explicit CLAUDE_COMPANION_TASKS_DIR still wins ABSOLUTELY: it is how every test isolates, and
+# how anyone with a custom location keeps it. Otherwise the repo store is used.
+companion_tasks_dir() {  # $1 repo root (optional)
+  if [ -n "${CLAUDE_COMPANION_TASKS_DIR:-}" ]; then printf '%s' "$CLAUDE_COMPANION_TASKS_DIR"; return 0; fi
+  if [ -n "${1:-}" ] && [ -d "${1:-}" ]; then printf '%s/.companion/tasks' "$1"; return 0; fi
+  printf '%s' "$HOME/.claude/companion/tasks"
+}
+# A session ALREADY LIVING in the legacy home store keeps working there. Upgrading must never
+# orphan an in-flight queue — the owner has open work in one right now.
+companion_session_dir() {  # $1 repo root · $2 session id
+  local repo legacy
+  repo="$(companion_tasks_dir "${1:-}")/${2:-}"
+  legacy="$HOME/.claude/companion/tasks/${2:-}"
+  if [ -z "${CLAUDE_COMPANION_TASKS_DIR:-}" ] && [ ! -d "$repo" ] && [ -d "$legacy" ]; then
+    printf '%s' "$legacy"; return 0
+  fi
+  printf '%s' "$repo"
+}
 
 # Open (pending/in_progress) task subjects for a repo, across every session dir whose `.root`
 # stamp matches — the cross-session resume signal. One "  ◻ <subject>" line each; empty when
@@ -177,9 +196,26 @@ _COMPANION_TASK_RENDER='select(.status=="pending" or .status=="in_progress") | "
 # logical — compares apples to oranges and silently matches NOTHING. Every shipped caller already
 # goes through companion_root; a test that did not spent a while looking like a product bug.
 companion_open_tasks() {
-  local root="$1" store d id rid rroot f out; local -a files=()
-  store="$(companion_tasks_dir)"; [ -d "$store" ] || return 0
+  local root="$1" store d id rid rroot f out; local -a files=(); local -a stores=()
+  # Two stores now: the repo's own (R96 stage 2 — every session in it belongs to this repo by
+  # construction, so no stamp is needed) and the legacy home one, still stamp-matched so an
+  # in-flight queue from before the move is not orphaned. Duplicates cannot arise: a session lives
+  # in exactly one of them.
+  store="$(companion_tasks_dir "$root")"; [ -d "$store" ] && stores+=("$store")
+  if [ -z "${CLAUDE_COMPANION_TASKS_DIR:-}" ] && [ -d "$HOME/.claude/companion/tasks" ]; then
+    stores+=("$HOME/.claude/companion/tasks")
+  fi
+  [ "${#stores[@]}" -gt 0 ] || return 0
   id="$(companion_repo_id "$root")"
+  local repostore scoped; repostore="$(companion_tasks_dir "$root")"
+  for store in "${stores[@]}"; do
+  # The repo's own store needs no stamp check — everything in it belongs to this repo. The legacy
+  # home store is shared across every project, so it still must be matched.
+  # Unscoped ONLY when the store is genuinely repo-derived. With CLAUDE_COMPANION_TASKS_DIR set the
+  # same path serves every repo, so skipping the stamp check there let sessions bleed ACROSS repos —
+  # caught by the isolation tests, and exactly the cross-project bleed this store is scoped to stop.
+  scoped=1
+  if [ -z "${CLAUDE_COMPANION_TASKS_DIR:-}" ] && [ "$store" = "$repostore" ]; then scoped=0; fi
   for d in "$store"/*/; do
     [ -d "$d" ] || continue
     # Marker files are read with the `read` BUILTIN, not `$(cat …)`: this runs on SessionStart and
@@ -189,10 +225,13 @@ companion_open_tasks() {
     [ -f "$d.repo" ] && { IFS= read -r rid  < "$d.repo"  || true; }
     [ -f "$d.root" ] && { IFS= read -r rroot < "$d.root" || true; }
     # Match on repo IDENTITY (path-stable) first, else the legacy abspath stamp (back-compat).
-    { [ "$rid" = "$id" ] || [ "$rroot" = "$root" ]; } || continue
+    if [ "$scoped" -eq 1 ]; then
+      { [ "$rid" = "$id" ] || [ "$rroot" = "$root" ]; } || continue
+    fi
     set -- "$d"*.json
     [ -f "$1" ] || continue
     files+=("$@")
+  done
   done
   [ "${#files[@]}" -gt 0 ] || return 0
   # ONE jq for every matching file across every matching directory. It used to spawn a jq PER FILE:

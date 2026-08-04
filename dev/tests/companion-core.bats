@@ -1004,6 +1004,39 @@ _ux_flow_check() {
   [ "$status" -eq 4 ]; [[ "$output" == *"dirty"* ]]
 }
 
+@test "the QUEUE is repo state: it survives into a fresh clone with no home state (R96 stage 2)" {
+  # The queue IS the product, so a cloud agent starting with an empty one has nothing to drain.
+  # env -u is load-bearing: the suite exports CLAUDE_COMPANION_TASKS_DIR to isolate, and that
+  # variable deliberately WINS over the repo store — so a test that left it set would be asserting
+  # the old behaviour while believing it tested the new one.
+  # HOME is overridden for EVERY step, not just the clone one. Without that this test reads the
+  # REAL home store, and a session id that happens to exist there triggers the legacy fallback —
+  # which is exactly how it passed alone and failed inside the suite.
+  local r hbase; r="$(_tmpd)"; git -C "$r" init -q; hbase="$(_tmpd)"
+  run bash -c 'cd "$1" && env -u CLAUDE_COMPANION_TASKS_DIR HOME="$2" CLAUDE_COMPANION_SESSION_ID=s1 "$3" add "ship the widget"' _ "$r" "$hbase" "$TQ"
+  [ "$status" -eq 0 ]
+  [ -f "$r/.companion/tasks/s1/1.json" ]          # stored IN the repo, not under $HOME
+
+  # a fresh container: a copy of the repo, and a home directory with nothing in it
+  local c h; c="$(_tmpd)"; h="$(_tmpd)"
+  cp -r "$r/.git" "$c/.git"; cp -r "$r/.companion" "$c/.companion"
+  git -C "$c" checkout -q -- . 2>/dev/null || true
+  run bash -c 'cd "$1" && env -u CLAUDE_COMPANION_TASKS_DIR HOME="$2" CLAUDE_COMPANION_SESSION_ID=s1 "$3" report' _ "$c" "$h" "$TQ"
+  [[ "$output" == *"ship the widget"* ]]
+
+  # an explicit store still wins absolutely — that is how every other test isolates
+  local ext; ext="$(_tmpd)"; mkdir -p "$ext/s2"
+  run bash -c 'cd "$1" && HOME="$4" CLAUDE_COMPANION_TASKS_DIR="$2" CLAUDE_COMPANION_SESSION_ID=s2 "$3" add "elsewhere"' _ "$r" "$ext" "$TQ" "$hbase"
+  [ -f "$ext/s2/1.json" ]
+  [ ! -f "$r/.companion/tasks/s2/1.json" ]
+
+  # a session ALREADY in the legacy home store keeps working there — upgrading orphans nothing
+  local h2; h2="$(_tmpd)"; mkdir -p "$h2/.claude/companion/tasks/s3"
+  run bash -c 'cd "$1" && env -u CLAUDE_COMPANION_TASKS_DIR HOME="$2" CLAUDE_COMPANION_SESSION_ID=s3 "$3" add "legacy work"' _ "$r" "$h2" "$TQ"
+  [ -f "$h2/.claude/companion/tasks/s3/1.json" ]
+  [ ! -d "$r/.companion/tasks/s3" ]
+}
+
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"

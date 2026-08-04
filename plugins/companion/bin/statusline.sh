@@ -64,7 +64,9 @@ hum() { local n="${1%%.*}"; case "$n" in ''|*[!0-9]*) printf '0'; return;; esac
 # (parked/blocked detected by the ❓/⏳ subject prefix — the same convention as the queue and
 # the return-review gate). One jq pass emits the three counts, tab-separated.
 NOPEN=0; NPARK=0; NBLOCK=0; NDOING=0
-store="${CLAUDE_COMPANION_TASKS_DIR:-$HOME/.claude/companion/tasks}/$SID"
+# Same resolver as tq and the Stop hook (R96 stage 2) — if these three disagree the CLI and the
+# status line show different queues, which is worse than either being wrong.
+store="$(companion_session_dir "$(companion_root "${CWD:-$PWD}")" "$SID")"
 if [ -n "${SID:-}" ] && [ -d "$store" ]; then
   files=("$store"/*.json)
   if [ -e "${files[0]}" ]; then
