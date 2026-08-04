@@ -1883,6 +1883,7 @@ _bd() {  # $1=used7 $2=used5 $3=age-offset → run the forecaster against a fres
   printf '%s %s %s %s %s\n' "$(( $(date +%s) - ${3:-0} ))" "${2:-20}" "$(( $(date +%s)+7200 ))" \
     "${1:-10}" "$(( $(date +%s)+172800 ))" > "$BD_STATE/ratelimit"
   run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+      BURNDOWN_BRANCHES_PER_DAY="${_PERDAY:-3}" \
       BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
 }
 # Encode a repo path the way lib/companion.sh does, keyed on the RESOLVED root. On macOS
@@ -1957,6 +1958,7 @@ _bd_setup() {
     printf '%s %s %s %s %s\n' "$(date +%s)" 20 "$(( $(date +%s)+7200 ))" "$1" "$(( $(date +%s)+$2 ))" \
       > "$BD_STATE/ratelimit"
     run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+        BURNDOWN_BRANCHES_PER_DAY="${_PERDAY:-3}" \
         BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
   }
 
@@ -1991,8 +1993,12 @@ _bd_setup() {
   # today, and I walked into it again in the test that DEFINES the threshold. burn-down reads its
   # own clock a beat after the payload is built, so 86400 arrives as 86399 — one second inside the
   # stretch — and the cap had already lifted to 8. Green locally, red on both CI lanes.
-  _bd_left 50 90000; [[ "$output" == HOLD:* ]]; [[ "$output" == *"max 3"* ]]   # 3 is the wall
-  _bd_left 50 3600;  [[ "$output" == BURN:* ]]   # boundary-ok: seconds-left, not snapshot age
+  # With growth switched OFF, the base cap of 3 is still the wall — the mechanism is intact.
+  _PERDAY=0 _bd_left 50 90000; [[ "$output" == HOLD:* ]]; [[ "$output" == *"max 3"* ]]
+  # With growth ON, five elapsed days raise the cap well past three. That is what makes an
+  # unattended week possible instead of halting on about day one, and it replaces the old
+  # last-day-only lift, which was a special case of the same idea.
+  _bd_left 50 90000; [[ "$output" == BURN:* ]]
 }
 
 @test "burn-down: a BURN needs TWO agreeing readings — one sample is not evidence (R90)" {
@@ -2056,7 +2062,7 @@ _bd_setup() {
   git -C "$BD_REPO" checkout -q -b burndown/p3 main
   git -C "$BD_REPO" -c user.email=t@t -c user.name=t commit -q --allow-empty -m p3
   git -C "$BD_REPO" checkout -q main
-  _bd 10; [[ "$output" == HOLD:* ]]; [[ "$output" == *"review or delete"* ]]
+  _PERDAY=0 _bd 10; [[ "$output" == HOLD:* ]]; [[ "$output" == *"review or delete"* ]]   # cap, not calendar
   # An EMPTY branch is nothing to review, so it must not count against the budget.
   git -C "$BD_REPO" branch -D burndown/p3 >/dev/null 2>&1
   git -C "$BD_REPO" branch burndown/empty main

@@ -33,7 +33,8 @@ MAXBRANCH="${BURNDOWN_MAX_UNREVIEWED:-3}"       # backpressure: unreviewed branc
 # stops it, and three speculative branches cannot absorb 20% of a weekly budget. So the cap, not
 # the forecast, is what lifts near the reset — bounded relief exactly where the constraint binds.
 FINAL="${BURNDOWN_FINAL_STRETCH:-86400}"        # "the last day" of the 7d window, in seconds
-MAXBRANCH_FINAL="${BURNDOWN_MAX_UNREVIEWED_FINAL:-8}"   # the lifted cap inside that stretch
+PERDAY="${BURNDOWN_BRANCHES_PER_DAY:-3}"        # extra unreviewed branches allowed per elapsed day
+BRANCHCEIL="${BURNDOWN_MAX_UNREVIEWED_CEILING:-24}"  # hard ceiling however long the absence
 # How far above your own sustained rate the required rate may sit before the target is called
 # unreachable. Reported, never a refusal: the owner asked to land at 100% "or as close as
 # possible", so a hopeless target still burns — it just stops claiming it will get there.
@@ -177,8 +178,14 @@ evaluate() {
   # The cap lifts only inside the final stretch, and only there — outside it, three unreviewed
   # branches still means stop, because generating past what you are reviewing is waste by
   # definition. Inside it, the budget is about to expire and unspent quota is simply lost.
-  cap="$MAXBRANCH"
-  [ "$left" -ge "$FINAL" ] || cap="$MAXBRANCH_FINAL"
+  # TIME-AWARE CAP (owner-decided 2026-08-04, for a week away from keyboard). A flat 3 halts the
+  # mode on about day one of an unattended week, which makes "leave it on and come back to ~100%
+  # usage" impossible by construction — the cap, not the forecast, is what stops the burn. It now
+  # grows with the window that has actually elapsed, so backpressure still exists on any given day
+  # while a long absence keeps producing. Subsumes the old final-stretch lift, which was a special
+  # case of the same idea. The ceiling is what stops a runaway from producing branches forever.
+  cap=$(( MAXBRANCH + PERDAY * (elapsed / 86400) ))
+  [ "$cap" -le "$BRANCHCEIL" ] || cap="$BRANCHCEIL"
   nb="$(unreviewed)"
   [ "$nb" -lt "$cap" ] || { say "$nb unreviewed burndown/* branch(es) (max $cap) — review or delete before more is made"; return; }
 

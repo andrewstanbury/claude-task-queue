@@ -84,7 +84,7 @@ plugins/companion/bin/tq::s@\[(subj | match("after #(\[0-9\]+)";"g").captures\[0
 plugins/companion/bin/stop-autopilot.sh::s@  companion_autopilot_clear "$root"@  :@::a drained queue leaves autopilot ARMED, so the next stop re-reads the same undrainable queue and nags again
 check.sh::s@    \*) FAILED_SECTIONS="${FAILED_SECTIONS}${FAILED_SECTIONS:+;}$CUR" ;;@    *) : ;;@::a red verdict stops naming the section it went red in
 plugins/companion/bin/burn-down.sh::s@  if \[ "$left" -ge "$FINAL" \]; then@  if true; then@::the final stretch stops mattering — a projection keeps holding in the last hours, which is exactly the spend that never happens
-plugins/companion/bin/burn-down.sh::s@\[ "$left" -ge "$FINAL" \] || cap="$MAXBRANCH_FINAL"@:@::the branch cap stops lifting near the reset, so the real limiter never moves
+plugins/companion/bin/burn-down.sh::s@  cap=$(( MAXBRANCH + PERDAY \* (elapsed / 86400) ))@  cap="$MAXBRANCH"@::the branch cap stops growing with the elapsed window, so an unattended week halts on about day one
 plugins/companion/bin/burn-down.sh::s@needed=$(( (TARGET - used_i) \* WINDOW / left ))@needed=0@::the required rate is no longer computed, so the report cannot say what it would take
 plugins/companion/bin/burn-down.sh::s@  \[ "$sdiff" -le "$SAMPLETOL" \] ||@  [ 1 -eq 1 ] ||@::a single transient reading can trigger a BURN again — the 21-point rollover swing becomes phantom headroom
 plugins/companion/bin/burn-down.sh::s@  \[ "$prev_ts" != "$ts" \] ||@  [ 1 -eq 1 ] ||@::the same unrefreshed sample counts as its own second opinion
