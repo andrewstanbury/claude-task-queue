@@ -42,7 +42,6 @@ plugins/companion/bin/burn-down.sh::s@\[ "$nb" -lt "$cap" \] ||@[ 1 -eq 1 ] ||@:
 plugins/companion/bin/burn-down.sh::s@\[ "$projected" -lt "$TARGET" \] ||@[ 1 -eq 1 ] ||@::burn-down fires even when the forecast is ON TARGET
 plugins/companion/bin/candidates.sh::s@grep -F 'rec:'@cat@::a park with NO recommendation becomes a build candidate — guessing for the owner
 plugins/companion/bin/candidates.sh::s@if \[ "$found" -eq 0 \]; then@if true; then@::invention is emitted even when recorded signals exist
-plugins/companion/bin/burndown-branch.sh::s@\[ -z "$(git -C "$root" status --porcelain 2>/dev/null)" \] ||@[ 1 -eq 1 ] ||@::autonomous work starts on top of the owner's uncommitted changes
 plugins/companion/bin/burndown-branch.sh::s@\[ "$cur" = "burndown/$slug" \] &&@[ 1 -eq 2 ] \&\&@::discard deletes the branch you are standing on
 plugins/companion/bin/candidates.sh::s@-- . ':!\*.md' ':!\*.markdown'@-- .@::the todo signal reads prose about markers again, feeding on documentation
 plugins/companion/bin/tq::s@($p\[\]|lnr("❓")),($b\[\]|lnr("⏳"))@($p[]|ln("❓")),($b[]|ln("⏳"))@::a park's rec: is hidden again — the review becomes a rubber stamp
@@ -89,7 +88,7 @@ plugins/companion/bin/burn-down.sh::s@needed=$(( (TARGET - used_i) \* WINDOW / l
 plugins/companion/bin/burn-down.sh::s@  \[ "$sdiff" -le "$SAMPLETOL" \] ||@  [ 1 -eq 1 ] ||@::a single transient reading can trigger a BURN again — the 21-point rollover swing becomes phantom headroom
 plugins/companion/bin/burn-down.sh::s@  \[ "$prev_ts" != "$ts" \] ||@  [ 1 -eq 1 ] ||@::the same unrefreshed sample counts as its own second opinion
 plugins/companion/bin/candidates.sh::s@grep -nIE .(TODO|FIXME|XXX)\[: \]. -- .@grep -nIE '(TODO|FIXME|XXX)[: ]' -- '*.sh' @::TODO detection acquires an ecosystem allowlist — every non-shell project silently loses its recorded signals and gets INVENTED work instead
-plugins/companion/bin/burndown-branch.sh::s@  \[ -z "$(git -C "$root" status --porcelain 2>/dev/null)" \] ||@  [ 1 -eq 1 ] ||@::autonomous work starts on top of someone else's uncommitted changes
+plugins/companion/bin/burndown-branch.sh::s@grep -qvE .\^.{2} ..companion/.@grep -qv zzzNEVERzzz@::autonomous work starts on top of someone else's uncommitted changes
 dev/portability-lint.sh::s@  \[ -n "$vals" \] || { echo "  FAIL boundary: derived NO threshold constants — the lint would pass vacuously"; return 1; }@  :@::the boundary lint passes vacuously when it derives no constants at all
 check.sh::s@if out="$(dev/portability-lint.sh boundary dev/tests/\*.bats)"; then@if true; then@::check.sh stops invoking the boundary lint — the guard exists but never runs
 check.sh::s@if out="$(dev/command-lint.sh)"; then@if true; then@::check.sh stops invoking the command-contract lint — the guard exists but never runs
@@ -99,3 +98,4 @@ plugins/companion/bin/rework.sh::s@      | awk -v t="$THRESH" .\$1 >= t@      | 
 plugins/companion/bin/ship.sh::s@companion_rework_from_diff "$root" gate-fail ""; die 4@die 4@::a failed gate stops counting as rework, so the defect rate can be narrated again
 plugins/companion/bin/stop-autopilot.sh::s@  if \[ "$OPEN" -eq 0 \] && BURNDOWN_ROOT="$root" "$_bin/burn-down.sh" should-burn@  if false \&\& BURNDOWN_ROOT="$root" "$_bin/burn-down.sh" should-burn@::the drain stops handing off to burn-down, so an idle queue idles instead of taking obvious low-blast work
 plugins/companion/bin/tq::s@def pk: (subj|startswith("⏳")) or (subj|startswith("⛔")) or@def pk: (subj|startswith("⏳")) or@::a hypothesis the owner CLOSED becomes work again — the exact re-investigation the ⛔ class exists to stop
+plugins/companion/lib/companion.sh::s@/.companion/modes/%s@/NOTTHEREPO/%s@::mode flags leave the repo again, so a cloud agent or a fresh container starts with every mode OFF

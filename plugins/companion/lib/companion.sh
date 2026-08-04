@@ -63,25 +63,52 @@ companion_rework_from_diff() {  # $1 root · $2 label · $3 ref|""
   else companion_rework_record "$1" "$2" "-"; fi
 }
 
-companion_autopilot_flag() { printf '%s/autopilot/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
-companion_autopilot_on()   { [ -n "${1:-}" ] && [ -f "$(companion_autopilot_flag "$1")" ]; }
+# MODE FLAGS ARE REPO STATE (R96). They used to live under $HOME keyed by an encoded repo path,
+# which made every mode machine-bound: a fresh container or a cloud agent starts with autopilot,
+# ship, sweep, decisive and burndown all OFF and no way to inherit any of it. A mode is a fact about
+# the REPO ("autopilot is on for this project"), so it travels with the repo. The encoded-path key
+# disappears with the move — there is nothing left to disambiguate.
+#
+# READ falls back to the legacy home-scoped flag so an existing install does not silently lose its
+# modes on upgrade; CLEAR removes BOTH, or a legacy flag would keep resurrecting a mode the owner
+# turned off. Writers only ever create the repo-scoped one.
+companion_mode_flag()   { printf '%s/.companion/modes/%s' "${1:-}" "${2:-}"; }
+companion_mode_legacy() { printf '%s/%s/%s' "$(companion_state_dir)" "${2:-}" "$(companion_enc "${1:-}")"; }
+companion_mode_on() {
+  [ -n "${1:-}" ] || return 1
+  [ -f "$(companion_mode_flag "$1" "$2")" ] && return 0
+  [ -f "$(companion_mode_legacy "$1" "$2")" ]
+}
+companion_mode_set() {
+  [ -n "${1:-}" ] || return 1
+  local f; f="$(companion_mode_flag "$1" "$2")"
+  mkdir -p "${f%/*}" 2>/dev/null || return 1
+  : > "$f" 2>/dev/null
+}
+companion_mode_clear() {
+  [ -n "${1:-}" ] || return 0
+  rm -f "$(companion_mode_flag "$1" "$2")" "$(companion_mode_legacy "$1" "$2")" 2>/dev/null || true
+}
+
+companion_autopilot_flag() { companion_mode_flag "${1:-}" autopilot; }
+companion_autopilot_on() { companion_mode_on "${1:-}" autopilot; }
 # Clear the flag (single source of truth — autopilot.sh `off` and resume.sh both use this so the
 # teardown can't drift). Best-effort; a missing flag is not an error.
-companion_autopilot_clear() { rm -f "$(companion_autopilot_flag "${1:-}")" 2>/dev/null || true; }
+companion_autopilot_clear() { companion_mode_clear "${1:-}" autopilot; }
 
 # Ship-mode (R34): while autopilot is ON, the Stop hook auto-COMMITS accumulated work to a
 # non-default branch (never main, never a push) so completed work is captured as reversible
 # checkpoints for the owner to review + `/companion:ship-it`.
-companion_ship_flag() { printf '%s/ship/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
-companion_ship_on()   { [ -n "${1:-}" ] && [ -f "$(companion_ship_flag "$1")" ]; }
+companion_ship_flag() { companion_mode_flag "${1:-}" ship; }
+companion_ship_on() { companion_mode_on "${1:-}" ship; }
 
 # Decisive mode (R59): while autopilot is ON, instead of PARKING every decision, autopilot
 # auto-picks its own recommended option for **reversible** choices (design/wording/direction
 # included — overrides R33), records each pick, and keeps going; it still parks (❓) / blocks (⏳)
 # only the irreversible / externally-binding / data-destructive. Opt-in, per-repo, persisted; the
 # safety is the audit trail (every auto-pick is a `tq note`), read back by /companion:review.
-companion_decisive_flag() { printf '%s/decisive/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
-companion_decisive_on()   { [ -n "${1:-}" ] && [ -f "$(companion_decisive_flag "$1")" ]; }
+companion_decisive_flag() { companion_mode_flag "${1:-}" decisive; }
+companion_decisive_on() { companion_mode_on "${1:-}" decisive; }
 
 # SWEEP mode (R77) — decisive, but reaching BACKWARDS into the pile that is already parked.
 # Decisive stops new reversible decisions from being parked; sweep additionally stops the drain
@@ -90,8 +117,8 @@ companion_decisive_on()   { [ -n "${1:-}" ] && [ -f "$(companion_decisive_flag "
 # WHICH parks are safe stays judgment (STEERING) — a park may exist precisely because it is
 # irreversible, and those must never be auto-applied; they get reclassified ⏳ so the loop ends.
 # `⏳` blocked and `decompose:` parks (R65) are NEVER eligible, in any mode.
-companion_sweep_flag()    { printf '%s/sweep/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
-companion_sweep_on()      { [ -n "${1:-}" ] && [ -f "$(companion_sweep_flag "$1")" ]; }
+companion_sweep_flag() { companion_mode_flag "${1:-}" sweep; }
+companion_sweep_on() { companion_mode_on "${1:-}" sweep; }
 
 # PAUSED-FOR-REVIEW marker. `/companion:review` has to ask questions, and the ask-guard blocks
 # those while autopilot is armed — so a review must disarm it. Turning it permanently OFF made the
@@ -99,7 +126,7 @@ companion_sweep_on()      { [ -n "${1:-}" ] && [ -f "$(companion_sweep_flag "$1"
 # `pause` records that autopilot WAS on; `resume` puts it back. The marker is a file, so a crash
 # mid-review leaves a recoverable state rather than a silently-disarmed one.
 # An explicit `autopilot off` CLEARS this marker — an owner saying "off" outranks a pending resume.
-companion_autopilot_paused_flag() { printf '%s/autopilot-paused/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
+companion_autopilot_paused_flag() { companion_mode_flag "${1:-}" autopilot-paused; }
 companion_autopilot_paused()      { [ -n "${1:-}" ] && [ -f "$(companion_autopilot_paused_flag "$1")" ]; }
 
 # BURN-DOWN mode — opt-in, per-repo, OFF by default. When the 7d rate-limit window is forecast to
@@ -107,8 +134,8 @@ companion_autopilot_paused()      { [ -n "${1:-}" ] && [ -f "$(companion_autopil
 # than idle. Everything it produces lands behind a feature flag on a branch; nothing merges.
 # Deliberately its own flag, not a mode of autopilot: this is the only mode that AUTHORS work, so
 # turning it on must be a separate, explicit act.
-companion_burndown_flag() { printf '%s/burndown/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
-companion_burndown_on()   { [ -n "${1:-}" ] && [ -f "$(companion_burndown_flag "$1")" ]; }
+companion_burndown_flag() { companion_mode_flag "${1:-}" burndown; }
+companion_burndown_on() { companion_mode_on "${1:-}" burndown; }
 
 # Where the status line drops its rate-limit snapshot. The window data arrives ONLY on the
 # statusLine stdin payload, so anything outside that process (like the burn-down forecaster) can

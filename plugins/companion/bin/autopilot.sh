@@ -54,7 +54,7 @@ case "$cmd" in
            echo "autopilot NOT resumed — could not re-arm at $aflag. The paused marker is KEPT, so run resume again once the state dir is writable." >&2
            exit 1
          fi
-         rm -f "$pflag" 2>/dev/null || true
+         companion_mode_clear "$root" autopilot-paused
          echo "✈️  autopilot RESUMED for $root — picking the drain back up where the review interrupted it."
        else
          echo "autopilot was not paused by a review — leaving it off."
@@ -64,7 +64,7 @@ case "$cmd" in
     case "$sub" in
       on)  mkdir -p "$(dirname "$sflag")" 2>/dev/null && : > "$sflag" \
            && echo "📦 ship-mode ON for $root — while autopilot is on I'll auto-commit completed work to an autopilot/* branch (never main, never a push), for you to review + /companion:ship-it on return." ;;
-      off) rm -f "$sflag" 2>/dev/null; echo "ship-mode OFF for $root — autopilot won't auto-commit." ;;
+      off) companion_mode_clear "$root" ship; echo "ship-mode OFF for $root — autopilot won't auto-commit." ;;
       status) companion_ship_on "$root" && echo on || echo off ;;
       *) echo "usage: autopilot ship on|off|status" >&2; exit 1 ;;
     esac ;;
@@ -72,7 +72,7 @@ case "$cmd" in
     case "$sub" in
       on)  mkdir -p "$(dirname "$dflag")" 2>/dev/null && : > "$dflag" \
            && echo "⚡ decisive mode ON for $root — while autopilot is on I'll PICK my recommended option for reversible decisions (design/wording included) and record each, instead of parking. I still park (❓) / block (⏳) only what's irreversible, externally-binding, or destructive. Review the auto-picks any time with /companion:review." ;;
-      off) rm -f "$dflag" 2>/dev/null; echo "decisive mode OFF for $root — autopilot parks decisions (❓) again instead of auto-deciding." ;;
+      off) companion_mode_clear "$root" decisive; echo "decisive mode OFF for $root — autopilot parks decisions (❓) again instead of auto-deciding." ;;
       status) companion_decisive_on "$root" && echo on || echo off ;;
       *) echo "usage: autopilot decisive on|off|status" >&2; exit 1 ;;
     esac ;;
@@ -80,7 +80,7 @@ case "$cmd" in
     case "$sub" in
       on)  mkdir -p "$(dirname "$bflag")" 2>/dev/null && : > "$bflag" \
            && echo "🔥 burn-down ON for $root — when the 7d window is forecast to end UNDERSPENT and the queue is empty, I may GENERATE work from signals you already recorded (parked decisions with a rec:, ROADMAP items, TODOs, untested flows) and build each on a burndown/* branch behind a flag that defaults OFF. Nothing merges, nothing pushes. It stops on its own once 3 branches are awaiting your review — check them with: burndown-branch.sh list. This is the only mode that authors its own work; turn it off with: /companion:autopilot burndown off" ;;
-      off) rm -f "$bflag" 2>/dev/null; echo "burn-down OFF for $root — I will idle rather than generate work." ;;
+      off) companion_mode_clear "$root" burndown; echo "burn-down OFF for $root — I will idle rather than generate work." ;;
       status) if companion_burndown_on "$root"; then echo on; else echo off; fi ;;
       *) echo "usage: autopilot.sh burndown on|off|status" >&2; exit 2 ;;
     esac
@@ -89,7 +89,7 @@ case "$cmd" in
     case "$sub" in
       on)  mkdir -p "$(dirname "$wflag")" 2>/dev/null && : > "$wflag" \
            && echo "🧹 sweep mode ON for $root — while autopilot is on I'll also work the ALREADY-parked ❓ pile, applying each item's recorded recommendation. Only reversible options-parks: anything irreversible becomes ⏳ for you, and decompose: parks + ⏳ are never touched. Every pick is a tq note — walk them with /companion:review." ;;
-      off) rm -f "$wflag" 2>/dev/null; echo "sweep mode OFF for $root — the parked ❓ pile waits for you again (autopilot stops when only ❓/⏳ remain)." ;;
+      off) companion_mode_clear "$root" sweep; echo "sweep mode OFF for $root — the parked ❓ pile waits for you again (autopilot stops when only ❓/⏳ remain)." ;;
       status) companion_sweep_on "$root" && echo on || echo off ;;
       *) echo "usage: autopilot sweep on|off|status" >&2; exit 1 ;;
     esac ;;

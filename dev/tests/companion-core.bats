@@ -966,6 +966,44 @@ _ux_flow_check() {
   [[ "$output" == "0"* ]]
 }
 
+@test "modes are REPO state: they survive a wiped state dir and do not block burn-down (R96)" {
+  local AP2="$ROOT/bin/autopilot.sh"
+  local r h1 h2; r="$(_tmpd)"; git -C "$r" init -q; h1="$(_tmpd)"; h2="$(_tmpd)"
+  ( cd "$r" && CLAUDE_COMPANION_STATE_DIR="$h1" bash "$AP2" on ) >/dev/null
+
+  # the flag is a file IN THE REPO, so git carries it to a cloud agent or a fresh container
+  [ -f "$r/.companion/modes/autopilot" ]
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" status' _ "$r" "$h2" "$AP2"
+  [ "$output" = "on" ]                       # h2 is a BRAND-NEW state dir: $HOME wiped
+
+  # off must clear it everywhere, or a stale flag resurrects a mode the owner turned off
+  ( cd "$r" && CLAUDE_COMPANION_STATE_DIR="$h2" bash "$AP2" off ) >/dev/null
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" status' _ "$r" "$h1" "$AP2"
+  [ "$output" = "off" ]
+
+  # a LEGACY home-scoped flag is still honoured, so upgrading does not silently lose a mode...
+  local r2 h3; r2="$(_tmpd)"; git -C "$r2" init -q; h3="$(_tmpd)"
+  mkdir -p "$h3/autopilot"; touch "$(_flagpath "$h3" autopilot "$r2")"
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" status' _ "$r2" "$h3" "$AP2"
+  [ "$output" = "on" ]
+  # ...and turning it off clears the legacy one too
+  ( cd "$r2" && CLAUDE_COMPANION_STATE_DIR="$h3" bash "$AP2" off ) >/dev/null
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" status' _ "$r2" "$h3" "$AP2"
+  [ "$output" = "off" ]
+
+  # plugin state must NOT count as a dirty tree, or arming burn-down disables burn-down; the
+  # owner's own uncommitted work still must.
+  local r3 st3; r3="$(_tmpd)"; st3="$(_tmpd)"
+  git -C "$r3" init -q -b main; git -C "$r3" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  mkdir -p "$r3/.companion/modes"; : > "$r3/.companion/modes/burndown"
+  run env CLAUDE_COMPANION_STATE_DIR="$st3" BURNDOWN_ROOT="$r3" bash "$ROOT/bin/burndown-branch.sh" start '3|todo|only plugin state dirty'
+  [ "$status" -eq 0 ]
+  git -C "$r3" checkout -q main
+  printf 'the owner work\n' > "$r3/notes.txt"
+  run env CLAUDE_COMPANION_STATE_DIR="$st3" BURNDOWN_ROOT="$r3" bash "$ROOT/bin/burndown-branch.sh" start '3|todo|real dirt'
+  [ "$status" -eq 4 ]; [[ "$output" == *"dirty"* ]]
+}
+
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
@@ -2334,9 +2372,12 @@ _bd_setup() {
   local d st; d="$(_tmpd)"; git -C "$d" init -q; st="$(_tmpd)"
   _ap2() { run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" "${@:4}"' _ "$d" "$st" "$ROOT/bin/autopilot.sh" "$@"; }
   _ap2 on >/dev/null
-  chmod 555 "$st"
+  # Modes are REPO state since R96, so the fault has to be injected where the marker actually goes:
+  # making $HOME read-only no longer blocks anything, and a test that kept doing so would assert a
+  # guarantee that had quietly stopped being exercised.
+  chmod 555 "$d/.companion/modes"
   _ap2 pause
-  chmod 755 "$st"
+  chmod 755 "$d/.companion/modes"
   [ "$status" -ne 0 ]; [[ "$output" == *"NOT paused"* ]]
   _ap2 status; [ "$output" = on ]        # still ARMED — failing loud beats losing it silently
 }
@@ -2384,11 +2425,11 @@ _bd_setup() {
   local d st; d="$(_tmpd)"; git -C "$d" init -q; st="$(_tmpd)"
   _ar() { run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" "${@:4}"' _ "$d" "$st" "$ROOT/bin/autopilot.sh" "$@"; }
   _ar on >/dev/null; _ar pause >/dev/null
-  rm -rf "$st/autopilot"; chmod 555 "$st"
+  rm -f "$d/.companion/modes/autopilot"; chmod 555 "$d/.companion/modes"
   _ar resume
-  chmod 755 "$st"
+  chmod 755 "$d/.companion/modes"
   [ "$status" -ne 0 ]; [[ "$output" == *"NOT resumed"* ]]
-  [ "$(find "$st/autopilot-paused" -type f | wc -l)" -eq 1 ]   # marker KEPT — recoverable
+  [ -f "$d/.companion/modes/autopilot-paused" ]   # marker KEPT — recoverable
   _ar resume; [[ "$output" == *"RESUMED"* ]]                    # and the retry works
   _ar status; [ "$output" = on ]
 }

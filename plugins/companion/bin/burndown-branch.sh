@@ -94,7 +94,12 @@ cmd_start() {
 
   # NEVER start from a dirty tree: the generated work must be separable from whatever was already
   # in flight, or "discard the branch" silently discards the owner's uncommitted work too.
-  [ -z "$(git -C "$root" status --porcelain 2>/dev/null)" ] || die "working tree is dirty — refusing to start autonomous work on top of it" 4
+  # The guard exists to refuse building on top of the OWNER's uncommitted changes. Plugin state is
+  # not that: since R96 a mode flag lives at .companion/modes/, so merely ARMING burn-down dirtied
+  # the tree and blocked burn-down from ever creating a branch — the feature disabled itself.
+  if git -C "$root" status --porcelain 2>/dev/null | grep -qvE '^.{2} \.companion/'; then
+    die "working tree is dirty — refusing to start autonomous work on top of it" 4
+  fi
 
   # Manifest FIRST, and fatally: a branch without one is precisely what this tool exists to make
   # impossible, so a failed write must abort before the branch exists — not after.

@@ -643,3 +643,20 @@
   verified_by:
     - "⛔ ruled-out is a prefix-view that PERSISTS but is never work (R95)"
 
+- id: R96
+  satisfies: [UN-6]
+  requirement: >
+    a mode belongs to the repo, not the machine, and survives a fresh container
+  note: >
+    Every mode flag lived under $HOME keyed by an encoded repo path, so all durable state was
+    machine-bound: a cloud agent or a fresh container starts with autopilot, ship, sweep, decisive
+    and burndown all OFF with no way to inherit any of them. A mode is a fact about the REPO, so it
+    travels with the repo and the encoded key disappears — there is nothing left to disambiguate.
+    READ falls back to the legacy home flag so an upgrade loses nothing; CLEAR removes both, or a
+    stale legacy flag resurrects a mode the owner turned off. Found while building it: arming a mode
+    now dirties the working tree, and burndown-branch refuses a dirty tree — so arming burn-down
+    disabled burn-down. The guard exists to refuse the OWNER's uncommitted work, not plugin state,
+    and is now scoped to that. First stage of the state move; the task store and ledgers follow.
+  verified_by:
+    - "modes are REPO state: they survive a wiped state dir and do not block burn-down (R96)"
+
