@@ -23,7 +23,7 @@ dev/doc-lint.sh::s@sed -e 's/\[~≈\]@sed -e 's/ZZZ@::the ~ approximation exempt
 dev/doc-lint.sh::s@echo "  FAIL ledger file not found@return 0; echo "  FAIL ledger file not found@::a missing ledger file goes back to silent success
 plugins/companion/bin/ci-watch.sh::s@exit 12@exit 0@::a give-up watch goes back to reporting success
 plugins/companion/bin/statusline.sh::s@\[ "$NOPEN"  -gt 0 \] \&\& TASKS=@TASKS=@::the drained queue renders 📋 0 again
-plugins/companion/bin/session-start.sh::s@close EVERY reply with a one-line brutal-honest verdict@close some replies@::the compact re-anchor drops the unconditional verdict clause
+plugins/companion/bin/session-start.sh::s@the honest read belongs ON the recommendation@the honest read belongs somewhere@::the compact re-anchor stops carrying WHERE the honest read belongs, so it drifts back to a closing verdict
 plugins/companion/lib/ratelimit.sh::s@\[ "$left" -gt 0 \] || return 0@[ 1 -eq 1 ] || return 0@::an elapsed reset time renders a NEGATIVE countdown
 plugins/companion/lib/ratelimit.sh::s@case "$rst" in \*\[!0-9\]\*) return 0;; esac@case "$rst" in zzzNEVERzzz) return 0;; esac@::a non-numeric resets_at reaches $(( )) and can abort the line
 plugins/companion/lib/ratelimit.sh::s@if \[ "$3" -ge "$el" \]@if [ "$3" -ge 0 ]@::the pace marker reads ▴ always — it stops comparing against elapsed
@@ -97,3 +97,4 @@ plugins/companion/bin/session-start.sh::s@      /^- \[0-9\]\[0-9\]\[0-9\]\[0-9\]
 plugins/companion/bin/session-start.sh::s@    \[ -n "$_recent" \] && msg=@    [ -z "$_recent" ] \&\& msg=@::recent out-of-band changes stop being injected, so a cleared context loses them entirely
 plugins/companion/bin/rework.sh::s@      | awk -v t="$THRESH" .\$1 >= t@      | awk -v t="$THRESH" '$1 >= 99999@::a repeatedly-failing component stops being flagged for rebuild, so the fourth patch looks as reasonable as the first
 plugins/companion/bin/ship.sh::s@companion_rework_from_diff "$root" gate-fail ""; die 4@die 4@::a failed gate stops counting as rework, so the defect rate can be narrated again
+plugins/companion/bin/stop-autopilot.sh::s@  if \[ "$OPEN" -eq 0 \] && BURNDOWN_ROOT="$root" "$_bin/burn-down.sh" should-burn@  if false \&\& BURNDOWN_ROOT="$root" "$_bin/burn-down.sh" should-burn@::the drain stops handing off to burn-down, so an idle queue idles instead of taking obvious low-blast work

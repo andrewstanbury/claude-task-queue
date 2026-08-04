@@ -93,6 +93,24 @@ cfile="$(companion_state_dir)/autopilot/continue-$(printf '%s' "${sid:-x}" | sed
 # Same clear() the `autopilot off` command uses, so the teardown cannot drift. Best-effort:
 # a failure here must not break the stop, which is why nothing is checked (R7/R68).
 if [ "$OPEN" -eq 0 ] || [ "$STARTABLE" -eq 0 ]; then
+  # THE HAND-OFF (R82, wired 2026-08-04). A dry queue is exactly when burn-down is supposed to take
+  # over: real work first, then — only if nothing is parked or blocked and the 7d budget is running
+  # underspent — the most obvious minimal-blast work. That loop was DESIGNED and never CONNECTED:
+  # burn-down.sh, candidates.sh and burndown-branch.sh all existed, fully tested, reachable only
+  # from a command a sleeping owner does not type. Asking here is the whole point of the mode.
+  # It refuses far more often than it fires (mode off, stale snapshot, no headroom, on-track
+  # forecast, any buildable task, too many unreviewed branches), so this is silent almost always.
+  # BURNDOWN_ROOT / cwd are load-bearing: both scripts default to $PWD, and a hook's $PWD is not
+  # the repo. Without them burn-down silently judged the wrong tree and never fired.
+  _bin="$(cd "$(dirname "$SELF")" && pwd)"
+  if [ "$OPEN" -eq 0 ] && BURNDOWN_ROOT="$root" "$_bin/burn-down.sh" should-burn >/dev/null 2>&1; then
+    cand="$(cd "$root" 2>/dev/null && BURNDOWN_ROOT="$root" "$_bin/candidates.sh" 2>/dev/null | head -1)"
+    if [ -n "$cand" ]; then
+      jq -cn --arg c "$cand" '{decision:"block", reason:
+        ("✈️ Queue is DRAINED and the 7d budget is running underspent, so burn-down mode is taking the next obvious low-blast improvement rather than idling (R82). Candidate, highest-ranked first: “\($c)”. Build it on its own branch — `bin/burndown-branch.sh start \"\($c)\"` — behind a default-off flag, smallest blast radius, tests with it. It is a PROPOSAL, not a mandate: if the candidate is not genuinely worth doing, say so in one line, `bin/burndown-branch.sh discard <slug>`, and stop. Do NOT touch anything outside that branch, and do NOT merge it — the owner reviews it.")}'
+      exit 0
+    fi
+  fi
   rm -f "$cfile" 2>/dev/null
   companion_autopilot_clear "$root"
   allow

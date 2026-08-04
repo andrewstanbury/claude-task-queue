@@ -1,7 +1,7 @@
 # patterns — shared conventions, defined once, referenced as [pattern:name]
 
 ## recommendation-first [S]
-Decision-shaped → pick-from-CLI menu, recommended option marked; every reply ends with a one-line brutal-honest verdict. 👁
+Decision-shaped → pick-from-CLI menu, recommended option marked, carrying the honest read ON the pick — its cost, what you would regret, what argues against it. Never a verdict tacked onto every reply. 👁
 
 ## queue-one-at-a-time [S/E]
 Requests → `tq` tasks, smallest-blast-first, each with done-when; one at a time + breadcrumb. Companion owns the store (never native tasks). CLI: add·doing·note·done·cancel·list·report; mutations echo a one-line delta, full report at done/report/session start [R69].

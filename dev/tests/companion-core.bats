@@ -905,6 +905,41 @@ _ux_flow_check() {
   [[ "$output" != *"REWORK already recorded"* ]]
 }
 
+@test "drained queue HANDS OFF to burn-down instead of standing down (R82 wiring)" {
+  # The owner's loop — real work first, then obvious low-blast work when the budget is underspent —
+  # was DESIGNED and never CONNECTED: burn-down.sh, candidates.sh and burndown-branch.sh all
+  # existed and were tested, reachable only from a command a sleeping owner never types. The Stop
+  # hook had no reference to burn-down at all.
+  local r st tk; r="$(_tmpd)"; st="$(_tmpd)"; tk="$(_tmpd)"
+  git -C "$r" init -q -b main
+  git -C "$r" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  printf '# Roadmap\n\n- [ ] tidy the retry helper\n' > "$r/ROADMAP.md"
+  git -C "$r" add -A; git -C "$r" -c user.email=t@t -c user.name=t commit -q -m road
+  local d="$tk/bd"; mkdir -p "$d"; _stamp_root "$d" "$r"
+  jq -n '{id:"1",subject:"the work that got done",status:"completed"}' > "$d/1.json"
+  _fire() { run bash -c 'jq -nc --arg c "$1" --arg s "bd" "{cwd:\$c,session_id:\$s}" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" "$4" 2>/dev/null' _ "$r" "$st" "$tk" "$STOP"; }
+
+  # burn-down OFF: a drained queue stands down and disarms, exactly as before (R88 unchanged)
+  ( cd "$r" && CLAUDE_COMPANION_STATE_DIR="$st" "$AP" on ) >/dev/null
+  _fire; [ -z "$output" ]
+  [ "$(cd "$r" && CLAUDE_COMPANION_STATE_DIR="$st" "$AP" status)" = "off" ]
+
+  # burn-down ARMED + an underspent 7d window + two agreeing samples (R90) → it takes obvious work
+  mkdir -p "$st/burndown"; touch "$(_flagpath "$st" burndown "$r")"
+  local n; n="$(date +%s)"
+  printf '%s 20 %s 10 %s\n' "$((n-9))" "$((n+7200))" "$((n+172800))" > "$st/ratelimit"
+  env CLAUDE_COMPANION_STATE_DIR="$st" BURNDOWN_ROOT="$r" bash "$ROOT/bin/burn-down.sh" status >/dev/null 2>&1
+  printf '%s 20 %s 10 %s\n' "$((n-8))" "$((n+7200))" "$((n+172800))" > "$st/ratelimit"
+  ( cd "$r" && CLAUDE_COMPANION_STATE_DIR="$st" "$AP" on ) >/dev/null
+  _fire
+  [[ "$output" == *"burn-down mode"* ]]              # the hand-off fired...
+  [[ "$output" == *"tidy the retry helper"* ]]        # ...naming a REAL candidate from the repo
+  [[ "$output" == *"burndown-branch.sh start"* ]]     # ...on its own branch, not in place
+  [[ "$output" == *"do NOT merge"* ]] || [[ "$output" == *"not a mandate"* ]]
+  # and it must NOT have disarmed — the drain continues
+  [ "$(cd "$r" && CLAUDE_COMPANION_STATE_DIR="$st" "$AP" status)" = "on" ]
+}
+
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
@@ -1427,7 +1462,7 @@ EOS
   [ "$status" -eq 0 ]
   local ctx; ctx="$(printf '%s' "$output" | jq -r '.hookSpecificOutput.additionalContext')"
   [[ "$ctx" == *"recommendation-first options"* ]]   # the options half
-  [[ "$ctx" == *"EVERY reply"* ]]                    # the unconditional verdict half
+  [[ "$ctx" == *"ON the recommendation"* ]]          # honesty rides the pick (the closing verdict is RETIRED, R80·b)
   [[ "$ctx" == *"compacted"* ]]
   [[ "$ctx" != *"How we keep it clean"* ]]           # the core is still NOT re-pasted (R30·d2)
   [[ "$ctx" != *"Wireframe convention"* ]]

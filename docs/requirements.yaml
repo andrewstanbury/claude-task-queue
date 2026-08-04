@@ -434,6 +434,7 @@
     - "burndown-branch: a slug cannot escape the manifest dir (R82)"
     - "burndown-branch: refuses a slug that collides with the default branch (R82)"
     - "burn-down: in the FINAL STRETCH only actual usage counts, and the branch cap lifts (R82)"
+    - "drained queue HANDS OFF to burn-down instead of standing down (R82 wiring)"
 
 - id: R83
   satisfies: [UN-1]
@@ -610,4 +611,20 @@
   verified_by:
     - "rework ledger: counts FAILURES not touches, flags a rebuild candidate, injects itself (R94)"
     - "ship.sh land: gate failure aborts BEFORE any commit (exit 4)"
+
+- id: R80·b
+  satisfies: [UN-2]
+  requirement: >
+    the honest assessment rides the recommendation, and no reply closes with a verdict
+  note: >
+    REVERSES the unconditional closing verdict of R80/R49, owner-asked 2026-08-03: "remove the
+    brutally honest summary at the end of every prompt, I just want the brutally honest assessment
+    and recommendation when you present a recommendation." Recorded rather than deleted quietly.
+    Two things survive the reversal and are the reason it is a requirement rather than a deletion:
+    the honest read must still be ATTACHED to every recommendation, where it can change a decision
+    instead of arriving after one; and it judges the agent's own work, never the owner's — telling
+    an owner "you should have suggested this two attempts ago" makes them responsible for
+    supervising errors they are paying not to have, which happened and is what prompted the ban.
+  verified_by:
+    - "session start: the compaction re-anchor keeps the recommendation-contract clause (R56 G3 — R49)"
 
