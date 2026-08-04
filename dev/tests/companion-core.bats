@@ -768,7 +768,7 @@ _ux_flow_check() {
       bash "$ROOT/bin/burndown-branch.sh" start '3|todo|añadir modo sin conexión'
   [ "$status" -eq 0 ]
   git -C "$r" branch | grep -q 'burndown/'
-  [ -n "$(ls "$st/burndown-manifests" 2>/dev/null)" ]
+  [ -n "$(ls "$r/.companion/burndown-manifests" 2>/dev/null)" ]   # manifests are REPO state (R96)
 }
 
 @test "modes COMPOSE: sweep keeps a rev: park workable, so the dry-queue disarm does not fire (R88/R77)" {
@@ -1035,6 +1035,31 @@ _ux_flow_check() {
   run bash -c 'cd "$1" && env -u CLAUDE_COMPANION_TASKS_DIR HOME="$2" CLAUDE_COMPANION_SESSION_ID=s3 "$3" add "legacy work"' _ "$r" "$h2" "$TQ"
   [ -f "$h2/.claude/companion/tasks/s3/1.json" ]
   [ ! -d "$r/.companion/tasks/s3" ]
+}
+
+@test "the LEDGERS are repo state: a defect rate that resets with the container measures nothing (R96 stage 3)" {
+  local r h; r="$(_tmpd)"; git -C "$r" init -q; h="$(_tmpd)"
+  local RW="$ROOT/bin/rework.sh"
+
+  run env CLAUDE_COMPANION_STATE_DIR="$h" REWORK_ROOT="$r" bash "$RW" record owner-supplied src/a.js
+  [ -f "$r/.companion/rework" ]                    # written IN the repo
+  [ ! -d "$h/rework" ]                             # and NOT under the state dir
+
+  # a fresh container with a wiped state dir still sees the history
+  local h2; h2="$(_tmpd)"
+  run env CLAUDE_COMPANION_STATE_DIR="$h2" REWORK_ROOT="$r" bash "$RW" report
+  [[ "$output" == *"owner-supplied"* ]]
+
+  # LEGACY events still count, or the defect rate silently drops to zero on upgrade
+  local r2 h3; r2="$(_tmpd)"; git -C "$r2" init -q; h3="$(_tmpd)"
+  mkdir -p "$h3/rework"
+  printf '%s legacy-event -\n' "$(date +%s)" > "$h3/rework/$(printf '%s' "$r2" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  run env CLAUDE_COMPANION_STATE_DIR="$h3" REWORK_ROOT="$r2" bash "$RW" report
+  [[ "$output" == *"legacy-event"* ]]
+  # ...and a new event merges with them rather than replacing them
+  run env CLAUDE_COMPANION_STATE_DIR="$h3" REWORK_ROOT="$r2" bash "$RW" record ci-red src/b.js
+  run env CLAUDE_COMPANION_STATE_DIR="$h3" REWORK_ROOT="$r2" bash "$RW" report
+  [[ "$output" == *"legacy-event"* ]]; [[ "$output" == *"ci-red"* ]]
 }
 
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
@@ -2217,7 +2242,11 @@ _bd_setup() {
   [ "$(git -C "$d" rev-list --count main)" -eq 1 ]
   git -C "$d" checkout -q main
   # The manifest lives OUTSIDE the repo, so reviewing from main still finds it and the tree is clean.
-  [ -z "$(git -C "$d" status --porcelain)" ]
+  # .companion/ is plugin state, not the owner's work: since R96 the queue, the modes and now the
+  # burn-down manifests live there, so it is legitimately present in `git status`. The product's own
+  # dirty-guard draws the same line — asserting a fully clean tree here would assert that plugin
+  # state does not exist, which is no longer true.
+  [ -z "$(git -C "$d" status --porcelain | grep -vE '^.{2} \.companion/')" ]
   _bb show add-a-dark-theme
   [[ "$output" == *"must default to OFF"* ]]; [[ "$output" == *"roadmap"* ]]
   [[ "$output" == *"Deleting is the DEFAULT expectation"* ]]
@@ -2369,9 +2398,12 @@ _bd_setup() {
   # An unwritable manifest dir must abort BEFORE the branch exists, not after.
   local d2 st2; d2="$(_tmpd)"; st2="$(_tmpd)"
   git -C "$d2" init -q -b main; git -C "$d2" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
-  chmod 555 "$st2"
+  # Manifests are REPO state since R96 stage 3, so making the STATE dir unwritable no longer blocks
+  # anything — the fault has to be injected where the code actually writes, or this guard silently
+  # stops being exercised while still reading green.
+  mkdir -p "$d2/.companion"; chmod 555 "$d2/.companion"
   run env BURNDOWN_ROOT="$d2" CLAUDE_COMPANION_STATE_DIR="$st2" bash "$ROOT/bin/burndown-branch.sh" start "1|parked|thing"
-  chmod 755 "$st2"
+  chmod 755 "$d2/.companion"
   [ "$status" -eq 7 ]
   [ "$(git -C "$d2" branch --list 'burndown/*' | wc -l)" -eq 0 ]
 }

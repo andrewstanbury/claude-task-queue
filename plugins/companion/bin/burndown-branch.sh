@@ -39,7 +39,10 @@ root="$(companion_root "${BURNDOWN_ROOT:-$PWD}")"
 # `mkdir` failed, no manifest was written, and `start` still exited 0 with a branch created. The
 # feature's headline guarantee was void on every real run, and the tests missed it because they
 # never armed the flag in the same state dir. Separate namespaces so the two can never collide.
-MANIFEST_DIR="$(companion_state_dir)/burndown-manifests/$(companion_enc "$root")"
+# Manifests are REPO state (R96 stage 3) — a branch built in a container is worthless if the record
+# of WHY it exists dies with that container. No legacy fallback: manifests describe branches, and a
+# branch from a wiped container is gone too.
+MANIFEST_DIR="$root/.companion/burndown-manifests"
 
 die() { printf 'burndown-branch: %s\n' "$1" >&2; exit "${2:-2}"; }
 

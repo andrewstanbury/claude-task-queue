@@ -660,4 +660,5 @@
   verified_by:
     - "modes are REPO state: they survive a wiped state dir and do not block burn-down (R96)"
     - "the QUEUE is repo state: it survives into a fresh clone with no home state (R96 stage 2)"
+    - "the LEDGERS are repo state: a defect rate that resets with the container measures nothing (R96 stage 3)"
 

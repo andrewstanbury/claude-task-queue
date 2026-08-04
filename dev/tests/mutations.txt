@@ -101,3 +101,5 @@ plugins/companion/bin/tq::s@def pk: (subj|startswith("⏳")) or (subj|startswith
 plugins/companion/lib/companion.sh::s@/.companion/modes/%s@/NOTTHEREPO/%s@::mode flags leave the repo again, so a cloud agent or a fresh container starts with every mode OFF
 plugins/companion/bin/tq::s@elif \[ -n "$_qroot" \]; then STORE="$_qroot/.companion/tasks"@elif false; then STORE="$_qroot/.companion/tasks"@::the queue leaves the repo again, so a fresh clone or cloud agent starts with nothing to drain
 plugins/companion/lib/companion.sh::s@  if \[ -z "${CLAUDE_COMPANION_TASKS_DIR:-}" \] && \[ "$store" = "$repostore" \]; then scoped=0; fi@  scoped=0@::session scoping is dropped, so one repo resumes ANOTHER repo tasks
+plugins/companion/lib/companion.sh::s@companion_rework_file() { printf .%s/.companion/rework.@companion_rework_file() { printf "%s/NOTTHEREPO/rework"@::the rework ledger leaves the repo, so a defect rate resets with the container
+plugins/companion/bin/burndown-branch.sh::s@MANIFEST_DIR="$root/.companion/burndown-manifests"@MANIFEST_DIR="/tmp/companion-manifests-$$"@::burn-down manifests leave the repo, so the record of WHY a branch exists dies with the container

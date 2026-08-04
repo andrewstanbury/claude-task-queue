@@ -35,7 +35,10 @@ companion_repo_id() { local d="${1:-$PWD}" f id
 # That distinction was measured, not assumed — a file-churn metric on this repo ranked version
 # manifests, the queue and LESSONS at the top, i.e. pure ceremony, and would have fired constantly.
 # One append per event: `<epoch> <label> <file>`. Best-effort; a failure to record never blocks.
-companion_rework_file() { printf '%s/rework/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
+# The ledger is REPO state (R96 stage 3): a defect rate that resets with the container measures
+# nothing. Legacy events stay readable so the count does not silently drop to zero on upgrade.
+companion_rework_file() { printf '%s/.companion/rework' "${1:-}"; }
+companion_rework_legacy() { printf '%s/rework/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
 companion_rework_record() {  # $1 root · $2 label · $3.. files
   local f root="${1:-}" label="${2:-}"; shift 2 2>/dev/null || return 0
   if [ -z "$root" ] || [ -z "$label" ]; then return 0; fi

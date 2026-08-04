@@ -34,11 +34,13 @@ case "${1:-report}" in
     else companion_rework_record "$root" "$lbl" "$@"; fi
     echo "rework: recorded $lbl" ;;
   report)
-    [ -f "$f" ] || { echo "rework: none recorded"; exit 0; }
+    # Read the repo ledger AND any legacy one, so events recorded before the move still count.
+    leg="$(companion_rework_legacy "$root")"
+    if [ ! -f "$f" ] && [ ! -f "$leg" ]; then echo "rework: none recorded"; exit 0; fi
     days="${2:-14}"; case "$days" in ''|*[!0-9]*) days=14 ;; esac
     cut=$(( $(date +%s 2>/dev/null || echo 0) - days*86400 ))
     # tail keeps the work bounded as the ledger grows (R81)
-    recent="$(tail -n 500 "$f" 2>/dev/null | awk -v c="$cut" '$1 >= c')"
+    recent="$(cat "$leg" "$f" 2>/dev/null | tail -n 500 | awk -v c="$cut" '$1 >= c')"
     [ -n "$recent" ] || { echo "rework: none in the last ${days}d"; exit 0; }
     echo "rework in the last ${days}d:"
     # Count EVENTS, not rows. One `record` writes a row per implicated file, so tallying rows
