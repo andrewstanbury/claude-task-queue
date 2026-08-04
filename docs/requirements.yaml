@@ -628,3 +628,18 @@
   verified_by:
     - "session start: the compaction re-anchor keeps the recommendation-contract clause (R56 G3 — R49)"
 
+- id: R95
+  satisfies: [UN-4]
+  requirement: >
+    a hypothesis the owner ruled out survives the conversation that closed it, and is never work
+  note: >
+    Days were lost on another project re-investigating an Apple login configuration the owner had
+    CONFIRMED twice, while the real cause was a recent AWS change. The confirmation was never wrong
+    — it simply lived in a context window, and compaction destroyed it, after which re-investigating
+    looked like diligence. Prose cannot fix a fact that does not persist, so a closure is now a ⛔
+    entry: a PREFIX-view over pending like ❓/⏳ (R42), never a status value, carried by the same
+    resume path that already survives compaction and excluded from every startable count so it can
+    never be offered as work. Owner-decided 2026-08-04 from a 4-option menu.
+  verified_by:
+    - "⛔ ruled-out is a prefix-view that PERSISTS but is never work (R95)"
+

@@ -106,8 +106,13 @@ report() {
   # cross-session resume (lib/companion.sh), so trimming it here costs no crash-resume context.
   jq -rs '
     def pk: ((.subject//"")|sub("^\\s+";"")|startswith("❓")); def bl: ((.subject//"")|sub("^\\s+";"")|startswith("⏳"));
+    # ⛔ = a hypothesis the OWNER closed. It is not work and must never be offered, but it has to
+    # survive compaction — the Apple/AWS incident happened because "confirmed twice" lived only in
+    # a context window. A prefix-view over pending, exactly like ❓/⏳ (R42), so it rides the same
+    # resume path that already re-injects open tasks.
+    def rl: ((.subject//"")|sub("^\\s+";"")|startswith("⛔"));
     # strip a leading ❓/⏳ marker so the front glyph is not duplicated, then truncate
-    def s72: ((.subject//"")|sub("^\\s*[❓⏳]\\s*";"")|if length>72 then .[0:71]+"…" else . end);
+    def s72: ((.subject//"")|sub("^\\s*[❓⏳⛔]\\s*";"")|if length>72 then .[0:71]+"…" else . end);
     def ln($g): "  "+$g+" #"+(.id|tostring)+"  "+s72;
     # A park is REQUIRED to carry its own `rec:` so the review is a decision, not a rubber stamp —
     # and s72 truncated at 72 chars, which is exactly where `rec:` lives. The convention was being
@@ -127,17 +132,19 @@ report() {
     def waits: [((.subject//"") | match("after #([0-9]+)";"g").captures[0].string)];
     (map(select(.status=="pending" or .status=="in_progress")) | map(.id|tostring)) as $live
     |(map(select(.status=="in_progress"))|sort_by(.id|tonumber)) as $ip
-    |(map(select(.status=="pending" and (pk|not) and (bl|not)))|sort_by(.id|tonumber)) as $op
+    |(map(select(.status=="pending" and (pk|not) and (bl|not) and (rl|not)))|sort_by(.id|tonumber)) as $op
     |(map(select(.status=="pending" and pk))|sort_by(.id|tonumber)) as $p
     |(map(select(.status=="pending" and bl))|sort_by(.id|tonumber)) as $b
+    |(map(select(.status=="pending" and rl))|sort_by(.id|tonumber)) as $rlist
     |(map(select(.status=="completed"))|sort_by(.id|tonumber)) as $d
     |([ (if($ip|length)>0 then "▸\($ip|length)" else empty end),
         (if($op|length)>0 then "◻\($op|length)" else empty end),
         (if($p|length)>0 then "❓\($p|length)" else empty end),
         (if($b|length)>0 then "⏳\($b|length)" else empty end),
+        (if($rlist|length)>0 then "⛔\($rlist|length)" else empty end),
         (if($d|length)>0 then "✔\($d|length)" else empty end)]|join(" ")) as $h
     |("📋"+(if $h=="" then " Task queue — (all clear)" else "  "+$h end)),
-     ($ip[]|ln("▸")),($op[]|ln("◻")),($p[]|lnr("❓")),($b[]|lnr("⏳")),
+     ($ip[]|ln("▸")),($op[]|ln("◻")),($p[]|lnr("❓")),($b[]|lnr("⏳")),($rlist[]|ln("⛔")),
      (([$ip[], $op[]] | map(select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)) | .[0]) as $nx
       | if $nx then "  → next: #\($nx.id)"
        elif ([$ip[], $op[]]|length) > 0 then
@@ -161,12 +168,18 @@ delta() {
   local files=("$DIR"/*.json); [ -e "${files[0]}" ] || { printf '📋 (empty)\n'; return 0; }
   jq -rs '
     def pk: ((.subject//"")|sub("^\\s+";"")|startswith("❓")); def bl: ((.subject//"")|sub("^\\s+";"")|startswith("⏳"));
+    # ⛔ = a hypothesis the OWNER closed. It is not work and must never be offered, but it has to
+    # survive compaction — the Apple/AWS incident happened because "confirmed twice" lived only in
+    # a context window. A prefix-view over pending, exactly like ❓/⏳ (R42), so it rides the same
+    # resume path that already re-injects open tasks.
+    def rl: ((.subject//"")|sub("^\\s+";"")|startswith("⛔"));
     (map(select(.status=="in_progress"))|sort_by(.id|tonumber)) as $ip
-    |(map(select(.status=="pending" and (pk|not) and (bl|not)))|sort_by(.id|tonumber)) as $op
+    |(map(select(.status=="pending" and (pk|not) and (bl|not) and (rl|not)))|sort_by(.id|tonumber)) as $op
     |([ (if($ip|length)>0 then "▸\($ip|length)" else empty end),
         (if($op|length)>0 then "◻\($op|length)" else empty end),
         ((map(select(.status=="pending" and pk))|length) as $n | if $n>0 then "❓\($n)" else empty end),
         ((map(select(.status=="pending" and bl))|length) as $n | if $n>0 then "⏳\($n)" else empty end),
+        ((map(select(.status=="pending" and rl))|length) as $n | if $n>0 then "⛔\($n)" else empty end),
         ((map(select(.status=="completed"))|length) as $n | if $n>0 then "✔\($n)" else empty end)]|join(" ")) as $h
     |(($ip[0] // $op[0]) as $nx
       | "📋 " + (if $h=="" then "(all clear)" else $h end)
@@ -196,7 +209,7 @@ stopfields() {
       and ((subj|ascii_downcase|contains("decompose:"))|not)
       and (subj|test("^❓\\s*\\[parked\\]\\s*rev:"))
       and (subj|test("[;—-]\\s*rec:"));
-    def pk: (subj|startswith("⏳")) or (parked and (($sw and sweepable)|not));
+    def pk: (subj|startswith("⏳")) or (subj|startswith("⛔")) or (parked and (($sw and sweepable)|not));
     ([.[]|select((.status=="pending" or .status=="in_progress") and (pk|not))]) as $o
     | ([$o[]|select((subj|startswith("❓"))|not)]) as $plain
     | ([.[]|select(.status=="pending" or .status=="in_progress")]|map(.id|tostring)) as $live

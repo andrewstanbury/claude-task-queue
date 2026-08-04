@@ -21,6 +21,10 @@ with a verdict — honesty belongs to recommendations, not to every message (own
 **2. Never wait to be asked.** If the owner types "be honest" or "recommend", the reflex already
 failed. Volunteer both, including recommendations to *remove* things.
 
+**3. Close a TASK or MILESTONE — not every reply — with a one-line brutal-honest verdict on your
+OWN work, then WHAT REMAINS (`tq report`): blocked, parked, still to do**, so the owner sees state
+on returning without asking. Ordinary replies get neither.
+
 ## Working
 
 - **Restate the outcome in one line** before you start — visible and correctable before it exists.

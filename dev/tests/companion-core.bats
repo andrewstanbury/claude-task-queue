@@ -940,6 +940,32 @@ _ux_flow_check() {
   [ "$(cd "$r" && CLAUDE_COMPANION_STATE_DIR="$st" "$AP" status)" = "on" ]
 }
 
+@test "⛔ ruled-out is a prefix-view that PERSISTS but is never work (R95)" {
+  # The Apple/AWS incident: "the owner confirmed this twice" lived only in a context window, and
+  # compaction destroyed it, so the innocent component kept being re-investigated. A closure has to
+  # outlive the conversation that produced it. Like ❓/⏳ this is a PREFIX over pending (R42), never
+  # a status value, so it rides the same resume path that already survives compaction.
+  local sid=rlT d="$CLAUDE_COMPANION_TASKS_DIR/rlT"; mkdir -p "$d"
+  run env CLAUDE_COMPANION_SESSION_ID="$sid" "$TQ" add "real buildable work"
+  run env CLAUDE_COMPANION_SESSION_ID="$sid" "$TQ" add "⛔ [ruled out] Apple login config — owner confirmed twice"
+
+  run env CLAUDE_COMPANION_SESSION_ID="$sid" "$TQ" report
+  [[ "$output" == *"⛔1"* ]]                       # counted in its own class...
+  [[ "$output" == *"[ruled out] Apple login"* ]]   # ...rendered without doubling the glyph
+  [[ "$output" == *"→ next: #1"* ]]                # ...and the pointer ignores it
+
+  # the drain must not see it as startable, or a closure becomes a task
+  run env CLAUDE_COMPANION_SESSION_ID="$sid" "$TQ" stopfields false
+  [[ "$output" == "1"* ]]                          # OPEN counts the real work only
+  [[ "$output" == *"real buildable work"* ]]
+  [[ "$output" != *"Apple login"* ]]
+
+  # ...and with ONLY a ruled-out entry left, there is nothing to do at all
+  run env CLAUDE_COMPANION_SESSION_ID="$sid" "$TQ" done 1
+  run env CLAUDE_COMPANION_SESSION_ID="$sid" "$TQ" stopfields false
+  [[ "$output" == "0"* ]]
+}
+
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"

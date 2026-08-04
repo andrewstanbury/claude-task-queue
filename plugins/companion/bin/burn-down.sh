@@ -160,7 +160,7 @@ evaluate() {
   #   · one long-lived ⏳ (which R83 explicitly expects to sit for weeks) disabled the mode forever.
   # -e alternation, NOT a [❓⏳] bracket: a bracket expression over multibyte characters is
   # not portable — BSD grep (the macOS CI lane) can match bytes rather than characters.
-  open="$(companion_open_tasks "$root" | grep '^  ◻' | grep -cv -e '^  ◻ *❓' -e '^  ◻ *⏳' || true)"
+  open="$(companion_open_tasks "$root" | grep '^  ◻' | grep -cv -e '^  ◻ *❓' -e '^  ◻ *⏳' -e '^  ◻ *⛔' || true)"
   case "$open" in ''|*[!0-9]*) open=0 ;; esac
   [ "$open" -eq 0 ] || { say "$open task(s) still queued — real work outranks generated work"; return; }
 
