@@ -1,7 +1,7 @@
 {
   "id": "14",
   "subject": "stage 3b: DELETE tq export/import (R60) — no longer merely redundant, it is HARMFUL: resume imported a 3-day-stale queue.json and resurrected 13 completed tasks, which is the rework this product exists to prevent. The queue now travels in .companion/tasks via git, so the export carries nothing git does not",
-  "status": "pending",
+  "status": "cancelled",
   "done_when": "",
   "blocks": [],
   "blockedBy": []

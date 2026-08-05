@@ -29,7 +29,7 @@ proposal, the commit message, the history curation.
    the gate as trailing args — `preflight make test`, `preflight npm test`, whatever it uses;
    recognizing an unpassed one is your job, R9.
    Remember the same command — step 5's `land` needs it as `--gate <cmd…>`). This runs the
-   gate, the contract-drift backstop (R58 — read its output), `tq export` (R60 — the queue
+   gate, the contract-drift backstop (R58 — read its output), the queue (it rides the commit — R96) (R60 — the queue
    snapshot rides the ship), and prints the branch/upstream summary + `git status` + diff stat
    you'd otherwise gather by hand. **Gate failed (exit 4) → STOP and report; do not ship broken
    work. No gate found (exit 3) → supply one or stop.**

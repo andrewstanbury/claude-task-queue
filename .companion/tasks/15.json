@@ -1,8 +1,14 @@
 {
   "id": "15",
   "subject": "removal pass: audit what earns its place against a RECORDED failure — rework ledger, out-of-band ledger, boundary lint, two-sample gate, time-aware caps all landed inside 72h",
-  "status": "pending",
+  "status": "completed",
   "done_when": "",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-05T15:19:25Z",
+      "text": "AUDIT RESULT — little to remove, and that is the honest finding rather than a failure to look. Every recent addition traces to a RECORDED failure: rework ledger (owner reported caught-mistakes being narrated as wins), out-of-band log + ⛔ ruled-out (the Apple/AWS incident, where a twice-confirmed component was re-investigated), boundary lint (CI red TWICE from fixtures pinned on a threshold), two-sample gate (a rate-limit reading measured swinging 82→61→82 in ~20s), section-naming in the gate (a red verdict printed with no cause), drain→burn-down wiring (the owner woke to an idle queue). The two WEAKEST by this standard are preventive rather than reactive: R91's foreign-repo matrix (no defect found — it pins a promise R1/R9 had been making untested) and the time-aware branch cap (an owner decision for a week AFK, not a failure). Neither is worth deleting: both are tests or a constant. GENUINELY DEAD: matching_files in tq, which dies with export/import (#16), and six orphaned state directories on disk. Manufacturing further deletions to make this pass look productive would be the opposite of its point."
+    }
+  ]
 }

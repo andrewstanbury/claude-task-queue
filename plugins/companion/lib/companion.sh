@@ -270,7 +270,7 @@ companion_open_tasks() {
   # single corrupt task file would take every task in every LATER file down with it — measured
   # 7 open tasks rendering as 0, silently, exit 0, on the one path whose entire job is to hand the
   # backlog back after a crash. (R44's atomic writes make a half-written file rare, not impossible;
-  # `tq export` already learned this exact lesson — "one corrupt file skipped-with-count, never
+  # The deleted queue-export learned this exact lesson first — "one corrupt file skipped, never
   # zeroes the backlog".) So: try the fast batch, and the moment jq reports failure, redo it
   # per-file so a bad file costs only itself. The slow path runs only when something is already
   # broken, so the hot path keeps its 56x.

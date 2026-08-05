@@ -1,0 +1,18 @@
+{
+  "id": "17",
+  "subject": "⏳ [blocked] remove 6 orphaned state dirs the plugin left behind after features were deleted — ~/.claude/companion/{captures,reminded-*,intent-*}. No shipped code reads any of them (verified: every 'captures'/'intent' hit in bin/ is jq syntax or prose). rm is denied to me here; mv worked before if you would rather I relocate them",
+  "status": "completed",
+  "done_when": "",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-05T17:10:18Z",
+      "text": "Owner will delete the dirs by hand (rm is denied to me). The RECURRENCE is now guarded:  reports any state kind no shipped code builds a path to, deriving the legitimate kinds from source rather than a maintained list — it finds 8 here, including a leftover ratelimit.tmp from an interrupted atomic write. Report-only by default; --orphans removes."
+    },
+    {
+      "ts": "2026-08-05T17:11:03Z",
+      "text": "RECURRENCE GUARDED: the new \"tq orphans\" verb reports any state kind no shipped code builds a path to, deriving the legitimate kinds FROM SOURCE rather than from a maintained list. It finds 8 here, including a leftover ratelimit.tmp from an interrupted atomic write. Report-only by default; --orphans removes. Owner deletes the existing dirs by hand, since rm is denied to me."
+    }
+  ]
+}

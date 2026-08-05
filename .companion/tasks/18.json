@@ -1,0 +1,8 @@
+{
+  "id": "18",
+  "subject": "⏳ [blocked] delete the 8 orphaned state dirs: run `! ~/.claude/plugins/cache/andrewstanbury/companion/*/bin/tq orphans --orphans` (or rm them). I can only report them; rm is denied to me here",
+  "status": "pending",
+  "done_when": "",
+  "blocks": [],
+  "blockedBy": []
+}

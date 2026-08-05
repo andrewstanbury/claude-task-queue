@@ -107,3 +107,5 @@ plugins/companion/lib/companion.sh::s@  if \[ "$scoped" -eq 0 \]; then@  if fals
 plugins/companion/bin/candidates.sh::s@emit 5 rework "$line has failed@emit 5 zzzNEVER "$line has failed@::a repeatedly-failing component stops being offered as work, so the ladder ends at invention instead of a rebuild
 plugins/companion/bin/candidates.sh::s@':!\*.yaml' ':!\*.yml' @@::the TODO scanner reads the yaml CONTRACT again, offering its own prose as work
 plugins/companion/lib/companion.sh::s@  mkdir -p "${g%/\*}" 2>/dev/null && : > "$g" 2>/dev/null@  :@::mode flags stop dual-writing, so an OLDER installed hook sees autopilot OFF while the CLI says ON and the queue never drains
+plugins/companion/bin/tq::s@    \[ -n "$known" \] || { echo "tq orphans: derived NO known kinds@    [ 1 -eq 0 ] || { echo "tq orphans: derived NO known kinds@::the orphan sweep passes vacuously when it derives nothing, so every live state kind reads as dead
+plugins/companion/bin/tq::s@      if \[ "${1:-}" = "--orphans" \]; then rm -rf "$e"@      if true; then rm -rf "$e"@::the orphan sweep DELETES by default instead of reporting, removing data whose purpose is unknown without being asked

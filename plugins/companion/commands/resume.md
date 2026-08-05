@@ -19,14 +19,13 @@ not to the next autopilot drain (R39).
    clears it). Nothing to do up here.
 
 **Carrying the queue between machines (R60/R72).** The task store is machine-local, so the queue
-travels over git. **Sending side:** mid-flight work → `/companion:handoff` (one call — commits the
-working tree + queue to a pushed branch, R72); finished work → `/companion:ship-it` (exports at
-preflight). *(Manual fallback: `"${CLAUDE_PLUGIN_ROOT}/bin/tq" export` + commit `.companion/queue.json`
-yourself.)* **Receiving side (this command):** step 1's `resume.sh` imports the carried
-`.companion/queue.json`, re-stamping each task under *this* machine's path so it surfaces regardless
-of clone location. Import is idempotent and dedups by subject, so a task already completed here is
-never resurrected. (Linear handoff is the supported flow; two machines editing the same queue
-concurrently is last-export-wins — status changes don't merge back.)
+travels over git — the queue lives in `.companion/tasks` inside the repo, so **any commit carries
+it and there is nothing to export** (R96). **Sending side:** mid-flight work → `/companion:handoff`
+(one call — commits the working tree, queue included, to a pushed branch, R72); finished work →
+`/companion:ship-it`. **Receiving side (this command):** clone or pull, then `resume.sh` re-surfaces
+this repo's open tasks with their classes and breadcrumbs intact, whatever the clone path.
+(Linear handoff is the supported flow; two machines editing the same queue concurrently is a git
+merge like any other file.)
 
 1. **Re-surface earlier-session tasks (session pickup, R39).** **First, check for a waiting handoff
    (R72)** — but **clear autopilot before you might ask**: if it's on, run
@@ -48,11 +47,10 @@ concurrently is last-export-wins — status changes don't merge back.)
    (a handoff made on a feature branch commits in place, so it keeps its own name; `git branch -r`
    ahead of the default is the general signal — a heuristic, so **pass the branch explicitly when
    you know it**). If one exists,
-   surface it and offer to check it out **before** importing — it carries the other machine's
-   mid-flight tree + queue, and importing on the default branch instead would silently strand it.
+   surface it and offer to check it out **before** resuming — it carries the other machine's
+   mid-flight tree, and resuming on the default branch instead would silently strand it.
    Then run
-   `"${CLAUDE_PLUGIN_ROOT}/bin/resume.sh"`: it **imports any carried `.companion/queue.json` first**
-   (R60 — relay the one-line import notice when it added tasks), then turns **autopilot off first** — announced in one line
+   `"${CLAUDE_PLUGIN_ROOT}/bin/resume.sh"`: it turns **autopilot off first** — announced in one line
    when it was on (relay that notice; never a silent clobber of a persisted intent — re-arm is a
    manual `/companion:autopilot on`), quiet no-op when already off — and lists this repo's still-open
    tasks carried over from earlier sessions (the SessionStart hook does this automatically each new

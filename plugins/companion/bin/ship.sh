@@ -5,7 +5,7 @@
 # proposal, commit MESSAGE, history curation) stay with Claude; this script executes only the
 # mechanical spine those steps sandwich, collapsing ~8-12 model round-trips into two calls:
 #
-#   ship.sh preflight [gate-cmd...]      verify gate -> drift backstop -> tq export -> summary
+#   ship.sh preflight [gate-cmd...]      verify gate -> drift backstop -> summary
 #   ship.sh land -F <msgfile> [--da <finding>] [--prune-all] [--gate <cmd>]
 #                                        re-verify -> stage -> commit -> ff-only merge to the
 #                                        default branch -> push -> prune the shipped branch
@@ -72,8 +72,6 @@ preflight() {
   run_gate "${gate[@]}"
   printf '== ship.sh: contract-drift backstop\n'
   "$here/contract-drift.sh" || true                     # advisory by design (R58)
-  printf '== ship.sh: queue export (R60)\n'
-  "$here/tq" export || printf 'ship.sh: warn: tq export failed (continuing — export is auxiliary)\n' >&2
   cur="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || printf 'HEAD')"
   def="$(default_branch)" || def="(undetermined)"
   printf '== ship.sh: summary\n'
@@ -263,18 +261,8 @@ handoff() {
   cur="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
   if [ -z "$cur" ] || [ "$cur" = "HEAD" ]; then die 9 "detached HEAD — check out a branch first"; fi
   git remote get-url origin >/dev/null 2>&1 || die 8 "no remote — git is the transport (R72); add one first"
-  printf '== ship.sh: queue export (R60)\n'
-  "$here/tq" export || printf 'ship.sh: warn: tq export failed (continuing)\n' >&2
   git add -A
-  git diff --cached --quiet && die 6 "nothing to hand off (clean tree, no queue delta)"
-  # A FRESH, EMPTY queue export in an otherwise-clean tree is noise, not a handoff — without this
-  # guard, "nothing to hand off" is unreachable in any repo that never used the queue.
-  if [ "$(git diff --cached --name-only)" = ".companion/queue.json" ] \
-     && ! git rev-parse -q --verify HEAD:.companion/queue.json >/dev/null 2>&1 \
-     && [ "$(jq -r 'if type=="array" then length else (.tasks|length) end' .companion/queue.json 2>/dev/null || echo 1)" = "0" ]; then
-    git reset -q; rm -f .companion/queue.json
-    die 6 "nothing to hand off (clean tree, empty queue)"
-  fi
+  git diff --cached --quiet && die 6 "nothing to hand off (clean tree, no changes)"
   if git diff --cached | grep -qE "$(companion_secret_re)"; then
     die 9 "staged diff matches a credential shape — unstage the secret before handing off"
   fi

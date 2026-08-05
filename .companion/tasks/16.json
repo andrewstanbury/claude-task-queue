@@ -1,0 +1,14 @@
+{
+  "id": "16",
+  "subject": "❓ [parked] rev: DELETE tq export/import and reverse R60 — the contract half is yours (R86 denies it under autopilot) and the change is atomic: removing the code without the contract turns the trace gate red, because R60 names six tests that would no longer exist. EVIDENCE it is now harmful, not merely redundant: today /companion:resume auto-imported a 3-day-stale .companion/queue.json and resurrected 13 COMPLETED tasks into a fresh session — PERF items, the requirements consolidation, parks already decided. Had autopilot been draining it would have redone finished work, which is the rework this product exists to prevent. Since 3.72.0 the queue lives in .companion/tasks and travels with git, so the export duplicates what git already carries and can carry something git never would: a stale copy; options: A) delete export+import, reverse R60, retire the flow page docs/flows/carry-tasks-to-another-machine.md, drop the 6 tests and the ship.sh queue.json special case — removes the duplication permanently; cost: a repo whose .companion/tasks is never committed loses the carry entirely, and it is a visible contract reversal B) keep the verbs but stop resume AUTO-importing, leaving it a manual command — kills today's exact failure with no contract change and no capability loss; cost: the footgun still fires for anyone who runs it by hand, and the duplication stays C) keep both and add a staleness guard so import refuses an export older than the newest task it would overwrite — safest of all; cost: the most machinery, guarding a mechanism you may not want D) leave as-is; rec: A — the export is now a stale duplicate of data git carries, and you told me drift is not something you want to manage; B is the honest cheaper step if you would rather not reverse a requirement today",
+  "status": "completed",
+  "done_when": "",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-05T16:40:00Z",
+      "text": "OWNER CHOSE A, and it is DONE: tq export/import deleted, R60 reversed in the contract, the carry flow page rewritten for git-only transport, 6 tests removed, the ship-time export step and the queue.json special case gone, matching_files deleted with them, and .companion/queue.json removed from the repo. 249 lines deleted against 54 added. All 18 mutations across tq/ship.sh/resume.sh caught; gate green."
+    }
+  ]
+}

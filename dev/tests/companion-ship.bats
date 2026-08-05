@@ -148,7 +148,7 @@ _repo() {  # $1=default-branch name
   git show-ref --verify -q refs/heads/main                                      # default survives the sweep
 }
 
-@test "ship.sh handoff: on the default branch — WIP moves to a wip/* branch, default untouched, queue rides the commit" {
+@test "ship.sh handoff: on the default branch — WIP moves to a wip/* branch, default untouched, work rides the commit" {
   _repo main
   "$ROOT/bin/tq" add "carry me" >/dev/null                                      # a queue to carry (R60)
   def_head="$(git rev-parse main)"
@@ -158,7 +158,7 @@ _repo() {  # $1=default-branch name
   cur="$(git rev-parse --abbrev-ref HEAD)"
   [[ "$cur" == wip/* ]]                                                         # WIP never lands on default
   [ "$(git rev-parse main)" = "$def_head" ]                                     # default untouched
-  git show --stat --format= HEAD | grep -q '.companion/queue.json'              # queue rides the commit
+  git show --stat --format= HEAD | grep -q 'wip.txt'                            # the WIP itself rides the commit
   git ls-remote --exit-code --heads origin "$cur" >/dev/null                    # pushed
 }
 
@@ -231,8 +231,6 @@ _repo() {  # $1=default-branch name
   [[ "$output" == *"preflight OK"* ]]
   [[ "$output" == *"branch: main"* ]]
   [[ "$output" == *"dirty.txt"* ]]                         # the summary step ran `git status`
-  [ -f .companion/queue.json ]                             # the R60 export step ran...
-  grep -q "carry me via preflight" .companion/queue.json   # ...and actually carried the open task
   rm check.sh
   run "$SHIP" preflight
   [ "$status" -eq 3 ]
