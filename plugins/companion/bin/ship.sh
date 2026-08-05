@@ -149,6 +149,11 @@ land() {
 
 
   git add -A
+  # A ship must never SNAPSHOT live mode state (R96·b). Mode flags are files in the repo, so
+  # `git add -A` was recording whatever happened to be set at that instant — a review pause, which
+  # deletes the autopilot flag, got committed as "autopilot off" and silently disarmed it later.
+  # Unstaging leaves any DELIBERATELY committed mode intact while dropping the transient churn.
+  git reset -q -- .companion/modes 2>/dev/null || true
   if git diff --cached --quiet; then
     # Nothing staged. That's fine IF unmerged commits already exist (the retry path: a previous
     # land bailed after committing, or the owner curated commits by hand) — proceed to merge.
@@ -262,6 +267,11 @@ handoff() {
   if [ -z "$cur" ] || [ "$cur" = "HEAD" ]; then die 9 "detached HEAD — check out a branch first"; fi
   git remote get-url origin >/dev/null 2>&1 || die 8 "no remote — git is the transport (R72); add one first"
   git add -A
+  # A ship must never SNAPSHOT live mode state (R96·b). Mode flags are files in the repo, so
+  # `git add -A` was recording whatever happened to be set at that instant — a review pause, which
+  # deletes the autopilot flag, got committed as "autopilot off" and silently disarmed it later.
+  # Unstaging leaves any DELIBERATELY committed mode intact while dropping the transient churn.
+  git reset -q -- .companion/modes 2>/dev/null || true
   git diff --cached --quiet && die 6 "nothing to hand off (clean tree, no changes)"
   if git diff --cached | grep -qE "$(companion_secret_re)"; then
     die 9 "staged diff matches a credential shape — unstage the secret before handing off"

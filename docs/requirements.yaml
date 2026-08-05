@@ -678,3 +678,19 @@
     - "the LEDGERS are repo state: a defect rate that resets with the container measures nothing (R96 stage 3)"
     - "tq orphans: state kinds are DERIVED from source, so dead state cannot hide (R96)"
 
+- id: R96·b
+  satisfies: [UN-3]
+  requirement: >
+    a ship never records transient mode state
+  note: >
+    Moving mode flags into the repo (R96) made them tracked files, so ship.sh's `git add -A` began
+    snapshotting whatever mode happened to be set at that instant. A review PAUSE deletes the
+    autopilot flag, and one ship committed that deletion as a fact — autopilot then read off
+    afterwards, for no reason the owner could see. The queue and the rework ledger travelling is the
+    valuable half of R96 and is unaffected; this is the half that oscillated. The modes directory is
+    now unstaged after `git add -A` in both the land and handoff paths, so a deliberately committed
+    mode survives while transient churn is dropped, and the pause marker is gitignored outright —
+    a pause is a moment, not a fact about the project. Owner-decided 2026-08-05 from a 4-option menu.
+  verified_by:
+    - "ship.sh: a ship never SNAPSHOTS live mode state (R96·b)"
+

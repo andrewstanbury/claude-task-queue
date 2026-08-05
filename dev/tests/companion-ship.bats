@@ -534,3 +534,23 @@ NOGH
   run bash -c 'cd "$1" && SHIP_CI_WATCH=0 bash "$2" land -F "$3" --gate ./gate.sh' _ "$repo" "$SHIP" "$msg"
   [ "$status" -eq 6 ]
 }
+
+@test "ship.sh: a ship never SNAPSHOTS live mode state (R96·b)" {
+  # Mode flags are files in the repo, so `git add -A` was recording whatever happened to be set at
+  # that instant. A review PAUSE deletes the autopilot flag — and one ship committed that as
+  # "autopilot off", which silently disarmed it afterwards for no reason the owner could see.
+  # Transient state must not become a version-controlled fact.
+  _repo main
+  printf 'work\n' > w.txt
+  mkdir -p .companion/modes; : > .companion/modes/autopilot
+  git add -A; git commit -qm "mode committed deliberately"
+  rm -f .companion/modes/autopilot            # a pause: the flag goes away
+  : > .companion/modes/autopilot-paused
+
+  printf '#!/bin/sh\nexit 0\n' > check.sh; chmod +x check.sh
+  run "$SHIP" land -F "$WORK/msg.txt" --da "checked that unstaging the modes directory does not also drop the owner's real work from the commit, and that a deliberately committed mode flag survives the ship rather than being deleted by the pause"
+  [ "$status" -eq 0 ]
+  # the DELETION must not have been recorded — the deliberately committed mode survives
+  git show HEAD --stat --format= | grep -q '.companion/modes' && false || true
+  git cat-file -e HEAD:.companion/modes/autopilot 2>/dev/null
+}

@@ -10,3 +10,6 @@ tmp/
 .claude/worktrees/
 *.mutbak
 .ruff_cache/
+
+# Transient: pause is a moment, not a fact about the project (R96·b).
+.companion/modes/autopilot-paused
