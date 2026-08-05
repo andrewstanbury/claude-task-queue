@@ -1,0 +1,10 @@
+{
+  "id": "4",
+  "subject": "PERF#3: cut statusline process spawns toward 2",
+  "status": "cancelled",
+  "done_when": "measured ms per run materially lower; one git call and one jq pass; seds replaced by bash builtins; every hud bats case still passes",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "",
+  "notes": []
+}

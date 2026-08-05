@@ -80,7 +80,7 @@ plugins/companion/bin/stop-autopilot.sh::s@ || \[ "$STARTABLE" -eq 0 \]@@::the d
 plugins/companion/bin/tq::s@$st\[0\].id@$o[0].id@::the startable pointer reverts to the first OPEN task
 plugins/companion/bin/tq::s@select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)\]@select(true)]@::the stopfields pointer forgets dependencies entirely
 plugins/companion/bin/tq::s@\[(subj | match("after #(\[0-9\]+)";"g").captures\[0\].string)\]@[(subj|capture("after #(?<n>[0-9]+)").n)]@::stopfields honours only the FIRST blocker, so a task with two starts early
-plugins/companion/bin/stop-autopilot.sh::s@  companion_autopilot_clear "$root"@  :@::a drained queue leaves autopilot ARMED, so the next stop re-reads the same undrainable queue and nags again
+plugins/companion/bin/stop-autopilot.sh::s@^  rm -f "$cfile" 2>/dev/null$@  companion_autopilot_clear "$root"; rm -f "$cfile" 2>/dev/null@::a dry queue DISARMS autopilot again, so work queued later never drains without the owner re-arming
 check.sh::s@    \*) FAILED_SECTIONS="${FAILED_SECTIONS}${FAILED_SECTIONS:+;}$CUR" ;;@    *) : ;;@::a red verdict stops naming the section it went red in
 plugins/companion/bin/burn-down.sh::s@  if \[ "$left" -ge "$FINAL" \]; then@  if true; then@::the final stretch stops mattering — a projection keeps holding in the last hours, which is exactly the spend that never happens
 plugins/companion/bin/burn-down.sh::s@  cap=$(( MAXBRANCH + PERDAY \* (elapsed / 86400) ))@  cap="$MAXBRANCH"@::the branch cap stops growing with the elapsed window, so an unattended week halts on about day one

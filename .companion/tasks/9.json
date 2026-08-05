@@ -1,0 +1,10 @@
+{
+  "id": "9",
+  "subject": "sharpen requirements.yaml prose — 45 entries carry the old ledger summary as note: (after #38)",
+  "status": "cancelled",
+  "done_when": "no entry has a note: standing in for its requirement text; each states ONE observable behaviour",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "",
+  "notes": []
+}

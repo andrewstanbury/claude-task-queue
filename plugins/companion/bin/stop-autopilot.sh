@@ -111,8 +111,12 @@ if [ "$OPEN" -eq 0 ] || [ "$STARTABLE" -eq 0 ]; then
       exit 0
     fi
   fi
+  # STAY ARMED on a dry queue (owner-asked 2026-08-05, reversing the self-disarm of R88). The turn
+  # still ENDS — a queue with nothing startable must never block the session — but the flag is left
+  # alone, so work queued later drains without the owner re-arming by hand. R88 disarmed to stop a
+  # stale hook nagging; that nagging came from BLOCKING, not from staying armed, so allowing while
+  # armed keeps the fix and drops the side effect.
   rm -f "$cfile" 2>/dev/null
-  companion_autopilot_clear "$root"
   allow
 fi
 

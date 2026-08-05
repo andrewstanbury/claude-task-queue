@@ -1,0 +1,10 @@
+{
+  "id": "6",
+  "subject": "HOOK BUDGET: enforce a measured per-hook ceiling in check.sh (new R81)",
+  "status": "cancelled",
+  "done_when": "check.sh FAILS a hook exceeding its declared ms ceiling or doing history-scale work; ceilings recorded; proved by inflating one hook",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "",
+  "notes": []
+}

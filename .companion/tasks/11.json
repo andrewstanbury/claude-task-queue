@@ -1,0 +1,10 @@
+{
+  "id": "11",
+  "subject": "❓ [parked] the status line now exists TWICE and has already diverged 108 lines — options: A) fold companion-hud back: delete that repo, keep the plugin's one status line — one install, one source; the hud experiment already paid for itself by proving the trace-matrix approach we then applied repo-wide B) retire the plugin's status line: users install TWO things, cleanest separation but worst install story for a feature that is the product's front door C) vendor/sync the hud into the plugin at build time — contraindicated by R4, retired for exactly this D) accept the duplication and gate the two against each other; rec: A — a status line is the one thing every user sees, two installs for it is a real cost, and R4 says this repo has already tried and abandoned the sync route",
+  "status": "cancelled",
+  "done_when": "",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "",
+  "notes": []
+}

@@ -1,0 +1,10 @@
+{
+  "id": "10",
+  "subject": "move the 22 PRIN rows out of the ledger — needs.yaml already derives from them (after #38)",
+  "status": "cancelled",
+  "done_when": "docs/REQUIREMENTS.md holds requirements only; principles live once, not twice",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "",
+  "notes": []
+}

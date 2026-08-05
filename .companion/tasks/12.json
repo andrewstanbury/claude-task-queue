@@ -1,0 +1,10 @@
+{
+  "id": "12",
+  "subject": "❓ [parked] rev: requirements.yaml: ADD a requirement for the dependency-aware pointer — 'a task whose subject says after #N is not offered as startable while #N is still open, in BOTH tq report and the Stop hook, and a dangling reference never strands work'; because: 3.53.0 and today's stop-hook fix both implement it and neither is in the contract, so the trace gate counts their 5 tests as orphans; rec: add it — the behaviour already exists in two places and an unrecorded requirement is exactly the drift R58 exists to stop",
+  "status": "cancelled",
+  "done_when": "",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "",
+  "notes": []
+}

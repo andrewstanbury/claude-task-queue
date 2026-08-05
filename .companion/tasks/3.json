@@ -1,0 +1,10 @@
+{
+  "id": "3",
+  "subject": "PERF#2: statusline refreshInterval 3 + /companion:setup REPAIRS a wrong value",
+  "status": "cancelled",
+  "done_when": "setup rewrites an existing wrong refreshInterval instead of leaving it; this machine's settings.json is corrected to 3",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "",
+  "notes": []
+}

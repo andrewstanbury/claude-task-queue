@@ -1,0 +1,10 @@
+{
+  "id": "2",
+  "subject": "PERF#4: prune session task stores with no open tasks past an age",
+  "status": "cancelled",
+  "done_when": "an age-based prune removes only stores with ZERO open tasks; never touches a store with open/parked work; bats covers both",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "",
+  "notes": []
+}

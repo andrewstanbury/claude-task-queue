@@ -515,10 +515,14 @@
     Owner-asked 2026-08-02. Left armed, the next stop re-reads the same undrainable queue and nags
     again. Disarming is also the handoff: autopilot-off is what starts the parked-pile review
     (R38), so a drain that runs dry lands the owner exactly where the remaining decisions are.
+    REVERSED 2026-08-05, owner-asked: the mode now PERSISTS on a dry queue. The turn still ends —
+    an undrainable queue must never block the session — but the flag is left alone, so work queued
+    later drains without re-arming by hand. The nagging R88 was written against came from BLOCKING,
+    not from staying armed, so allowing-while-armed keeps the fix and drops the side effect.
     An EMPTY store is deliberately excluded — that is a session where autopilot was just armed and
     nothing has been queued yet, and disarming there would undo the owner's own command.
   verified_by:
-    - "autopilot DISARMS itself when the queue runs dry, both ways (R88)"
+    - "autopilot STAYS ARMED when the queue runs dry, and the turn still ends (R88 reversed)"
     - "modes COMPOSE: sweep keeps a rev: park workable, so the dry-queue disarm does not fire (R88/R77)"
 
 - id: R89

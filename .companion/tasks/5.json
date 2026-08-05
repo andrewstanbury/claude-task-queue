@@ -1,0 +1,10 @@
+{
+  "id": "5",
+  "subject": "PERF#5: trim capture.sh + secret-guard.sh jq passes",
+  "status": "cancelled",
+  "done_when": "one jq pass each; secret-guard's blocking behaviour byte-identical on every existing case (it fails safe, so change it last)",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "",
+  "notes": []
+}

@@ -1,0 +1,10 @@
+{
+  "id": "7",
+  "subject": "❓ [parked] TWO sources of truth now exist for requirements — resolve before either drifts — options: A) requirements.yaml becomes authoritative; REQUIREMENTS.md rows are folded into its prose and the .md retires to a generated view B) the .md stays authoritative and the .yaml is generated from it by a script C) leave both and gate them against each other; rec: A — the yaml is what trace.sh gates and what a machine can check, and a 111KB prose table is the thing that got us here",
+  "status": "cancelled",
+  "done_when": "",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "",
+  "notes": []
+}

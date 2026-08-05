@@ -560,10 +560,9 @@ _ux_flow_check() {
   jq -n '{id:"1",subject:"do it",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
   [ -z "$output" ]
-  # ...and a dry queue DISARMS autopilot (owner-asked). Left armed, the next stop re-reads the
-  # same undrainable queue and nags again — which it did four times in a row before this existed.
-  # Disarming is also the handoff: autopilot-off is what starts the parked-pile review (R38).
-  [ "$(cd "$repo" && "$AP" status)" = "off" ]
+  # ...and a dry queue leaves autopilot ARMED (R88 reversed 2026-08-05): the turn ends, but work
+  # queued later drains without the owner re-arming by hand.
+  [ "$(cd "$repo" && "$AP" status)" = "on" ]
 
   # explicitly off → ask-guard allows again
   ( cd "$repo" && "$AP" off ) >/dev/null
@@ -635,37 +634,38 @@ _ux_flow_check() {
   [[ "$(_reason | jq -r .reason)" == *"#40"* ]]      # both closed → startable
 }
 
-@test "autopilot DISARMS itself when the queue runs dry, both ways (R88)" {
+@test "autopilot STAYS ARMED when the queue runs dry, and the turn still ends (R88 reversed)" {
+  # R88 originally disarmed on a dry queue so a stale hook could not nag. The nagging came from
+  # BLOCKING, not from staying armed — so the turn still ends, and the flag is left alone, which is
+  # what lets work queued LATER drain without the owner re-arming by hand (owner, 2026-08-05).
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=dryT d="$CLAUDE_COMPANION_TASKS_DIR/dryT"
   mkdir -p "$d"; _stamp_root "$d" "$repo"
   _fire() { jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1; }
   _ap()   { ( cd "$repo" && "$AP" status ); }
 
-  # work remains → stays armed
   ( cd "$repo" && "$AP" on ) >/dev/null
   jq -n '{id:"1",subject:"real work",status:"pending"}' > "$d/1.json"
   _fire; [ "$(_ap)" = "on" ]
 
-  # WAY 1 — nothing open at all
+  # nothing open at all: the turn ends, but the mode persists
   jq -n '{id:"1",subject:"real work",status:"completed"}' > "$d/1.json"
-  _fire; [ "$(_ap)" = "off" ]
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
+  [ -z "$output" ]                                   # allowed — never block on an undrainable queue
+  [ "$(_ap)" = "on" ]
 
-  # WAY 2 — open work remains, but every task waits on an unanswered park. This is the case that
-  # nagged four turns in a row: the queue is NOT empty, so an open-count test alone misses it.
-  ( cd "$repo" && "$AP" on ) >/dev/null
+  # nothing STARTABLE (everything waits on an unanswered park): same rule
   rm "$d/1.json"
   jq -n '{id:"38",subject:"❓ [parked] decide",status:"pending"}' > "$d/38.json"
   jq -n '{id:"50",subject:"blocked work (after #38)",status:"pending"}' > "$d/50.json"
-  _fire; [ "$(_ap)" = "off" ]
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
+  [ -z "$output" ]
+  [ "$(_ap)" = "on" ]
 
-  # NO STORE AT ALL stays ARMED — deliberately not the same as "ran dry". A store with only
-  # completed tasks is evidence a drain happened and finished; an empty one is evidence of
-  # nothing, and is the normal state of a session where the owner just armed autopilot and no
-  # task has been queued yet. Disarming there would undo `autopilot on` on its very first stop.
-  ( cd "$repo" && "$AP" on ) >/dev/null
-  rm -f "$d"/*.json
-  _fire; [ "$(_ap)" = "on" ]
+  # and work queued LATER drains without re-arming, which is the point of the reversal
+  jq -n '{id:"38",subject:"❓ [parked] decide",status:"completed"}' > "$d/38.json"
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
+  [[ "$output" == *"#50"* ]]
 }
 
 @test "check.sh: a red verdict NAMES the section it went red in, and never double-counts (R89)" {
@@ -744,7 +744,7 @@ _ux_flow_check() {
   run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | CLAUDE_COMPANION_STATE_DIR="$3" CLAUDE_COMPANION_TASKS_DIR="$4" "$5"' \
       _ "$r" "$sid" "$st" "$tk" "$STOP"
   run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" "$3" status' _ "$r" "$st" "$AP"
-  [ "$output" = "off" ]                           # ...and disarms there too (R88)
+  [ "$output" = "on" ]                            # ...and stays armed there too (R88 reversed)
 
   # --- the burn loop: two agreeing samples, then a real branch ---
   mkdir -p "$st/burndown"; touch "$(_flagpath "$st" burndown "$r")"
@@ -786,8 +786,8 @@ _ux_flow_check() {
   [ "$(cd "$repo" && "$AP" status)" = "on" ]                   # ...so the disarm must NOT fire
 
   ( cd "$repo" && "$AP" on && "$AP" sweep off ) >/dev/null
-  _fire; [ -z "$output" ]                                      # no sweep: nothing workable...
-  [ "$(cd "$repo" && "$AP" status)" = "off" ]                  # ...and now it disarms
+  _fire; [ -z "$output" ]                                      # no sweep: nothing workable, turn ends
+  [ "$(cd "$repo" && "$AP" status)" = "on" ]                   # ...but the mode persists (R88 reversed)
 }
 
 @test "boundary lint: derives thresholds from SOURCE and catches a pinned fixture (R92)" {
@@ -922,7 +922,7 @@ _ux_flow_check() {
   # burn-down OFF: a drained queue stands down and disarms, exactly as before (R88 unchanged)
   ( cd "$r" && CLAUDE_COMPANION_STATE_DIR="$st" "$AP" on ) >/dev/null
   _fire; [ -z "$output" ]
-  [ "$(cd "$r" && CLAUDE_COMPANION_STATE_DIR="$st" "$AP" status)" = "off" ]
+  [ "$(cd "$r" && CLAUDE_COMPANION_STATE_DIR="$st" "$AP" status)" = "on" ]   # armed (R88 reversed)
 
   # burn-down ARMED + an underspent 7d window + two agreeing samples (R90) → it takes obvious work
   mkdir -p "$st/burndown"; touch "$(_flagpath "$st" burndown "$r")"

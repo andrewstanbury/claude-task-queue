@@ -1,0 +1,10 @@
+{
+  "id": "1",
+  "subject": "PERF#1: batch companion_open_tasks — one jq, not one per task file",
+  "status": "cancelled",
+  "done_when": "single jq invocation over matching files; measured >5x faster on the real store; identical output (byte-compare before/after); resume + session-start tests pass",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "",
+  "notes": []
+}

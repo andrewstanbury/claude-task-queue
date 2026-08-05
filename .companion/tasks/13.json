@@ -1,0 +1,10 @@
+{
+  "id": "13",
+  "subject": "❓ [parked] rev: the SAME decision was implemented twice and diverged — tq report grew the dependency filter, the Stop hook did not, and the hook then offered unstartable work for four turns; options: A) the Stop hook shells out to `tq` for its pointer instead of re-deriving it in its own jq B) extract the selection jq into lib/ and source it from both C) leave both and rely on the mutation pair to keep them honest; rec: A — one implementation, and the hook already depends on the store layout anyway; cost is one subprocess per stop",
+  "status": "cancelled",
+  "done_when": "",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "",
+  "notes": []
+}
