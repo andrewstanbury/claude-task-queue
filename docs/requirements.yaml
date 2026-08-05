@@ -435,6 +435,7 @@
     - "burndown-branch: refuses a slug that collides with the default branch (R82)"
     - "burn-down: in the FINAL STRETCH only actual usage counts, and the branch cap lifts (R82)"
     - "drained queue HANDS OFF to burn-down instead of standing down (R82 wiring)"
+    - "candidates: the ladder escalates small-first and ends at a REBUILD before inventing (R82/R94)"
 
 - id: R83
   satisfies: [UN-1]

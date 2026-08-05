@@ -1074,6 +1074,45 @@ _ux_flow_check() {
   [[ "$output" == *"legacy-event"* ]]; [[ "$output" == *"ci-red"* ]]
 }
 
+@test "candidates: the ladder escalates small-first and ends at a REBUILD before inventing (R82/R94)" {
+  # The owner asked for small work first, escalating as it is exhausted. That is a ladder of
+  # PROVENANCE, not of size: a complexity dial was asked for and rejected because the agent would
+  # be scoring its own work unauditably (contract-guard.sh). A repeatedly-FAILING component is the
+  # largest recorded signal there is, so it ranks after every cleanup and before invention.
+  local r st; r="$(_tmpd)"; st="$(_tmpd)"
+  git -C "$r" init -q -b main
+  git -C "$r" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  _cand() { run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" REWORK_ROOT="$1" "$3"' _ "$r" "$st" "$ROOT/bin/candidates.sh"; }
+
+  # nothing recorded → invention, explicitly labelled, at the BOTTOM of the ladder
+  _cand; [[ "$output" == *"|invent|"* ]]
+
+  # three recorded FAILURES against one file make it a rebuild candidate, ranked above invention
+  local RW="$ROOT/bin/rework.sh"
+  for k in gate-fail ci-red hole; do
+    run env CLAUDE_COMPANION_STATE_DIR="$st" REWORK_ROOT="$r" bash "$RW" record "$k" src/flaky.js
+  done
+  _cand
+  [[ "$output" == *"5|rework|"* ]]; [[ "$output" == *"src/flaky.js"* ]]
+  [[ "$output" != *"|invent|"* ]]                 # invention is suppressed while a signal remains
+
+  # a genuine TODO in source outranks the rebuild — small work first
+  mkdir -p "$r/src"; printf '// TODO: bound the retry loop\n' > "$r/src/a.js"
+  git -C "$r" add -A; git -C "$r" -c user.email=t@t -c user.name=t commit -q -m todo
+  _cand
+  [[ "$output" == "3|todo|"* ]]
+
+  # ...but PROSE about TODO markers in the contract is not a task. Excluding markdown alone was
+  # never the rule; this repo's contract is yaml, and its own description of the scanner was being
+  # offered as work to do.
+  local r2 st2; r2="$(_tmpd)"; st2="$(_tmpd)"
+  git -C "$r2" init -q -b main
+  mkdir -p "$r2/docs"; printf 'note: >\n  Covers TODO detection across ecosystems\n' > "$r2/docs/contract.yaml"
+  git -C "$r2" add -A; git -C "$r2" -c user.email=t@t -c user.name=t commit -q -m c
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" REWORK_ROOT="$1" "$3"' _ "$r2" "$st2" "$ROOT/bin/candidates.sh"
+  [[ "$output" != *"|todo|"* ]]
+}
+
 @test "resume: carried tasks render the done-when + LATEST note sub-lines (R56 G2 — R47/PR126 resume enrichment)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local sid=rEn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
@@ -2218,7 +2257,7 @@ _bd_setup() {
   _cand() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" bash "$ROOT/bin/candidates.sh"; }
 
   # Nothing recorded at all → says so, out loud, as rank 5.
-  _cand; [ "$status" -eq 0 ]; [[ "$output" == 5\|invent\|* ]]; [[ "$output" == *"INVENTED"* ]]
+  _cand; [ "$status" -eq 0 ]; [[ "$output" == 6\|invent\|* ]]; [[ "$output" == *"INVENTED"* ]]
 
   # A ROADMAP item outranks invention — and a CHECKED item is done, so it must not appear.
   printf '# R\n- [ ] add a dark theme\n- [x] shipped already\n' > "$d/ROADMAP.md"

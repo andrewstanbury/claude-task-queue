@@ -18,7 +18,9 @@
 #   2 roadmap  an unchecked `- [ ]` item in a ROADMAP — stated intent, explicitly not yet built.
 #   3 todo     a TODO/FIXME/XXX in tracked source — a note-to-self left at the point of pain.
 #   4 gap      a contract page documenting behaviour with NO automated test referenced.
-#   5 invent   NOTHING recorded remains. Emitted only when 1-4 are empty, and marked so the build
+#   5 rework   a component the rework ledger flags as repeatedly FAILING (R94) — the largest
+#              recorded-signal work, so it ranks after every cleanup and before invention.
+#   6 invent   NOTHING recorded remains. Emitted only when 1-5 are empty, and marked so the build
 #              step can treat it with the suspicion it deserves.
 #
 # Output: one candidate per line, `<rank>|<source>|<text>`. Empty output means nothing to do,
@@ -73,9 +75,12 @@ if [ "$found" -lt "$LIMIT" ]; then
   # block. A generator that feeds on its own definition is not grounded, it is a mirror.
   #   · `:!*.md` — markdown is prose and checklists, not code annotations. Genuine intent recorded
   #     in markdown is already rank 2, so nothing is lost by declining to read it as rank 3.
+  #   · `:!*.yaml`/`:!*.yml` — the same lesson, found again: this repo's CONTRACT is yaml, and its
+  #     prose describing the TODO scanner was offered as a TODO to act on. Excluding markdown alone
+  #     was never the rule; the rule is that documentation is not a note-to-self left in code.
   #   · this file — self-exclusion is the general rule, not a special case: a tool must never
   #     propose work sourced from its own explanation of what it looks for.
-  done < <(git -C "$root" grep -nIE '(TODO|FIXME|XXX)[: ]' -- . ':!*.md' ':!*.markdown' 2>/dev/null \
+  done < <(git -C "$root" grep -nIE '(TODO|FIXME|XXX)[: ]' -- . ':!*.md' ':!*.markdown' ':!*.yaml' ':!*.yml' 2>/dev/null \
            | grep -vE '(^|/)(dev/tests|node_modules|vendor)/' \
            | grep -vF "${SELF##*/}" \
            | sed -e 's/[[:space:]]*$//' | head -"$LIMIT")
@@ -95,9 +100,25 @@ if [ "$found" -lt "$LIMIT" ]; then
   done
 fi
 
-# 5 — NOTHING RECORDED REMAINS. Say so explicitly rather than inventing quietly. A caller that
-# treats rank 5 like ranks 1-4 has defeated the entire design, so it is labelled, not disguised.
+# 5 — A COMPONENT THAT KEEPS FAILING (R94 ledger). Ranked here deliberately: the owner asked for
+# small work first, escalating as it is exhausted, and a rebuild is the LARGEST recorded-signal
+# work there is — so it sits after every cleanup and before invention. The signal is objective and
+# already computed: a file implicated in repeated FAILURES, never a self-assessed "complexity".
+# That distinction is the whole reason this is a ladder of PROVENANCE rather than of size — a
+# complexity dial was asked for and rejected (contract-guard.sh) because the agent would be scoring
+# its own work, unauditably. Cheap by construction: one small append-only file, tail-bounded (R81).
+if [ "$found" -lt "$LIMIT" ]; then
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    emit 5 rework "$line has failed repeatedly — a bounded rebuild beats another patch"
+    [ "$found" -lt "$LIMIT" ] || break
+  done < <("$(dirname "$0")/rework.sh" report 2>/dev/null \
+             | sed -n 's/^  ⟳ \([^ ]*\) implicated.*/\1/p')
+fi
+
+# 6 — NOTHING RECORDED REMAINS. Say so explicitly rather than inventing quietly. A caller that
+# treats rank 6 like ranks 1-5 has defeated the entire design, so it is labelled, not disguised.
 if [ "$found" -eq 0 ]; then
-  emit 5 invent "no recorded signal remains — any work from here is INVENTED and must be treated as a proposal, not a task"
+  emit 6 invent "no recorded signal remains — any work from here is INVENTED and must be treated as a proposal, not a task"
 fi
 exit 0

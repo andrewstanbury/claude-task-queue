@@ -104,3 +104,5 @@ plugins/companion/lib/companion.sh::s@companion_rework_file() { printf .%s/.comp
 plugins/companion/bin/burndown-branch.sh::s@MANIFEST_DIR="$root/.companion/burndown-manifests"@MANIFEST_DIR="/tmp/companion-manifests-$$"@::burn-down manifests leave the repo, so the record of WHY a branch exists dies with the container
 plugins/companion/bin/tq::s@elif \[ -n "$_qroot" \]; then@elif false; then@::the repo store is bypassed, so a fresh clone drains nothing
 plugins/companion/lib/companion.sh::s@  if \[ "$scoped" -eq 0 \]; then@  if false; then@::the flat repo store stops being scanned, so carried tasks vanish from resume
+plugins/companion/bin/candidates.sh::s@emit 5 rework "$line has failed@emit 5 zzzNEVER "$line has failed@::a repeatedly-failing component stops being offered as work, so the ladder ends at invention instead of a rebuild
+plugins/companion/bin/candidates.sh::s@':!\*.yaml' ':!\*.yml' @@::the TODO scanner reads the yaml CONTRACT again, offering its own prose as work
