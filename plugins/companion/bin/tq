@@ -22,13 +22,23 @@ SID="${CLAUDE_COMPANION_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"
 # absolutely; otherwise the store lives in the repo so a fresh container inherits the queue instead
 # of starting empty. A session already in the legacy home store keeps working there, so upgrading
 # never orphans an in-flight queue.
+# The repo store is FLAT: one id space per repo, no session subdirectory. Session partitioning is
+# why a clone could carry tasks its own drain could not see — this reads one directory, and a fresh
+# container always has a new session id. An explicit CLAUDE_COMPANION_TASKS_DIR is a GLOBAL store by
+# definition and keeps its partitioning. Mirrors lib/companion.sh companion_session_dir, which tq
+# cannot source because it is deliberately standalone.
 _qroot="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || true)"
-if [ -n "${CLAUDE_COMPANION_TASKS_DIR:-}" ]; then STORE="$CLAUDE_COMPANION_TASKS_DIR"
-elif [ -n "$_qroot" ]; then STORE="$_qroot/.companion/tasks"
-else STORE="$HOME/.claude/companion/tasks"; fi
-DIR="$STORE/$SID"
-if [ -z "${CLAUDE_COMPANION_TASKS_DIR:-}" ] && [ ! -d "$DIR" ] && [ -d "$HOME/.claude/companion/tasks/$SID" ]; then
-  STORE="$HOME/.claude/companion/tasks"; DIR="$STORE/$SID"
+_qlegacy="$HOME/.claude/companion/tasks/$SID"
+if [ -n "${CLAUDE_COMPANION_TASKS_DIR:-}" ]; then
+  STORE="$CLAUDE_COMPANION_TASKS_DIR"; DIR="$STORE/$SID"
+elif [ -d "$_qlegacy" ]; then
+  # A session already living in the legacy store never migrates mid-flight, or its queue would
+  # SPLIT across two stores. New sessions use the repo store.
+  STORE="$HOME/.claude/companion/tasks"; DIR="$_qlegacy"
+elif [ -n "$_qroot" ]; then
+  STORE="$_qroot/.companion/tasks"; DIR="$STORE"
+else
+  STORE="$HOME/.claude/companion/tasks"; DIR="$_qlegacy"
 fi
 
 usage() { cat >&2 <<'EOF'

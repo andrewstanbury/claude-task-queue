@@ -175,16 +175,26 @@ companion_tasks_dir() {  # $1 repo root (optional)
   if [ -n "${1:-}" ] && [ -d "${1:-}" ]; then printf '%s/.companion/tasks' "$1"; return 0; fi
   printf '%s' "$HOME/.claude/companion/tasks"
 }
-# A session ALREADY LIVING in the legacy home store keeps working there. Upgrading must never
-# orphan an in-flight queue — the owner has open work in one right now.
+# The repo store is FLAT — one id space per repo, no session subdirectory (owner-decided
+# 2026-08-04). Session partitioning made sense when the store was GLOBAL and shared across every
+# project; inside a repo it partitions something that is conceptually one queue, and it was the
+# reason a clone could carry tasks that its own drain could not see: report and stopfields read one
+# session directory, and a fresh container always has a new session id.
+#
+# An explicit CLAUDE_COMPANION_TASKS_DIR keeps its session subdirectory: that is a GLOBAL store by
+# definition, so it still needs partitioning, and it is how the suite isolates.
+# A session already living in the legacy home store keeps working there — upgrading must never
+# orphan an in-flight queue.
 companion_session_dir() {  # $1 repo root · $2 session id
-  local repo legacy
-  repo="$(companion_tasks_dir "${1:-}")/${2:-}"
+  local store legacy
+  store="$(companion_tasks_dir "${1:-}")"
   legacy="$HOME/.claude/companion/tasks/${2:-}"
-  if [ -z "${CLAUDE_COMPANION_TASKS_DIR:-}" ] && [ ! -d "$repo" ] && [ -d "$legacy" ]; then
-    printf '%s' "$legacy"; return 0
-  fi
-  printf '%s' "$repo"
+  if [ -n "${CLAUDE_COMPANION_TASKS_DIR:-}" ]; then printf '%s/%s' "$store" "${2:-}"; return 0; fi
+  # A session ALREADY LIVING in the legacy store never migrates mid-flight — otherwise its queue
+  # would SPLIT, with old tasks in one store and new ones in another. New sessions use the repo.
+  if [ -d "$legacy" ]; then printf '%s' "$legacy"; return 0; fi
+  if [ -n "${1:-}" ] && [ -d "${1:-}" ]; then printf '%s' "$store"; return 0; fi
+  printf '%s' "$legacy"
 }
 
 # Open (pending/in_progress) task subjects for a repo, across every session dir whose `.root`
@@ -219,6 +229,12 @@ companion_open_tasks() {
   # caught by the isolation tests, and exactly the cross-project bleed this store is scoped to stop.
   scoped=1
   if [ -z "${CLAUDE_COMPANION_TASKS_DIR:-}" ] && [ "$store" = "$repostore" ]; then scoped=0; fi
+  # The repo store is FLAT, so its tasks sit directly in it rather than under a session directory.
+  if [ "$scoped" -eq 0 ]; then
+    set -- "$store"/*.json
+    [ -f "$1" ] && files+=("$@")
+    continue
+  fi
   for d in "$store"/*/; do
     [ -d "$d" ] || continue
     # Marker files are read with the `read` BUILTIN, not `$(cat …)`: this runs on SessionStart and

@@ -656,7 +656,14 @@
     stale legacy flag resurrects a mode the owner turned off. Found while building it: arming a mode
     now dirties the working tree, and burndown-branch refuses a dirty tree — so arming burn-down
     disabled burn-down. The guard exists to refuse the OWNER's uncommitted work, not plugin state,
-    and is now scoped to that. First stage of the state move; the task store and ledgers follow.
+    and is now scoped to that. INCOMPLETE, stated here rather than discovered later: stage 2 carries
+    the queue with the repo, but `report` and `stopfields` remain scoped to the CURRENT session id,
+    and a clone or container always has a new one — so the resume scan finds carried tasks while the
+    DRAIN saw an empty queue. RESOLVED in stage 3b: the repo store is FLAT — one id space per repo,
+    no session subdirectory — so any session in the repo reads the same queue. An explicit
+    CLAUDE_COMPANION_TASKS_DIR is a global store by definition and keeps its partitioning, and a
+    session already living in the legacy home store never migrates mid-flight, or its queue would
+    SPLIT across two stores.
   verified_by:
     - "modes are REPO state: they survive a wiped state dir and do not block burn-down (R96)"
     - "the QUEUE is repo state: it survives into a fresh clone with no home state (R96 stage 2)"

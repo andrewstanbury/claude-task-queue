@@ -1015,7 +1015,19 @@ _ux_flow_check() {
   local r hbase; r="$(_tmpd)"; git -C "$r" init -q; hbase="$(_tmpd)"
   run bash -c 'cd "$1" && env -u CLAUDE_COMPANION_TASKS_DIR HOME="$2" CLAUDE_COMPANION_SESSION_ID=s1 "$3" add "ship the widget"' _ "$r" "$hbase" "$TQ"
   [ "$status" -eq 0 ]
-  [ -f "$r/.companion/tasks/s1/1.json" ]          # stored IN the repo, not under $HOME
+  [ -f "$r/.companion/tasks/1.json" ]             # stored IN the repo, FLAT — no session subdir
+
+  # THE POINT OF FLATTENING: a DIFFERENT session must see the queue. A clone or container always
+  # has a new session id, and while the store was session-partitioned the tasks travelled with the
+  # repo while the drain read an empty directory — the data was there and the system could not use
+  # it. This assertion is the one that was missing when that shipped.
+  run bash -c 'cd "$1" && env -u CLAUDE_COMPANION_TASKS_DIR HOME="$2" CLAUDE_COMPANION_SESSION_ID=OTHER "$3" stopfields false' _ "$r" "$hbase" "$TQ"
+  [[ "$output" == *"ship the widget"* ]]
+
+  # ...and the RESUME path must read the flat store too, or a carried queue drains but never gets
+  # re-surfaced after a compaction. The mutation gate reported exactly this branch as a hole.
+  run bash -c 'cd "$1" && env -u CLAUDE_COMPANION_TASKS_DIR HOME="$2" "$3"' _ "$r" "$hbase" "$RESUME"
+  [[ "$output" == *"ship the widget"* ]]
 
   # a fresh container: a copy of the repo, and a home directory with nothing in it
   local c h; c="$(_tmpd)"; h="$(_tmpd)"
@@ -1028,13 +1040,13 @@ _ux_flow_check() {
   local ext; ext="$(_tmpd)"; mkdir -p "$ext/s2"
   run bash -c 'cd "$1" && HOME="$4" CLAUDE_COMPANION_TASKS_DIR="$2" CLAUDE_COMPANION_SESSION_ID=s2 "$3" add "elsewhere"' _ "$r" "$ext" "$TQ" "$hbase"
   [ -f "$ext/s2/1.json" ]
-  [ ! -f "$r/.companion/tasks/s2/1.json" ]
+  [ ! -f "$ext/s2/2.json" ]                       # ...and did not land in the repo store either
 
   # a session ALREADY in the legacy home store keeps working there — upgrading orphans nothing
   local h2; h2="$(_tmpd)"; mkdir -p "$h2/.claude/companion/tasks/s3"
   run bash -c 'cd "$1" && env -u CLAUDE_COMPANION_TASKS_DIR HOME="$2" CLAUDE_COMPANION_SESSION_ID=s3 "$3" add "legacy work"' _ "$r" "$h2" "$TQ"
   [ -f "$h2/.claude/companion/tasks/s3/1.json" ]
-  [ ! -d "$r/.companion/tasks/s3" ]
+  [ ! -f "$r/.companion/tasks/2.json" ]           # legacy session kept its own store
 }
 
 @test "the LEDGERS are repo state: a defect rate that resets with the container measures nothing (R96 stage 3)" {
