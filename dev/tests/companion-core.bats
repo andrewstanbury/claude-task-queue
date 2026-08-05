@@ -973,13 +973,21 @@ _ux_flow_check() {
 
   # the flag is a file IN THE REPO, so git carries it to a cloud agent or a fresh container
   [ -f "$r/.companion/modes/autopilot" ]
+  # ...AND the legacy location, because the CLI runs from the repo while HOOKS are served from the
+  # installed cache — writer and reader are routinely different versions of this plugin. New code
+  # reads the legacy flag; OLD code cannot read the new one. Writing only the repo flag left
+  # `autopilot on` reporting ON while the installed Stop hook saw OFF and stood down every turn,
+  # with work sitting in the queue. Dual-write is what makes the move survivable across versions.
+  [ -f "$(_flagpath "$h1" autopilot "$r")" ]
   run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" status' _ "$r" "$h2" "$AP2"
   [ "$output" = "on" ]                       # h2 is a BRAND-NEW state dir: $HOME wiped
 
   # off must clear it everywhere, or a stale flag resurrects a mode the owner turned off
-  ( cd "$r" && CLAUDE_COMPANION_STATE_DIR="$h2" bash "$AP2" off ) >/dev/null
+  ( cd "$r" && CLAUDE_COMPANION_STATE_DIR="$h1" bash "$AP2" off ) >/dev/null
   run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" status' _ "$r" "$h1" "$AP2"
   [ "$output" = "off" ]
+  [ ! -f "$r/.companion/modes/autopilot" ]
+  [ ! -f "$(_flagpath "$h1" autopilot "$r")" ]     # BOTH cleared, or an old reader stays armed
 
   # a LEGACY home-scoped flag is still honoured, so upgrading does not silently lose a mode...
   local r2 h3; r2="$(_tmpd)"; git -C "$r2" init -q; h3="$(_tmpd)"

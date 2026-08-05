@@ -82,11 +82,20 @@ companion_mode_on() {
   [ -f "$(companion_mode_flag "$1" "$2")" ] && return 0
   [ -f "$(companion_mode_legacy "$1" "$2")" ]
 }
+# DUAL-WRITE during the transition, and this is not belt-and-braces — it is structural. The CLI is
+# run from the REPO while hooks are served from the installed CACHE, so writer and reader are
+# routinely DIFFERENT VERSIONS of this plugin. New code reads the legacy flag, but old code cannot
+# read the new one, so writing only the repo flag left `autopilot on` reporting ON while the
+# installed Stop hook saw OFF and stood down every turn. Measured on the owner's machine: the queue
+# had work, the CLI said armed, and nothing ever ran. Drop the legacy write once the floor version
+# is past the move.
 companion_mode_set() {
   [ -n "${1:-}" ] || return 1
-  local f; f="$(companion_mode_flag "$1" "$2")"
+  local f g; f="$(companion_mode_flag "$1" "$2")"; g="$(companion_mode_legacy "$1" "$2")"
   mkdir -p "${f%/*}" 2>/dev/null || return 1
-  : > "$f" 2>/dev/null
+  : > "$f" 2>/dev/null || return 1
+  mkdir -p "${g%/*}" 2>/dev/null && : > "$g" 2>/dev/null
+  return 0
 }
 companion_mode_clear() {
   [ -n "${1:-}" ] || return 0

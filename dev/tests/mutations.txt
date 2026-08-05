@@ -51,9 +51,9 @@ plugins/companion/bin/tq::s@Run /companion:review — it asks the whole pile at 
 plugins/companion/bin/burndown-branch.sh::s@mkdir -p "$MANIFEST_DIR" || die@mkdir -p "$MANIFEST_DIR" 2>/dev/null; true || die@::a branch is opened even when its manifest cannot be written
 plugins/companion/bin/burndown-branch.sh::s@valid_slug "$slug" || die@true || die@::a slug can escape the manifest dir again via ../
 plugins/companion/bin/burn-down.sh::s@grep -cv -e '\^  ◻ \*❓' -e '\^  ◻ \*⏳'@grep -c '^  ◻'@::parks and blocked items block burn-down again, making rank 1 unreachable
-plugins/companion/bin/autopilot.sh::s@if ! { mkdir -p "$(dirname "$pflag")" 2>/dev/null \&\& : > "$pflag" 2>/dev/null; }; then@if false; then@::pause disarms autopilot without recording that it was armed
+plugins/companion/bin/autopilot.sh::s@if ! companion_mode_set "$root" autopilot-paused; then@if false; then@::pause disarms autopilot without recording that it was armed
 plugins/companion/bin/ask-guard.sh::s@if \[ -n "$parked_id" \]; then@if false; then@::a blocked question is denied without being parked — the block becomes a dead end
-plugins/companion/bin/autopilot.sh::s@if ! { mkdir -p "$(dirname "$aflag")" 2>/dev/null \&\& : > "$aflag" 2>/dev/null; }; then@if false; then@::resume destroys the paused marker without re-arming
+plugins/companion/bin/autopilot.sh::s@if ! companion_mode_set "$root" autopilot; then@if false; then@::resume destroys the paused marker without re-arming
 plugins/companion/bin/tq::s@if ( set -o noclobber; : > "$DIR/$id.json" ) 2>/dev/null; then@if true; then@::tq id allocation races again — concurrent adds silently overwrite each other
 plugins/companion/bin/burndown-branch.sh::s@case "$slug" in "$def"|main|master) die "slug@case "$slug" in zzzNEVER) die "slug@::start mints a branch discard can never remove
 plugins/companion/bin/ask-guard.sh::s@_tq="$(cd "$(dirname "$SELF")" 2>/dev/null \&\& pwd)/tq"@_tq="$(dirname "$SELF")/tq"@::a relatively-invoked hook silently writes no task while reporting success
@@ -106,3 +106,4 @@ plugins/companion/bin/tq::s@elif \[ -n "$_qroot" \]; then@elif false; then@::the
 plugins/companion/lib/companion.sh::s@  if \[ "$scoped" -eq 0 \]; then@  if false; then@::the flat repo store stops being scanned, so carried tasks vanish from resume
 plugins/companion/bin/candidates.sh::s@emit 5 rework "$line has failed@emit 5 zzzNEVER "$line has failed@::a repeatedly-failing component stops being offered as work, so the ladder ends at invention instead of a rebuild
 plugins/companion/bin/candidates.sh::s@':!\*.yaml' ':!\*.yml' @@::the TODO scanner reads the yaml CONTRACT again, offering its own prose as work
+plugins/companion/lib/companion.sh::s@  mkdir -p "${g%/\*}" 2>/dev/null && : > "$g" 2>/dev/null@  :@::mode flags stop dual-writing, so an OLDER installed hook sees autopilot OFF while the CLI says ON and the queue never drains

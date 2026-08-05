@@ -14,9 +14,8 @@ done
 
 cmd="${1:-status}"
 root="$(companion_root "$PWD")"
-flag="$(companion_autopilot_flag "$root")"
 case "$cmd" in
-  on)  mkdir -p "$(dirname "$flag")" 2>/dev/null && : > "$flag" \
+  on)  companion_mode_set "$root" autopilot \
        && echo "✈️  autopilot ON for $root — I'll keep draining the queue and PARK decisions (❓) / owner-actions (⏳) until you turn it off. I may SATISFY the recorded contract but not rewrite it (R86): a change to docs/requirements.yaml gets parked for you, and docs/needs.yaml is never mine to edit." ;;
   off) companion_autopilot_clear "$root"
        # An explicit OFF outranks any pending resume: clear the paused marker so a review that
@@ -33,7 +32,7 @@ case "$cmd" in
          # while printing a message promising it would come back — destroying the exact state this
          # verb exists to protect. Failing loudly with autopilot still ON is the safe direction:
          # the review cannot ask, which is visible, rather than the drain quietly never resuming.
-         if ! { mkdir -p "$(dirname "$pflag")" 2>/dev/null && : > "$pflag" 2>/dev/null; }; then
+         if ! companion_mode_set "$root" autopilot-paused; then
            echo "autopilot NOT paused — could not record the paused state at $pflag, so refusing to disarm (autopilot stays ON)." >&2
            exit 1
          fi
@@ -50,7 +49,7 @@ case "$cmd" in
          # and the exact defect `pause` had just been fixed for. A half-corrected class is worse
          # than an uncorrected one: the ledger says it is handled.
          aflag="$(companion_autopilot_flag "$root")"
-         if ! { mkdir -p "$(dirname "$aflag")" 2>/dev/null && : > "$aflag" 2>/dev/null; }; then
+         if ! companion_mode_set "$root" autopilot; then
            echo "autopilot NOT resumed — could not re-arm at $aflag. The paused marker is KEPT, so run resume again once the state dir is writable." >&2
            exit 1
          fi
@@ -60,34 +59,34 @@ case "$cmd" in
          echo "autopilot was not paused by a review — leaving it off."
        fi ;;
   status) companion_autopilot_on "$root" && echo on || echo off ;;
-  ship) sub="${2:-status}"; sflag="$(companion_ship_flag "$root")"
+  ship) sub="${2:-status}"
     case "$sub" in
-      on)  mkdir -p "$(dirname "$sflag")" 2>/dev/null && : > "$sflag" \
+      on)  companion_mode_set "$root" ship \
            && echo "📦 ship-mode ON for $root — while autopilot is on I'll auto-commit completed work to an autopilot/* branch (never main, never a push), for you to review + /companion:ship-it on return." ;;
       off) companion_mode_clear "$root" ship; echo "ship-mode OFF for $root — autopilot won't auto-commit." ;;
       status) companion_ship_on "$root" && echo on || echo off ;;
       *) echo "usage: autopilot ship on|off|status" >&2; exit 1 ;;
     esac ;;
-  decisive) sub="${2:-status}"; dflag="$(companion_decisive_flag "$root")"
+  decisive) sub="${2:-status}"
     case "$sub" in
-      on)  mkdir -p "$(dirname "$dflag")" 2>/dev/null && : > "$dflag" \
+      on)  companion_mode_set "$root" decisive \
            && echo "⚡ decisive mode ON for $root — while autopilot is on I'll PICK my recommended option for reversible decisions (design/wording included) and record each, instead of parking. I still park (❓) / block (⏳) only what's irreversible, externally-binding, or destructive. Review the auto-picks any time with /companion:review." ;;
       off) companion_mode_clear "$root" decisive; echo "decisive mode OFF for $root — autopilot parks decisions (❓) again instead of auto-deciding." ;;
       status) companion_decisive_on "$root" && echo on || echo off ;;
       *) echo "usage: autopilot decisive on|off|status" >&2; exit 1 ;;
     esac ;;
-  burndown) sub="${2:-status}"; bflag="$(companion_burndown_flag "$root")"
+  burndown) sub="${2:-status}"
     case "$sub" in
-      on)  mkdir -p "$(dirname "$bflag")" 2>/dev/null && : > "$bflag" \
+      on)  companion_mode_set "$root" burndown \
            && echo "🔥 burn-down ON for $root — when the 7d window is forecast to end UNDERSPENT and the queue is empty, I may GENERATE work from signals you already recorded (parked decisions with a rec:, ROADMAP items, TODOs, untested flows) and build each on a burndown/* branch behind a flag that defaults OFF. Nothing merges, nothing pushes. It stops on its own once 3 branches are awaiting your review — check them with: burndown-branch.sh list. This is the only mode that authors its own work; turn it off with: /companion:autopilot burndown off" ;;
       off) companion_mode_clear "$root" burndown; echo "burn-down OFF for $root — I will idle rather than generate work." ;;
       status) if companion_burndown_on "$root"; then echo on; else echo off; fi ;;
       *) echo "usage: autopilot.sh burndown on|off|status" >&2; exit 2 ;;
     esac
     exit 0 ;;
-  sweep) sub="${2:-status}"; wflag="$(companion_sweep_flag "$root")"
+  sweep) sub="${2:-status}"
     case "$sub" in
-      on)  mkdir -p "$(dirname "$wflag")" 2>/dev/null && : > "$wflag" \
+      on)  companion_mode_set "$root" sweep \
            && echo "🧹 sweep mode ON for $root — while autopilot is on I'll also work the ALREADY-parked ❓ pile, applying each item's recorded recommendation. Only reversible options-parks: anything irreversible becomes ⏳ for you, and decompose: parks + ⏳ are never touched. Every pick is a tq note — walk them with /companion:review." ;;
       off) companion_mode_clear "$root" sweep; echo "sweep mode OFF for $root — the parked ❓ pile waits for you again (autopilot stops when only ❓/⏳ remain)." ;;
       status) companion_sweep_on "$root" && echo on || echo off ;;
