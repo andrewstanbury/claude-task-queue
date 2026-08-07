@@ -12,9 +12,12 @@ Not decisions (the ledger) nor in-flight work (the queue).
   lead byte into the variable name → `set -u` crash on macOS. Always brace: `${B}🛡`.
 - **jq `+` THROWS on a non-string** — `.a + "\n" + .b` emits nothing when `.b` is an array/object
   (NotebookEdit's `new_source`), so the caller reads empty and **fails open**. `| tostring` always.
-- **BSD is not GNU — shipped red CI three times.** `\?`/`\+`/`\|` in `sed`/`grep` are GNU extensions
+- **BSD is not GNU — shipped red CI FOUR times.** `\?`/`\+`/`\|` in `sed`/`grep` are GNU extensions
   BSD reads as LITERALS; an escaped `^` in a BRE differs too; BSD `wc -c` pads with spaces, so a
-  digits-only guard reads garbage and zeroes the value. Strip: `wc -c < f | tr -d '[:space:]'`.
+  digits-only guard reads garbage and zeroes the value (strip: `wc -c < f | tr -d '[:space:]'`);
+  **a `sed` brace ADDRESS needs `;` before `}`** (`1{/^$/d}` errors "extra characters" on BSD sed;
+  `1{/^$/d;}` works both ways) — board.sh shipped this to macOS CI, R98/99. Prefer `awk` over a
+  brace-address `sed` for this shape; it has no dialect split here.
 - **`printf '%s'` writes NO trailing newline**, so `read` returns 1 *having set the variable*. Test
   the VARIABLE, never `read`'s status — `read x < f && use "$x"` silently drops every such file
   (`.repo`/`.root` markers, the autopilot continue-file).

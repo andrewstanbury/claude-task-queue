@@ -161,11 +161,16 @@ fi
 # tells every session to append to it — so each new lesson was paid for by deleting a true one.
 # Marker policed exactly as STEERING's: zero → the whole file injects (cap silently under-measured),
 # two+ → the awk cut truncates at the first while this gate still reads green.
+# 6144 -> 6528 (2026-08-07) funds the FOURTH BSD-sed-vs-GNU-sed incident record (R98/99's board.sh
+# shipped a brace-address sed missing its required `;` before `}`, red on macOS CI only — the exact
+# class this file already existed to stop repeating). ~248B = ~60 tokens/session against a trap
+# that has now shipped red four times; the lesson earns its place in the injected core precisely
+# because it keeps recurring.
 les_n="$(grep -c 'lessons injection stops here' docs/LESSONS.md 2>/dev/null || true)"
 if [ -f docs/LESSONS.md ] && [ "${les_n:-0}" -ne 1 ]; then
   echo "  FAIL docs/LESSONS.md: 'lessons injection stops here' marker count is ${les_n:-0}, must be exactly 1"; tok_fail=1; failsec
 fi
-for spec in "CLAUDE.md:4096" "docs/LESSONS.md:6144"; do
+for spec in "CLAUDE.md:4096" "docs/LESSONS.md:6528"; do
   f="${spec%%:*}"; cap="${spec##*:}"; [ -f "$f" ] || continue
   # Measure what session-start actually injects (same awk, same fail-open) — not the whole file.
   b="$(awk '/lessons injection stops here/{exit} {print}' "$f" | wc -c | tr -d '[:space:]')"

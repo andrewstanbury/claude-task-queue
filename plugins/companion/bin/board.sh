@@ -88,7 +88,7 @@ else
       section("⏳ BLOCKED — owner-only manual jobs";$b;lnr("⏳")),
       section("⛔ RULED OUT";$rlist;ln("⛔";$live)),
       section("✔ DONE";$d;"  ✔ #"+(.id|tostring)+"  "+clean)
-  ' "${files[@]}" 2>/dev/null | sed '1{/^$/d}'
+  ' "${files[@]}" 2>/dev/null | awk 'NR==1 && /^$/{next} {print}'
 fi
 
 # Read-only: what burn-down's provenance ranking (candidates.sh, R82) would propose next if there
