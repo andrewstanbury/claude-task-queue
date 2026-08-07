@@ -17,6 +17,7 @@ setup() {
   DEV="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"
   AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
+  BOARD="$ROOT/bin/board.sh"
   DRIFT="$ROOT/bin/contract-drift.sh"   # R58 living contract (drift backstop)
   export CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)"   # the companion's OWN store, not ~/.claude/tasks
   export CLAUDE_COMPANION_STATE_DIR="$(_tmpd)"   # autopilot flags live here
@@ -2201,7 +2202,11 @@ _bd_setup() {
   local d; d="$(_tmpd)"; git -C "$d" init -q
   git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
   local tk; tk="$(_tmpd)"
-  _cand() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" bash "$ROOT/bin/candidates.sh"; }
+  # REWORK_ROOT must be isolated too (found by a DA pass, 2026-08-07): rank 5 shells out to
+  # rework.sh, which without an explicit root falls back to $PWD — the REAL repo this suite runs
+  # from, not this test's temp dir. Dormant until the real repo's own rework ledger crossed the
+  # rebuild threshold; a real event (recorded honestly) then made THIS test flake.
+  _cand() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" REWORK_ROOT="$d" bash "$ROOT/bin/candidates.sh"; }
 
   # Nothing recorded at all → says so, out loud, as rank 5.
   _cand; [ "$status" -eq 0 ]; [[ "$output" == 6\|invent\|* ]]; [[ "$output" == *"INVENTED"* ]]
@@ -2276,7 +2281,7 @@ _bd_setup() {
   local d tk; d="$(_tmpd)"; git -C "$d" init -q; tk="$(_tmpd)"
   mkdir -p "$tk/sD"; _stamp_root "$tk/sD" "$d"
   printf '# R\n- [ ] add a dark theme\n' > "$d/ROADMAP.md"
-  _cd2() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" bash "$ROOT/bin/candidates.sh"; }
+  _cd2() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" REWORK_ROOT="$d" bash "$ROOT/bin/candidates.sh"; }
 
   jq -n '{id:"1",subject:"❓ [parked] decision: which cache backend? — options: A) x B) y; rec: A",status:"pending"}' > "$tk/sD/1.json"
   _cd2
@@ -2307,7 +2312,7 @@ _bd_setup() {
   printf 'x=1  # TODO: cache this\n'                 > "$d/a.sh"
   printf '# Guide\nWe write TODO: markers like this.\n' > "$d/guide.md"
   git -C "$d" add -A; git -C "$d" -c user.email=t@t -c user.name=t commit -q -m i
-  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" bash "$ROOT/bin/candidates.sh"
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" REWORK_ROOT="$d" bash "$ROOT/bin/candidates.sh"
   [ "$status" -eq 0 ]
   [[ "$output" == *"a.sh"* ]]        # a real annotation in code is still a candidate
   [[ "$output" != *"guide.md"* ]]    # prose about markers is not
@@ -2799,4 +2804,288 @@ _bd_setup() {
   rm "$d/2.json"
   run "$TQ" report
   [[ "$output" == *"→ next: #4"* ]]
+}
+
+# ── staleness / challenge (R97) ────────────────────────────────────────────────────────────────
+# The contract is a claim about what the owner still wants, and nothing was re-asking. These cover
+# the part that must be MECHANICAL: which requirements the work has moved out from under, on the
+# only axis each tier actually has. Whether a stale requirement should then be reversed is
+# judgement, and deliberately not testable here.
+
+# A repo whose single .bats holds TWO test blocks, so "per block, not per file" is observable.
+_stale_repo() {                                  # $1=dir
+  local d="$1"
+  mkdir -p "$d/dev/tests" "$d/docs"
+  cp dev/stale.sh "$d/dev/stale.sh"
+  git -C "$d" init -q
+  # printf, NOT a heredoc: bats preprocesses this very file and rewrites any line that STARTS with
+  # `@test` into a test function — including fixture text inside a quoted heredoc. That silently
+  # corrupted both the fixture and every helper defined after it, and the symptom was a drift of 0
+  # with no error anywhere. Keep `@test` off column 0 in this file.
+  printf -- '@test "alpha holds" {\n  marker=0\n  [ "$marker" -eq 0 ]\n}\n\n@test "beta holds" {\n  run true\n  [ "$status" -eq 0 ]\n}\n' \
+    > "$d/dev/tests/t.bats"
+}
+# Bump ONLY the alpha block. `sed -i` is spelled differently on GNU and BSD, so: temp file + mv.
+_bump_alpha() {                                  # $1=dir  $2=n
+  sed "s/marker=[0-9]*/marker=$2/" "$1/dev/tests/t.bats" > "$1/dev/tests/t.new"
+  mv "$1/dev/tests/t.new" "$1/dev/tests/t.bats"
+}
+_stale_commit() {                                # $1=dir  $2=YYYY-MM-DD  $3=msg
+  git -C "$1" add -A
+  GIT_AUTHOR_DATE="$2T12:00:00" GIT_COMMITTER_DATE="$2T12:00:00" \
+    git -C "$1" -c user.email=t@t -c user.name=t commit -q -m "$3"
+}
+_st() { printf '%s\n' "$output" | awk -v i="$1" '$1 == i { print $2; exit }'; }
+
+@test "stale: only the requirement whose OWN test block moved goes stale — same file, both tests (R97)" {
+  # THE design claim. 130 of this repo's tests live in one .bats, so a file-granular drift signal
+  # would give every requirement claiming a test in it the same score and the ranking would carry
+  # no information at all. Two requirements, one file, one block churning: only that one may fire.
+  local d; d="$(_tmpd)"; _stale_repo "$d"
+  cat > "$d/docs/requirements.yaml" <<'EOT'
+- id: R1
+  satisfies: [UN-1]
+  affirmed: 2020-01-01
+  affirmations: 0
+  requirement: >
+    alpha stays true
+  verified_by:
+    - "alpha holds"
+
+- id: R2
+  satisfies: [UN-1]
+  affirmed: 2020-01-01
+  affirmations: 0
+  requirement: >
+    beta stays true
+  verified_by:
+    - "beta holds"
+EOT
+  _stale_commit "$d" 2019-06-01 init
+  local i
+  for i in 1 2 3 4; do _bump_alpha "$d" "$i"; _stale_commit "$d" "2021-0$i-01" "churn $i"; done
+
+  run bash -c 'cd "$1" && dev/stale.sh' _ "$d"
+  [ "$status" -eq 0 ]
+  [ "$(_st R1)" = STALE ]      # 4 commits to its block, threshold 3
+  [ "$(_st R2)" = ok ]         # same FILE, untouched BLOCK — must not be billed for R1's churn
+}
+
+@test "stale: re-affirming multiplies the threshold, so a surviving requirement goes quiet (R97)" {
+  # Surviving a challenge is evidence. Without the backoff the same requirement is re-litigated
+  # every time its tests move, which is how a challenge mechanism turns into noise and gets muted.
+  local d; d="$(_tmpd)"; _stale_repo "$d"
+  _mkreq() {                                     # $1=affirmations
+    cat > "$d/docs/requirements.yaml" <<EOT
+- id: R1
+  satisfies: [UN-1]
+  affirmed: 2020-01-01
+  affirmations: $1
+  requirement: >
+    alpha stays true
+  verified_by:
+    - "alpha holds"
+EOT
+  }
+  _mkreq 0
+  _stale_commit "$d" 2019-06-01 init
+  local i
+  for i in 1 2 3 4; do _bump_alpha "$d" "$i"; _stale_commit "$d" "2021-0$i-01" "churn $i"; done
+
+  run bash -c 'cd "$1" && dev/stale.sh' _ "$d"
+  [ "$(_st R1)" = STALE ]                        # drift 4 >= base 3
+
+  _mkreq 1                                       # affirmed once -> threshold doubles to 6
+  run bash -c 'cd "$1" && dev/stale.sh' _ "$d"
+  [ "$(_st R1)" = ok ]
+  [[ "$output" == *"4/6"* ]]                     # and it SHOWS the raised bar, not just silence
+}
+
+@test "stale: a judgment-shaped requirement expires on CALENDAR — the only axis it has (R97)" {
+  # These name no test by construction, so there is no contact to measure. Age is all that is
+  # left; the alternative is exempting exactly the requirements nobody can verify.
+  local d; d="$(_tmpd)"; _stale_repo "$d"
+  cat > "$d/docs/requirements.yaml" <<'EOT'
+- id: R1
+  satisfies: [UN-1]
+  affirmed: 2020-01-01
+  affirmations: 0
+  judgment: "a ritual, not a code path"
+  requirement: >
+    the ritual is worth running
+  verified_by: []
+
+- id: R2
+  satisfies: [UN-1]
+  affirmed: 2199-01-01
+  affirmations: 0
+  judgment: "also a ritual"
+  requirement: >
+    the other ritual is worth running
+  verified_by: []
+EOT
+  _stale_commit "$d" 2019-06-01 init
+  run bash -c 'cd "$1" && dev/stale.sh' _ "$d"
+  [ "$status" -eq 0 ]
+  [ "$(_st R1)" = STALE ]                        # long past the 180d base
+  [ "$(_st R2)" = ok ]                           # affirmed in the future: nothing to ask about
+}
+
+@test "stale: advisory — it reports on a tree it cannot measure and never fails the build (R97/R28)" {
+  # The line R28 draws: code blocks, injects, or guarantees control flow. This does none of the
+  # three, so a non-zero exit from it would put a JUDGEMENT call into a gate, which is the exact
+  # mistake of asserting a requirement is dead because a clock ran out.
+  local d; d="$(_tmpd)"; mkdir -p "$d/dev" "$d/docs"; cp dev/stale.sh "$d/dev/stale.sh"
+
+  run bash -c 'cd "$1" && dev/stale.sh' _ "$d"   # no requirements file, no git repo
+  [ "$status" -eq 0 ]
+
+  git -C "$d" init -q; mkdir -p "$d/dev/tests"
+  printf -- '- id: R1\n  satisfies: [UN-1]\n  requirement: >\n    x\n  verified_by:\n    - "gone"\n' \
+    > "$d/docs/requirements.yaml"                # no affirmed:, and it claims a test that is absent
+  _stale_commit "$d" 2019-06-01 init
+  run bash -c 'cd "$1" && dev/stale.sh' _ "$d"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"NO affirmed"* ]]             # reported, loudly, and still exit 0
+}
+
+@test "trace: a requirement with no affirmed:/affirmations: stamp FAILS the shape gate (R97)" {
+  # stale.sh cannot date a requirement that carries no stamp, and an OPTIONAL field is a field
+  # that is missing on the next entry someone adds. The shape gate is where that is prevented.
+  local d; d="$(_tmpd)"; mkdir -p "$d/dev/tests" "$d/docs"; cp dev/trace.sh "$d/dev/trace.sh"
+  printf -- '- id: UN-1\n  need: >\n    a thing\n' > "$d/docs/needs.yaml"
+  printf -- '@test "alpha holds" {\n  run true\n}\n' > "$d/dev/tests/t.bats"
+  _tr() { run bash -c 'cd "$1" && dev/trace.sh' _ "$d"; }
+
+  printf -- '- id: R1\n  satisfies: [UN-1]\n  affirmed: 2026-08-02\n  affirmations: 0\n  requirement: >\n    x\n  verified_by:\n    - "alpha holds"\n' > "$d/docs/requirements.yaml"
+  _tr; [ "$status" -eq 0 ]
+
+  printf -- '- id: R1\n  satisfies: [UN-1]\n  affirmations: 0\n  requirement: >\n    x\n  verified_by:\n    - "alpha holds"\n' > "$d/docs/requirements.yaml"
+  _tr; [ "$status" -ne 0 ]; [[ "$output" == *"affirmed"* ]]
+
+  printf -- '- id: R1\n  satisfies: [UN-1]\n  affirmed: last tuesday\n  affirmations: 0\n  requirement: >\n    x\n  verified_by:\n    - "alpha holds"\n' > "$d/docs/requirements.yaml"
+  _tr; [ "$status" -ne 0 ]; [[ "$output" == *"affirmed"* ]]
+
+  printf -- '- id: R1\n  satisfies: [UN-1]\n  affirmed: 2026-08-02\n  requirement: >\n    x\n  verified_by:\n    - "alpha holds"\n' > "$d/docs/requirements.yaml"
+  _tr; [ "$status" -ne 0 ]; [[ "$output" == *"affirmations"* ]]
+}
+
+@test "board: groups tasks into the same typed lanes as tq report, done rendered as a real list" {
+  # tq report/delta collapse DONE to a count on purpose (R69 — injected every mutation); board is
+  # explicitly invoked and never injected, so it can afford to list completed tasks individually.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local d="$CLAUDE_COMPANION_TASKS_DIR/s1"; mkdir -p "$d"
+  jq -n '{id:"1",subject:"do the actual thing",status:"pending"}' > "$d/1.json"
+  jq -n '{id:"2",subject:"❓ [parked] pick a cache backend — options: A) sqlite B) files; rec: sqlite — vendored already",status:"pending"}' > "$d/2.json"
+  jq -n '{id:"3",subject:"first finished thing",status:"completed"}' > "$d/3.json"
+  jq -n '{id:"4",subject:"second finished thing",status:"completed"}' > "$d/4.json"
+  run env BOARD_ROOT="$repo" "$BOARD"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"◻ OPEN"* ]]; [[ "$output" == *"do the actual thing"* ]]
+  [[ "$output" == *"❓ PARKED"* ]]; [[ "$output" == *"└ rec: sqlite — vendored already"* ]]
+  # Both completed tasks are listed BY ID, not folded into a bare "✔2" count.
+  [[ "$output" == *"✔ #3  first finished thing"* ]]
+  [[ "$output" == *"✔ #4  second finished thing"* ]]
+}
+
+@test "board: an open task waiting on a live after #N shows the wait, not just silence" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local d="$CLAUDE_COMPANION_TASKS_DIR/s1"; mkdir -p "$d"
+  jq -n '{id:"1",subject:"first thing",status:"pending"}' > "$d/1.json"
+  jq -n '{id:"2",subject:"second thing after #1",status:"pending"}' > "$d/2.json"
+  run env BOARD_ROOT="$repo" "$BOARD"
+  [[ "$output" == *"#2  second thing after #1   ⧗ waiting on #1"* ]]
+  # #1 has nothing blocking it, so it carries no wait note.
+  [[ "$output" == *"#1  first thing"$'\n'* ]] || [[ "$output" == *"#1  first thing" ]]
+}
+
+@test "board: the beyond-the-queue section reflects candidates.sh, read-only" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  printf '# R\n- [ ] add a dark theme\n' > "$repo/ROADMAP.md"
+  git -C "$repo" add -A; git -C "$repo" -c user.email=t@t -c user.name=t commit -q -m r
+  run env BOARD_ROOT="$repo" "$BOARD"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"(queue empty)"* ]]
+  [[ "$output" == *"beyond the queue"* ]]; [[ "$output" == *"display only"* ]]
+  [[ "$output" == *"[roadmap] add a dark theme"* ]]
+}
+
+@test "tq add --context / tq context: sets and updates a task's context pointer (R99)" {
+  run "$TQ" add "wire the retry logic" --done "429 retried with backoff" --context "lib/http.go"
+  [ "$status" -eq 0 ]; [[ "$output" == *"context: lib/http.go"* ]]
+  [ "$(jq -r '.context' "$CLAUDE_COMPANION_TASKS_DIR/s1/1.json")" = "lib/http.go" ]
+
+  run "$TQ" context 1 "lib/http.go, lib/backoff.go"
+  [ "$status" -eq 0 ]; [[ "$output" == *"context set"* ]]
+  [ "$(jq -r '.context' "$CLAUDE_COMPANION_TASKS_DIR/s1/1.json")" = "lib/http.go, lib/backoff.go" ]
+
+  # Adding with no --context leaves the field empty, not absent — same convention as done_when.
+  run "$TQ" add "an unscoped task"
+  [ "$(jq -r '.context' "$CLAUDE_COMPANION_TASKS_DIR/s1/2.json")" = "" ]
+}
+
+@test "companion_open_tasks: context renders on resume alongside done_when, survives across sessions (R99)" {
+  # This IS the /clear-survival path: SessionStart fires with source:clear same as any other
+  # boundary, and companion_open_tasks is what it reads to re-surface still-open work.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local d="$CLAUDE_COMPANION_TASKS_DIR/sCtx"; mkdir -p "$d"; _stamp_root "$d" "$repo"
+  jq -n '{id:"1",subject:"wire the retry logic",status:"pending",done_when:"429 retried with backoff",context:"lib/http.go, lib/backoff.go"}' > "$d/1.json"
+  run bash -c 'cd "$1" && . "$2/lib/companion.sh" && companion_open_tasks "$(companion_root "$PWD")"' _ "$repo" "$ROOT"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"└ done when: 429 retried with backoff"* ]]
+  [[ "$output" == *"└ context: lib/http.go, lib/backoff.go"* ]]
+}
+
+@test "board: context and done_when render as continuation lines when present (R99)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local d="$CLAUDE_COMPANION_TASKS_DIR/s1"; mkdir -p "$d"
+  jq -n '{id:"1",subject:"wire the retry logic",status:"pending",done_when:"429 retried with backoff",context:"lib/http.go"}' > "$d/1.json"
+  run env BOARD_ROOT="$repo" "$BOARD"
+  [[ "$output" == *"└ done when: 429 retried with backoff"* ]]
+  [[ "$output" == *"└ context: lib/http.go"* ]]
+}
+
+@test "board: one corrupt task file is skipped, not a blank board (DA-caught)" {
+  # jq -rs ABORTS on the first unparseable file — companion_open_tasks was already burned by
+  # this exact shape (7 open tasks silently rendered as 0). board must not repeat it.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local d="$CLAUDE_COMPANION_TASKS_DIR/s1"; mkdir -p "$d"
+  jq -n '{id:"1",subject:"a fine task",status:"pending"}' > "$d/1.json"
+  printf '{not valid json' > "$d/2.json"
+  run env BOARD_ROOT="$repo" "$BOARD"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"a fine task"* ]]                       # the good task still renders
+  [[ "$output" == *"1 task file(s) unreadable"* ]]          # and the bad one is named, not silent
+  [[ "$output" != *"(queue empty)"* ]]
+}
+
+@test "board: waiting-on clears once the blocker is done, not forever (DA-caught)" {
+  # dep()'s select used \$live|index(.) — inside select, . rebinds to \$live itself, so it matched
+  # EVERY id regardless of liveness. #2 named two blockers; both are done here, so neither should show.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local d="$CLAUDE_COMPANION_TASKS_DIR/s1"; mkdir -p "$d"
+  jq -n '{id:"1",subject:"first thing",status:"completed"}' > "$d/1.json"
+  jq -n '{id:"2",subject:"second thing after #1 and after #3",status:"pending"}' > "$d/2.json"
+  jq -n '{id:"3",subject:"third thing",status:"completed"}' > "$d/3.json"
+  run env BOARD_ROOT="$repo" "$BOARD"
+  [[ "$output" == *"#2  second thing after #1 and after #3"* ]]
+  [[ "$output" != *"waiting on"* ]]
+
+  # A genuinely LIVE blocker still shows — and #1 (done) must not be named as a wait target,
+  # even though "#1" itself still legitimately appears in the subject text ("after #1").
+  jq -n '{id:"3",subject:"third thing",status:"pending"}' > "$d/3.json"
+  run env BOARD_ROOT="$repo" "$BOARD"
+  [[ "$output" == *"⧗ waiting on #3"* ]]
+  [[ "$output" != *"waiting on #1"* ]]; [[ "$output" != *"waiting on #1, #3"* ]]
+}
+
+@test "tq add: --context and --done cannot swallow each other as a value (DA-caught)" {
+  # tq add "s" --context --done "x" silently parsed --context's value as the literal "--done",
+  # then treated "x" as a SECOND bogus task subject instead of --done's value.
+  run "$TQ" add "subject" --context --done "x"
+  [ "$status" -ne 0 ]; [[ "$output" == *"--context needs a value"* ]]
+  [ ! -f "$CLAUDE_COMPANION_TASKS_DIR/s1/1.json" ]   # nothing was added on the refused call
+
+  run "$TQ" add "subject2" --done --context "y"
+  [ "$status" -ne 0 ]; [[ "$output" == *"--done needs a value"* ]]
 }

@@ -19,7 +19,7 @@ tests grammar (R61 gate, enforced by check.sh):
 - [improve-the-design](./improve-the-design.md) — advise → docs → redesign → cover
 - [patterns](./_patterns.md) · [quality-bar](./_quality-bar.md)
 
-## Slash commands (11)
+## Slash commands (12)
 *Parameters are stated **twice, on purpose**: the `description` is what you read while BROWSING the
 `/` menu, the `argument-hint` appears once you've picked the command. Descriptions lead with the
 argument shape (or `(no args)`) and stay under the 140B injection cap; hints stay under 80 chars.
@@ -38,7 +38,9 @@ options) ·
 `/companion:redesign [module]` (contract-preserving rebuild, check-gated passes; runs `docs` first;
 a named module = one pass) ·
 `/companion:burn-down` (build from RECORDED signals while the 7d window forecasts underspend; each result lands flagged-off on a `burndown/*` branch, nothing merges — the only mode that authors its own work, and it stops itself once 3 branches await review) · `/companion:docs [scope]` (record load-bearing decisions by pillar) · `/companion:cover [scope]`
-(recommend → scaffold flow tests).
+(recommend → scaffold flow tests) · `/companion:board` (visual queue board: typed lanes, done as a
+real list, deps + rec: legible; plus what burn-down's provenance rank would propose beyond the
+queue, read-only — R98).
 
 ## config
 - autopilot/ship/decisive via `/companion:autopilot` (`on|off`, `ship on|off`, `decisive on|off` [R59]) [E]

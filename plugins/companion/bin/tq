@@ -43,10 +43,12 @@ fi
 
 usage() { cat >&2 <<'EOF'
 tq — fallback task queue (native task tools gated off)
-  tq add "<subject>" [more...] [--done "<acceptance>"]   queue pending task(s) + delta line
+  tq add "<subject>" [more...] [--done "<acceptance>"] [--context "<files/flows>"]
+                                 queue pending task(s) + delta line
   tq doing <id> ["<breadcrumb>"] mark in progress (opt. crash-resume note) + delta line
   tq note  <id> "<breadcrumb>"   update the in-progress breadcrumb
-  tq done-when <id> "<accept>"   set/replace a task's done-when (survives compaction)
+  tq done-when <id> "<accept>"   set/replace a task's done-when (survives compaction/clear)
+  tq context <id> "<files>"      set/replace what's load-bearing for a task (survives compaction/clear)
   tq done  <id>                  mark completed + print the FULL report (completion boundary)
   tq cancel <id>                 retract a mis-queued task (cancelled; kept for audit, uncounted)
   tq list                        terse one-line-each queue
@@ -233,8 +235,19 @@ case "$cmd" in
     # --done "<acceptance>" (R30·d1) sets the done-when criterion for the task(s) added in this
     # call; remaining args are subjects. A task that carries its own acceptance re-derives the
     # right next action after a context compaction, not just "there's a thing called X".
-    dw=""; subs=()
-    while [ "$#" -gt 0 ]; do case "$1" in --done) shift; dw="${1:-}";; *) subs+=("$1");; esac; shift || true; done
+    # --context "<files/flows>" (R99) names the 2-4 things actually load-bearing for the task, so
+    # resuming after a compaction or a `/clear` means reading those, not re-exploring the repo to
+    # rediscover what's in play — the same survives-context-loss property done_when has, for scope
+    # instead of acceptance.
+    dw=""; ctx=""; subs=()
+    # Neither flag may swallow the OTHER as its value (was: `--context --done "x"` silently parsed
+    # --context's value as the literal string "--done" and turned "x" into a second bogus task) —
+    # refuse loudly instead of guessing which one the caller meant.
+    while [ "$#" -gt 0 ]; do case "$1" in
+      --done) shift; case "${1:-}" in --done|--context) echo "tq: --done needs a value" >&2; exit 1 ;; *) dw="${1:-}" ;; esac ;;
+      --context) shift; case "${1:-}" in --done|--context) echo "tq: --context needs a value" >&2; exit 1 ;; *) ctx="${1:-}" ;; esac ;;
+      *) subs+=("$1") ;;
+    esac; shift || true; done
     [ "${#subs[@]}" -gt 0 ] || { usage; exit 1; }
     # Stamp this session's store with its repo root (once), so resume can scope to a repo
     # without reading any native session transcript. tq runs in the repo the model is working.
@@ -242,8 +255,8 @@ case "$cmd" in
     [ -f "$DIR/.repo" ] || printf '%s' "$(repo_id)" > "$DIR/.repo" 2>/dev/null || true   # path-stable identity (survives moves)
     for s in "${subs[@]}"; do [ -n "$s" ] || continue
       id="$(claim_id)"          # claimed per subject, so a multi-add cannot stride over a racer
-      jq -n --arg id "$id" --arg s "$s" --arg dw "$dw" '{id:$id,subject:$s,status:"pending",done_when:$dw,blocks:[],blockedBy:[]}' >"$DIR/.$id.tmp" && mv "$DIR/.$id.tmp" "$DIR/$id.json"
-      echo "added #$id  $s${dw:+  (done when: $dw)}"; done
+      jq -n --arg id "$id" --arg s "$s" --arg dw "$dw" --arg ctx "$ctx" '{id:$id,subject:$s,status:"pending",done_when:$dw,context:$ctx,blocks:[],blockedBy:[]}' >"$DIR/.$id.tmp" && mv "$DIR/.$id.tmp" "$DIR/$id.json"
+      echo "added #$id  $s${dw:+  (done when: $dw)}${ctx:+  (context: $ctx)}"; done
     delta ;;
   doing) { [ "$#" -ge 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" in_progress "${2:-}"; echo "#$1 → in_progress"; delta ;;
   done) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" completed ""; echo "#$1 → completed"; echo; report ;;
@@ -251,6 +264,8 @@ case "$cmd" in
   note) { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }; append_note "$1" "$2"; echo "#$1 note added" ;;
   done-when|dw) { [ "$#" -eq 2 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: usage: tq done-when <id> \"<acceptance>\"" >&2; exit 1; }
     f="$DIR/$1.json"; t="$DIR/.$1.tmp"; jq --arg d "$2" '.done_when=$d' "$f" >"$t" && mv "$t" "$f"; echo "#$1 done-when set" ;;   # no delta: counts can't change (R69)
+  context|ctx) { [ "$#" -eq 2 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: usage: tq context <id> \"<files/flows>\"" >&2; exit 1; }
+    f="$DIR/$1.json"; t="$DIR/.$1.tmp"; jq --arg c "$2" '.context=$c' "$f" >"$t" && mv "$t" "$f"; echo "#$1 context set" ;;   # no delta: counts can't change (R69)
   # ORPHANED STATE (owner-decided 2026-08-05). Deleting a feature used to leave its state directory
   # behind forever: `captures/`, `review/`, `intent-*` and `reminded-*` all outlived the code that
   # wrote them, and the only way to know they were dead was to grep the source by hand.

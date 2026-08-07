@@ -1,7 +1,7 @@
 {
   "id": "19",
   "subject": "❓ [parked] rev: mode flags are committed by every ship, so TRANSIENT state becomes a version-controlled fact — evidence: I paused autopilot for a contract edit, ship.sh ran git add -A, and 2b17f1b recorded the flag's DELETION; autopilot then read off afterwards and the owner would have found it disarmed for no reason they could see. The queue and the rework ledger travelling is the valuable half of R96 and works correctly; modes are the half that oscillates; options: A) gitignore .companion/modes so modes are machine-local again — kills the oscillation outright; cost: a fresh clone or cloud agent starts with every mode OFF, which is exactly what R96 set out to fix B) keep committing modes but NEVER the transient autopilot-paused marker, and have ship.sh exclude the modes dir from its git add -A — keeps cloud inheritance and stops a review pause being recorded; cost: one more special case inside the ship rail C) keep committing everything and accept that a ship snapshots your current modes — simplest, and wrong in the way just demonstrated D) commit a DECLARED default (a checked-in modes file the owner edits) separate from the live flag; cost: two concepts where there was one; rec: B — it keeps the property R96 was built for while removing the only case that misfires, and the exclusion is one line in the same rail that caused it",
-  "status": "pending",
+  "status": "completed",
   "done_when": "",
   "blocks": [],
   "blockedBy": []

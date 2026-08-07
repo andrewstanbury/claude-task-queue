@@ -211,7 +211,7 @@ companion_session_dir() {  # $1 repo root · $2 session id
 # none. Shared by the SessionStart hook (auto-resume) and `bin/resume.sh` (manual).
 # The one render program, shared by the batched pass and its per-file fallback so the two can
 # never drift into printing different things for the same task.
-_COMPANION_TASK_RENDER='select(.status=="pending" or .status=="in_progress") | "  ◻ " + (.subject // "") + (if (.done_when//"")!="" then "\n       └ done when: " + .done_when else "" end) + (if ((.notes//[])|length)>0 then "\n       └ note: " + ((.notes[-1].text)//"") elif (.description//"")!="" then "\n       └ note: " + .description else "" end)'
+_COMPANION_TASK_RENDER='select(.status=="pending" or .status=="in_progress") | "  ◻ " + (.subject // "") + (if (.done_when//"")!="" then "\n       └ done when: " + .done_when else "" end) + (if (.context//"")!="" then "\n       └ context: " + .context else "" end) + (if ((.notes//[])|length)>0 then "\n       └ note: " + ((.notes[-1].text)//"") elif (.description//"")!="" then "\n       └ note: " + .description else "" end)'
 
 # NOTE: $1 must be a RESOLVED root (what companion_root returns). The `.root` stamps are written
 # resolved, so passing an unresolved path — e.g. $PWD after cd-ing through a symlink, which stays

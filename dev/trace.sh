@@ -47,6 +47,15 @@ for r in $sr_ids; do
   printf '%s' "$block" | grep -q 'verified_by:' || { echo "FAIL $r has no verified_by:"; fail=1; continue; }
   if printf '%s' "$block" | grep -q '^  judgment:'; then :   # judgement-shaped: validated by a human, not a case
   else printf '%s' "$block" | grep -qE '^\s+- "' || { echo "FAIL $r names no tests and is not marked judgment:"; fail=1; }; fi
+  # The staleness stamps (R97). Enforced HERE, in the shape gate, for one reason: a field that is
+  # optional is a field that is absent on the next entry someone adds, and dev/stale.sh cannot
+  # report on a requirement it cannot date. `affirmed:` is when a HUMAN last confirmed this is
+  # still wanted — editing the entry is not affirming it — and `affirmations:` is how many times
+  # it has survived a challenge, which is what multiplies its threshold.
+  printf '%s' "$block" | grep -qE '^  affirmed: [0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]*$' \
+    || { echo "FAIL $r has no well-formed \`affirmed: YYYY-MM-DD\` (R97 — stale.sh cannot date it)"; fail=1; }
+  printf '%s' "$block" | grep -qE '^  affirmations: [0-9]+[[:space:]]*$' \
+    || { echo "FAIL $r has no \`affirmations: <n>\` count (R97 — the challenge backoff has no exponent)"; fail=1; }
 done
 
 # The two directions between requirements and the suite.

@@ -30,16 +30,17 @@ on returning without asking. Ordinary replies get neither.
 - **Restate the outcome in one line** before you start — visible and correctable before it exists.
 - **The queue is `tq`** (`bin/tq`) — never native `TaskCreate`/`TodoWrite`. Break a request into
   concrete tasks, smallest blast first, dependency order. `--done "<acceptance>"` is the task's own
-  acceptance test and survives a compaction. `doing` / `note` / `done` **as you go** — one
-  breadcrumb on the active task is what a crash resumes from. Advance as you finish; **don't drain
+  acceptance test; `--context "<files>"` names what's load-bearing for it. Both survive a
+  compaction *and* `/clear`. `doing` / `note` / `done` **as you go** — one breadcrumb on the active
+  task is what a crash, compaction, or `/clear` resumes from. Advance as you finish; **don't drain
   the backlog unprompted**.
 - **`→ next:` is mechanical** (first *startable* task), not a verdict — when blast radius says
   otherwise, say so and pick differently.
 - **Keep the open queue minimal-blast (R65).** A plain `📋` is pre-cleared: routine, reversible,
-  verifiable. High-blast *because context is missing* → **decompose-park**: `❓ [parked] decompose:
-  <task> — risk: <why>; need: <the questions>`. Answers re-enter as minimal-blast children.
-  Irreducibly high-blast (push, migration, payment) → owner blesses it or it stays `⏳`. Never
-  auto-drain a `decompose:` park.
+  verifiable. High-blast *because context is missing or wide to gather* → **decompose-park**: `❓
+  [parked] decompose: <task> — risk: <why>; need: <the questions>`. Answers re-enter as
+  minimal-blast children, each carrying its own `--context`. Irreducibly high-blast (push,
+  migration, payment) → owner blesses it or it stays `⏳`. Never auto-drain a `decompose:` park.
 - **Satisfy the contract; never rewrite it (R86).** Meeting an existing requirement is ordinary.
   Changing or adding one is the owner's — park the delta. Authoring a **need** is never yours:
   needs define what "useful" means, so writing your own leaves nothing to measure against.
@@ -173,7 +174,26 @@ information — the model just wrote the op; full anchoring fires where it re-or
 **Why decompose-park (R65).** Options invented *without* the missing context are premature —
 parking them just moves the guesswork onto the owner. The interview shape (risk + specific
 questions) gets the context first; children then enter pre-cleared, which is what keeps
-unattended draining safe.
+unattended draining safe. A task that would need broad re-exploration just to scope is exactly as
+expensive to resume as a risky one is dangerous to auto-drain — the missing piece is size, not
+permission, but the fix is the same interview, and a decomposed child is cheap to context-load by
+construction (R99).
+
+**Why `--context` and not a hook that captures it for you (R99).** The owner asked how to avoid
+rework from lost or oversized context, and the honest floor is: nothing here can make an LLM
+deterministic, and nothing can *force* a good breadcrumb — both are judgment, and only
+block/inject/control-flow are hookable (R28). This repo already tried the two shapes that would
+have promised otherwise, and both were reversed. A `UserPromptSubmit` capture hook once banked
+every prompt "just in case" — retired (R58·a) when a full-repo grep found it had **zero readers**:
+data nobody consumes is pure cost (64ms/13 spawns per prompt, 456KB nobody read). A `PreCompact`
+hook once tried to protect state on the way *into* a context wipe — deleted (R32·d4) in favor of
+re-anchoring *after*, from durable state, which is what `session-start.sh` does today on both
+`compact` and `clear` (confirmed: `/clear` fires `SessionStart` with `source:"clear"`, same as any
+other boundary). `--context`/`--done` follow that surviving pattern: written by the model as
+ordinary task hygiene (same as `done_when` always was), with a real reader (`tq report`'s resume
+path, `board`), costing nothing when absent. What they don't do is guarantee I write them before
+you clear — that's still discipline, not a mechanism, and STEERING says so plainly rather than
+implying a hook covers it.
 
 **Why the menu is the default, never a wall.** The product's whole point is the
 recommendation posture (R5): a flat one-opinion answer to a decision-shaped request silently

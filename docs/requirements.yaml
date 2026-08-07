@@ -13,6 +13,8 @@
 
 - id: R6
   satisfies: [UN-6]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     the plugin is self-contained under its own root
   verified_by:
@@ -21,6 +23,8 @@
 
 - id: R7
   satisfies: [UN-1]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     hooks are best-effort and never break the triggering action
   verified_by:
@@ -32,6 +36,8 @@
 
 - id: R8
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     tq owns its store; never native task tools
   verified_by:
@@ -44,6 +50,8 @@
 
 - id: R26
   satisfies: [UN-1]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     autopilot is enforced and persisted per repo
   verified_by:
@@ -52,6 +60,8 @@
 
 - id: R29
   satisfies: [UN-2]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     /companion:advise exists and is critique-only
   judgment: "advise is a critique ritual — its value is the quality of the critique, not a code path"
@@ -59,6 +69,8 @@
 
 - id: R31
   satisfies: [UN-1]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     playtests are autopilot-conditional
   judgment: "whether a playtest is worth raising is a read of the situation"
@@ -66,6 +78,8 @@
 
 - id: R33
   satisfies: [UN-2]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     under autopilot, taste choices are parked not auto-decided
   verified_by:
@@ -73,6 +87,8 @@
 
 - id: R34
   satisfies: [UN-3]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     ship-mode auto-commits to a work branch
   verified_by:
@@ -84,6 +100,8 @@
 
 - id: R35
   satisfies: [UN-3]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     ship-it merges to default and prunes merged branches
   verified_by:
@@ -92,6 +110,8 @@
 
 - id: R37
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     GLOSSARY layer, consulted on demand
   judgment: "a glossary term is useful or it is not; no assertion decides that"
@@ -99,6 +119,8 @@
 
 - id: R38
   satisfies: [UN-2]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     autopilot-off starts the parked-pile review
   verified_by:
@@ -106,6 +128,8 @@
 
 - id: R39
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     resume is a triage handoff, class-preserving
   verified_by:
@@ -119,6 +143,8 @@
 
 - id: R40
   satisfies: [UN-2]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     ship-it output is review-optimized
   judgment: ""review-optimized" is a judgement about prose a reviewer reads"
@@ -126,6 +152,8 @@
 
 - id: R41
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     /companion:docs grounds the ledger, tiered
   verified_by:
@@ -133,6 +161,8 @@
 
 - id: R42
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     parked/blocked is a prefix-view, never a status value
   verified_by:
@@ -140,6 +170,8 @@
 
 - id: R43
   satisfies: [UN-3]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     the secret gate covers every content-writing tool
   verified_by:
@@ -156,6 +188,8 @@
 
 - id: R44
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     tq writes are atomic
   verified_by:
@@ -163,6 +197,8 @@
 
 - id: R47
   satisfies: [UN-2]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     tq report is compact and never renders done_when
   verified_by:
@@ -175,6 +211,8 @@
 
 - id: R50
   satisfies: [UN-3]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     per-repo flags gate the enforced core; fail-safe lock
   verified_by:
@@ -185,6 +223,8 @@
 
 - id: R55
   satisfies: [UN-3]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     redesign logs UX and quality attributes only
   verified_by:
@@ -192,6 +232,8 @@
 
 - id: R57
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     ship-it is contract-aware
   verified_by:
@@ -199,6 +241,8 @@
 
 - id: R58
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     the living contract stays accurate
   verified_by:
@@ -206,6 +250,8 @@
 
 - id: R59
   satisfies: [UN-1]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     decisive mode
   verified_by:
@@ -215,6 +261,8 @@
 
 - id: R60
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     the queue travels with the repository, carried by git alone
   note: >
@@ -231,6 +279,8 @@
 
 - id: R61
   satisfies: [UN-5]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     anti-drift gate on flow test references
   verified_by:
@@ -240,6 +290,8 @@
 
 - id: R63
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     task-store scoping keys on a per-worktree identity
   verified_by:
@@ -248,6 +300,8 @@
 
 - id: R64
   satisfies: [UN-6]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     no plugin-generated file at a governed repo's root
   verified_by:
@@ -255,6 +309,8 @@
 
 - id: R65
   satisfies: [UN-3]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     the open queue stays minimal-blast; decompose-park
   verified_by:
@@ -262,6 +318,8 @@
 
 - id: R69
   satisfies: [UN-7]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     injected artifacts are byte-capped; steering is two-tier
   verified_by:
@@ -272,6 +330,8 @@
 
 - id: R70
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     docs produces the boundary contract
   judgment: "the boundary contract is a modelling judgement, not an output to diff"
@@ -279,6 +339,8 @@
 
 - id: R71
   satisfies: [UN-7]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     the deterministic spine runs on a rail
   verified_by:
@@ -286,6 +348,8 @@
 
 - id: R72
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     one-call cross-machine handoff
   verified_by:
@@ -295,6 +359,8 @@
 
 - id: R74
   satisfies: [UN-5]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     land enforces a CI watch
   verified_by:
@@ -322,6 +388,8 @@
 
 - id: R75
   satisfies: [UN-2]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     a command's parameters are visible where it is invoked
   verified_by:
@@ -330,6 +398,8 @@
 
 - id: R76
   satisfies: [UN-7]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     the status line shows account rate-limit usage
   verified_by:
@@ -357,6 +427,8 @@
 
 - id: R77
   satisfies: [UN-1]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     sweep mode
   verified_by:
@@ -368,6 +440,8 @@
 
 - id: R78
   satisfies: [UN-5]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     the mutation gate refuses to certify what it did not observe
   verified_by:
@@ -387,6 +461,8 @@
 
 - id: R79
   satisfies: [UN-5]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     a watch that gives up does not report success
   verified_by:
@@ -394,6 +470,8 @@
 
 - id: R80
   satisfies: [UN-2]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     the posture is a stated default; the verdict is unconditional
   verified_by:
@@ -402,6 +480,8 @@
 
 - id: R81
   satisfies: [UN-7]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     a hook's cost stays bounded, and the bound is measured
   verified_by:
@@ -420,6 +500,8 @@
 
 - id: R82
   satisfies: [UN-1]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     burn-down mode
   verified_by:
@@ -442,6 +524,8 @@
 
 - id: R83
   satisfies: [UN-1]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     a review is transparent to autopilot
   verified_by:
@@ -451,6 +535,8 @@
 
 - id: R84
   satisfies: [UN-2]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     a blocked question parks itself
   verified_by:
@@ -461,6 +547,8 @@
 
 - id: R53
   satisfies: [UN-5]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     ledger-honesty rules — a hard measurement must name its evidence, and the lint that
     enforces this fails loudly rather than passing vacuously on unreadable input.
@@ -480,6 +568,8 @@
 
 - id: R48
   satisfies: [UN-5]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     the gates are wired — check.sh actually invokes each lint and gate it claims to run, so one
     can never quietly stop firing while the suite stays green.
@@ -488,6 +578,8 @@
 
 - id: R86
   satisfies: [UN-3, UN-2]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     while autopilot is armed, an agent may do work that SATISFIES the recorded contract but may not
     change it: an edit to the needs layer is refused outright, and an edit to the requirements layer
@@ -498,6 +590,8 @@
 
 - id: R87
   satisfies: [UN-1]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     a task whose subject names an unfinished blocker is never offered as startable, and the
     selection exists in exactly one place
@@ -512,6 +606,8 @@
 
 - id: R88
   satisfies: [UN-1]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     autopilot disarms itself once the queue runs dry, including when work remains that cannot start
   note: >
@@ -530,6 +626,8 @@
 
 - id: R89
   satisfies: [UN-5]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     a red gate names the section it went red in
   note: >
@@ -543,6 +641,8 @@
 
 - id: R90
   satisfies: [UN-5]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     generated work is never triggered by a single rate-limit reading
   note: >
@@ -557,6 +657,8 @@
 
 - id: R91
   satisfies: [UN-6]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     the plugin works in ecosystems and paths it has never seen
   note: >
@@ -572,6 +674,8 @@
 
 - id: R92
   satisfies: [UN-5]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     a test fixture cannot silently sit on a threshold the product compares against
   note: >
@@ -588,6 +692,8 @@
 
 - id: R93
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     recent changes git cannot see arrive unasked in every session
   note: >
@@ -604,6 +710,8 @@
 
 - id: R94
   satisfies: [UN-5]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     rework is counted and surfaced, and a repeatedly-failing component triggers a rebuild offer
   note: >
@@ -622,6 +730,8 @@
 
 - id: R80·b
   satisfies: [UN-2]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     the honest assessment rides the recommendation, and no reply closes with a verdict
   note: >
@@ -638,6 +748,8 @@
 
 - id: R95
   satisfies: [UN-4]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     a hypothesis the owner ruled out survives the conversation that closed it, and is never work
   note: >
@@ -653,6 +765,8 @@
 
 - id: R96
   satisfies: [UN-6]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     a mode belongs to the repo, not the machine, and survives a fresh container
   note: >
@@ -680,6 +794,8 @@
 
 - id: R96·b
   satisfies: [UN-3]
+  affirmed: 2026-08-02
+  affirmations: 0
   requirement: >
     a ship never records transient mode state
   note: >
@@ -694,3 +810,85 @@
   verified_by:
     - "ship.sh: a ship never SNAPSHOTS live mode state (R96·b)"
 
+
+- id: R97
+  satisfies: [UN-2]
+  affirmed: 2026-08-05
+  affirmations: 0
+  requirement: >
+    every requirement carries when it was last affirmed, and the ones the work has moved out from
+    under are reported for challenge — on contact where contact can be measured, on the calendar
+    only where it cannot
+  note: >
+    The contract is a claim about what the owner still WANTS, and nothing was re-asking. Owner idea
+    2026-08-05: weight requirements and let expired ones be put up for contradiction. Built on the
+    axis the evidence supported rather than the one first proposed — a requirement does not go stale
+    because time passed, it goes stale because the system underneath it moved. So drift = commits
+    touching a requirement's OWN verifying test blocks (`git log -L` per `@test` range, not per
+    file: 130 of 195 tests share one .bats, so file granularity would score every requirement in it
+    identically). `judgment:`-shaped entries name no test by construction and get the calendar,
+    because age is the only signal they have. LEVEL 0 (needs.yaml) never expires and carries no
+    stamp. Re-affirming multiplies the threshold (x2 drift, x3 calendar, capped) so what survives
+    challenge goes quiet and what keeps getting reversed stays loud — owner-directed, same day.
+    Advisory by construction (R28): `dev/stale.sh` always exits 0 and never edits the contract;
+    `dev/trace.sh` enforces only that the stamps EXIST, because an optional field is one the next
+    entry omits. Stale means EARNS A FRESH LOOK, never "reverse it".
+  verified_by:
+    - "stale: only the requirement whose OWN test block moved goes stale — same file, both tests (R97)"
+    - "stale: re-affirming multiplies the threshold, so a surviving requirement goes quiet (R97)"
+    - "stale: a judgment-shaped requirement expires on CALENDAR — the only axis it has (R97)"
+    - "stale: advisory — it reports on a tree it cannot measure and never fails the build (R97/R28)"
+    - "trace: a requirement with no affirmed:/affirmations: stamp FAILS the shape gate (R97)"
+
+- id: R98
+  satisfies: [UN-2]
+  affirmed: 2026-08-07
+  affirmations: 0
+  requirement: >
+    the queue can be rendered as a human-facing visual board — typed lanes, done shown as a real
+    list rather than a count, per-task dependency waits and rec: made legible — kept separate
+    from the terse injected report, plus a read-only view of what burn-down's provenance ranking
+    would propose beyond the queue
+  note: >
+    Owner-asked 2026-08-07: wanted an easy way to see what is in each queue and what is getting
+    priority, to review how the plugin is assessing risk and ROI. tq report/delta stay terse on
+    purpose (R69 — injected on every mutation); board is explicitly invoked and never injected,
+    so it can spend on legibility report cannot afford. Deliberately reuses the existing typed
+    lanes (▸/◻/❓/⏳/⛔/✔) and candidates.sh's existing provenance ranking (R82) rather than
+    inventing a taxonomy or a score — a self-scored complexity/value dial was proposed once
+    before and rejected (contract-guard.sh) because the agent would be scoring its own work,
+    unauditably; this keeps that line.
+  verified_by:
+    - "board: groups tasks into the same typed lanes as tq report, done rendered as a real list"
+    - "board: an open task waiting on a live after #N shows the wait, not just silence"
+    - "board: the beyond-the-queue section reflects candidates.sh, read-only"
+    - "board: one corrupt task file is skipped, not a blank board (DA-caught)"
+    - "board: waiting-on clears once the blocker is done, not forever (DA-caught)"
+
+- id: R99
+  satisfies: [UN-4, UN-7]
+  affirmed: 2026-08-07
+  affirmations: 0
+  requirement: >
+    a task can carry a context pointer (its load-bearing files/flows) alongside its acceptance
+    test, both surviving a compaction or a /clear the same way; decompose-park (R65) also triggers
+    on a task being too wide to scope without broad re-exploration, not only on risk
+  note: >
+    Owner-asked 2026-08-07, after reporting rework from lost or oversized context and wanting
+    /clear to be safe to run any time. The honest floor, stated plainly rather than implied away:
+    nothing here makes an LLM deterministic, and nothing can FORCE a breadcrumb — both are
+    judgment, and only block/inject/control-flow are hookable (R28). Confirmed before building:
+    `/clear` already fires SessionStart with source:"clear", which already re-surfaces every open
+    task's done_when/notes — so the actual gap was that a task's SCOPE (what to read) had nowhere
+    to live, only its acceptance criterion did. `--context` closes that, following the exact
+    pattern `--done` already proved: model-written, real reader (report's resume path, board),
+    zero cost when absent. Deliberately does NOT add a capture hook or a PreCompact hook — both
+    shapes were already tried here and reversed (R58·a: a capture hook with zero readers; R32·d4:
+    a PreCompact hook deleted in favor of re-anchoring after the fact from durable state), and a
+    third attempt (R80) to enforce model behavior via a per-prompt hook was rejected on the same
+    grounds. STEERING says this limit out loud instead of implying a hook covers it.
+  verified_by:
+    - "tq add --context / tq context: sets and updates a task's context pointer (R99)"
+    - "companion_open_tasks: context renders on resume alongside done_when, survives across sessions (R99)"
+    - "board: context and done_when render as continuation lines when present (R99)"
+    - "tq add: --context and --done cannot swallow each other as a value (DA-caught)"

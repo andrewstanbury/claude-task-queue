@@ -114,7 +114,15 @@ marker_n="$(grep -c 'injection stops here' plugins/companion/STEERING.md || true
 # silently truncates the core at the first occurrence while this gate keeps reading green.
 if [ "${marker_n:-0}" -ne 1 ]; then
   echo "  FAIL STEERING.md: 'injection stops here' marker count is ${marker_n:-0}, must be exactly 1"; tok_fail=1; failsec
-elif [ "${core_b:-0}" -gt 8192 ]; then
+elif [ "${core_b:-0}" -gt 8384 ]; then
+  # 8192 -> 8384 (2026-08-07) funds R99: `--context` alongside `--done` on a task (what's
+  # load-bearing for it survives a compaction/clear, the way the acceptance test always did), and
+  # decompose-park (R65) triggering on "wide to gather" as well as "risky" — a task that would need
+  # broad re-exploration to scope is exactly as expensive to resume as a risky one is dangerous to
+  # auto-drain. Owner-asked, after reporting rework from lost/oversized context; ~145B = ~35
+  # tokens/session, funding the one mechanism that actually helps (resuming from durable state)
+  # rather than a hook that can't be built here (see STEERING's on-demand rationale for why a
+  # capture/PreCompact-shaped fix was rejected twice already, R58·a/R32·d4).
   # 7808 -> 8192 (2026-08-03). THIRD raise in one day, which is itself a smell and is recorded as
   # one. It funds scoping the closing verdict to the agent's OWN work: unscoped, it drifted into
   # apportioning blame, and the owner was told "you should have suggested this two attempts ago"
@@ -146,7 +154,7 @@ elif [ "${core_b:-0}" -gt 8192 ]; then
   # This is still a 40% cut from 11097B, with the eight restored and ~380B of honest headroom.
   # A cap should track what the content genuinely needs; it stops being a budget the moment it
   # starts deciding what the content is allowed to say.
-  echo "  FAIL STEERING.md injected core: ${core_b}B > 8192B"; tok_fail=1; failsec
+  echo "  FAIL STEERING.md injected core: ${core_b}B > 8384B"; tok_fail=1; failsec
 fi
 # LESSONS is two-tier like STEERING (owner-picked 2026-08-01): the cap applies to what is actually
 # INJECTED, not to the file. Without the split the file was 5B under its ceiling while the process
@@ -173,7 +181,7 @@ if ! out="$(dev/doc-lint.sh ledger docs/adr/PROVENANCE.md)"; then
 fi
 [ "$led_fail" -eq 0 ] && echo "  ok (ledger measurements cite their evidence)"
 
-[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/8192B; command descriptions ≤140B; arg-taking commands hinted)"
+[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/8384B; command descriptions ≤140B; arg-taking commands hinted)"
 
 # NOTE: the contract-drift backstop (bin/contract-drift.sh) deliberately does NOT run here
 # (R58 amended 2026-07-22): a warning on every mid-work gate run — where drift is the normal

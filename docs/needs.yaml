@@ -12,6 +12,12 @@
 #
 # Seven. If this list grows past ten, the product has acquired a second purpose and should be split
 # rather than described.
+#
+# THIS LEVEL DOES NOT EXPIRE, and that is why it carries no `affirmed:` stamp while every
+# requirement does (R97). Requirements are mechanism and go stale when the system moves underneath
+# them; needs are the definition of "useful", and an agent that puts them on a timer and re-opens
+# them on its own schedule has no falsifiable standard left to be judged against. Changing one is
+# the owner's act, in the owner's words — never a challenge the tooling raises.
 
 - id: UN-1
   need: >

@@ -2,3 +2,7 @@
 1785879430 owner-supplied plugins/companion/bin/tq
 1785936939 owner-supplied plugins/companion/lib/companion.sh
 1785952474 owner-supplied .companion/modes
+1786123266 da-caught plugins/companion/bin/board.sh
+1786123266 da-caught plugins/companion/bin/tq
+1786124176 da-caught plugins/companion/bin/board.sh
+1786124176 da-caught dev/tests/companion-core.bats

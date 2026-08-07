@@ -88,6 +88,16 @@ the area, or when a gate points here.
   Running mutations only for the files you touched has the same blind spot by construction: a hole
   elsewhere is invisible precisely because you did not touch it. Before claiming a change is
   verified, either run the full `--mutate` or say plainly that mutation coverage was not checked.
+- **A test I write for code I just wrote tends to CONFIRM my own model of it, not falsify it —
+  and "this is just a display/read-only command" is not evidence it's low-risk.** `board.sh`
+  (2026-08-07) shipped its own passing tests, then a required DA pass found 3 real bugs in under
+  an hour: one file that could not parse silently blanked the ENTIRE render (no fallback, exit 0),
+  a `select($live|index(.))` filter that matched every id regardless of liveness (`.` rebinds to
+  `$live` inside `index(.)`, not the mapped element — verify jq `select`/`index` interactions by
+  running them, never by reading), and two new flags that could silently swallow each other as a
+  value. None were caught by tests I wrote myself. Run the DA pass at real depth on NEW code
+  regardless of how safe it looks — "read-only" is a property of intent, not of an untested
+  implementation.
 - **Never assert ABSENCE against a whole rendered line that embeds environment text.** The status
   line prints the project directory name; `_tmpd` generates a random one; a directory whose name
   happens to contain `5h` failed `[[ "$output" != *"5h"* ]]`. That is a red gate roughly once in
