@@ -42,12 +42,17 @@ anchored='AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,}|xox[baprs]-[0-9A-Za-z-]{10
 generic='(api[_-]?key|secret|password|token)[[:space:]]*[:=][[:space:]]*['"'"'"][A-Za-z0-9_/+.-]{12,}['"'"'"]'
 placeholder='(your|example|placeholder|xxx+|<[a-z]|changeme|dummy|redacted|test[_-]?(key|token|secret))'
 
-if printf '%s' "$content" | grep -qE "$anchored"; then
+# <<< herestrings, NOT `printf ... | grep -qE` (found during R100/Pass 5 fix-forward, same class
+# as dev/trace.sh's macOS break): under `pipefail`, `-q` exits the instant it finds a match, and
+# for content bigger than the pipe buffer a later printf write() can land on that closed pipe and
+# SIGPIPE — which flips the `if`'s truth value away from grep's own exit code. For a scanner whose
+# whole contract is "never fails open" (R50/R54), that is exactly the wrong direction to be racy in.
+if grep -qE "$anchored" <<< "$content"; then
   gate_off && exit 0
   echo "BLOCK: ${path:-this content} looks like it contains a real credential (a recognised key prefix). Move it to an env var or secret store before writing it — nothing will stop the write, but a committed key is irreversible. (CLAUDE_COMPANION_SECSCAN=0 overrides.)"
   exit 2
 fi
-if printf '%s' "$content" | grep -qiE "$generic" && ! printf '%s' "$content" | grep -qiE "$placeholder"; then
+if grep -qiE "$generic" <<< "$content" && ! grep -qiE "$placeholder" <<< "$content"; then
   gate_off && exit 0
   echo "WARN: ${path:-this content} has a possible hardcoded secret (a name=value literal). If it's real, move it to an env var or secret store."
 fi

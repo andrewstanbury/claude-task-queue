@@ -46,3 +46,5 @@
 1786224677 ci-red .companion/tasks/36.json
 1786224677 ci-red .companion/tasks/37.json
 1786224677 ci-red .github/workflows/ci.yml
+1786225413 ci-red .companion/rework
+1786225413 ci-red dev/tests/companion-core.bats

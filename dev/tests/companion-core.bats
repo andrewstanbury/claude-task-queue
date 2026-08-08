@@ -297,8 +297,12 @@ await client.close();
 }
 
 @test "MCP server: ship_land commits+merges to the default branch, matches bin/ship.sh land (Pass 5a)" {
+  # PERSISTENT identity, not -c-scoped: ship.sh land's own `git commit` runs as a separate
+  # subprocess (spawned by the MCP server) that does not inherit this command's -c flags, and CI
+  # runs with git identity scrubbed (GIT_CONFIG_GLOBAL=/dev/null) — this shipped red once (3.80.1).
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q -b main
-  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
+  git -C "$repo" commit -q --allow-empty -m init
   git -C "$repo" checkout -q -b autopilot/mcp-test
   echo hello > "$repo/f.txt"
   git -C "$repo" add f.txt

@@ -63,11 +63,18 @@ claimed=$(grep -oE '^\s+- "[^"]+"' docs/requirements.yaml | sed 's/.*- "//; s/"$
 actual=$(grep -hoE '^@test "[^"]+"' dev/tests/*.bats 2>/dev/null | sed 's/^@test "//; s/"$//' | sort -u)
 while IFS= read -r t; do
   [ -n "$t" ] || continue
-  printf '%s\n' "$actual" | grep -qxF "$t" || { echo "FAIL requirement names a test that does not exist: \"$t\""; fail=1; }
+  # <<< herestring, NOT `printf ... | grep -qxF` (R30·d8 — shipped red on macOS, not Linux): under
+  # `pipefail`, `-q` closes its stdin the instant it finds a match, and once the growing list of
+  # claimed/actual titles (203 tests, 64 requirements as of R100) outgrows the pipe buffer (~16KB
+  # on macOS vs ~64KB on Linux — exactly the platform split that made this Linux-invisible), a
+  # LATER printf write() lands on that closed pipe and SIGPIPEs — a real match then reads back as a
+  # pipeline FAILURE, so this gate could report a false FAIL depending on buffering, not content. A
+  # herestring hands grep the data directly, with no separate writer process left to race.
+  grep -qxF "$t" <<< "$actual" || { echo "FAIL requirement names a test that does not exist: \"$t\""; fail=1; }
 done <<< "$claimed"
 while IFS= read -r t; do
   [ -n "$t" ] || continue
-  printf '%s\n' "$claimed" | grep -qxF "$t" || { echo "FAIL test is claimed by no requirement: \"$t\""; fail=1; }
+  grep -qxF "$t" <<< "$claimed" || { echo "FAIL test is claimed by no requirement: \"$t\""; fail=1; }
 done <<< "$actual"
 
 n_un=$(printf '%s\n' "$need_ids" | grep -c .); n_sr=$(printf '%s\n' "$sr_ids" | grep -c .)
