@@ -278,7 +278,9 @@ await client.close();
 
   _mcp_call "$repo" '[{"name":"burndown_branch","arguments":{"action":"start","candidate":"9|todo|mcp parity candidate"}}]'
   [ "$status" -eq 0 ]
-  local slug; slug="$(printf '%s' "$output" | sed -n '/<<<burndown_branch>>>/{n;p}')"
+  # awk, not sed -n '/pat/{n;p}': BSD sed (macOS CI) requires a trailing ';' before '}' that GNU
+  # sed does not — the exact "BSD is not GNU" trap this repo's LESSONS.md already tracks.
+  local slug; slug="$(printf '%s' "$output" | awk '/<<<burndown_branch>>>/{getline; print; exit}')"
   [ -n "$slug" ]
   git -C "$repo" rev-parse --verify --quiet "burndown/$slug" >/dev/null   # real branch, seen by plain git
 
