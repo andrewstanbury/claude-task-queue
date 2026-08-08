@@ -1,0 +1,16 @@
+{
+  "id": "22",
+  "subject": "MCP verify: parity check task",
+  "status": "completed",
+  "done_when": "updated acceptance",
+  "context": "mcp-server/index.js",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "verifying",
+  "notes": [
+    {
+      "ts": "2026-08-08T14:21:02Z",
+      "text": "note from mcp"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "34",
+  "subject": "Pass 5a: expand companion-tq MCP server to cover autopilot.sh, board.sh, burn-down.sh, candidates.sh, burndown-branch.sh, ship.sh, resume.sh, rework.sh — thin wrappers, no reimplemented logic, parity-tested + mutation-covered like Pass 1's tq_* tools",
+  "status": "completed",
+  "done_when": "each script has an MCP tool group, verified byte-parity with its CLI, dev/trace.sh + check.sh green",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "reading each script's exact CLI interface before designing MCP wrappers"
+}

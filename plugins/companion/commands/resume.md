@@ -4,9 +4,10 @@ argument-hint: "[branch — the handoff branch; default auto-detect]"
 ---
 
 Run a **session resume**: re-surface this repo's tasks carried over from an earlier session and
-reinstate them, preserving each item's classification. This is the on-demand twin of the SessionStart
-hook's automatic re-surface — run it any time you want to pull earlier-session work back mid-session.
-It is **session-pickup only**: to then *decide* the parked/blocked pile it re-surfaces, run
+reinstate them, preserving each item's classification. **This is the ONLY way any of this reaches a
+session now (R100/Pass 2)** — there is no more automatic SessionStart hook; run it yourself, any
+time you want the STEERING core, LESSONS, recent out-of-band changes, or earlier-session work back
+mid-session. It is **session-pickup only**: to then *decide* the parked/blocked pile it re-surfaces, run
 `/companion:review` (the parked-pile review, R38) — that split keeps pickup and triage as two clear
 moves (R39, re-split 2026-07-19).
 
@@ -28,9 +29,9 @@ this repo's open tasks with their classes and breadcrumbs intact, whatever the c
 merge like any other file.)
 
 1. **Re-surface earlier-session tasks (session pickup, R39).** **First, check for a waiting handoff
-   (R72)** — but **clear autopilot before you might ask**: if it's on, run
-   `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off` (announced) so the checkout offer below isn't
-   blocked by the ask-guard (`resume.sh` clears it too, but that runs *after* this offer). Then
+   (R72)** — but **clear autopilot before you might ask**: if it's on, call **`autopilot_toggle`**
+   (`action: "off"`) (announced) so the checkout offer below comes
+   before any question (the `resume` tool clears it too, but that runs *after* this offer). Then
    `git fetch` and find the waiting handoff branch.
 
    **`$ARGUMENTS` names it, if you know it** (the sending machine's `ship.sh handoff` printed the
@@ -49,12 +50,14 @@ merge like any other file.)
    you know it**). If one exists,
    surface it and offer to check it out **before** resuming — it carries the other machine's
    mid-flight tree, and resuming on the default branch instead would silently strand it.
-   Then run
-   `"${CLAUDE_PLUGIN_ROOT}/bin/resume.sh"`: it turns **autopilot off first** — announced in one line
+   Then call the
+   **`resume`** MCP tool (`companion-tq` server, R100/Pass 5b): it turns **autopilot off first** — announced in one line
    when it was on (relay that notice; never a silent clobber of a persisted intent — re-arm is a
-   manual `/companion:autopilot on`), quiet no-op when already off — and lists this repo's still-open
-   tasks carried over from earlier sessions (the SessionStart hook does this automatically each new
-   session; this is the on-demand twin). Reinstate the ones still relevant (skip anything already
+   manual `/companion:autopilot on`), quiet no-op when already off — then prints the STEERING core,
+   this repo's `LESSONS.md`, a version-lag warning if the installed plugin is behind, recent
+   out-of-band changes, recorded rework, and this repo's still-open tasks carried over from earlier
+   sessions — all of it, every time, since nothing injects any of it automatically anymore
+   (R100/Pass 2). Reinstate the ones still relevant (skip anything already
    done or no longer wanted), **preserving each item's classification** — a decision comes back
    parked (`tq add "❓ [parked] <the choice + options + your recommendation>"`), an owner-only action
    blocked (`tq add "⏳ [blocked] <action>"`), a plain doable task open (`tq add "<subject>"`).

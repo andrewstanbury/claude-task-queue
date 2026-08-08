@@ -1,0 +1,16 @@
+{
+  "id": "26",
+  "subject": "Pass 3: retire secret-guard.sh + contract-guard.sh, advisory MCP check_for_secrets tool, reverse R43/R50/R86",
+  "status": "completed",
+  "done_when": "hooks deleted from hooks.json, advisory equivalent built and tested, requirements reversed, dev/trace.sh + check.sh green (contract edit will auto-park under active autopilot — expect to finish this one manually)",
+  "context": "plugins/companion/bin/secret-guard.sh, contract-guard.sh, hooks.json, docs/requirements.yaml R43/R50/R86",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "reading secret-guard.sh + contract-guard.sh + R43/R50/R86 before building the advisory replacement",
+  "notes": [
+    {
+      "ts": "2026-08-08T17:19:56Z",
+      "text": "all code/test work verified: hooks removed, check-secrets.sh + MCP check_for_secrets tool built and tested, ~15 bats tests rewritten (2 retired outright — NotebookEdit JSON-dispatch tests whose premise no longer exists; 2 contract-guard tests reduced to 1 — the STEERING-prose half, since there's no enforcement code left to test), docs updated. dev/trace.sh red ONLY on the parked #30 delta — confirmed via full check.sh sweep, zero other regressions."
+    }
+  ]
+}

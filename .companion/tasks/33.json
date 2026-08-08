@@ -1,0 +1,8 @@
+{
+  "id": "33",
+  "subject": "❓ [parked] decision: Pass 5's original scope was 'convert commands/*.md to call MCP tools instead of shelling to bin/ directly.' On inspection that doesn't hold up: every command runs inside Claude Code, which already has direct Bash access to bin/tq — routing through the MCP server would add a subprocess hop for no benefit, since that server's whole purpose is portability to OTHER clients. How do you want to resolve this? — options: Don't convert (Recommended) (Leave commands calling bin/ directly via Bash, as already built. Mark Pass 5 don) · Convert anyway (For interface consistency with the MCP-first direction, even though it adds late) · Add a light cross-reference only (Note in STEERING/MAP that the same queue is reachable via the MCP server for oth); rec: Don't convert (Recommended)",
+  "status": "cancelled",
+  "done_when": "",
+  "blocks": [],
+  "blockedBy": []
+}

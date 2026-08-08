@@ -19,7 +19,7 @@
     the plugin is self-contained under its own root
   verified_by:
     - "the plugin is SELF-CONTAINED — it runs with nothing outside its own root (R6)"
-    - "session start: warns when the INSTALLED plugin lags this working tree (R6)"
+    - "resume: warns when the INSTALLED plugin lags this working tree (R6)"
 
 - id: R7
   satisfies: [UN-1]
@@ -30,7 +30,7 @@
   verified_by:
     - "bin/lib scripts use no bash-4-only builtins — macOS CI runs bash 3.2 (regression guard)"
     - "fuzz: every stdin-reading hook survives empty / garbage / truncated / huge input"
-    - "fuzz: hooks don't choke on multibyte / emoji content (bash 3.2 byte-splitting)"
+    - "fuzz: hooks/CLIs don't choke on multibyte / emoji content (bash 3.2 byte-splitting)"
     - "mutation gate: refuses to run CONCURRENTLY on one tree (R78/R7)"
     - "status line: an absurd percentage is clamped with NO stderr spew (R7/R68, R76)"
 
@@ -50,13 +50,20 @@
 
 - id: R26
   satisfies: [UN-1]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
-    autopilot is enforced and persisted per repo
+    autopilot is a persisted, advisory preference — not enforced
+  note: >
+    REVERSED 2026-08-08, owner-decided (R100/Pass 4 — the biggest single fidelity loss of the whole
+    redesign). ask-guard.sh and stop-autopilot.sh are retired: nothing denies AskUserQuestion,
+    nothing forces the session to continue instead of stopping. "A control-flow guarantee against
+    the model's own helpfulness bias... the rule exists to end the re-litigation" (ADR R28, quoted
+    in R100's own entry) is exactly the guarantee this removes. The flag still persists per repo
+    and STEERING still states the rule — following it is now the model's judgment call, every
+    time, with nothing behind it if the judgment fails.
   verified_by:
-    - "autopilot: the Stop block REASON carries the nudge — next #id, done-when, both park tokens (R56 G1)"
-    - "autopilot: toggle persists, and is enforced (ask-guard deny + Stop auto-continue)"
+    - "autopilot: toggle persists per repo, independent of other modes (R26)"
 
 - id: R29
   satisfies: [UN-2]
@@ -78,23 +85,34 @@
 
 - id: R33
   satisfies: [UN-2]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
-    under autopilot, taste choices are parked not auto-decided
+    under autopilot, taste choices are STATED to be parked, not auto-decided — advisory, no guard
+    left
+  note: >
+    REVERSED 2026-08-08, owner-decided (R100/Pass 4). ask-guard.sh is retired — nothing denies the
+    question or auto-parks it anymore. STEERING still states the rule (taste/design/direction
+    choices are the owner's, park even when reversible); whether the model actually follows it is
+    judgment now, not a mechanism.
   verified_by:
-    - "ask-guard: a blocked question is PARKED, not just denied (R36 + owner-asked)"
+    - "the decisive/plain park-vs-decide guidance is stated in STEERING (R33/R59/R84) — advisory only, no guard left"
 
 - id: R34
   satisfies: [UN-3]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
-    ship-mode auto-commits to a work branch
+    ship-mode commits to a work branch, on request
+  note: >
+    REVERSED 2026-08-08, owner-decided (R100/Pass 4): "auto" is no longer true — stop-autopilot.sh's
+    Stop-hook trigger is retired. The exact same commit logic (never the default branch, secret-
+    shape backstop, identity fallback) survives verbatim as `bin/ship-checkpoint.sh`, callable by
+    the model at a stopping point instead of firing automatically.
   verified_by:
-    - "ship-mode: off → Stop does NOT auto-commit (work stays uncommitted)"
-    - "ship-mode (R34): toggle, and Stop auto-commits work to an autopilot/* branch — NEVER main"
-    - "ship-mode: refuses to auto-commit a hardcoded credential (R34)"
+    - "ship-checkpoint: off → does NOT commit (work stays uncommitted)"
+    - "ship-checkpoint (R34): toggle, and commits work to an autopilot/* branch — NEVER main"
+    - "ship-checkpoint: refuses to commit a hardcoded credential (R34)"
     - "status line: 📦 ship-mode icon shows only when ship-mode is armed (R34)"
     - "status line: sections render in R34 plugin-relevance order — beacon → features → queue → git (R56 #24)"
 
@@ -124,20 +142,28 @@
   requirement: >
     autopilot-off starts the parked-pile review
   verified_by:
-    - "session start: LESSONS is two-tier — only the core above the marker is injected (R69/R30·d7)"
+    - "resume: LESSONS is two-tier — only the core above the marker prints (R69/R30·d7)"
 
 - id: R39
   satisfies: [UN-4]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
     resume is a triage handoff, class-preserving
+  note: >
+    The claim itself is unchanged by R100/Pass 2 — the merge only changed WHO calls it and WHEN.
+    Before, resume.sh was the manual twin of an automatic SessionStart hook that also fired at
+    every real session boundary. Now the hook is gone (docs/adr/README.md R100) and resume.sh has
+    absorbed its content-assembly (STEERING, LESSONS, version-lag warning, R93's out-of-band
+    changes, rework), so it is the ONLY way any of that reaches a session — always on demand,
+    never automatic. The triage semantics (disarm autopilot, preserve ❓/⏳/📋 classification) are
+    untouched.
   verified_by:
-    - "session start: injects STEERING and resumes THIS repo's tasks only (scoped by .root)"
-    - "session start: re-anchors on a compaction with queue+pointer, NOT the full STEERING — R30·d2 / R32"
+    - "resume: prints STEERING and resumes THIS repo's tasks only (scoped by .root) — R39"
+    - "resume: shows the FULL STEERING core alongside the live queue — no abbreviated path left to pick (R100/Pass 2)"
     - "manual resume: lists THIS repo's open tasks on demand (and says so when none)"
     - "resume: BATCHED scan — many dirs x many files in one jq, newline-less markers still match"
-    - "session start: the compaction re-anchor keeps the recommendation-contract clause (R56 G3 — R49)"
+    - "resume: keeps the recommendation-contract clause (R56 G3 — R49), since it now rides in the full core every call"
     - "resume: ONE corrupt task file loses only ITSELF, never the whole backlog (DA blocker)"
     - "manual resume: turns autopilot OFF first, announced when on and quiet when off (R39)"
 
@@ -170,21 +196,29 @@
 
 - id: R43
   satisfies: [UN-3]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
-    the secret gate covers every content-writing tool
+    an advisory scanner correctly classifies anchored-vs-generic-vs-placeholder credential shapes,
+    regardless of which tool the content came from
+  note: >
+    REVERSED 2026-08-08, owner-decided (R100/Pass 3). "Covers every content-writing tool" doesn't
+    parse anymore: secret-guard.sh's PreToolUse hook is retired, so nothing dispatches Write/Edit/
+    NotebookEdit calls to a scanner at all — check-secrets.sh / the MCP check_for_secrets tool just
+    scan whatever text they're handed. Tool-coverage is moot BY DESIGN, not by extra code: there's
+    no tool_input shape left to bypass, because nothing reads tool_input anymore. The classification
+    logic itself (anchored=BLOCK, generic-non-placeholder=WARN, everything else clean) is unchanged
+    and still tested; the guarantee that it FIRES on every write is gone.
   verified_by:
-    - "secret gate: blocks a real AWS key (exit 2)"
-    - "secret gate: a generic name=value literal WARNS but does not block (exit 0) — R32"
-    - "secret gate: allows a placeholder (exit 0)"
-    - "secret gate: allows ordinary code (exit 0)"
-    - "secret gate: disabled via CLAUDE_COMPANION_SECSCAN=0"
-    - "secret gate: blocks non-AWS anchored keys too — GH/Slack/Stripe/Google/PEM (R56 — INVARIANTS claim)"
+    - "check-secrets: BLOCKs a real AWS key (exit 2) — advisory only, R100/Pass 3"
+    - "check-secrets: a generic name=value literal WARNS but does not block (exit 0) — R32"
+    - "check-secrets: allows a placeholder (exit 0)"
+    - "check-secrets: allows ordinary code (exit 0)"
+    - "check-secrets: disabled via CLAUDE_COMPANION_SECSCAN=0"
+    - "check-secrets: blocks non-AWS anchored keys too — GH/Slack/Stripe/Google/PEM (R56 — INVARIANTS claim)"
     - "ship-mode never commits to the default branch, even from detached HEAD (R45)"
-    - "secret gate: an EMPTY edit never scans the FILE PATH as content (no false block)"
-    - "secret gate: covers NotebookEdit's new_source — key blocked, clean cell passes (R43)"
-    - "secret gate: NON-STRING content (NotebookEdit array/object) still BLOCKS — no fail-open (R43)"
+    - "check-secrets: EMPTY content never scans the FILE PATH as content (no false block)"
+    - "check-secrets: tool-agnostic by construction — scans whatever text it's given, notebook-sourced or not (R43)"
 
 - id: R44
   satisfies: [UN-4]
@@ -211,15 +245,20 @@
 
 - id: R50
   satisfies: [UN-3]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
-    per-repo flags gate the enforced core; fail-safe lock
+    per-repo flags gate the advisory scanner and steering; fail-safe lock
+  note: >
+    REVERSED 2026-08-08, owner-decided (R100/Pass 3). "Gate the enforced core" is stale — the
+    secret gate isn't enforced anymore (check-secrets.sh, advisory only). The flag mechanism and
+    its fail-safe-lock property (only an exact `secret=off` line disables; any read error leaves
+    it active) are UNCHANGED — they just gate an advisory classification now, not a block.
   verified_by:
-    - "secret gate: honors a per-repo secret=off flag — ALLOWS there but still BLOCKS elsewhere (isolated, R50/R54)"
-    - "secret gate FAIL-SAFE: a flag file that isn't exactly 'secret=off' still BLOCKS (R50/R54 never-fails-open)"
-    - "secret gate is self-contained: sources no lib (R50/R54 never-fails-open via a dependency)"
-    - "steering off (per-repo flag): SessionStart drops the working agreement (resume/lessons unaffected, R50)"
+    - "check-secrets: honors a per-repo secret=off flag — ALLOWS there but still BLOCKS elsewhere (isolated, R50/R54)"
+    - "check-secrets FAIL-SAFE: a flag file that isn't exactly 'secret=off' still BLOCKS (R50/R54 never-fails-open)"
+    - "check-secrets is self-contained: sources no lib (R50/R54 never-fails-open via a dependency)"
+    - "steering off (per-repo flag): resume drops the working agreement (tasks/lessons unaffected, R50)"
 
 - id: R55
   satisfies: [UN-3]
@@ -250,12 +289,17 @@
 
 - id: R59
   satisfies: [UN-1]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
     decisive mode
+  note: >
+    Mechanically updated 2026-08-08 (R100/Pass 4): ask-guard.sh, which flipped its guidance
+    park→decide, is retired. The toggle and its STEERING-stated guidance survive; the flip is no
+    longer enforced by a guard, only stated.
   verified_by:
-    - "autopilot decisive (R59): toggle persists, and flips the ask-guard guidance park→decide"
+    - "autopilot decisive (R59): toggle persists, independent of plain autopilot"
+    - "the decisive/plain park-vs-decide guidance is stated in STEERING (R33/R59/R84) — advisory only, no guard left"
     - "autopilot sweep: an IRREVERSIBLE park (no rev: marker) is never eligible (R77/R59)"
     - "status line: ⚡ decisive indicator shows only when autopilot AND decisive are on (R59)"
 
@@ -318,15 +362,22 @@
 
 - id: R69
   satisfies: [UN-7]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
-    injected artifacts are byte-capped; steering is two-tier
+    printed artifacts are byte-capped; steering is two-tier
+  note: >
+    REVERSED 2026-08-08, owner-decided (R100/Pass 2): nothing is INJECTED anymore — the SessionStart
+    hook that did the injecting is retired (docs/adr/README.md R100), so "injected" became
+    literally false. `/companion:resume` now PRINTS the same content, on demand. The two-tier
+    discipline (core above the marker only, rationale below stays on-demand) and the byte-cap
+    property both survive unchanged as properties of what gets printed — this reversal is about
+    the verb, not the shape.
   verified_by:
-    - "session start: injects the STEERING CORE only — rationale below the marker excluded; missing marker fails OPEN (R69)"
+    - "resume: prints the STEERING CORE only — rationale below the marker excluded; missing marker fails OPEN (R69)"
     - "tq delta (R69): add/doing print a one-line counts delta, NOT the full queue; done prints the full report"
-    - "session start: LESSONS is two-tier — only the core above the marker is injected (R69/R30·d7)"
-    - "session start: autopilot mode prose rides ONLY when the mode is armed (R69)"
+    - "resume: LESSONS is two-tier — only the core above the marker prints (R69/R30·d7)"
+    - "resume: autopilot mode prose rides ONLY when the mode WAS armed at call time (R69)"
 
 - id: R70
   satisfies: [UN-4]
@@ -427,12 +478,16 @@
 
 - id: R77
   satisfies: [UN-1]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
     sweep mode
+  note: >
+    Mechanically trimmed 2026-08-08 (R100/Pass 4): the swept-counter cap lived entirely in the
+    retired stop-autopilot.sh (bounding a sweep the stall cap couldn't) — no surviving code, dropped.
+    The eligibility logic itself (rev: marker, decompose:/⏳ exclusions) is untouched, tested via
+    tq stopfields directly now instead of through the deleted Stop-hook wrapper.
   verified_by:
-    - "autopilot sweep TERMINATES: bounded by a counter no completion resets (R77)"
     - "autopilot sweep: flag persists per-repo and is independent of ship/decisive (R77)"
     - "autopilot sweep: OFF stops on a parked-only queue, ON works a rev: park (R77)"
     - "autopilot sweep: an IRREVERSIBLE park (no rev: marker) is never eligible (R77/R59)"
@@ -470,40 +525,52 @@
 
 - id: R80
   satisfies: [UN-2]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
     the posture is a stated default; the verdict is unconditional
+  note: >
+    The "verdict is unconditional" clause was already reversed by R80·b (2026-08-03) — this entry
+    is left as-is per this repo's own convention (a new id reverses an old one's clause; the old
+    entry is not edited). Mechanically updated 2026-08-08 (R100/Pass 2) only because its verified_by
+    test moved: the posture used to ride in a SessionStart hook's special abbreviated compact-mode
+    message; that hook and its abbreviation are both gone, so the same posture now rides in the
+    ordinary full-core output `/companion:resume` prints on every call.
   verified_by:
-    - "session start: the compact re-anchor carries BOTH halves of the posture, not the core (R80)"
+    - "resume: carries BOTH halves of the posture — the options half and the honesty-rides-the-pick half (R80)"
     - "status line: a DRAINED queue renders no queue section at all (R80)"
 
 - id: R81
   satisfies: [UN-7]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
     a hook's cost stays bounded, and the bound is measured
+  note: >
+    Mechanically trimmed 2026-08-08 (R100/Pass 4): the no-progress stall cap and both RUN bounds
+    (wall-clock, turn count) lived entirely in the retired stop-autopilot.sh — there is no more
+    forced-continuation loop left to bound, so no surviving code and no replacement. The tq-prune
+    and hook-budget self-tests are unrelated to the Stop hook and are untouched.
   verified_by:
-    - "autopilot: Stop yields after the no-progress cap (can't spin forever)"
-    - "autopilot: the no-progress cap RESETS when a task completes — a productive drain keeps going (R56 G5)"
     - "tq prune: age protects a RECENT finished store, and --dry-run deletes nothing"
-    - "autopilot RUN bound: the wall-clock deadline yields, and 0 disables both bounds (R81)"
-    - "autopilot RUN bound: an OLD 3-field continue-file still works (no migration, no lost run)"
     - "tq prune: an UNREADABLE task file means KEEP, never delete (jq exit status, not stdout)"
     - "tq prune: a SYMLINKED session dir is skipped — rm -rf must not recurse through the link"
     - "R81 hook budget: measures under a COMMA-DECIMAL locale (LC_ALL=C is load-bearing)"
     - "R81 hook budget: the gate CATCHES a store-scaling hook and PASSES a bounded one"
     - "R81 hook budget: a missing jq/git SKIPS clean — the gate never false-reds the environment"
     - "tq prune: removes FINISHED old stores, never one with open/parked/blocked work (R81)"
-    - "autopilot RUN bound: the TURN cap stops a PRODUCTIVE drain the stall cap never could (R81)"
 
 - id: R82
   satisfies: [UN-1]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
     burn-down mode
+  note: >
+    Mechanically trimmed 2026-08-08 (R100/Pass 4): the Stop-hook wiring that handed a drained queue
+    off to burn-down is retired along with stop-autopilot.sh — no surviving code. burn-down.sh,
+    candidates.sh and burndown-branch.sh keep every one of their own direct tests, untouched;
+    the model now has to check `burn-down.sh should-burn` itself when a queue runs dry.
   verified_by:
     - "burn-down: HOLD is the default and every unknown resolves to it"
     - "burn-down: burns ONLY on a forecast underspend, never when on track"
@@ -519,7 +586,6 @@
     - "burndown-branch: a slug cannot escape the manifest dir (R82)"
     - "burndown-branch: refuses a slug that collides with the default branch (R82)"
     - "burn-down: in the FINAL STRETCH only actual usage counts, and the branch cap lifts (R82)"
-    - "drained queue HANDS OFF to burn-down instead of standing down (R82 wiring)"
     - "candidates: the ladder escalates small-first and ends at a REBUILD before inventing (R82/R94)"
 
 - id: R83
@@ -535,15 +601,20 @@
 
 - id: R84
   satisfies: [UN-2]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
-    a blocked question parks itself
+    a blocked question must be parked BY THE MODEL — nothing parks it automatically anymore
+  note: >
+    REVERSED 2026-08-08, owner-decided (R100/Pass 4). ask-guard.sh — the auto-deny + auto-park +
+    dedup-by-grep logic — is retired outright, no advisory replacement code (the model calls
+    `tq add` itself now, per STEERING). The tq concurrent-write-safety property this once motivated
+    (a hook was a second writer) is unrelated to ask-guard's existence and stays proven regardless —
+    concurrent `tq add` calls can come from anywhere, not just a hook.
   verified_by:
-    - "ask-guard: the deny REASON carries park-with-full-options guidance (R56 G5)"
     - "prompt-continue: a bare 'continue' with a parked pile routes to review FIRST (R85)"
     - "tq: concurrent adds cannot lose a task — a HOOK is now a writer (R84)"
-    - "ask-guard: parks into the PAYLOAD's repo and survives a relative invocation (R84)"
+    - "the decisive/plain park-vs-decide guidance is stated in STEERING (R33/R59/R84) — advisory only, no guard left"
 
 - id: R53
   satisfies: [UN-5]
@@ -578,15 +649,19 @@
 
 - id: R86
   satisfies: [UN-3, UN-2]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
-    while autopilot is armed, an agent may do work that SATISFIES the recorded contract but may not
-    change it: an edit to the needs layer is refused outright, and an edit to the requirements layer
-    is refused with instructions to park the proposed delta for the owner.
+    while autopilot is on, the model is asked to do work that SATISFIES the recorded contract but
+    not change it — STATED in STEERING, not enforced by any guard
+  note: >
+    REVERSED 2026-08-08, owner-decided (R100/Pass 3): contract-guard.sh is retired and has no
+    advisory replacement CODE — the only thing that still says this rule is the STEERING prose that
+    already existed alongside the hook ("Satisfy the contract; never rewrite it"). Ironically, this
+    exact edit was DENIED by the still-live (cached) contract-guard.sh while being written, proving
+    the old mechanism worked right up until it was turned off (autopilot paused) to let this land.
   verified_by:
-    - "contract-guard: unattended work may SATISFY the contract, never rewrite it (R86)"
-    - "the contract bound is stated where it is armed, not only in the guard (R86)"
+    - "the contract bound is stated where it is armed — advisory only now, no guard left (R86)"
 
 - id: R87
   satisfies: [UN-1]
@@ -602,27 +677,22 @@
     through. Convention is the subject text `after #N`; EVERY such reference counts, and a
     dangling one never strands work. Owner-decided 2026-08-02 from a 3-option menu.
   verified_by:
-    - "Stop: the pointer is the first STARTABLE task, and every blocker counts (R87)"
+    - "tq stopfields: the pointer is the first STARTABLE task, and every blocker counts (R87)"
 
 - id: R88
   satisfies: [UN-1]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
-    autopilot disarms itself once the queue runs dry, including when work remains that cannot start
-  note: >
-    Owner-asked 2026-08-02. Left armed, the next stop re-reads the same undrainable queue and nags
-    again. Disarming is also the handoff: autopilot-off is what starts the parked-pile review
-    (R38), so a drain that runs dry lands the owner exactly where the remaining decisions are.
-    REVERSED 2026-08-05, owner-asked: the mode now PERSISTS on a dry queue. The turn still ends —
-    an undrainable queue must never block the session — but the flag is left alone, so work queued
-    later drains without re-arming by hand. The nagging R88 was written against came from BLOCKING,
-    not from staying armed, so allowing-while-armed keeps the fix and drops the side effect.
-    An EMPTY store is deliberately excluded — that is a session where autopilot was just armed and
-    nothing has been queued yet, and disarming there would undo the owner's own command.
-  verified_by:
-    - "autopilot STAYS ARMED when the queue runs dry, and the turn still ends (R88 reversed)"
-    - "modes COMPOSE: sweep keeps a rev: park workable, so the dry-queue disarm does not fire (R88/R77)"
+    nothing automatically changes the autopilot flag anymore — only explicit `autopilot.sh on/off`
+    and `resume.sh`'s disarm-on-pickup do
+  judgment: "REVERSED 2026-08-08, owner-decided (R100/Pass 4): R88's whole subject — what the Stop
+    hook does to the flag when a dry queue is hit — is moot, because stop-autopilot.sh is retired
+    and nothing left touches the flag on a queue-state transition at all. There is no turn-ending
+    event left to have a policy about. What survives (the flag only ever changes on an explicit
+    command) is a structural fact about the remaining code, not a behavior a test can exercise —
+    hence judgment, not a case."
+  verified_by: []
 
 - id: R89
   satisfies: [UN-5]
@@ -670,7 +740,7 @@
     an apostrophe, and the status line rendering where there is no git repo at all.
   verified_by:
     - "UN-6 foreign repos: the plugin works in ecosystems and paths it has never seen (R91)"
-    - "UN-6 foreign repos: the DRAIN and the burn loop work there too (R91)"
+    - "UN-6 foreign repos: tq stopfields and the burn loop work there too (R91)"
 
 - id: R92
   satisfies: [UN-5]
@@ -692,21 +762,36 @@
 
 - id: R93
   satisfies: [UN-4]
-  affirmed: 2026-08-02
-  affirmations: 0
+  affirmed: 2026-08-08
+  affirmations: 1
   requirement: >
-    recent changes git cannot see arrive unasked in every session
+    recent changes git cannot see are available on demand, at zero cost when there are none
   note: >
+    REVERSED 2026-08-08, owner-decided (R100/Pass 2), and unlike this ledger's other Pass-2
+    reversals this one is a REAL loss, not a mechanical rename — recorded plainly rather than
+    dressed up. The original requirement (below, for the record) was that this class of fact
+    arrives UNASKED, specifically because the failure it guards against IS context loss: "a rule
+    saying 'go look' cannot survive a state clear, but a fact that arrives unasked can." R100
+    retired the hook that made that guarantee possible. `/companion:resume` still prints the exact
+    same content — same 14-day window, same zero-cost-when-empty property — but only when called,
+    and calling it is now the model's judgment call, the same kind of "go look" rule the original
+    reasoning said could not survive a state clear. This reopens the literal failure mode R93 was
+    written to close: the owner's AWS-change incident, where a real recent out-of-band change was
+    not top-of-mind and cost days chasing the wrong cause. Kept as a requirement, not deleted,
+    because the content is still worth having on demand — but the GUARANTEE is gone, and no design
+    in the chosen MCP+skills architecture can bring it back (nothing left in this plugin can inject
+    anything into a session unasked, by construction, R100).
+
+    Original text, for the record: "recent changes git cannot see arrive unasked in every session."
     An owner lost days on another project chasing an Apple login configuration they had CONFIRMED
     twice; the cause was a recent AWS change — infrastructure an agent had built wrong and trusted
     because it was ours. Nothing in the repo recorded it, so clearing state erased the only place
     that knowledge lived. git is already the timeline for in-repo changes, so this records ONLY
-    what git cannot: consoles, DNS, provider settings, rotations, hand-edits. Injected rather than
-    read on demand because the failure IS context loss — a rule saying "go look" cannot survive a
-    state clear, but a fact that arrives unasked can. Time-bounded to a 14-day window, so a repo
-    with no recent out-of-band change contributes nothing, and only the file's tail is read (R81).
+    what git cannot: consoles, DNS, provider settings, rotations, hand-edits. Time-bounded to a
+    14-day window, so a repo with no recent out-of-band change contributes nothing, and only the
+    file's tail is read (R81).
   verified_by:
-    - "session start: RECENT out-of-band changes inject; old ones and no-file cost nothing (R93)"
+    - "resume: RECENT out-of-band changes print; old ones and no-file cost nothing (R93, now on-demand only)"
 
 - id: R94
   satisfies: [UN-5]
@@ -725,7 +810,7 @@
     one file offers /companion:redesign, because each next patch always looks cheaper than a
     rebuild, which is how a component gets chased instead of replaced.
   verified_by:
-    - "rework ledger: counts FAILURES not touches, flags a rebuild candidate, injects itself (R94)"
+    - "rework ledger: counts FAILURES not touches, flags a rebuild candidate, and resume prints it (R94)"
     - "ship.sh land: gate failure aborts BEFORE any commit (exit 4)"
 
 - id: R80·b
@@ -744,7 +829,7 @@
     an owner "you should have suggested this two attempts ago" makes them responsible for
     supervising errors they are paying not to have, which happened and is what prompted the ban.
   verified_by:
-    - "session start: the compaction re-anchor keeps the recommendation-contract clause (R56 G3 — R49)"
+    - "resume: keeps the recommendation-contract clause (R56 G3 — R49), since it now rides in the full core every call"
 
 - id: R95
   satisfies: [UN-4]
@@ -892,3 +977,79 @@
     - "companion_open_tasks: context renders on resume alongside done_when, survives across sessions (R99)"
     - "board: context and done_when render as continuation lines when present (R99)"
     - "tq add: --context and --done cannot swallow each other as a value (DA-caught)"
+
+- id: R101
+  satisfies: [UN-4]
+  affirmed: 2026-08-08
+  affirmations: 0
+  requirement: >
+    the task queue is also reachable via a companion-tq MCP server (tq_add/tq_doing/tq_note/
+    tq_done_when/tq_context/tq_done/tq_cancel/tq_list/tq_report), each tool a thin wrapper that
+    shells out to the existing tq CLI — no store logic reimplemented — so any MCP-capable client
+    reaches the same queue the CLI and hooks already use, byte-identical output
+  note: >
+    Pass 1 of R100's MCP+skills redesign (docs/adr/README.md). Purely additive: nothing existing
+    (tq CLI, hooks, commands/*.md) changed or removed in this pass. The MCP server resolves its
+    own path to tq via $CLAUDE_PLUGIN_ROOT (same convention hooks.json already uses) and tq's own
+    cwd via $CLAUDE_PROJECT_DIR (Claude Code sets this specifically so a plugin-bundled MCP server
+    doesn't have to depend on its own process.cwd(), which isn't guaranteed to be the project
+    root). It forwards an inherited CLAUDE_COMPANION_SESSION_ID/CLAUDE_CODE_SESSION_ID rather than
+    overriding it, because tq's CLAUDE_COMPANION_TASKS_DIR-override branch partitions its store BY
+    session id — an unconditional override would have silently split the MCP server onto a
+    different store than the CLI whenever that branch is in play (bats tests included); a constant
+    is synthesized only when no session id is present at all.
+  verified_by:
+    - "MCP server: tq_add via companion-tq matches bin/tq output, same store (Pass 1, R101)"
+
+- id: R102
+  satisfies: [UN-4]
+  affirmed: 2026-08-08
+  affirmations: 0
+  requirement: >
+    the rest of the portable core — autopilot (on/off/status/pause/resume), board, burn-down
+    (status/should-burn), candidates, burndown-branch (start/list/show/discard), ship
+    (preflight/land/handoff), resume, and rework — is also reachable via companion-tq MCP tools,
+    each a thin wrapper over the existing bin/ CLI (autopilot_toggle, board, burn_down, candidates,
+    burndown_branch, ship_preflight, ship_land, ship_handoff, resume, rework) — no store or git
+    logic reimplemented — so any MCP-capable client reaches the same behavior the CLI already has
+  note: >
+    Pass 5a of R100's MCP+skills redesign. Purely additive, same shape as R101/Pass 1: nothing
+    existing changed or removed. ship_land writes its commit message to a temp file (ship.sh land
+    only accepts -F <msgfile>) and cleans it up in a finally block; burn_down/should-burn's
+    meaningful non-zero exit is surfaced via an okExitCodes allowlist on the generic runBin()
+    helper rather than treated as an error. Verified against a disposable scratch git repo, not
+    the live companion tree, for the git-mutating tools (ship_land, burndown_branch start/discard,
+    ship_checkpoint). ship_checkpoint (bin/ship-checkpoint.sh) was added in the Pass 5b sweep
+    (commands/*.md conversion) after noticing it was the one Pass-4-era script left unwrapped —
+    same thin-wrapper shape as the other nine, no principled reason to exclude it.
+  verified_by:
+    - "MCP server: board/resume/burn_down/candidates/rework/autopilot_status read-only tools match their CLIs (Pass 5a)"
+    - "MCP server: autopilot_toggle on/off round-trips the real flag file (Pass 5a)"
+    - "MCP server: burndown_branch start/list/discard round-trips a real branch + manifest (Pass 5a)"
+    - "MCP server: ship_land commits+merges to the default branch, matches bin/ship.sh land (Pass 5a)"
+    - "MCP server: ship_handoff surfaces the same no-remote error as bin/ship.sh handoff (Pass 5a)"
+    - "MCP server: ship_checkpoint commits to a throwaway autopilot/* branch when ship-mode is on (Pass 5a)"
+
+- id: R103
+  satisfies: [UN-4]
+  affirmed: 2026-08-08
+  affirmations: 0
+  requirement: >
+    the companion-tq MCP server also exposes a decompose_into_tasks MCP *prompt* (the MCP
+    "prompts" primitive, distinct from "tools") carrying the instruction to break an ambitious or
+    ambiguous request into tq tasks — classified ❓ parked / ⏳ blocked / plain — before starting
+    work, so any MCP client that supports fetching prompts (confirmed for Claude Code; confirmed
+    for Cursor per its own current docs, which list Prompts as a Supported capability) reaches the
+    identical instruction text instead of each host carrying its own hand-copied, drifting version
+  note: >
+    Pass 5c of R100's MCP+skills redesign — owner-directed: portability was the explicit goal of
+    the whole session, and centralizing this instruction as a fetchable prompt (rather than
+    duplicating STEERING.md prose per host) was proposed and approved before implementation.
+    Deliberately a PROMPT, not a tool: the decomposition itself stays the driving model's
+    judgment, reasoning with full conversation context — a tool that ran an LLM call server-side
+    to do this server-side would reason worse (raw string only) and would break the
+    thin-wrapper-only rule every tool in this server follows (R101/R102). STEERING.md's own
+    injected-core prose still carries the equivalent guidance for Claude Code; this is the
+    portable copy for a client with no equivalent injection mechanism.
+  verified_by:
+    - "MCP server: decompose_into_tasks PROMPT (not a tool) returns the decomposition instructions (Pass 5c, R103)"

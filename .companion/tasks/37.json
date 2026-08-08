@@ -1,0 +1,10 @@
+{
+  "id": "37",
+  "subject": "Portability audit: survey what's left Claude-Code-specific (STEERING auto-injection model, prompt-continue.sh hook, plugin.json/marketplace) vs what could still move to MCP — for anything requiring a requirements.yaml reversal or real redesign, STOP and present it as an owner decision (per explicit instruction), do not autopilot through it",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "surveying remaining Claude-Code-specific surface"
+}

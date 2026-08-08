@@ -66,10 +66,11 @@ the ledger. Homes (R64): all contract docs live under `docs/`; a generated gate 
 
 ---
 
-0. **Clear autopilot first.** If autopilot is on, run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off`
-   before anything else — while the flag is on, the ask-guard blocks `AskUserQuestion` and this
-   command can't ask a single question. This is a **mechanical unblock** — **defer the R38 parked-pile
-   review** until after this command; just note the ❓/⏳ count in one line, don't walk the pile first.
+0. **Clear autopilot first.** If autopilot is on, call **`autopilot_toggle`** (`action: "off"`)
+   before anything else — this command asks a series of questions, and autopilot means don't
+   (R100: advisory now, not enforced, but the sequencing is still right). This is a **mechanical
+   unblock** — **defer the R38 parked-pile review** until after this command; just note the ❓/⏳
+   count in one line, don't walk the pile first.
 
 1. **Scan — read-only, no questions.** Resolve the scope first (`$ARGUMENTS`, else the whole repo)
    and restate it in one line. Detect the repo's structure **generically** (R9 — no

@@ -1,7 +1,8 @@
 # Working agreement
 
-*How Claude works on your project. SessionStart injects **only this core** (R69); everything below
-the marker is on-demand. Advisory lives here; only block/inject/control-flow lives in `bin/`.*
+*How Claude works on your project. `/companion:resume` prints **only this core** (R69) — never
+automatically (R100). Below the marker is on-demand reading. Advisory lives here; only
+block/inject/control-flow lives in `bin/`.*
 
 ## The two reflexes
 
@@ -14,7 +15,7 @@ park the same full payload as a `❓`.
 **The honest read goes ON the pick** — its real cost, what you would regret, what argues against
 it, stated where the choice is made. It judges YOUR OWN work, never the owner's: **if they supplied
 the insight, the fix or the obvious next step, that is YOUR miss** — name it as yours and record it
-(`bin/rework.sh record owner-supplied`). "You should have" / "we both" are BANNED: they make the
+(the `rework` tool, `record owner-supplied`). "You should have" / "we both" are BANNED: they make the
 owner responsible for supervising errors they are paying not to have. Do NOT close ordinary replies
 with a verdict — honesty belongs to recommendations, not to every message (owner, 2026-08-03).
 
@@ -118,29 +119,40 @@ Autonomy on the reversible, plain-language consent on the consequential (the lin
 + cost + data-safety). Boring & reversible beats clever. Honor the owner's *outcome*, not their
 proposed implementation.
 
-<!-- ─── injection stops here (R69) — session-start.sh injects only the core above. ───
+<!-- ─── injection stops here (R69) — resume.sh prints only the core above. ───
      Below: rationale + provenance, on-demand reading; the core above is canonical. -->
 
-<!-- autopilot:start — session-start injects THIS BLOCK TOO, but only when autopilot is
-     armed for the repo. Mode prose is dead weight in every session where the mode is off,
-     which is most of them. It sits below the marker so the R69 cap measures only what is
-     unconditionally injected. -->
-## Keep-going mode (autopilot)
+<!-- autopilot:start — resume.sh prints THIS BLOCK TOO, but only when autopilot WAS armed at
+     call time (it always disarms as part of resuming, R39). Mode prose is dead weight in every
+     call where the mode is off, which is most of them. It sits below the marker so the R69 cap
+     measures only what is unconditionally printed. -->
+## Keep-going mode (autopilot) — ADVISORY ONLY (R100/Pass 4)
 
-▢ keep draining; don't stop to ask; self-verify (you have a shell) ▢ park `❓ [parked]`
-decisions / `⏳ [blocked]` owner-actions; decide routine, cheap-to-undo, **taste-neutral**
-calls yourself (recommended option, recorded) ▢ a **visual / design / direction / wording**
-choice is the owner's → **park it even when trivially reversible** — taste, not
-reversibility, is the test (R33) ▢ **park with the full payload**: `❓ [parked] <the choice>
-— options: A) … (cost) B) … (cost); rec: <pick> + one-line why` — all in the subject (the
-review reads it back via non-truncating `tq list`); a thin guess makes the review a
-rubber-stamp; the one exception is decompose-park (R65) ▢ an unparkable decision blocks
+**Nothing enforces this anymore.** `ask-guard.sh` and `stop-autopilot.sh` are retired — no hook
+denies `AskUserQuestion`, no hook forces the session to continue instead of stopping, no cap
+catches a stall or bounds a runaway run. This flag is a stated preference you read here, not a
+mechanism. Follow it because it's right, not because something will stop you if you don't — and
+because nothing will stop you, watch your own progress: if several turns pass with nothing
+completed, say so and stop yourself rather than assuming a cap has your back.
+
+▢ keep draining; don't stop to ask; self-verify (you have a shell) ▢ **there is no more auto-park**
+— if you were about to ask, `tq add` the `❓`/`⏳` yourself, right then, before moving on; nothing
+does it for you ▢ park `❓ [parked]` decisions / `⏳ [blocked]` owner-actions; decide
+routine, cheap-to-undo, **taste-neutral** calls yourself (recommended option, recorded) ▢ a
+**visual / design / direction / wording** choice is the owner's → **park it even when trivially reversible**
+— taste, not reversibility, is the test (R33) ▢ **park with the full payload**:
+`❓ [parked] <the choice> — options: A) … (cost) B) … (cost); rec: <pick> + one-line why` — all in
+the subject (the review reads it back via non-truncating `tq list`); a thin guess makes the review
+a rubber-stamp; the one exception is decompose-park (R65) ▢ an unparkable decision blocks
 everything → safest reversible default, recorded, plus a `❓` to override — never stall ▢ a
-human playtest → `⏳ [blocked] playtest: <what>`, keep draining ▢ autopilot turned off — by
-command *or* plain conversation (then run `autopilot.sh off` **first**; the ask-guard blocks
-questions while the flag is on) → **immediately run `/companion:review`**: walk the `❓`/`⏳`
-pile one at a time, recommendation-first, write each pick back to `tq` before any new work
-(defer/bail allowed; clean no-op when empty).
+human playtest → `⏳ [blocked] playtest: <what>`, keep draining ▢ ship-mode is on → call the
+`ship_checkpoint` tool yourself at natural stopping points (was automatic; commits to an
+`autopilot/*` branch, never the default, same credential backstop) ▢ the queue runs dry → call
+`burn_down` (`should_burn`) yourself (was automatic); if it says burn, take rank-1 from
+`candidates` on its own branch via `burndown_branch` (`start`) ▢ autopilot turned off — by
+command *or* plain conversation (then call `autopilot_toggle` `off` **first**) → **immediately run
+`/companion:review`**: walk the `❓`/`⏳` pile one at a time, recommendation-first, write each pick
+back to `tq` before any new work (defer/bail allowed; clean no-op when empty).
 
 **Sweep mode (R77) — `/companion:autopilot sweep on`:** also work the parks **you marked
 reversible**, applying each recorded `rec:`. Park a reversible-but-owner's-call choice as
@@ -187,9 +199,10 @@ have promised otherwise, and both were reversed. A `UserPromptSubmit` capture ho
 every prompt "just in case" — retired (R58·a) when a full-repo grep found it had **zero readers**:
 data nobody consumes is pure cost (64ms/13 spawns per prompt, 456KB nobody read). A `PreCompact`
 hook once tried to protect state on the way *into* a context wipe — deleted (R32·d4) in favor of
-re-anchoring *after*, from durable state, which is what `session-start.sh` does today on both
-`compact` and `clear` (confirmed: `/clear` fires `SessionStart` with `source:"clear"`, same as any
-other boundary). `--context`/`--done` follow that surviving pattern: written by the model as
+re-anchoring *after*, from durable state, which is what `/companion:resume` does now, whenever it's
+called — after a compaction, after `/clear`, or at plain startup, with no distinction between them
+(R100: there is no more automatic `source:` signal to distinguish by; calling it is the model's
+choice every time). `--context`/`--done` follow that surviving pattern: written by the model as
 ordinary task hygiene (same as `done_when` always was), with a real reader (`tq report`'s resume
 path, `board`), costing nothing when absent. What they don't do is guarantee I write them before
 you clear — that's still discipline, not a mechanism, and STEERING says so plainly rather than

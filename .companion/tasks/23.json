@@ -1,0 +1,16 @@
+{
+  "id": "23",
+  "subject": "MCP verify: parity check task",
+  "status": "cancelled",
+  "done_when": "matches CLI output shape",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "verifying",
+  "notes": [
+    {
+      "ts": "2026-08-08T14:24:52Z",
+      "text": "note from mcp"
+    }
+  ]
+}

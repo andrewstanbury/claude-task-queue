@@ -1,8 +1,14 @@
 {
   "name": "companion",
-  "version": "3.79.1",
+  "version": "3.80.0",
   "author": {
     "name": "Andrew Stanbury"
   },
-  "description": "A disciplined AI pair-programming companion: one steering document (STEERING.md — how Claude queues work, decides with brutal-honest recommendations against a requirements ledger, and keeps the code clean) delivered once per session, plus a small enforced core — a PreToolUse secret-scan that blocks committed credentials, persisted + enforced autopilot, cross-session task resume, its own task-queue CLI (`tq`; the companion owns the queue and deliberately does not use Claude Code's native tasks), and an animated status line. It runs one loop — propose → queue → drain. The dividing line is nature, not preference: only behavior that must block (secret gate), inject (session-start), or guarantee control-flow (autopilot) is code — everything else (wireframe-first, outcome-checks, clean-as-you-go, the context nudges) is steering the model reads once per session. Replaces the earlier four-plugin system: ~15 hooks of advisory prose collapsed into one readable file."
+  "description": "A disciplined AI pair-programming companion: one steering document (STEERING.md — how Claude queues work, decides with brutal-honest recommendations against a requirements ledger, and keeps the code clean), printed on demand by /companion:resume, plus a portable core — its own task-queue CLI (`tq`; the companion owns the queue and deliberately does not use Claude Code's native tasks), also reachable via the companion-tq MCP server for any MCP-capable client; an advisory credential-shape scanner; cross-session resume; and an animated status line. It runs one loop — propose → queue → drain. Everything is advisory (R100) — nothing blocks a write or forces a session to keep going anymore, traded deliberately for portability beyond Claude Code. Replaces the earlier four-plugin system: ~15 hooks of advisory prose collapsed into one readable file, then its own enforced core retired in favor of an MCP server + skills.",
+  "mcpServers": {
+    "companion-tq": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/index.js"]
+    }
+  }
 }

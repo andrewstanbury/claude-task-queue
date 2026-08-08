@@ -1,0 +1,15 @@
+{
+  "id": "30",
+  "subject": "❓ [parked] requirements.yaml: reverse R43/R50/R86 for Pass 3 (secret-guard.sh + contract-guard.sh retirement) — contract-guard itself denied this edit while writing it, exactly as designed; because: secret-guard.sh's PreToolUse hook and contract-guard.sh's PreToolUse hook are both deleted from the source tree (plugins/companion/bin/), replaced by an advisory check-secrets.sh CLI + MCP check_for_secrets tool with identical classification logic but no enforcement, hooks.json updated, ~14 bats tests rewritten/retargeted, docs/MAP.md + docs/GLOSSARY.md + docs/INVARIANTS.md + lib/companion.sh comments updated, autopilot.sh's arming message reworded to stop claiming enforcement that no longer exists; R43 becomes 'an advisory scanner correctly classifies credential shapes, tool-coverage is moot since nothing dispatches tool calls to it anymore'; R50 becomes the same fail-safe-lock property but for an advisory tool, not an enforced gate; R86 (contract-guard's own enforcement claim) has NO advisory replacement code — its only surviving form is the STEERING.md prose that already existed alongside the hook ('Satisfy the contract; never rewrite it'), so R86 is proposed for full retirement (⚰️), not reversal-to-advisory, since there is nothing left to test except that the prose statement exists (which the kept test 'the contract bound is stated where it is armed' already verifies, filed under R86 or promoted to whichever id it stays as); exact proposed text for all three is staged and ready in this session — I can apply it the instant autopilot is off or the specific edit is approved; rec: apply as staged — this is Pass 3 of the already-approved R100 plan (docs/adr/README.md), not a new decision",
+  "status": "completed",
+  "done_when": "owner reviews the staged R43/R50/R86 text and either applies it (autopilot off, or a scoped exception) or redirects",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-08T17:08:22Z",
+      "text": "also includes: R7's verified_by test title update — I renamed 'fuzz: hooks don't choke on multibyte / emoji content (bash 3.2 byte-splitting)' to 'fuzz: hooks/CLIs don't choke on multibyte / emoji content (bash 3.2 byte-splitting)' since check-secrets.sh is a CLI, not a hook. Same blocker, same fix. Confirmed via dev/trace.sh: exactly 15 orphaned old titles / 14 orphaned new titles, all attributable to this one delta, nothing else red."
+    }
+  ]
+}

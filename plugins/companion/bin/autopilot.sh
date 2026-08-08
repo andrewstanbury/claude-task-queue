@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Toggle per-repo autopilot. ON = run autonomous, keep draining the queue, park decisions as
-# ❓/⏳; OFF = normal review loop. The flag PERSISTS (survives a restart/crash), and is
-# ENFORCED: the Stop hook auto-continues the queue while it's on, and the ask-guard blocks
-# AskUserQuestion. Run via /companion:autopilot or directly. Best-effort.
+# ❓/⏳; OFF = normal review loop. The flag PERSISTS (survives a restart/crash). NOT enforced
+# anymore (R100/Pass 4 retired ask-guard.sh and stop-autopilot.sh — there is no more Stop hook to
+# force continuation and no more PreToolUse hook to deny AskUserQuestion): this flag is now a
+# STATED preference STEERING reads, not a mechanism. Run via /companion:autopilot or directly.
+# Best-effort.
 set -uo pipefail
 SELF="${BASH_SOURCE[0]}"
 while [ -L "$SELF" ]; do
@@ -16,7 +18,7 @@ cmd="${1:-status}"
 root="$(companion_root "$PWD")"
 case "$cmd" in
   on)  companion_mode_set "$root" autopilot \
-       && echo "✈️  autopilot ON for $root — I'll keep draining the queue and PARK decisions (❓) / owner-actions (⏳) until you turn it off. I may SATISFY the recorded contract but not rewrite it (R86): a change to docs/requirements.yaml gets parked for you, and docs/needs.yaml is never mine to edit." ;;
+       && echo "✈️  autopilot ON for $root — I'll keep draining the queue and PARK decisions (❓) / owner-actions (⏳) until you turn it off. I should SATISFY the recorded contract, not rewrite it — STEERING's rule, not enforced anymore (R100/Pass 3 retired contract-guard.sh): docs/needs.yaml is still never mine to write, and a docs/requirements.yaml change is mine to propose-and-park, not decide — my own discipline now, nothing blocks either for me." ;;
   off) companion_autopilot_clear "$root"
        # An explicit OFF outranks any pending resume: clear the paused marker so a review that
        # runs later cannot silently re-arm something the owner deliberately turned off.

@@ -1,0 +1,10 @@
+{
+  "id": "35",
+  "subject": "Pass 5b (after Pass 5a): convert all 12 commands/*.md to reference the MCP tool surface instead of raw bin/ Bash invocations, uniformly",
+  "status": "completed",
+  "done_when": "commands describe calling MCP tools where one exists; dev/trace.sh + check.sh green",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "converting commands/*.md to reference MCP tools"
+}

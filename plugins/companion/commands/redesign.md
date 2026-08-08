@@ -31,9 +31,10 @@ keep green — not a prose catalogue the owner maintains. The **per-module rebui
 below** (D3): a bounded single-target rebuild is just one redesign pass.
 
 0. **Clear autopilot first.** This edits code and rests on the owner's explicit picks. If autopilot
-   is on, run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off` first — the ask-guard would otherwise
-   block every confirmation this flow depends on. (Never leave a code-editing gate resting on
-   advisory prose + a side-effect of another hook.) A **mechanical unblock** — **defer the R38
+   is on, call **`autopilot_toggle`** (`action: "off"`) first — this flow depends on
+   confirmations, and autopilot means don't ask (R100: advisory now, not enforced — nothing will
+   stop you from proceeding without confirmation if you skip this, which is exactly why it's stated
+   here explicitly rather than left to a guard). A **mechanical unblock** — **defer the R38
    parked-pile review** until after this command; note the ❓/⏳ count in one line, don't walk it first.
 
 D0. **Verify the invariant net covers the app BEFORE the first pass (R54 sequencing — non-negotiable).**

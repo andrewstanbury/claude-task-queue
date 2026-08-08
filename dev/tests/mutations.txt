@@ -1,11 +1,12 @@
+plugins/companion/bin/ship-checkpoint.sh::s@case "$cur" in "$def"\|main\|master\|HEAD\|"") echo "refused: still on the default branch"; exit 1 ;; esac@true@::a checkpoint can commit straight onto the default branch
+plugins/companion/bin/ship-checkpoint.sh::s@grep -qE "$(companion_secret_re)"@false@::a checkpoint can commit a staged credential shape
 # Declared mutations for `./check.sh --mutate` (R78). Each line: <file>::<sed script>::<what it breaks>
 # A mutation that does NOT turn the suite red is a HOLE — a test that cannot fail. Three such holes
 # hid real defects in a single session, each masked by a fixture that also tripped another rule.
 plugins/companion/bin/tq::s@rev:"))@rev:")) or (subj|startswith("❓"))@::sweep drops the rev: marker requirement
 plugins/companion/bin/tq::s|(subj\|startswith("⏳")) or|(false) or|::sweep starts eating owner-blocked items
 plugins/companion/bin/tq::s|((subj\|ascii_downcase\|contains("decompose:"))\|not)|(true)|::sweep starts eating decompose parks
-plugins/companion/bin/stop-autopilot.sh::s|if \[ "$swept" -ge "$max" \]|if [ "$swept" -ge 99999 ]|::the sweep terminator is removed
-plugins/companion/bin/secret-guard.sh::s|exit 2|exit 0|::the secret gate stops blocking
+plugins/companion/bin/check-secrets.sh::s|exit 2|exit 0|::the secret scanner stops returning a BLOCK verdict for a real credential shape
 plugins/companion/bin/ship.sh::s@if \[ -z "$da" \]; then@if false; then@::the devil's-advocate gate never fires
 plugins/companion/bin/da-gate.sh::s@    exit 1 ;;@    exit 0 ;;@::da-gate reports no critical paths, ever
 plugins/companion/bin/da-gate.sh::s@\[ "$rc" -ge 2 \] && exit 2@:@::da-gate FAILS OPEN on an unusable config
@@ -23,7 +24,7 @@ dev/doc-lint.sh::s@sed -e 's/\[~≈\]@sed -e 's/ZZZ@::the ~ approximation exempt
 dev/doc-lint.sh::s@echo "  FAIL ledger file not found@return 0; echo "  FAIL ledger file not found@::a missing ledger file goes back to silent success
 plugins/companion/bin/ci-watch.sh::s@exit 12@exit 0@::a give-up watch goes back to reporting success
 plugins/companion/bin/statusline.sh::s@\[ "$NOPEN"  -gt 0 \] \&\& TASKS=@TASKS=@::the drained queue renders 📋 0 again
-plugins/companion/bin/session-start.sh::s@the honest read belongs ON the recommendation@the honest read belongs somewhere@::the compact re-anchor stops carrying WHERE the honest read belongs, so it drifts back to a closing verdict
+plugins/companion/bin/resume.sh::s@  if \[ -f "$PLUGIN_DIR/STEERING.md" \]; then@  if false; then@::the STEERING core stops printing at all, so the honest-read-on-the-pick posture living inside it silently disappears with it
 plugins/companion/lib/ratelimit.sh::s@\[ "$left" -gt 0 \] || return 0@[ 1 -eq 1 ] || return 0@::an elapsed reset time renders a NEGATIVE countdown
 plugins/companion/lib/ratelimit.sh::s@case "$rst" in \*\[!0-9\]\*) return 0;; esac@case "$rst" in zzzNEVERzzz) return 0;; esac@::a non-numeric resets_at reaches $(( )) and can abort the line
 plugins/companion/lib/ratelimit.sh::s@if \[ "$3" -ge "$el" \]@if [ "$3" -ge 0 ]@::the pace marker reads ▴ always — it stops comparing against elapsed
@@ -32,10 +33,10 @@ plugins/companion/lib/ratelimit.sh::s@\[ -n "$rst" \] \&\& \[ "$NOW" -gt 0 \] ||
 plugins/companion/lib/ratelimit.sh::s@el=$(( ((len - left) \* 100 + len - 1) / len ))@el=$(( (len - left) * 100 / len ))@::the pace marker loses its ceiling — ▴ starts lying about being on pace
 dev/mutate-gate.sh::s@\[ "$plan" = "$3" \] && \[ "$res" = "$3" \] || return 1@:@::the gate stops requiring a COMPLETE run — a killed suite scores 'caught' again
 dev/mutate-gate.sh::s@if \[ "$expect" -lt 2 \]; then@if false; then@::an unparseable suite is no longer refused up front
-plugins/companion/bin/session-start.sh::s@awk '/lessons injection stops here/{exit} {print}' "$lf"@cat "$lf"@::LESSONS injects its ON-DEMAND tail again, silently re-taxing every session
+plugins/companion/bin/resume.sh::s@awk '/lessons injection stops here/{exit} {print}' "$lf"@cat "$lf"@::LESSONS prints its ON-DEMAND tail again, silently re-taxing every call
 dev/mutate-gate.sh::s@if \[ "$brc" -ne 0 \]; then@if false; then@::an ALREADY-RED suite is measured anyway, scoring every mutation 'caught'
 dev/mutate-gate.sh::s@if ! mkdir "$_mut_lock" 2>/dev/null; then@if false; then@::concurrent --mutate runs are allowed to corrupt each other again
-plugins/companion/bin/session-start.sh::s@if \[ -f "$PLUGIN_DIR/STEERING.md" \] && companion_autopilot_on "$root"; then@if [ -f "$PLUGIN_DIR/STEERING.md" ]; then@::autopilot mode prose is injected unconditionally again, re-taxing every session
+plugins/companion/bin/resume.sh::s@    if \[ "$was_armed" -eq 1 \]; then@    if true; then@::autopilot mode prose prints unconditionally again, re-taxing every call regardless of whether the mode was ever armed
 plugins/companion/bin/burn-down.sh::s@companion_burndown_on "$root" ||@false ||@::burn-down runs without being armed
 plugins/companion/bin/burn-down.sh::s@\[ "$open" -eq 0 \] ||@[ 1 -eq 1 ] ||@::generated work stops yielding to real queued work
 plugins/companion/bin/burn-down.sh::s@\[ "$nb" -lt "$cap" \] ||@[ 1 -eq 1 ] ||@::unreviewed-branch backpressure stops applying
@@ -52,11 +53,9 @@ plugins/companion/bin/burndown-branch.sh::s@mkdir -p "$MANIFEST_DIR" || die@mkdi
 plugins/companion/bin/burndown-branch.sh::s@valid_slug "$slug" || die@true || die@::a slug can escape the manifest dir again via ../
 plugins/companion/bin/burn-down.sh::s@grep -cv -e '\^  ◻ \*❓' -e '\^  ◻ \*⏳'@grep -c '^  ◻'@::parks and blocked items block burn-down again, making rank 1 unreachable
 plugins/companion/bin/autopilot.sh::s@if ! companion_mode_set "$root" autopilot-paused; then@if false; then@::pause disarms autopilot without recording that it was armed
-plugins/companion/bin/ask-guard.sh::s@if \[ -n "$parked_id" \]; then@if false; then@::a blocked question is denied without being parked — the block becomes a dead end
 plugins/companion/bin/autopilot.sh::s@if ! companion_mode_set "$root" autopilot; then@if false; then@::resume destroys the paused marker without re-arming
 plugins/companion/bin/tq::s@if ( set -o noclobber; : > "$DIR/$id.json" ) 2>/dev/null; then@if true; then@::tq id allocation races again — concurrent adds silently overwrite each other
 plugins/companion/bin/burndown-branch.sh::s@case "$slug" in "$def"|main|master) die "slug@case "$slug" in zzzNEVER) die "slug@::start mints a branch discard can never remove
-plugins/companion/bin/ask-guard.sh::s@_tq="$(cd "$(dirname "$SELF")" 2>/dev/null \&\& pwd)/tq"@_tq="$(dirname "$SELF")/tq"@::a relatively-invoked hook silently writes no task while reporting success
 plugins/companion/bin/prompt-continue.sh::s@\[ "$pile" -gt 0 \] || exit 0@[ 1 -eq 1 ] || exit 0@::a bare 'continue' nags about review even when nothing is parked
 plugins/companion/bin/prompt-continue.sh::s@  \*) exit 0 ;;@  *) : ;;@::any prompt is treated as 'continue', hijacking real instructions
 dev/portability-lint.sh::s@case "$hit" in \*sc2015-ok\*) continue ;; esac@case "$hit" in zzzNEVER) continue ;; esac@::the SC2015 guard stops honouring its own exemption marker
@@ -68,19 +67,13 @@ plugins/companion/bin/ship.sh::s@\[ "$cur" = "$def" \] &&@[ "$cur" = zzzNEVER ] 
 dev/mutate-gate.sh::s@if \[ "$shard_m" -gt 1 \] \&\& \[ $(( (idx - 1) % shard_m )) -ne "$shard_n" \]; then@if false; then@::--shard stops partitioning — every shard runs every mutation
 check.sh::s@dev/trace.sh 2>&1@:@::check.sh stops running the traceability gate
 plugins/companion/bin/prompt-continue.sh::s@STOP — DO NOT START ANY OTHER WORK YET@Note:@::the continue hook stops asserting that unblocking outranks other work
-plugins/companion/bin/session-start.sh::s@if \[ -n "$_ver_tree" \] \&\& \[ "$_ver_tree" != "$_ver_running" \]; then@if false; then@::a stale installed plugin stops being announced — work looks shipped while inert
-plugins/companion/bin/contract-guard.sh::s@companion_autopilot_on "$root" || exit 0@false || exit 0@::the contract guard fires when the owner is present, or stops firing when they are not
-plugins/companion/bin/contract-guard.sh::s@  \*/docs/needs.yaml|docs/needs.yaml)@  zzzNEVERzzz)@::needs.yaml becomes editable by an unattended agent
+plugins/companion/bin/resume.sh::s@    if \[ -n "$_ver_tree" \] \&\& \[ "$_ver_tree" != "$_ver_running" \]; then@    if false; then@::a stale installed plugin stops being announced — work looks shipped while inert
 plugins/companion/STEERING.md::s@Satisfy the contract; never rewrite it@Satisfy the contract@::the steering core stops stating that the contract must not be rewritten
 plugins/companion/bin/candidates.sh::s@| grep -vF 'decision:' | grep -vF 'decompose:'@| cat@::decision parks are offered as buildable work again, and can starve every other rank
-plugins/companion/bin/ask-guard.sh::s@"❓ \[parked\] decision: "@"❓ [parked] "@::auto-parked questions stop being marked as decisions
 plugins/companion/bin/tq::s@map(select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0))@map(select(true))@::the next pointer points at work that cannot start again
-plugins/companion/bin/stop-autopilot.sh::s@IFS=$'\\x1f' read -r OPEN@IFS=$'\\t' read -r OPEN@::the Stop hook reads tab-delimited again, so an empty done_when collapses two delimiters and shifts every later field
-plugins/companion/bin/stop-autopilot.sh::s@ || \[ "$STARTABLE" -eq 0 \]@@::the drain pushes on when every remaining task waits on an earlier item
 plugins/companion/bin/tq::s@$st\[0\].id@$o[0].id@::the startable pointer reverts to the first OPEN task
 plugins/companion/bin/tq::s@select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)\]@select(true)]@::the stopfields pointer forgets dependencies entirely
 plugins/companion/bin/tq::s@\[(subj | match("after #(\[0-9\]+)";"g").captures\[0\].string)\]@[(subj|capture("after #(?<n>[0-9]+)").n)]@::stopfields honours only the FIRST blocker, so a task with two starts early
-plugins/companion/bin/stop-autopilot.sh::s@^  rm -f "$cfile" 2>/dev/null$@  companion_autopilot_clear "$root"; rm -f "$cfile" 2>/dev/null@::a dry queue DISARMS autopilot again, so work queued later never drains without the owner re-arming
 check.sh::s@    \*) FAILED_SECTIONS="${FAILED_SECTIONS}${FAILED_SECTIONS:+;}$CUR" ;;@    *) : ;;@::a red verdict stops naming the section it went red in
 plugins/companion/bin/burn-down.sh::s@  if \[ "$left" -ge "$FINAL" \]; then@  if true; then@::the final stretch stops mattering — a projection keeps holding in the last hours, which is exactly the spend that never happens
 plugins/companion/bin/burn-down.sh::s@  cap=$(( MAXBRANCH + PERDAY \* (elapsed / 86400) ))@  cap="$MAXBRANCH"@::the branch cap stops growing with the elapsed window, so an unattended week halts on about day one
@@ -92,11 +85,10 @@ plugins/companion/bin/burndown-branch.sh::s@grep -qvE .\^.{2} ..companion/.@grep
 dev/portability-lint.sh::s@  \[ -n "$vals" \] || { echo "  FAIL boundary: derived NO threshold constants — the lint would pass vacuously"; return 1; }@  :@::the boundary lint passes vacuously when it derives no constants at all
 check.sh::s@if out="$(dev/portability-lint.sh boundary dev/tests/\*.bats)"; then@if true; then@::check.sh stops invoking the boundary lint — the guard exists but never runs
 check.sh::s@if out="$(dev/command-lint.sh)"; then@if true; then@::check.sh stops invoking the command-contract lint — the guard exists but never runs
-plugins/companion/bin/session-start.sh::s@      /^- \[0-9\]\[0-9\]\[0-9\]\[0-9\]-\[0-9\]\[0-9\]-\[0-9\]\[0-9\]/ { f = ($2 >= c) }@      /^-/ { f = 1 }@::the change ledger stops honouring its time window — every entry ever written injects on every session
-plugins/companion/bin/session-start.sh::s@    \[ -n "$_recent" \] && msg=@    [ -z "$_recent" ] \&\& msg=@::recent out-of-band changes stop being injected, so a cleared context loses them entirely
+plugins/companion/bin/resume.sh::s@      /^- \[0-9\]\[0-9\]\[0-9\]\[0-9\]-\[0-9\]\[0-9\]-\[0-9\]\[0-9\]/ { f = ($2 >= c) }@      /^-/ { f = 1 }@::the change ledger stops honouring its time window — every entry ever written prints on every call
+plugins/companion/bin/resume.sh::s@    \[ -n "$_recent" \] && out=@    [ -z "$_recent" ] \&\& out=@::recent out-of-band changes stop printing, so a cleared context loses them entirely
 plugins/companion/bin/rework.sh::s@      | awk -v t="$THRESH" .\$1 >= t@      | awk -v t="$THRESH" '$1 >= 99999@::a repeatedly-failing component stops being flagged for rebuild, so the fourth patch looks as reasonable as the first
 plugins/companion/bin/ship.sh::s@companion_rework_from_diff "$root" gate-fail ""; die 4@die 4@::a failed gate stops counting as rework, so the defect rate can be narrated again
-plugins/companion/bin/stop-autopilot.sh::s@  if \[ "$OPEN" -eq 0 \] && BURNDOWN_ROOT="$root" "$_bin/burn-down.sh" should-burn@  if false \&\& BURNDOWN_ROOT="$root" "$_bin/burn-down.sh" should-burn@::the drain stops handing off to burn-down, so an idle queue idles instead of taking obvious low-blast work
 plugins/companion/bin/tq::s@def pk: (subj|startswith("⏳")) or (subj|startswith("⛔")) or@def pk: (subj|startswith("⏳")) or@::a hypothesis the owner CLOSED becomes work again — the exact re-investigation the ⛔ class exists to stop
 plugins/companion/lib/companion.sh::s@/.companion/modes/%s@/NOTTHEREPO/%s@::mode flags leave the repo again, so a cloud agent or a fresh container starts with every mode OFF
 plugins/companion/lib/companion.sh::s@  if \[ -z "${CLAUDE_COMPANION_TASKS_DIR:-}" \] && \[ "$store" = "$repostore" \]; then scoped=0; fi@  scoped=0@::session scoping is dropped, so one repo resumes ANOTHER repo tasks
@@ -110,3 +102,9 @@ plugins/companion/lib/companion.sh::s@  mkdir -p "${g%/\*}" 2>/dev/null && : > "
 plugins/companion/bin/tq::s@    \[ -n "$known" \] || { echo "tq orphans: derived NO known kinds@    [ 1 -eq 0 ] || { echo "tq orphans: derived NO known kinds@::the orphan sweep passes vacuously when it derives nothing, so every live state kind reads as dead
 plugins/companion/bin/tq::s@      if \[ "${1:-}" = "--orphans" \]; then rm -rf "$e"@      if true; then rm -rf "$e"@::the orphan sweep DELETES by default instead of reporting, removing data whose purpose is unknown without being asked
 plugins/companion/bin/ship.sh::s@  git reset -q -- .companion/modes 2>/dev/null || true@  :@::a ship SNAPSHOTS live mode state again, so a review pause is committed as "autopilot off" and silently disarms it
+plugins/companion/mcp-server/index.js::s@\[action\] : \[mode, action\]@["status"] : [mode, action]@::autopilot_toggle ignores the requested action and always reports status
+plugins/companion/mcp-server/index.js::s@candidate ?? ""@""@::burndown_branch start silently drops the candidate, so the branch is never created
+plugins/companion/mcp-server/index.js::s@"land", "-F", msgfile@"land", "-x", msgfile@::ship_land passes an invalid flag to ship.sh and nothing ships
+plugins/companion/mcp-server/index.js::s@runBin("ship.sh", \["handoff"\])@runBin("ship.sh", ["preflight"])@::ship_handoff silently runs preflight instead of handing off work
+plugins/companion/mcp-server/index.js::s@runBin("ship-checkpoint.sh", \[\])@runBin("ship.sh", [])@::ship_checkpoint silently runs ship.sh instead of the checkpoint script, so nothing is ever captured
+plugins/companion/mcp-server/index.js::s@❓ \[parked\]@[parked]@::decompose_into_tasks drops the ❓ marker, so a parked decision no longer matches the classification tq itself expects

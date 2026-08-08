@@ -12,16 +12,21 @@ Grouped by **risk area** (this doc's native axis). Each section notes the **UX s
 (`↳ protects:` → a flow / convention in `docs/flows/`) — same shared spine as the quality bar,
 not the same buckets.
 
-## Irreversible-harm gate (the one hard block)
+## Credential-shape scanner (R100/Pass 3: advisory, no longer a hard block)
 `↳ protects:` *guardrails default-on* · flow: core-loop (the secret-gate step)
 
-| Invariant | Check | Status |
+**R100/Pass 3: this is no longer an enforced invariant.** `secret-guard.sh`'s PreToolUse block is
+retired; `check-secrets.sh` / the MCP `check_for_secrets` tool return the same classification, but
+nothing calls them automatically and nothing they return can stop a write. The rows below describe
+the SCANNER's classification behavior, not a guarantee about what gets written.
+
+| Invariant (of the scanner's classification, not a write-time guarantee) | Check | Status |
 |---|---|---|
-| Anchored vendor keys (AWS/GH/Slack/Stripe/Google/PEM) are **blocked** (`exit 2`); placeholders + ordinary code pass; generic `name=value` only **warns** | `secret gate: blocks a real AWS key` · `…allows placeholder` · `…allows ordinary code` · `…generic … WARNS` | ✅ |
-| Gate covers **every** content tool — Write/Edit **and** NotebookEdit (`.new_source`) — no bypass (R43) | `secret gate: covers NotebookEdit's new_source` | ✅ |
-| Disable-able only by explicit opt-out; env `CLAUDE_COMPANION_SECSCAN=0` + per-repo `secret=off` flag; **isolated** per repo (no cross-repo bleed). *(The `/companion:features` CLI was removed 2026-07-18, R50; the flag mechanism + the gate's read of it are unchanged — settable by hand or a re-add.)* | `…disabled via …SECSCAN=0` · `secret gate: honors a per-repo secret=off flag — ALLOWS there but still BLOCKS elsewhere` | ✅ |
-| **Fail-safe:** only an exact `^secret=off$` line disables — corruption / typo / read-error → gate stays **active** (R50/R54) | `secret gate FAIL-SAFE: a flag file that isn't exactly 'secret=off' still BLOCKS` | ✅ *(gap G1, closed 2026-07-17)* |
-| **No fail-open dependency:** `secret-guard.sh` sources **no** lib — a broken dependency can't disable the gate (R50/R54) | `secret gate is self-contained: sources no lib` | ✅ *(gap G2, closed 2026-07-17)* |
+| Anchored vendor keys (AWS/GH/Slack/Stripe/Google/PEM) classify as **BLOCK** (`exit 2`); placeholders + ordinary code pass clean; generic `name=value` only **WARN**s | `check-secrets: BLOCKs a real AWS key` · `…allows placeholder` · `…allows ordinary code` · `…generic … WARNS` | ✅ (classification only) |
+| Tool-agnostic by construction — no tool_input dispatch left to bypass, whatever text it's handed is scanned the same way (R43) | `check-secrets: tool-agnostic by construction` | ✅ |
+| Disable-able only by explicit opt-out; env `CLAUDE_COMPANION_SECSCAN=0` + per-repo `secret=off` flag; **isolated** per repo (no cross-repo bleed) | `…disabled via …SECSCAN=0` · `check-secrets: honors a per-repo secret=off flag — ALLOWS there but still BLOCKS elsewhere` | ✅ |
+| **Fail-safe:** only an exact `^secret=off$` line disables — corruption / typo / read-error → still classifies as **BLOCK** (R50/R54) | `check-secrets FAIL-SAFE: a flag file that isn't exactly 'secret=off' still BLOCKS` | ✅ *(gap G1, closed 2026-07-17)* |
+| **No fail-open dependency:** `check-secrets.sh` sources **no** lib — a broken dependency can't silently change the verdict (R50/R54) | `check-secrets is self-contained: sources no lib` | ✅ *(gap G2, closed 2026-07-17)* |
 
 ## Task store (crash-safety)
 `↳ protects:` *queue-one-at-a-time* · the `tq` spine (flows: core-loop · carry-tasks-to-another-machine)

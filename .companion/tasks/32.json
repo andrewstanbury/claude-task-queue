@@ -1,0 +1,15 @@
+{
+  "id": "32",
+  "subject": "❓ [parked] Pass 5's original premise ('convert commands/*.md to call MCP tools instead of shelling to bin/ directly') doesn't hold up — reconsider before executing it; because: every command I checked (advise, autopilot, board, burn-down, cover, docs, handoff, redesign, resume, review, setup, ship-it) runs INSIDE Claude Code, which already gives them direct Bash access to bin/tq — fast, simple, zero indirection. Routing them through the companion-tq MCP server instead means spawning a Node subprocess via the MCP protocol to do the exact same thing bin/tq already does directly, for no benefit: the MCP server's whole reason to exist (R100/Pass 1) is portability to OTHER clients (Cursor etc.) that lack Claude Code's Bash-to-repo access, not for Claude-Code-native skills that already have it. Converting these 12 files would add latency and a new failure mode (node not installed, MCP server not running) to something that already works, in exchange for nothing. options: A) don't convert — leave commands calling bin/ directly via Bash, exactly as they already build a skill workflow — mark Pass 5 done as scoped to the cleanup already completed this session (7 command files had stale ask-guard.sh/stop-autopilot.sh/SessionStart references fixed — that was real, necessary work, done) B) convert anyway, for interface consistency with Pass 1/3's stated 'MCP-first' direction even though it adds no functional value locally C) add a light cross-reference only — note in STEERING/MAP that the same queue is also reachable via the MCP server for other clients, without changing how Claude Code's own commands invoke it; rec: A — the MCP server already exists and already serves its actual purpose (external portability); forcing internal call sites to detour through it is solving a problem THIS host doesn't have, and the original roadmap entry calling this 'mechanical, low logic risk' was written before Pass 1 established what the MCP layer is actually FOR",
+  "status": "completed",
+  "done_when": "owner picks A, B, or C — this changes Pass 5's actual scope",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-08T18:55:52Z",
+      "text": "resolved: expand the MCP server fully first (autopilot, board, burn-down, candidates, burndown-branch, ship, resume, rework), then convert commands — owner confirmed portability/consistency with a future Cursor implementation is the actual goal, not local execution speed. Original 'don't convert' recommendation under-weighted this — it only checked whether MCP helped Claude Code's OWN execution (it doesn't), not whether it builds a shared, host-agnostic prompt vocabulary for commands/*.md content to eventually be portable to Cursor (it does)."
+    }
+  ]
+}

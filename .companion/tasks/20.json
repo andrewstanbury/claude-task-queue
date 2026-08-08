@@ -1,0 +1,10 @@
+{
+  "id": "20",
+  "subject": "Pass 0: ADR entry recording MCP+skills redesign decision (docs/adr/README.md)",
+  "status": "completed",
+  "done_when": "new ADR entry added, R24/R28/R51 not edited in place, R8/R9/R10/R67 in PROVENANCE.md untouched",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "reading docs/adr/README.md tail + requirements.yaml header for exact insertion format"
+}

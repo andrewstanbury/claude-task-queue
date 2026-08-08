@@ -2,9 +2,11 @@
 #
 # Hook fuzz (R30·d8) — the enforced core is best-effort and MUST NOT crash or break the action it
 # runs on, whatever it's fed. Pipe empty / non-JSON / truncated / valid-but-empty / huge stdin at
-# every stdin-reading hook and assert each exits cleanly (0 = allow/silent, or 2 = secret-guard's
-# one legitimate block) and prints nothing alarming to stdout. This is the contract the whole
-# design rests on; a regression here is a hook that could break a user's edit.
+# every stdin-reading hook/CLI and assert each exits cleanly (0 = allow/silent/clean, or 2 =
+# check-secrets.sh's one legitimate BLOCK verdict) and prints nothing alarming to stdout. This is
+# the contract the whole design rests on; a regression here is something that could break a user's
+# edit or crash on ordinary content — check-secrets.sh is no longer a hook (R100/Pass 3) but stays
+# in this fuzz set because it still reads arbitrary stdin.
 
 # Fixture dirs go under BATS_TEST_TMPDIR, which bats removes after each test. Plain `mktemp -d`
 # leaks: one session of this suite left 37,000 directories in /tmp and exhausted the inode table,
@@ -25,7 +27,7 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   # Feed stdin from a FILE, not a bash -c argument — a 100KB arg blows the test's own ARG_MAX
   # (the hooks read stdin fine at any size; that's what we're proving).
   local f; f="$(mktemp)"
-  local hooks=(secret-guard ask-guard session-start stop-autopilot statusline)
+  local hooks=(check-secrets statusline)
   local inputs=("" "not json at all" "{" '{"tool_input":' "{}" '{"cwd":"/nope","tool_input":{"file_path":"/no/such"}}')
   local h input
   for h in "${hooks[@]}"; do
@@ -44,10 +46,9 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   rm -f "$f"
 }
 
-@test "fuzz: hooks don't choke on multibyte / emoji content (bash 3.2 byte-splitting)" {
-  # the exact class that crashed macOS bash 3.2 — feed emoji through the JSON path
-  local payload; payload='{"tool_input":{"file_path":"/x/a.py","content":"x = \"🛡❓⏳✈️\""}}'
-  run bash -c 'printf "%s" "$1" | "$2"' _ "$payload" "$ROOT/bin/secret-guard.sh"
+@test "fuzz: hooks/CLIs don't choke on multibyte / emoji content (bash 3.2 byte-splitting)" {
+  # the exact class that crashed macOS bash 3.2
+  run bash -c 'printf "%s" "$1" | "$2" --path /x/a.py' _ 'x = "🛡❓⏳✈️"' "$ROOT/bin/check-secrets.sh"
   [ "$status" -eq 0 ]                                   # emoji content is not a secret, allowed
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ '{"model":{"display_name":"m🛡"}}' "$ROOT/bin/statusline.sh"
   [ "$status" -eq 0 ]                                   # emoji in model name doesn't crash the bar

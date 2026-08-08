@@ -1,0 +1,16 @@
+{
+  "id": "25",
+  "subject": "Pass 2: retire session-start.sh hook, merge its content into resume.sh, reverse R39/R69/R80/R93",
+  "status": "completed",
+  "done_when": "hooks.json has no SessionStart entry; resume.sh absorbs the content; requirements.yaml reflects on-demand-only; dev/trace.sh and check.sh green",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "hooks.json edited, session-start.sh deleted, resume.sh rewritten, ~14 bats tests rewritten, MAP.md/STEERING.md comments fixed — now reversing R39/R69/R80/R93 in requirements.yaml",
+  "notes": [
+    {
+      "ts": "2026-08-08T15:12:31Z",
+      "text": "core check.sh green; running scoped mutation gate against resume.sh in background to verify the 6 retargeted mutations are actually caught, not just pattern-matching"
+    }
+  ]
+}

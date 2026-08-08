@@ -7,23 +7,23 @@ Run a **review**: clear the backlog of tasks that need *you* — the **parked (�
 recording every pick before any new work. Run it any time; it is also what runs when autopilot is
 turned off (R38).
 
-**A review is transparent to autopilot (R83).** It has to disarm to ask anything — the ask-guard
-blocks questions while the flag is on — but it re-arms itself at the end and carries straight on
-draining. Reviewing is no longer a decision to stop working.
+**A review is transparent to autopilot (R83).** It disarms to ask anything — autopilot means don't
+ask (R100: advisory now, not enforced, but the discipline still holds) — then re-arms itself at
+the end and carries straight on draining. Reviewing is no longer a decision to stop working.
 
 It's judgment + workflow, not enforcement — it proposes, you choose, it records (R28). It reuses the
 `/companion:advise` presentation loop (R29) — don't build a second machine. It reviews **only** the
 pile that needs deciding — to *re-surface carried-over tasks from an earlier session* first, run
 `/companion:resume` (session-pickup), then this.
 
-0. **Pause autopilot, don't kill it.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" pause` before
-   anything else — the ask-guard blocks `AskUserQuestion` while the flag is on, so a review cannot
-   ask a single question until it disarms. `pause` records that autopilot **was** armed so step 5
+0. **Pause autopilot, don't kill it.** Call the **`autopilot_toggle`** MCP tool with `action: "pause"`
+   before anything else — a review asks, and autopilot means don't (R100: advisory now, not enforced, but
+   the sequencing is still right). `pause` records that autopilot **was** armed so step 5
    can put it back; it is a clean no-op when autopilot was already off. Never use `off` here —
    that is the owner's word, and it deliberately cancels any pending resume.
 
-1. **Gather the pile — parked + blocked only.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/tq" list` (**not
-   `report`** — the report truncates each subject to ~72 chars, and a parked item carries its options
+1. **Gather the pile — parked + blocked only.** Call the **`tq_list`** MCP tool (**not
+   `tq_report`** — the report truncates each subject to ~72 chars, and a parked item carries its options
    *in* the subject) and take only the tasks whose subject starts with **❓ (parked decision)** or
    **⏳ (owner-blocked action)**. **Ignore plain `📋 open` tasks** — they need doing, not deciding;
    presenting a menu for "implement X" is noise. If nothing is parked or blocked, say so in one line
@@ -80,7 +80,7 @@ pile that needs deciding — to *re-surface carried-over tasks from an earlier s
    confirm the queue state with `tq report`. If a decision would touch a locked requirement, offer
    to draft the ledger entry (per R5).
 
-5. **Resume autopilot and keep going.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" resume`. If
+5. **Resume autopilot and keep going.** Call **`autopilot_toggle`** with `action: "resume"`. If
    the review paused it, this re-arms it and you carry on draining the newly-queued work
    immediately — the picks **are** the go, so do not ask for a second blanket confirmation. If
    autopilot was off when the review started, `resume` is a no-op and you simply continue in the

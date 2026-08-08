@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Shared helpers for the persisted per-repo autopilot flag + the companion task store — sourced by
-# bin/autopilot.sh, the Stop hook, the ask-guard, session-start/resume, and the status line. (One
-# plugin, so a shared lib is fine; the encoding MUST be identical across readers — that's why it
-# lives here.)
+# autopilot.sh, board.sh, burn-down.sh, candidates.sh, burndown-branch.sh, rework.sh, ship.sh,
+# ship-checkpoint.sh, resume.sh, prompt-continue.sh, and the status line. (One plugin, so a shared
+# lib is fine; the encoding MUST be identical across readers — that's why it lives here.)
 
 companion_state_dir() { printf '%s' "${CLAUDE_COMPANION_STATE_DIR:-$HOME/.claude/companion}"; }
 
@@ -156,11 +156,12 @@ companion_rl_snapshot() { printf '%s/ratelimit' "$(companion_state_dir)"; }
 
 # Per-repo feature OFF flags (R50) — a single per-repo file storing only OFF overrides, one
 # `<feature>=off` line each. Absence of a line ⇒ the feature's default (secret/steering
-# default ON). Read by every enforced-core reader (session-start steering, statusline shield);
+# default ON). Read by every enforced-core reader (resume's steering print, statusline shield);
 # env var (CLAUDE_COMPANION_SECSCAN) stays as a *global* override that wins, so a per-repo flag
 # never fights CI. autopilot/ship keep their own flag files (their commands own that state).
-# NOTE: the self-contained hook (secret-guard.sh) MUST NOT source this lib — it
-# reads the file with an inline grep instead; keep that path/encoding in sync with companion_enc.
+# NOTE: the self-contained scanner (bin/check-secrets.sh, advisory since R100/Pass 3 — was the
+# enforced secret-guard.sh hook) MUST NOT source this lib — it reads the file with an inline grep
+# instead; keep that path/encoding in sync with companion_enc.
 # The `/companion:features` CLI writer was removed 2026-07-18 (R50 amended); the flag mechanism +
 # its readers remain (settable by hand or a future re-add), so no reader's behavior changed.
 companion_feature_file()  { printf '%s/features/%s' "$(companion_state_dir)" "$(companion_enc "${1:-}")"; }
@@ -170,8 +171,9 @@ companion_feature_off()   { [ -n "${2:-}" ] && grep -qs "^${1:-}=off\$" "$(compa
 
 # The high-confidence, vendor-anchored credential shapes (~zero false positive). Ship-mode greps
 # a staged diff against this before committing, so it never bakes a real key into a checkpoint.
-# NOTE: `bin/secret-guard.sh` keeps its OWN inline copy on purpose (the enforced gate stays
-# self-contained — no `lib` dependency that could make it fail open). Keep the two in sync.
+# NOTE: `bin/check-secrets.sh` keeps its OWN inline copy on purpose (stays self-contained, no
+# `lib` dependency — R100/Pass 3: advisory now, but still no reason to add a failure mode). Keep
+# the two in sync.
 companion_secret_re() { printf '%s' 'AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,}|xox[baprs]-[0-9A-Za-z-]{10,}|sk_live_[0-9A-Za-z]{16,}|AIza[0-9A-Za-z_-]{35}|-----BEGIN [A-Z ]*PRIVATE KEY-----'; }
 
 # The companion's own task store (not native tasks).

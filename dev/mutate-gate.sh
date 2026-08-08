@@ -40,10 +40,12 @@ case "$shard_m" in ''|*[!0-9]*) shard_m=1 ;; esac
 [ "$shard_m" -ge 1 ] || shard_m=1
 mfilter=("$@")
 command -v bats >/dev/null 2>&1 || { echo "  SKIP — bats not installed"; exit 0; }
-# RESTORE ON ANY EXIT. This mutates the live working tree — including `secret-guard.sh`, a hook
-# that is ACTIVE in this repo. Without a trap, one Ctrl-C leaves the secret gate disabled and a
-# mutated file staged by the next `git add -A` (R7 must never fail open). Belt and braces: the
-# trap restores, and `.gitignore` covers `*.mutbak` so a stray one can never be committed.
+# RESTORE ON ANY EXIT. This mutates the live working tree — including `prompt-continue.sh`, the
+# one hook still ACTIVE in this repo (R100/Pass 4: every other former hook, `check-secrets.sh`
+# included, is advisory now, but a mutated copy left staged by accident is exactly as unwelcome).
+# Without a trap, one Ctrl-C leaves a mutated file staged by the next `git add -A` (R7 must never
+# fail open). Belt and braces: the trap restores, and `.gitignore` covers `*.mutbak` so a stray one
+# can never be committed.
 # shellcheck disable=SC2329,SC2317  # invoked via the trap below, not by name.
 # BOTH codes: local shellcheck 0.11 flags SC2329, CI's older build flags SC2317 for the same
 # function — a version split that has now shipped red CI twice (cf. SC2015 in LESSONS).

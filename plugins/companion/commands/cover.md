@@ -37,10 +37,11 @@ silence.
 
 ---
 
-0. **Clear autopilot first.** If autopilot is on, run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off`
-   before anything else — the ask-guard blocks `AskUserQuestion` while it's on, and this command
-   asks. A **mechanical unblock** — **defer the R38 parked-pile review** until after this command;
-   note the ❓/⏳ count in one line, don't walk the pile first.
+0. **Clear autopilot first.** If autopilot is on, call **`autopilot_toggle`** (`action: "off"`)
+   before anything else — this command asks, and autopilot means don't (R100: advisory now, not
+   enforced, but the sequencing is still right). A **mechanical unblock** — **defer the R38
+   parked-pile review** until after this command; note the ❓/⏳ count in one line, don't walk the
+   pile first.
 
 1. **Read the contract + the current net.** Read the `docs/flows/` pages (each flow's `steps:` +
    its `Tests` lines — `[E]` with a resolving test name, `[S]` eyeball-only) and `docs/INVARIANTS.md`

@@ -1,0 +1,16 @@
+{
+  "id": "28",
+  "subject": "Pass 5: convert remaining commands/*.md to call MCP tools instead of shelling to bin/ directly",
+  "status": "completed",
+  "done_when": "ship-it/board/burn-down/cover/docs/redesign/review/handoff/advise/autopilot/setup all route through companion-tq MCP tools where applicable, dev/trace.sh + check.sh green",
+  "context": "plugins/companion/commands/*.md, plugins/companion/mcp-server/index.js",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "checking commands/*.md for stale hook references first (definite cleanup) before deciding on the MCP-routing question",
+  "notes": [
+    {
+      "ts": "2026-08-08T18:07:31Z",
+      "text": "scope landed: 7 command files (cover, docs, autopilot, review, advise, resume, redesign) had stale ask-guard.sh/stop-autopilot.sh/SessionStart references fixed to describe the advisory-only reality — autopilot.md and resume.md needed substantial rewrites, the other 5 needed targeted fixes. The 'convert to MCP tools' half of the original scope is parked as #32 — it doesn't hold up on inspection (these commands already have direct Bash access to bin/tq; routing through MCP adds a subprocess hop for no benefit to THIS host). check.sh green."
+    }
+  ]
+}

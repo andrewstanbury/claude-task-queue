@@ -1,0 +1,16 @@
+{
+  "id": "29",
+  "subject": "Pass 6 (after #26 after #27 after #28): rewrite CLAUDE.md/AGENTS.md/plugin.json description/docs/CONFIG.md/docs/ROADMAP.md — all still describe the pre-R100 enforced-core architecture",
+  "status": "completed",
+  "done_when": "no file describes a retired hook or an enforced-core guarantee that no longer holds",
+  "context": "CLAUDE.md, AGENTS.md, plugins/companion/.claude-plugin/plugin.json, docs/CONFIG.md, docs/ROADMAP.md",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "reading CLAUDE.md, AGENTS.md, plugin.json, docs/CONFIG.md, docs/ROADMAP.md to scope the rewrite",
+  "notes": [
+    {
+      "ts": "2026-08-08T18:20:20Z",
+      "text": "rewrote CLAUDE.md, AGENTS.md, plugin.json description, docs/CONFIG.md, docs/ROADMAP.md — all described the pre-R100 enforced-core architecture as current. CLAUDE.md needed trimming back under its 4096B cap after the rewrite (check.sh caught it). Also fixed a pre-existing, unrelated staleness bug in ROADMAP.md while there (pointed at docs/adr/PROVENANCE.md for 'durable decisions' — that's been frozen since 2026-08-02, docs/adr/README.md is the live ledger). Full repo sweep confirms no remaining stale hook references outside intentional 'was X, now Y, retired' phrasing and legitimate LESSONS.md history. check.sh green."
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "24",
+  "subject": "Pass 6: rewrite CLAUDE.md/AGENTS.md/plugin.json description/docs/CONFIG.md/docs/ROADMAP.md — all still describe session-start.sh as a live hook",
+  "status": "cancelled",
+  "done_when": "no file describes the retired SessionStart hook as current behavior",
+  "context": "CLAUDE.md, AGENTS.md, plugins/companion/.claude-plugin/plugin.json, docs/CONFIG.md, docs/ROADMAP.md",
+  "blocks": [],
+  "blockedBy": []
+}

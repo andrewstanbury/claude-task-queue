@@ -10,13 +10,14 @@ reading this because you *want* something built, stop and queue it with `tq` ins
 work always outranks generated work and will make this mode refuse to run at all.
 
 1. **Ask permission from the forecaster, every single iteration.**
-   Run `"$CLAUDE_PLUGIN_ROOT/bin/burn-down.sh" should-burn`. Non-zero → **stop immediately** and
-   say which condition held you back (it prints the reason on stderr). Do not retry, do not
-   reinterpret, do not "just do one small thing anyway". The conditions are: mode armed · a fresh
-   rate-limit snapshot · 5h headroom to actually work · the 7d window forecast to end **under**
-   target · **zero** queued tasks · fewer than 3 unreviewed `burndown/*` branches.
+   Call the **`burn_down`** MCP tool (`action: "should_burn"`). It returns text either way (a
+   refusal is not a tool error) — read it: anything other than a go-ahead means **stop
+   immediately** and say which condition held you back. Do not retry, do not reinterpret, do not
+   "just do one small thing anyway". The conditions are: mode armed · a fresh rate-limit snapshot ·
+   5h headroom to actually work · the 7d window forecast to end **under** target · **zero** queued
+   tasks · fewer than 3 unreviewed `burndown/*` branches.
 2. **Take ONE candidate, the highest-ranked.**
-   Run `"$CLAUDE_PLUGIN_ROOT/bin/candidates.sh"` and take the **first line only**.
+   Call the **`candidates`** MCP tool and take the **first line only**.
    - Rank 1–4 are signals *the owner recorded* — a parked decision carrying `rec:`, a ROADMAP item,
      a TODO, a flow with no automated test. Build these.
    - **Rank 5 is `invent`**, meaning nothing recorded remains. Do **not** build it. Park it as a
@@ -28,9 +29,9 @@ work always outranks generated work and will make this mode refuse to run at all
      leave the park exactly as it is, and take the next candidate. Never convert a question into an
      implementation just because it ranked first.
 3. **Open the container before writing anything.**
-   `"$CLAUDE_PLUGIN_ROOT/bin/burndown-branch.sh" start "<the candidate line verbatim>"` — it
+   Call **`burndown_branch`** (`action: "start"`, `candidate: "<the candidate line verbatim>"`) — it
    creates `burndown/<slug>` off the default branch, refuses if the tree is dirty, and writes a
-   manifest stating the reason, the flag name, how to try it and how to delete it. It prints the
+   manifest stating the reason, the flag name, how to try it and how to delete it. It returns the
    slug. If it refuses, respect the refusal.
 4. **Build it behind the flag named in the manifest, defaulting OFF.**
    Implement the flag in **this project's own idiom** (env var, config key, build tag — whatever it

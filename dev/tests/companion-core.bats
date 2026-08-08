@@ -15,8 +15,8 @@ setup() {
   # where the gates that verify it live. Keeping the two named apart is the point of the split.
   ROOT="$(cd "$BATS_TEST_DIRNAME/../../plugins/companion" && pwd)"
   DEV="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  GUARD="$ROOT/bin/secret-guard.sh"; TQ="$ROOT/bin/tq"; SS="$ROOT/bin/session-start.sh"; SL="$ROOT/bin/statusline.sh"
-  AP="$ROOT/bin/autopilot.sh"; ASK="$ROOT/bin/ask-guard.sh"; STOP="$ROOT/bin/stop-autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
+  GUARD="$ROOT/bin/check-secrets.sh"; TQ="$ROOT/bin/tq"; SL="$ROOT/bin/statusline.sh"
+  AP="$ROOT/bin/autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
   BOARD="$ROOT/bin/board.sh"
   DRIFT="$ROOT/bin/contract-drift.sh"   # R58 living contract (drift backstop)
   export CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)"   # the companion's OWN store, not ~/.claude/tasks
@@ -27,7 +27,7 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
 
 # Write a per-repo feature OFF flag directly at the reader's enc path (the `/companion:features`
 # CLI was removed 2026-07-18; the flag mechanism + its readers remain — R50). Mirrors
-# companion_feature_file(companion_root(repo)) so secret-guard / session-start / statusline find it.
+# companion_feature_file(companion_root(repo)) so secret-guard / resume / statusline find it.
 _feature_off() {  # $1=feature  $2=repo-dir
   local root enc; root="$(git -C "$2" rev-parse --show-toplevel)"
   enc="$(printf '%s' "$root" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
@@ -70,80 +70,81 @@ _ux_flow_check() {
 
 # ---- secret gate (the one enforced content block) ----
 
-@test "secret gate: blocks a real AWS key (exit 2)" {
+@test "check-secrets: BLOCKs a real AWS key (exit 2) — advisory only, R100/Pass 3" {
   local k="AKIA""ABCDEFGHIJKLMNOP"
-  run bash -c 'jq -nc --arg c "$1" "{tool_input:{file_path:\"/x/c.py\",content:\$c}}" | "$2"' _ "API_KEY = \"$k\"" "$GUARD"
+  run bash -c 'printf "%s" "$1" | "$2" --path /x/c.py' _ "API_KEY = \"$k\"" "$GUARD"
   [ "$status" -eq 2 ]
-  [[ "$output" == *"BLOCKED"* ]]
+  [[ "$output" == *"BLOCK"* ]]
 }
 
-@test "secret gate: a generic name=value literal WARNS but does not block (exit 0) — R32" {
-  run bash -c 'jq -nc "{tool_input:{file_path:\"/x/c.py\",content:\"password = \\\"hunter2primetime\\\"\"}}" | "$1"' _ "$GUARD"
-  [ "$status" -eq 0 ]                          # heuristic no longer breaks the edit
-  [[ "$output" == *"WARNING"* ]]              # but it does warn
+@test "check-secrets: a generic name=value literal WARNS but does not block (exit 0) — R32" {
+  run bash -c 'printf "%s" "$1" | "$2" --path /x/c.py' _ 'password = "hunter2primetime"' "$GUARD"
+  [ "$status" -eq 0 ]                          # heuristic never had veto power; still doesn't
+  [[ "$output" == *"WARN"* ]]                 # but it does warn
 }
 
-@test "secret gate: allows a placeholder (exit 0)" {
-  run bash -c 'jq -nc "{tool_input:{file_path:\"/x/c.py\",content:\"API_KEY = \\\"your-key-here\\\"\"}}" | "$1"' _ "$GUARD"
+@test "check-secrets: allows a placeholder (exit 0)" {
+  run bash -c 'printf "%s" "$1" | "$2" --path /x/c.py' _ 'API_KEY = "your-key-here"' "$GUARD"
   [ "$status" -eq 0 ]
 }
 
-@test "secret gate: allows ordinary code (exit 0)" {
-  run bash -c 'jq -nc "{tool_input:{file_path:\"/x/a.py\",content:\"def add(a,b): return a+b\"}}" | "$1"' _ "$GUARD"
+@test "check-secrets: allows ordinary code (exit 0)" {
+  run bash -c 'printf "%s" "$1" | "$2" --path /x/a.py' _ 'def add(a,b): return a+b' "$GUARD"
   [ "$status" -eq 0 ]
 }
 
-@test "secret gate: disabled via CLAUDE_COMPANION_SECSCAN=0" {
+@test "check-secrets: disabled via CLAUDE_COMPANION_SECSCAN=0" {
   local k="AKIA""ABCDEFGHIJKLMNOP"
-  run bash -c 'CLAUDE_COMPANION_SECSCAN=0 bash -c "jq -nc --arg c \"\$1\" \"{tool_input:{file_path:\\\"/x/c.py\\\",content:\\\$c}}\" | \"\$2\"" _ "$1" "$2"' _ "API_KEY = \"$k\"" "$GUARD"
+  run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_SECSCAN=0 "$2" --path /x/c.py' _ "API_KEY = \"$k\"" "$GUARD"
   [ "$status" -eq 0 ]
 }
 
 # ---- per-repo feature toggles (R50): one unified surface, scoped per repo ----
 
-@test "secret gate: honors a per-repo secret=off flag — ALLOWS there but still BLOCKS elsewhere (isolated, R50/R54)" {
+@test "check-secrets: honors a per-repo secret=off flag — ALLOWS there but still BLOCKS elsewhere (isolated, R50/R54)" {
   local k="AKIA""ABCDEFGHIJKLMNOP"
   local repo other; repo="$(_tmpd)"; other="$(_tmpd)"
   git -C "$repo" init -q; git -C "$other" init -q
   _feature_off secret "$repo"
   # off in $repo → allowed
-  run bash -c 'jq -nc --arg p "$1" --arg c "$2" "{tool_input:{file_path:\$p,content:\$c}}" | "$3"' _ "$repo/c.py" "API_KEY = \"$k\"" "$GUARD"
+  run bash -c 'printf "%s" "$1" | "$2" --path "$3/c.py"' _ "API_KEY = \"$k\"" "$GUARD" "$repo"
   [ "$status" -eq 0 ]
   # still on in $other → blocked (no cross-repo bleed)
-  run bash -c 'jq -nc --arg p "$1" --arg c "$2" "{tool_input:{file_path:\$p,content:\$c}}" | "$3"' _ "$other/c.py" "API_KEY = \"$k\"" "$GUARD"
+  run bash -c 'printf "%s" "$1" | "$2" --path "$3/c.py"' _ "API_KEY = \"$k\"" "$GUARD" "$other"
   [ "$status" -eq 2 ]
   rm -rf "$repo" "$other"
 }
 
-@test "secret gate FAIL-SAFE: a flag file that isn't exactly 'secret=off' still BLOCKS (R50/R54 never-fails-open)" {
-  # Invariant (invisible to the user): only an exact ^secret=off$ line disables; corruption/typo -> gate ACTIVE.
+@test "check-secrets FAIL-SAFE: a flag file that isn't exactly 'secret=off' still BLOCKS (R50/R54 never-fails-open)" {
+  # Invariant (invisible to the user): only an exact ^secret=off$ line disables; corruption/typo -> still BLOCKS.
   local k="AKIA""ABCDEFGHIJKLMNOP"
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   _feature_off secret "$repo"                                      # writes the flag at the enc path
   local flag; flag="$(find "${CLAUDE_COMPANION_STATE_DIR:?}/features" -type f 2>/dev/null | head -1)"
   [ -n "$flag" ]
   printf 'secret=off_typo\ngarbage\n' > "$flag"                     # NOT the exact ^secret=off$ line
-  run bash -c 'jq -nc --arg p "$1" --arg c "$2" "{tool_input:{file_path:\$p,content:\$c}}" | "$3"' _ "$repo/c.py" "API_KEY = \"$k\"" "$GUARD"
-  [ "$status" -eq 2 ]                                               # fail-safe: corrupt flag -> still blocks
+  run bash -c 'printf "%s" "$1" | "$2" --path "$3/c.py"' _ "API_KEY = \"$k\"" "$GUARD" "$repo"
+  [ "$status" -eq 2 ]                                               # fail-safe: corrupt flag -> still BLOCKS
   rm -rf "$repo"
 }
 
-@test "secret gate is self-contained: sources no lib (R50/R54 never-fails-open via a dependency)" {
-  # The one enforced gate must not depend on lib/companion.sh — a broken dependency could make it fail open.
+@test "check-secrets is self-contained: sources no lib (R50/R54 never-fails-open via a dependency)" {
+  # Even advisory, it should not depend on lib/companion.sh — a broken dependency should not make
+  # a verdict silently vanish.
   run grep -nE '^[[:space:]]*(\.|source)[[:space:]]+.*companion\.sh' "$GUARD"
   [ "$status" -ne 0 ]
 }
 
-@test "steering off (per-repo flag): SessionStart drops the working agreement (resume/lessons unaffected, R50)" {
+@test "steering off (per-repo flag): resume drops the working agreement (tasks/lessons unaffected, R50)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   _feature_off steering "$repo"
-  run bash -c 'jq -nc --arg c "$1" "{source:\"startup\",cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.additionalContext"' _ "$repo" "$SS"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
   [ "$status" -eq 0 ]
-  [[ "$output" != *"working agreement"* ]]
+  [[ "$output" != *"Working agreement"* ]]
   # clear the flag → agreement returns (default ON)
   _feature_clear
-  run bash -c 'jq -nc --arg c "$1" "{source:\"startup\",cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.additionalContext"' _ "$repo" "$SS"
-  [[ "$output" == *"working agreement"* ]]
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [[ "$output" == *"Working agreement"* ]]
   rm -rf "$repo"
 }
 
@@ -177,6 +178,199 @@ _ux_flow_check() {
   [ "$(jq -s '[.[]|select(.status=="pending")]|length' "$CLAUDE_COMPANION_TASKS_DIR/s1"/*.json)" -eq 1 ]
 }
 
+@test "MCP server: tq_add via companion-tq matches bin/tq output, same store (Pass 1, R101)" {
+  command -v node >/dev/null 2>&1 || skip "node not installed"
+  [ -d "$ROOT/mcp-server/node_modules" ] || skip "mcp-server deps not installed (npm ci --prefix plugins/companion/mcp-server)"
+
+  script='
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+const transport = new StdioClientTransport({ command: "node", args: [process.env.MCP_INDEX], env: process.env });
+const client = new Client({ name: "bats-verify", version: "0.0.1" });
+await client.connect(transport);
+const r = await client.callTool({ name: "tq_add", arguments: { subjects: ["mcp parity check"] } });
+process.stdout.write(r.content[0].text + "\n");
+await client.close();
+'
+  run bash -c 'cd "$1/mcp-server" && CLAUDE_PLUGIN_ROOT="$1" MCP_INDEX="$1/mcp-server/index.js" node --input-type=module -e "$2"' _ "$ROOT" "$script"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"added #"* ]]
+
+  # same store, reached the ordinary way — the MCP call and the CLI see the same task
+  run "$TQ" list
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"mcp parity check"* ]]
+}
+
+# ---- MCP server, Pass 5a: the remaining bin/ scripts as tools, same thin-wrapper contract ----
+
+_mcp_call() {  # $1=repo-dir $2=json-array-of-{name,arguments} -> prints each result's text, \n-joined
+  command -v node >/dev/null 2>&1 || skip "node not installed"
+  [ -d "$ROOT/mcp-server/node_modules" ] || skip "mcp-server deps not installed (npm ci --prefix plugins/companion/mcp-server)"
+  local script='
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+const calls = JSON.parse(process.env.MCP_CALLS);
+const transport = new StdioClientTransport({ command: "node", args: [process.env.MCP_INDEX], env: process.env });
+const client = new Client({ name: "bats-verify", version: "0.0.1" });
+await client.connect(transport);
+for (const c of calls) {
+  const r = await client.callTool({ name: c.name, arguments: c.arguments || {} });
+  process.stdout.write("<<<" + c.name + ">>>\n" + r.content[0].text + "\n");
+}
+await client.close();
+'
+  run bash -c 'cd "$1/mcp-server" && CLAUDE_PLUGIN_ROOT="$1" CLAUDE_PROJECT_DIR="$2" MCP_INDEX="$1/mcp-server/index.js" MCP_CALLS="$3" node --input-type=module -e "$4"' \
+    _ "$ROOT" "$1" "$2" "$script"
+}
+
+@test "MCP server: board/resume/burn_down/candidates/rework/autopilot_status read-only tools match their CLIs (Pass 5a)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/mp"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/mp" "$repo"
+  jq -n '{id:"1",subject:"parity task",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/mp/1.json"
+
+  _mcp_call "$repo" '[{"name":"board"},{"name":"resume"},{"name":"burn_down","arguments":{"action":"status"}},{"name":"candidates"},{"name":"rework","arguments":{"action":"report"}},{"name":"autopilot_toggle","arguments":{"action":"status"}}]'
+  [ "$status" -eq 0 ]
+  local mcp_out="$output"
+
+  run "$BOARD"; local board_out="$output"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"; local resume_out="$output"
+  run "$ROOT/bin/burn-down.sh" status; local burndown_out="$output"
+  run "$ROOT/bin/candidates.sh"; local candidates_out="$output"
+  run "$ROOT/bin/rework.sh" report; local rework_out="$output"
+  run "$AP" status; local ap_out="$output"
+
+  [[ "$mcp_out" == *"<<<board>>>"* ]]
+  [[ "$mcp_out" == *"parity task"* ]]                     # board sees the live queue
+  [[ "$mcp_out" == *"<<<resume>>>"* ]]
+  [[ "$mcp_out" == *"Working agreement"* ]]                # resume injects steering, same as CLI
+  [[ "$mcp_out" == *"<<<burn_down>>>"* ]]
+  [[ "$mcp_out" == *"<<<candidates>>>"* ]] || true          # candidates may be empty in a fresh repo
+  [[ "$mcp_out" == *"<<<rework>>>"* ]]
+  [[ "$mcp_out" == *"<<<autopilot_toggle>>>"* ]]
+  [[ "$mcp_out" == *"OFF"* ]] || [[ "$mcp_out" == *"off"* ]]  # fresh repo — autopilot not armed
+
+  rm -rf "$repo"
+}
+
+@test "MCP server: autopilot_toggle on/off round-trips the real flag file (Pass 5a)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+
+  _mcp_call "$repo" '[{"name":"autopilot_toggle","arguments":{"action":"on"}}]'
+  [ "$status" -eq 0 ]
+
+  run bash -c 'cd "$1" && "$2" status' _ "$repo" "$AP"
+  [[ "$output" == *"ON"* ]] || [[ "$output" == *"on"* ]]
+
+  _mcp_call "$repo" '[{"name":"autopilot_toggle","arguments":{"action":"off"}}]'
+  [ "$status" -eq 0 ]
+  run bash -c 'cd "$1" && "$2" status' _ "$repo" "$AP"
+  [[ "$output" == *"OFF"* ]] || [[ "$output" == *"off"* ]]
+
+  rm -rf "$repo"
+}
+
+@test "MCP server: burndown_branch start/list/discard round-trips a real branch + manifest (Pass 5a)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+
+  _mcp_call "$repo" '[{"name":"burndown_branch","arguments":{"action":"start","candidate":"9|todo|mcp parity candidate"}}]'
+  [ "$status" -eq 0 ]
+  local slug; slug="$(printf '%s' "$output" | sed -n '/<<<burndown_branch>>>/{n;p}')"
+  [ -n "$slug" ]
+  git -C "$repo" rev-parse --verify --quiet "burndown/$slug" >/dev/null   # real branch, seen by plain git
+
+  _mcp_call "$repo" '[{"name":"burndown_branch","arguments":{"action":"list"}}]'
+  [[ "$output" == *"burndown/$slug"* ]]
+
+  git -C "$repo" checkout -q main   # start left HEAD on the new branch; discard refuses that branch
+  _mcp_call "$repo" "[{\"name\":\"burndown_branch\",\"arguments\":{\"action\":\"discard\",\"slug\":\"$slug\"}}]"
+  [ "$status" -eq 0 ]
+  run git -C "$repo" rev-parse --verify --quiet "burndown/$slug"
+  [ "$status" -ne 0 ]                                       # gone, via plain git
+
+  rm -rf "$repo"
+}
+
+@test "MCP server: ship_land commits+merges to the default branch, matches bin/ship.sh land (Pass 5a)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  git -C "$repo" checkout -q -b autopilot/mcp-test
+  echo hello > "$repo/f.txt"
+  git -C "$repo" add f.txt
+
+  _mcp_call "$repo" '[{"name":"ship_land","arguments":{"message":"test: mcp ship_land parity","gate":["true"]}}]'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"shipped"* ]]
+
+  run git -C "$repo" rev-parse --abbrev-ref HEAD
+  [ "$output" = "main" ]                                    # merged onto the default branch
+  run git -C "$repo" log --oneline -1
+  [[ "$output" == *"test: mcp ship_land parity"* ]]
+  run git -C "$repo" rev-parse --verify --quiet autopilot/mcp-test
+  [ "$status" -ne 0 ]                                       # feature branch cleaned up, like the CLI does
+
+  rm -rf "$repo"
+}
+
+@test "MCP server: ship_handoff surfaces the same no-remote error as bin/ship.sh handoff (Pass 5a)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+
+  _mcp_call "$repo" '[{"name":"ship_handoff"}]'
+  [ "$status" -eq 0 ]                                       # tool call succeeds; the CLI's error is in isError/text
+  [[ "$output" == *"no remote"* ]]
+
+  run bash -c 'cd "$1" && "$2" handoff' _ "$repo" "$ROOT/bin/ship.sh"
+  [[ "$output" == *"no remote"* ]]                          # same message as the direct CLI
+
+  rm -rf "$repo"
+}
+
+@test "MCP server: ship_checkpoint commits to a throwaway autopilot/* branch when ship-mode is on (Pass 5a)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  ( cd "$repo" && "$AP" ship on ) >/dev/null
+  echo dirty > "$repo/f.txt"
+
+  _mcp_call "$repo" '[{"name":"ship_checkpoint"}]'
+  [ "$status" -eq 0 ]
+
+  run git -C "$repo" rev-parse --abbrev-ref HEAD
+  [[ "$output" == autopilot/* ]]                            # checkpointed onto a throwaway branch
+  run git -C "$repo" status --porcelain
+  [ -z "$output" ]                                          # committed, tree clean
+  run git -C "$repo" log --oneline main -1
+  [[ "$output" == *"init"* ]]                                # default branch untouched
+
+  rm -rf "$repo"
+}
+
+@test "MCP server: decompose_into_tasks PROMPT (not a tool) returns the decomposition instructions (Pass 5c, R103)" {
+  command -v node >/dev/null 2>&1 || skip "node not installed"
+  [ -d "$ROOT/mcp-server/node_modules" ] || skip "mcp-server deps not installed (npm ci --prefix plugins/companion/mcp-server)"
+  local script='
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+const transport = new StdioClientTransport({ command: "node", args: [process.env.MCP_INDEX], env: process.env });
+const client = new Client({ name: "bats-verify", version: "0.0.1" });
+await client.connect(transport);
+const list = await client.listPrompts();
+process.stdout.write("<<<list>>>\n" + JSON.stringify(list.prompts.map(p => p.name)) + "\n");
+const r = await client.getPrompt({ name: "decompose_into_tasks", arguments: {} });
+process.stdout.write("<<<get>>>\n" + r.messages[0].content.text + "\n");
+await client.close();
+'
+  run bash -c 'cd "$1/mcp-server" && CLAUDE_PLUGIN_ROOT="$1" CLAUDE_PROJECT_DIR="$2" MCP_INDEX="$1/mcp-server/index.js" node --input-type=module -e "$3"' \
+    _ "$ROOT" "$(_tmpd)" "$script"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"decompose_into_tasks"'* ]]                  # discoverable via listPrompts, not just tools
+  [[ "$output" == *"❓ [parked]"* ]]                              # carries the same classification vocabulary tq uses
+  [[ "$output" == *"⏳ [blocked]"* ]]
+}
+
 @test "bin/lib scripts use no bash-4-only builtins — macOS CI runs bash 3.2 (regression guard)" {
   # mapfile/readarray are Bash 4+; macOS CI's /bin/bash is 3.2, but a dev on bash 5 won't see the
   # failure locally — it shipped red once (R60 used mapfile in tq). Grep the enforced-core scripts
@@ -198,7 +392,7 @@ _ux_flow_check() {
   local C="$ROOT/commands"
   grep -q "invariant net covers the app"   "$C/redesign.md"     # D0 coverage gate
   grep -qE "bounded, check-gated|never.*unbounded" "$C/redesign.md"  # D2/D3 bounded passes
-  grep -q 'autopilot.sh" off'              "$C/redesign.md"     # step-0 autopilot clear
+  grep -q 'autopilot_toggle'               "$C/redesign.md"     # step-0 autopilot clear (R100/Pass 5b: MCP tool, not raw script)
   grep -q "auto-revert"                    "$C/redesign.md"     # R5 rollback-on-red (inlined regen engine)
   grep -qE "Refuse to (regenerate|proceed)" "$C/redesign.md"    # R3 checks-first + D1 document gate
   grep -q "REQUIRED first step"            "$C/redesign.md"     # D1 document-first requirement (R55)
@@ -208,18 +402,18 @@ _ux_flow_check() {
   grep -q "Propose the flow-page update"   "$C/ship-it.md"      # R57/R62 flow-page proposal (owner-governed, not silent)
   grep -q "anti-laundering"                "$C/docs.md"     # only the owner's pick records a 🔒
   grep -q "autopilot"                      "$C/resume.md"       # resume respects/clears autopilot
-  grep -q "resume.sh"                       "$C/resume.md"       # resume runs the session-pickup re-surface (R39)
+  grep -qF 'resume`** MCP tool'            "$C/resume.md"       # resume runs the session-pickup re-surface (R39, R100/Pass 5b)
   grep -q "companion:review"               "$C/resume.md"       # pickup hands off to review (R39 re-split)
   grep -qE "parked|❓"                       "$C/review.md"       # review walks the parked pile (R38)
   # R83: review PAUSES rather than kills — it must disarm to ask, then put autopilot back. Both
   # halves are load-bearing: pause without resume is the old behaviour with extra steps, and the
   # guard has to pin the pair or the resume can quietly disappear.
-  grep -q 'autopilot.sh" pause'            "$C/review.md"       # review disarms to ask (R83)
-  grep -q 'autopilot.sh" resume'           "$C/review.md"       # ...and re-arms when done (R83)
+  grep -q 'autopilot_toggle.*action: "pause"' "$C/review.md"    # review disarms to ask (R83, R100/Pass 5b)
+  grep -q 'action: "resume"'               "$C/review.md"       # ...and re-arms when done (R83, R100/Pass 5b)
   grep -qiE "up front|upfront"             "$C/review.md"       # the whole pile at once, not drip-fed
   grep -qiE "before .*new work"            "$C/review.md"       # R38 write-back-before-new-work
   grep -qiE "asks before it writes|buy-in still comes first|recommendation-first" "$C/cover.md"  # R58·d amended by R61/R62: cover SCAFFOLDS, but buy-in (owner picks) still precedes any write
-  grep -q 'autopilot.sh" off'              "$C/cover.md"        # cover clears autopilot (it asks)
+  grep -q 'autopilot_toggle'               "$C/cover.md"        # cover clears autopilot (it asks) — R100/Pass 5b: MCP tool, not raw script
 }
 
 @test "docs/flows index lists every shipped command + the count matches (contract can't silently drift)" {
@@ -267,9 +461,9 @@ _ux_flow_check() {
     frag="$(_ux_flow_check "$r")"; [ -n "$frag" ] || return 1
     s="${frag#\`}"; s="${s%\`}"; _ux_check_resolves "$s" "$titles"; }
   ! _check '- [E] `this test absolutely does not exist xyzzy`'   # phantom → unresolved
-  _check '- [E] `secret gate: blocks a real AWS key (exit 2)`'    # real → resolves (not always-fail)
+  _check '- [E] `tq: no session id errors cleanly`'               # real → resolves (not always-fail)
   ! _check '   - [E] `another phantom qqq nonexistent`'          # indented phantom still reaches matcher
-  ! _check '- [S] `secret gate: blocks a real AWS key (exit 2)`' # an [S] line is NOT gated (skipped)
+  ! _check '- [S] `tq: no session id errors cleanly`'             # an [S] line is NOT gated (skipped)
 }
 
 @test "resume survives a repo MOVE — scoping keys on a per-worktree identity, not the abspath (R63)" {
@@ -324,7 +518,7 @@ _ux_flow_check() {
 
 # ---- session start (steering + root-scoped resume, no native transcript) ----
 
-@test "session start: injects STEERING and resumes THIS repo's tasks only (scoped by .root)" {
+@test "resume: prints STEERING and resumes THIS repo's tasks only (scoped by .root) — R39" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sMine"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/sMine" "$repo"
   jq -n '{id:"1",subject:"resume me",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sMine/1.json"
@@ -334,7 +528,7 @@ _ux_flow_check() {
   # this repo's LESSONS.md is surfaced (R30·d7)
   mkdir -p "$repo/docs"; printf 'GOTCHA_MARKER: brace vars before emoji\n' > "$repo/docs/LESSONS.md"
 
-  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"new\"}" | "$2" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$SS"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Working agreement"* ]]     # STEERING injected
   [[ "$output" == *"resume me"* ]]             # this repo's task
@@ -342,34 +536,38 @@ _ux_flow_check() {
   [[ "$output" == *"GOTCHA_MARKER"* ]]         # this repo's LESSONS surfaced
 }
 
-@test "session start: injects the STEERING CORE only — rationale below the marker excluded; missing marker fails OPEN (R69)" {
+@test "resume: prints the STEERING CORE only — rationale below the marker excluded; missing marker fails OPEN (R69)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s69\"}" | "$2" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$SS"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"Working agreement"* ]]        # the core is injected…
+  [[ "$output" == *"Working agreement"* ]]        # the core is printed…
   [[ "$output" == *"Posture"* ]]                   # …through its last section
   [[ "$output" != *"Rationale (not injected"* ]]   # the below-marker half NEVER ships
   [[ "$output" != *"injection stops here"* ]]      # the marker line itself is excluded too
-  # Fail-open (R7): a STEERING with no marker (old copy, botched edit) injects the WHOLE doc —
+  # Fail-open (R7): a STEERING with no marker (old copy, botched edit) prints the WHOLE doc —
   # degraded-but-working beats silently steering-less. Build a marker-less plugin dir to prove it.
   local plug; plug="$(_tmpd)"; mkdir -p "$plug/bin" "$plug/lib"
-  cp "$SS" "$plug/bin/session-start.sh"; cp "$ROOT/lib/companion.sh" "$plug/lib/"
+  cp "$RESUME" "$plug/bin/resume.sh"; cp "$ROOT/lib/companion.sh" "$plug/lib/"
   sed '/injection stops here/d' "$ROOT/STEERING.md" > "$plug/STEERING.md"
-  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"s69b\"}" | "$2/bin/session-start.sh" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$plug"
+  run bash -c 'cd "$1" && "$2/bin/resume.sh"' _ "$repo" "$plug"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Rationale (not injected"* ]]   # no marker → whole doc (fail-open, not fail-silent)
 }
 
-@test "session start: re-anchors on a compaction with queue+pointer, NOT the full STEERING — R30·d2 / R32" {
+@test "resume: shows the FULL STEERING core alongside the live queue — no abbreviated path left to pick (R100/Pass 2)" {
+  # R30·d2's old abbreviated compact-only re-anchor is retired with the hook it lived in: there is no
+  # more "source:compact" signal to detect (no stdin JSON at all), so resume always shows the same
+  # full core plus the live queue — simpler, and never under-shows what a partial-detection bug once
+  # risked. The queue re-anchor property R30·d2 existed for (each task's done-when is its own
+  # acceptance test, so it survives a compaction the STEERING prose does not need to repeat) still
+  # holds — it is just no longer a SEPARATE code path from the ordinary case.
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/xc"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/xc" "$repo"
   jq -n '{id:"1",subject:"resume me",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/xc/1.json"
-  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,session_id:\"x\",source:\"compact\"}" | "$2" | jq -r .hookSpecificOutput.additionalContext' _ "$repo" "$SS"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"compacted"* ]]             # compaction-aware lead
-  [[ "$output" == *"still applies"* ]]         # pointer to the session-start agreement
-  [[ "$output" == *"resume me"* ]]             # the live queue is re-injected
-  [[ "$output" != *"How we work"* ]]           # the full STEERING body is NOT re-pasted (token saving)
+  [[ "$output" == *"Working agreement"* ]]     # the full STEERING core...
+  [[ "$output" == *"resume me"* ]]             # ...and the live queue, together, every time
 }
 
 @test "manual resume: lists THIS repo's open tasks on demand (and says so when none)" {
@@ -447,135 +645,59 @@ _ux_flow_check() {
   [[ "$output" != *"autopilot was ON"* ]]
 }
 
-# ---- autopilot (persisted + enforced: ask-guard deny · Stop auto-continue) ----
+# ---- autopilot (persisted, ADVISORY as of R100/Pass 4 — ask-guard.sh and stop-autopilot.sh
+#      retired; nothing enforces this flag anymore, STEERING states it) ----
 
-@test "autopilot: toggle persists, and is enforced (ask-guard deny + Stop auto-continue)" {
+@test "autopilot: toggle persists per repo, independent of other modes (R26)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   [ "$(cd "$repo" && "$AP" status)" = "off" ]
   ( cd "$repo" && "$AP" on ) >/dev/null
   [ "$(cd "$repo" && "$AP" status)" = "on" ]                       # persisted flag
-
-  # ask-guard DENIES AskUserQuestion while on
-  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.permissionDecision // \"allow\""' _ "$repo" "$ASK"
-  [ "$output" = "deny" ]
-
-  # Stop auto-continues while non-deferred work remains
-  local sid=apT; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
-  jq -n '{id:"1",subject:"do it",status:"pending"}'   > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
-  jq -n '{id:"2",subject:"❓ decide",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
-  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3" | jq -r ".decision // \"allow\""' _ "$repo" "$sid" "$STOP"
-  [ "$output" = "block" ]                                          # keeps draining
-
-  # only ❓ deferred left → Stop allows (genuinely done)
-  jq -n '{id:"1",subject:"do it",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
-  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
-  [ -z "$output" ]
-  # ...and a dry queue leaves autopilot ARMED (R88 reversed 2026-08-05): the turn ends, but work
-  # queued later drains without the owner re-arming by hand.
-  [ "$(cd "$repo" && "$AP" status)" = "on" ]
-
-  # explicitly off → ask-guard allows again
   ( cd "$repo" && "$AP" off ) >/dev/null
-  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c}" | "$2"' _ "$repo" "$ASK"
-  [ -z "$output" ]
+  [ "$(cd "$repo" && "$AP" status)" = "off" ]
 }
 
 # ---- R56 P2: characterization tests for beacon-class gaps the coverage audit found ----
 # (intended, load-bearing behaviors a green from-scratch regen would silently drop)
 
-@test "autopilot: the Stop block REASON carries the nudge — next #id, done-when, both park tokens (R56 G1)" {
+@test "tq stopfields: the pointer is the first STARTABLE task, and every blocker counts (R87)" {
+  # R87's real claim ("the selection exists in exactly one place") lives in tq stopfields itself —
+  # stop-autopilot.sh only ever READ it. That hook is retired (R100/Pass 4); stopfields is not, so
+  # this now drives the CLI directly instead of through the deleted Stop-hook wrapper.
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  ( cd "$repo" && "$AP" on ) >/dev/null
-  local sid=apR; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
-  jq -n '{id:"7",subject:"real work",status:"pending",done_when:"it works"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/7.json"
-  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3" | jq -r ".reason // \"\""' _ "$repo" "$sid" "$STOP"
-  [[ "$output" == *"#7"* ]]                    # names the next task id
-  [[ "$output" == *"done when: it works"* ]]   # carries its acceptance criterion
-  [[ "$output" == *"❓ [parked]"* ]]           # the park-a-decision instruction
-  [[ "$output" == *"⏳ [blocked]"* ]]          # the block-an-owner-action instruction
-  [[ "$output" == *"DO NOT stop"* ]]           # the keep-going instruction
-
-}
-
-@test "Stop: the pointer is the first STARTABLE task, and every blocker counts (R87)" {
-  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  ( cd "$repo" && "$AP" on ) >/dev/null
   local sid=depT d="$CLAUDE_COMPANION_TASKS_DIR/depT"
   mkdir -p "$d"; _stamp_root "$d" "$repo"
-  # Re-arm before each fire: a dry queue DISARMS autopilot (R88), so each case is its own scenario.
-  _reason() { ( cd "$repo" && "$AP" on ) >/dev/null
-              jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" 2>/dev/null; }
+  # field 5 is the bare next-id (no leading '#' — that's report's rendering, not stopfields' data).
+  _nextid() { CLAUDE_COMPANION_SESSION_ID="$sid" "$TQ" stopfields false 2>/dev/null | cut -d $'\x1f' -f5; }
 
   # The id it names must be the first STARTABLE task, not merely the first open one. A subject
   # saying "after #N" is not startable while #N is live — the same rule `tq report` applies.
-  # Re-arm before each fire: a dry queue now DISARMS autopilot, so every case below is its own
-  # scenario with the mode on — otherwise the first ALLOW would silence all the later assertions.
-  _reason() { ( cd "$repo" && "$AP" on ) >/dev/null
-              jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" 2>/dev/null; }
   jq -n '{id:"38",subject:"❓ [parked] pick one",status:"pending"}'    > "$d/38.json"
   jq -n '{id:"50",subject:"sharpen it (after #38)",status:"pending"}' > "$d/50.json"
-  [ -z "$(_reason)" ]                          # blocker live → nothing startable → the drain ENDS
+  [ -z "$(_nextid)" ]                          # blocker live → nothing startable
   jq -n '{id:"38",subject:"❓ [parked] pick one",status:"completed"}'  > "$d/38.json"
-  [[ "$(_reason | jq -r .reason)" == *"#50"* ]]           # answered → #50 is offered
+  [ "$(_nextid)" = "50" ]                       # answered → #50 is offered
 
   # Only a queue whose waiting task sorts BEFORE its blocker separates "first startable" from
   # "first open": with #10 waiting on #90, an $o[0] pointer would offer the blocked #10.
   rm "$d/50.json"
   jq -n '{id:"10",subject:"needs the other first (after #90)",status:"pending"}' > "$d/10.json"
   jq -n '{id:"90",subject:"the prerequisite",status:"pending"}'                  > "$d/90.json"
-  [[ "$(_reason | jq -r .reason)" == *"#90"* ]]
-  [[ "$(_reason | jq -r .reason)" != *"#10"* ]]
+  [ "$(_nextid)" = "90" ]
 
-  # A dangling reference must not strand work forever, and an EMPTY done_when must not eat a
-  # field: tab is IFS whitespace, so the old IFS=$'\t' read collapsed its two delimiters and
-  # shifted every later field left, silently zeroing the startable count.
+  # A dangling reference must not strand work forever.
   rm "$d/10.json" "$d/90.json"
   jq -n '{id:"60",subject:"orphan ref (after #999)",status:"pending"}' > "$d/60.json"
-  [[ "$(_reason | jq -r .reason)" == *"#60"* ]]
+  [ "$(_nextid)" = "60" ]
 
-  # EVERY blocker counts, not just the first. `capture` reads one match, so a task naming two
-  # started the moment blocker one closed — found by adversarial probe, not by the cases above.
+  # EVERY blocker counts, not just the first.
   rm "$d/60.json"
   jq -n '{id:"40",subject:"two blockers (after #50) and (after #60)",status:"pending"}' > "$d/40.json"
   jq -n '{id:"50",subject:"first blocker",status:"completed"}'                          > "$d/50.json"
   jq -n '{id:"60",subject:"second blocker",status:"pending"}'                           > "$d/60.json"
-  [[ "$(_reason | jq -r .reason)" != *"#40"* ]]      # still held: #60 is open
+  [ "$(_nextid)" != "40" ]      # still held: #60 is open
   jq -n '{id:"60",subject:"second blocker",status:"completed"}'                         > "$d/60.json"
-  [[ "$(_reason | jq -r .reason)" == *"#40"* ]]      # both closed → startable
-}
-
-@test "autopilot STAYS ARMED when the queue runs dry, and the turn still ends (R88 reversed)" {
-  # R88 originally disarmed on a dry queue so a stale hook could not nag. The nagging came from
-  # BLOCKING, not from staying armed — so the turn still ends, and the flag is left alone, which is
-  # what lets work queued LATER drain without the owner re-arming by hand (owner, 2026-08-05).
-  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  local sid=dryT d="$CLAUDE_COMPANION_TASKS_DIR/dryT"
-  mkdir -p "$d"; _stamp_root "$d" "$repo"
-  _fire() { jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1; }
-  _ap()   { ( cd "$repo" && "$AP" status ); }
-
-  ( cd "$repo" && "$AP" on ) >/dev/null
-  jq -n '{id:"1",subject:"real work",status:"pending"}' > "$d/1.json"
-  _fire; [ "$(_ap)" = "on" ]
-
-  # nothing open at all: the turn ends, but the mode persists
-  jq -n '{id:"1",subject:"real work",status:"completed"}' > "$d/1.json"
-  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
-  [ -z "$output" ]                                   # allowed — never block on an undrainable queue
-  [ "$(_ap)" = "on" ]
-
-  # nothing STARTABLE (everything waits on an unanswered park): same rule
-  rm "$d/1.json"
-  jq -n '{id:"38",subject:"❓ [parked] decide",status:"pending"}' > "$d/38.json"
-  jq -n '{id:"50",subject:"blocked work (after #38)",status:"pending"}' > "$d/50.json"
-  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
-  [ -z "$output" ]
-  [ "$(_ap)" = "on" ]
-
-  # and work queued LATER drains without re-arming, which is the point of the reversal
-  jq -n '{id:"38",subject:"❓ [parked] decide",status:"completed"}' > "$d/38.json"
-  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
-  [[ "$output" == *"#50"* ]]
+  [ "$(_nextid)" = "40" ]       # both closed → startable
 }
 
 @test "check.sh: a red verdict NAMES the section it went red in, and never double-counts (R89)" {
@@ -634,27 +756,22 @@ _ux_flow_check() {
   [ "$status" -eq 0 ]; [ -n "$output" ]
 }
 
-@test "UN-6 foreign repos: the DRAIN and the burn loop work there too (R91)" {
+@test "UN-6 foreign repos: tq stopfields and the burn loop work there too (R91)" {
   # The gap named when R91 shipped: the matrix covered candidates, flags and the status line, but
-  # nothing drove the Stop hook or burn-down through a foreign repo. A path WITH A SPACE is the
-  # shape most likely to break an unquoted expansion, so every repo here has one.
+  # nothing drove the selection logic or burn-down through a foreign repo. A path WITH A SPACE is
+  # the shape most likely to break an unquoted expansion, so every repo here has one. (R100/Pass 4:
+  # this used to drive the Stop hook, now retired; tq stopfields carries the selection logic itself.)
   local base st tk; base="$(_tmpd)"; st="$(_tmpd)"; tk="$(_tmpd)"
   local r="$base/my app"; mkdir -p "$r"; git -C "$r" init -q -b main
   git -C "$r" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
   printf '{"name":"widget"}\n' > "$r/package.json"
 
-  # --- the drain ---
+  # --- the selection logic, in a repo it has never seen ---
   local sid=fgn d="$tk/fgn"; mkdir -p "$d"; _stamp_root "$d" "$r"
   jq -n '{id:"1",subject:"ship the widget",status:"pending"}' > "$d/1.json"
-  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" "$3" on' _ "$r" "$st" "$AP"
-  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | CLAUDE_COMPANION_STATE_DIR="$3" CLAUDE_COMPANION_TASKS_DIR="$4" "$5"' \
-      _ "$r" "$sid" "$st" "$tk" "$STOP"
-  [[ "$output" == *"#1"* ]]                       # it drains a repo it has never seen
-  jq -n '{id:"1",subject:"ship the widget",status:"completed"}' > "$d/1.json"
-  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | CLAUDE_COMPANION_STATE_DIR="$3" CLAUDE_COMPANION_TASKS_DIR="$4" "$5"' \
-      _ "$r" "$sid" "$st" "$tk" "$STOP"
-  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" "$3" status' _ "$r" "$st" "$AP"
-  [ "$output" = "on" ]                            # ...and stays armed there too (R88 reversed)
+  local nid; nid="$(CLAUDE_COMPANION_TASKS_DIR="$tk" CLAUDE_COMPANION_SESSION_ID="$sid" "$TQ" stopfields false 2>/dev/null | cut -d $'\x1f' -f5)"
+  [ "$nid" = "1" ]                                 # it selects a task in a repo it has never seen
+  jq -n '{id:"1",subject:"ship the widget",status:"completed"}' > "$d/1.json"   # done, so it doesn't outrank the burn loop below
 
   # --- the burn loop: two agreeing samples, then a real branch ---
   mkdir -p "$st/burndown"; touch "$(_flagpath "$st" burndown "$r")"
@@ -681,24 +798,6 @@ _ux_flow_check() {
   [ -n "$(ls "$r/.companion/burndown-manifests" 2>/dev/null)" ]   # manifests are REPO state (R96)
 }
 
-@test "modes COMPOSE: sweep keeps a rev: park workable, so the dry-queue disarm does not fire (R88/R77)" {
-  # Five independent mode flags mean 32 combinations, and this project's own notes blame mode
-  # INTERACTION for most of its defects. The disarm added in 3.55.0 and sweep are the pair that can
-  # contradict each other: sweep says a marked park IS work, disarm says an unworkable queue ends
-  # the run. Nothing covered the pair until now.
-  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  local sid=cmp d="$CLAUDE_COMPANION_TASKS_DIR/cmp"; mkdir -p "$d"; _stamp_root "$d" "$repo"
-  jq -n '{id:"1",subject:"❓ [parked] rev: pick a colour — options: A) dark B) light; rec: A + matches",status:"pending"}' > "$d/1.json"
-  _fire() { run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"; }
-
-  ( cd "$repo" && "$AP" on && "$AP" sweep on ) >/dev/null
-  _fire; [[ "$output" == *"block"* ]]                          # sweep: the park IS work...
-  [ "$(cd "$repo" && "$AP" status)" = "on" ]                   # ...so the disarm must NOT fire
-
-  ( cd "$repo" && "$AP" on && "$AP" sweep off ) >/dev/null
-  _fire; [ -z "$output" ]                                      # no sweep: nothing workable, turn ends
-  [ "$(cd "$repo" && "$AP" status)" = "on" ]                   # ...but the mode persists (R88 reversed)
-}
 
 @test "boundary lint: derives thresholds from SOURCE and catches a pinned fixture (R92)" {
   # A lint nobody invokes is a hole, and one that derives nothing passes vacuously — both failure
@@ -753,33 +852,33 @@ _ux_flow_check() {
   _cl; [ "$status" -ne 0 ]; [[ "$output" == *"argument-hint"* ]]
 }
 
-@test "session start: RECENT out-of-band changes inject; old ones and no-file cost nothing (R93)" {
+@test "resume: RECENT out-of-band changes print; old ones and no-file cost nothing (R93, now on-demand only)" {
   # The failure this exists for is CONTEXT LOSS: clear the state, open a bug, and the fact that
-  # something relevant changed last week is gone. A rule saying "go look" cannot survive that.
+  # something relevant changed last week is gone. R93's own reasoning was that this must arrive
+  # UNASKED because "go look" cannot survive that — pulling it on demand instead (R100/Pass 2, no
+  # hook left to inject it automatically) reopens exactly that failure. Recorded honestly, not
+  # fixed: this test now proves the content survives the mechanism change, not that the original
+  # guarantee still holds — it doesn't.
   local r; r="$(_tmpd)"; git -C "$r" init -q; mkdir -p "$r/docs"
   local today old
   today="$(date -u +%Y-%m-%d)"
   old="$(date -u -d '-60 days' +%Y-%m-%d 2>/dev/null || date -u -v-60d +%Y-%m-%d)"
   printf '## Log\n\n- %s · aws · widened the RDS security group\n  could break: auth callbacks\n- %s · dns · moved the apex A record\n' \
     "$today" "$old" > "$r/docs/CHANGES-OUTSIDE-GIT.md"
-  _ctx() { run bash -c 'jq -nc --arg c "$1" --arg so "$2" "{cwd:\$c,source:\$so}" | "$3" 2>/dev/null | jq -r ".hookSpecificOutput.additionalContext"' _ "$1" "$2" "$SS"; }
+  _ctx() { run bash -c 'cd "$1" && "$2"' _ "$1" "$RESUME"; }
 
-  _ctx "$r" startup
+  _ctx "$r"
   [[ "$output" == *"widened the RDS security group"* ]]   # recent entry rides in, unasked
   [[ "$output" == *"could break: auth callbacks"* ]]      # ...with its continuation line
   [[ "$output" != *"apex A record"* ]]                    # 60 days old: history, not noise
 
-  # a COMPACTION is the owner's "cleared state" case — it must fire there too, not only at startup
-  _ctx "$r" compact
-  [[ "$output" == *"widened the RDS security group"* ]]
-
   # a repo with NO ledger contributes NOTHING — the whole cost argument rests on this
   local p2; p2="$(_tmpd)"; git -C "$p2" init -q
-  _ctx "$p2" startup
+  _ctx "$p2"
   [[ "$output" != *"Changed OUTSIDE"* ]]
 }
 
-@test "rework ledger: counts FAILURES not touches, flags a rebuild candidate, injects itself (R94)" {
+@test "rework ledger: counts FAILURES not touches, flags a rebuild candidate, and resume prints it (R94)" {
   # Owner: "Claude seems to be making more and more obvious mistakes requiring rework then telling
   # me about how it caught the mistakes." A caught mistake reported as an apparatus win reframes a
   # defect rate as a success. This makes the rate a number, and surfaces it unasked.
@@ -805,49 +904,14 @@ _ux_flow_check() {
   _rw record gate-fail src/other.js
   _rw report; [[ "$output" != *"⟳ src/other.js"* ]]
 
-  # and it injects itself at session start, including after a compaction
-  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,source:\"compact\"}" | CLAUDE_COMPANION_STATE_DIR="$2" "$3" 2>/dev/null | jq -r ".hookSpecificOutput.additionalContext"' _ "$r" "$st" "$SS"
+  # and it shows up whenever resume is called
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" "$3"' _ "$r" "$st" "$RESUME"
   [[ "$output" == *"REWORK already recorded"* ]]
 
   # a repo with nothing recorded contributes NOTHING
   local clean; clean="$(_tmpd)"; git -C "$clean" init -q
-  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,source:\"startup\"}" | CLAUDE_COMPANION_STATE_DIR="$2" "$3" 2>/dev/null | jq -r ".hookSpecificOutput.additionalContext"' _ "$clean" "$st" "$SS"
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" "$3"' _ "$clean" "$st" "$RESUME"
   [[ "$output" != *"REWORK already recorded"* ]]
-}
-
-@test "drained queue HANDS OFF to burn-down instead of standing down (R82 wiring)" {
-  # The owner's loop — real work first, then obvious low-blast work when the budget is underspent —
-  # was DESIGNED and never CONNECTED: burn-down.sh, candidates.sh and burndown-branch.sh all
-  # existed and were tested, reachable only from a command a sleeping owner never types. The Stop
-  # hook had no reference to burn-down at all.
-  local r st tk; r="$(_tmpd)"; st="$(_tmpd)"; tk="$(_tmpd)"
-  git -C "$r" init -q -b main
-  git -C "$r" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
-  printf '# Roadmap\n\n- [ ] tidy the retry helper\n' > "$r/ROADMAP.md"
-  git -C "$r" add -A; git -C "$r" -c user.email=t@t -c user.name=t commit -q -m road
-  local d="$tk/bd"; mkdir -p "$d"; _stamp_root "$d" "$r"
-  jq -n '{id:"1",subject:"the work that got done",status:"completed"}' > "$d/1.json"
-  _fire() { run bash -c 'jq -nc --arg c "$1" --arg s "bd" "{cwd:\$c,session_id:\$s}" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" "$4" 2>/dev/null' _ "$r" "$st" "$tk" "$STOP"; }
-
-  # burn-down OFF: a drained queue stands down and disarms, exactly as before (R88 unchanged)
-  ( cd "$r" && CLAUDE_COMPANION_STATE_DIR="$st" "$AP" on ) >/dev/null
-  _fire; [ -z "$output" ]
-  [ "$(cd "$r" && CLAUDE_COMPANION_STATE_DIR="$st" "$AP" status)" = "on" ]   # armed (R88 reversed)
-
-  # burn-down ARMED + an underspent 7d window + two agreeing samples (R90) → it takes obvious work
-  mkdir -p "$st/burndown"; touch "$(_flagpath "$st" burndown "$r")"
-  local n; n="$(date +%s)"
-  printf '%s 20 %s 10 %s\n' "$((n-9))" "$((n+7200))" "$((n+172800))" > "$st/ratelimit"
-  env CLAUDE_COMPANION_STATE_DIR="$st" BURNDOWN_ROOT="$r" bash "$ROOT/bin/burn-down.sh" status >/dev/null 2>&1
-  printf '%s 20 %s 10 %s\n' "$((n-8))" "$((n+7200))" "$((n+172800))" > "$st/ratelimit"
-  ( cd "$r" && CLAUDE_COMPANION_STATE_DIR="$st" "$AP" on ) >/dev/null
-  _fire
-  [[ "$output" == *"burn-down mode"* ]]              # the hand-off fired...
-  [[ "$output" == *"tidy the retry helper"* ]]        # ...naming a REAL candidate from the repo
-  [[ "$output" == *"burndown-branch.sh start"* ]]     # ...on its own branch, not in place
-  [[ "$output" == *"do NOT merge"* ]] || [[ "$output" == *"not a mandate"* ]]
-  # and it must NOT have disarmed — the drain continues
-  [ "$(cd "$r" && CLAUDE_COMPANION_STATE_DIR="$st" "$AP" status)" = "on" ]
 }
 
 @test "⛔ ruled-out is a prefix-view that PERSISTS but is never work (R95)" {
@@ -1111,34 +1175,25 @@ _ux_flow_check() {
   [ "$(jq -r '.notes[1].text' "$f")" = "second" ]     # second appended after it
 }
 
-@test "ask-guard: the deny REASON carries park-with-full-options guidance (R56 G5)" {
-  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  ( cd "$repo" && "$AP" on ) >/dev/null
-  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.permissionDecisionReason // \"\""' _ "$repo" "$ASK"
-  [[ "$output" == *"PARK"* ]]                # instructs to park, not answer
-  [[ "$output" == *"❓ [parked]"* ]]         # with the park token + full payload
-  [[ "$output" == *"options"* ]]             # carry the options
-  [[ "$output" == *"rec"* ]]                 # + a recommendation
-}
-
-@test "autopilot decisive (R59): toggle persists, and flips the ask-guard guidance park→decide" {
+@test "autopilot decisive (R59): toggle persists, independent of plain autopilot" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
   [ "$(cd "$repo" && "$AP" decisive status)" = "off" ]           # off by default
   ( cd "$repo" && "$AP" decisive on ) >/dev/null
   [ "$(cd "$repo" && "$AP" decisive status)" = "on" ]            # persisted flag
-  # still DENIES (asking = stopping), but the guidance now says DECIDE reversible + park only irreversible
-  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c}" | "$2"' _ "$repo" "$ASK"
-  [[ "$output" == *'"permissionDecision":"deny"'* ]]
-  local reason; reason="$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecisionReason')"
-  [[ "$reason" == *"DECISIVE"* ]]
-  [[ "$reason" == *"pick your own recommended option"* ]]        # auto-decide reversible
-  [[ "$reason" == *"IRREVERSIBLE"* ]]                            # park ONLY irreversible-critical
-  [[ "$reason" != *"belongs to the owner"* ]]                    # the R33 always-park-taste line is overridden
-  # decisive is a no-op without autopilot on (it's an intensity ON TOP of autopilot)
   ( cd "$repo" && "$AP" off ) >/dev/null
-  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c}" | "$2"' _ "$repo" "$ASK"
-  [[ "$output" != *"deny"* ]]                                    # autopilot off → ask-guard silent (no deny) regardless of decisive
+  [ "$(cd "$repo" && "$AP" decisive status)" = "on" ]            # decisive outlives plain autopilot toggling off
+}
+
+@test "the decisive/plain park-vs-decide guidance is stated in STEERING (R33/R59/R84) — advisory only, no guard left" {
+  # ask-guard.sh is retired (R100/Pass 4): nothing denies AskUserQuestion or writes the park for
+  # you anymore. What survives is the guidance STATED where autopilot's rules live — this pins
+  # that the prose still says it, not that anything enforces it.
+  local core; core="$(awk '/autopilot:start/{f=1;next} /autopilot:end/{f=0} f' "$ROOT/STEERING.md")"
+  [[ "$core" == *"there is no more auto-park"* ]]                # R84: the model must park it itself now
+  [[ "$core" == *"park it even when trivially reversible"* ]]    # R33: taste, not reversibility, is the test
+  [[ "$core" == *"Decisive mode (R59)"* ]]                       # R59: the decisive-mode override exists
+  [[ "$core" == *"irreversible-critical"* ]]
 }
 
 @test "tq: stamps the session .root with the actual git toplevel (R56 G8 — cross-session scope)" {
@@ -1148,36 +1203,35 @@ _ux_flow_check() {
   [ "$(cat "$CLAUDE_COMPANION_TASKS_DIR/s1/.root")" = "$(git -C "$repo" rev-parse --show-toplevel)" ]
 }
 
-@test "session start: the compaction re-anchor keeps the recommendation-contract clause (R56 G3 — R49)" {
+@test "resume: keeps the recommendation-contract clause (R56 G3 — R49), since it now rides in the full core every call" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  run bash -c 'jq -nc --arg c "$1" "{source:\"compact\",cwd:\$c}" | "$2" | jq -r ".hookSpecificOutput.additionalContext // \"\""' _ "$repo" "$SS"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"recommendation-first"* ]]   # the R49 posture must survive a compaction summary (its whole purpose)
+  [[ "$output" == *"recommendation-first"* ]]   # the R49 posture — always present now, not just after a compaction
 }
 
-@test "secret gate: blocks non-AWS anchored keys too — GH/Slack/Stripe/Google/PEM (R56 — INVARIANTS claim)" {
+@test "check-secrets: blocks non-AWS anchored keys too — GH/Slack/Stripe/Google/PEM (R56 — INVARIANTS claim)" {
   # INVARIANTS.md claims six-vendor coverage but only AKIA was ever exercised. Construct each shape
   # at runtime (never a literal key in this file) so gitleaks doesn't flag the test itself.
   local pad; pad="$(printf 'a%.0s' $(seq 40))"                         # 40 alnum, ≥ each prefix's min run
   local ghp="ghp""_$pad" xox="xox""b-$pad" sk="sk_""live_$pad"
   local aiza="AIza$(printf 'a%.0s' $(seq 35))" pem="-----BEGIN ""PRIVATE KEY-----"
   for k in "$ghp" "$xox" "$sk" "$aiza" "$pem"; do
-    run bash -c 'jq -nc --arg p "/x/c.txt" --arg c "$1" "{tool_input:{file_path:\$p,content:\$c}}" | "$2"' _ "SECRET=\"$k\"" "$GUARD"
+    run bash -c 'printf "%s" "$1" | "$2" --path /x/c.txt' _ "SECRET=\"$k\"" "$GUARD"
     [ "$status" -eq 2 ]                        # every recognised vendor shape blocks (exit 2), not just AWS
   done
 }
 
-@test "ship-mode (R34): toggle, and Stop auto-commits work to an autopilot/* branch — NEVER main" {
+@test "ship-checkpoint (R34): toggle, and commits work to an autopilot/* branch — NEVER main" {
+  # R100/Pass 4: this used to be automatic (Stop hook, ship-mode + autopilot both on). Now it's a
+  # CLI the model calls itself at a stopping point — same guarantees, same code, no more trigger.
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   [ "$(cd "$repo" && "$AP" ship status)" = "off" ]
   ( cd "$repo" && "$AP" ship on ) >/dev/null
   [ "$(cd "$repo" && "$AP" ship status)" = "on" ]
-  ( cd "$repo" && "$AP" on ) >/dev/null                      # auto-commit requires autopilot on too
-  local sid=shipT; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
-  jq -n '{id:"1",subject:"do it",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   printf 'work\n' > "$repo/newfile.txt"                      # uncommitted work while HEAD is on main
-  jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1 || true
+  ( cd "$repo" && "$ROOT/bin/ship-checkpoint.sh" ) >/dev/null 2>&1 || true
   [ "$(git -C "$repo" branch --show-current)" != "main" ]    # moved off main to protect it
   git -C "$repo" branch | grep -q 'autopilot/'              # onto an autopilot/* branch
   [ -z "$(git -C "$repo" status --porcelain)" ]             # the work got committed (clean tree)
@@ -1185,87 +1239,55 @@ _ux_flow_check() {
   ! git -C "$repo" cat-file -e main:newfile.txt 2>/dev/null  # main NEVER received the work
 }
 
-@test "ship-mode: off → Stop does NOT auto-commit (work stays uncommitted)" {
+@test "ship-checkpoint: off → does NOT commit (work stays uncommitted)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
-  ( cd "$repo" && "$AP" on ) >/dev/null                      # autopilot on, ship-mode OFF
-  local sid=noShip; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
-  jq -n '{id:"1",subject:"do it",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
-  printf 'work\n' > "$repo/newfile.txt"
-  jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1 || true
+  printf 'work\n' > "$repo/newfile.txt"                      # ship-mode OFF
+  ( cd "$repo" && "$ROOT/bin/ship-checkpoint.sh" ) >/dev/null 2>&1 || true
   [ "$(git -C "$repo" branch --show-current)" = "main" ]     # no branch created
   [ -n "$(git -C "$repo" status --porcelain)" ]             # work left uncommitted for the owner
 }
 
-@test "ship-mode: refuses to auto-commit a hardcoded credential (R34)" {
+@test "ship-checkpoint: refuses to commit a hardcoded credential (R34)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
-  ( cd "$repo" && "$AP" ship on ) >/dev/null; ( cd "$repo" && "$AP" on ) >/dev/null
+  ( cd "$repo" && "$AP" ship on ) >/dev/null
   local k="AKIA""ABCDEFGHIJKLMNOP"                          # split so THIS file isn't a secret
   printf 'AWS = "%s"\n' "$k" > "$repo/creds.py"             # a real-shaped key in the work
-  local sid=secT; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
-  jq -n '{id:"1",subject:"x",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
-  jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1 || true
+  ( cd "$repo" && "$ROOT/bin/ship-checkpoint.sh" ) >/dev/null 2>&1 || true
   ! git -C "$repo" log --all --oneline | grep -q 'autopilot: checkpoint'   # no checkpoint committed
   [ -n "$(git -C "$repo" status --porcelain)" ]            # the work (with the key) left uncommitted
 }
 
-@test "autopilot: Stop yields after the no-progress cap (can't spin forever)" {
-  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  ( cd "$repo" && "$AP" on ) >/dev/null
-  local sid=apC; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
-  jq -n '{id:"1",subject:"stuck",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
-  # With MAX=3 and no task ever completing: stops 1-2 still block, the 3rd no-progress stop yields.
-  local i r; for i in 1 2; do
-    r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_MAX=3 "$STOP" | jq -r '.decision // "allow"')"
-    [ "$r" = "block" ]                                             # no completion, but under the cap
-  done
-  r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_MAX=3 "$STOP")"
-  [ -z "$r" ]                                                      # 3rd no-progress stop → yield
-}
-
-@test "autopilot: the no-progress cap RESETS when a task completes — a productive drain keeps going (R56 G5)" {
-  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  ( cd "$repo" && "$AP" on ) >/dev/null
-  local sid=apRst; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
-  jq -n '{id:"1",subject:"a",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
-  jq -n '{id:"2",subject:"b",status:"pending"}'     > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
-  local i r
-  for i in 1 2; do   # two no-progress stops → stall 2, one below MAX=3
-    r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_MAX=3 "$STOP" | jq -r '.decision // "allow"')"
-    [ "$r" = "block" ]
-  done
-  # a task completes → progress made → the next stop RESETS the counter and still BLOCKS (open work remains)
-  jq -n '{id:"1",subject:"a",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
-  r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_MAX=3 "$STOP" | jq -r '.decision // "allow"')"
-  [ "$r" = "block" ]   # without the reset this 3rd stop would YIELD; it blocks because a task completed
-}
-
 # ---- decisions surfaced + recorded by /companion:docs (R41; renamed from document 2026-07-22) ----
 
-@test "secret gate: covers NotebookEdit's new_source — key blocked, clean cell passes (R43)" {
+@test "check-secrets: tool-agnostic by construction — scans whatever text it's given, notebook-sourced or not (R43)" {
+  # The old gate had to specifically extract .new_source to cover NotebookEdit, because Claude Code
+  # dispatched it the same PreToolUse hook as every other content tool. That dispatch is gone
+  # (R100/Pass 3) — there is no more tool_input to parse, just text on stdin — so "does it cover
+  # every content-writing tool" is moot BY DESIGN now, not by extra code: whatever text a notebook
+  # cell's source becomes, once it's the argument, is indistinguishable from any other text.
   local k="AKIA""ABCDEFGHIJKLMNOP"                          # split so THIS file isn't a secret
-  run bash -c 'jq -nc --arg c "$1" "{tool_input:{notebook_path:\"/x/n.ipynb\",new_source:\$c}}" | "$2"' _ "API_KEY = \"$k\"" "$GUARD"
-  [ "$status" -eq 2 ]                                       # NotebookEdit no longer bypasses the gate
-  [[ "$output" == *"BLOCKED"* ]]
-  run bash -c 'jq -nc "{tool_input:{notebook_path:\"/x/n.ipynb\",new_source:\"print(1+1)\"}}" | "$1"' _ "$GUARD"
+  run bash -c 'printf "%s" "$1" | "$2" --path /x/n.ipynb' _ "API_KEY = \"$k\"" "$GUARD"
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"BLOCK"* ]]
+  run bash -c 'printf "%s" "$1" | "$2" --path /x/n.ipynb' _ "print(1+1)" "$GUARD"
   [ "$status" -eq 0 ]                                       # a clean cell still passes
 }
 
 @test "parked/blocked (❓/⏳) is a prefix-view over pending, NOT a status value (R42)" {
+  # R100/Pass 4: drives tq stopfields directly (field 1 = open/non-deferred count) instead of the
+  # retired Stop hook — same underlying selection logic, tq stopfields owns it (R87).
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  ( cd "$repo" && "$AP" on ) >/dev/null
   local sid=pkv; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
   jq -n '{id:"1",subject:"did it",status:"completed"}'   > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
   jq -n '{id:"2",subject:"❓ decide X",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
-  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3"' _ "$repo" "$sid" "$STOP"
-  [ -z "$output" ]                                          # a ❓ PENDING task counts as parked → Stop yields
-  # drop the prefix → same pending task is now real open work → Stop blocks (keeps draining).
-  # Re-arm: the parked-only read above ran the queue dry, which now disarms autopilot.
-  ( cd "$repo" && "$AP" on ) >/dev/null
+  local open; open="$(CLAUDE_COMPANION_SESSION_ID="$sid" "$TQ" stopfields false 2>/dev/null | cut -d $'\x1f' -f1)"
+  [ "${open:-0}" -eq 0 ]                                    # a ❓ PENDING task counts as parked → not open
+  # drop the prefix → same pending task is now real open work
   jq -n '{id:"2",subject:"decide X",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
-  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s}" | "$3" | jq -r ".decision // \"allow\""' _ "$repo" "$sid" "$STOP"
-  [ "$output" = "block" ]                                   # so parked-ness lives in the prefix, not status
+  open="$(CLAUDE_COMPANION_SESSION_ID="$sid" "$TQ" stopfields false 2>/dev/null | cut -d $'\x1f' -f1)"
+  [ "$open" -eq 1 ]                                         # so parked-ness lives in the prefix, not status
 }
 
 # ---- living contract (R58): drift backstop (capture retired 2026-07-29) ----
@@ -1292,11 +1314,9 @@ _ux_flow_check() {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   git -C "$repo" checkout -q --detach 2>/dev/null           # detached HEAD (cur=="HEAD")
-  ( cd "$repo" && "$AP" ship on ) >/dev/null; ( cd "$repo" && "$AP" on ) >/dev/null
-  local sid=det; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
-  jq -n '{id:"1",subject:"x",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  ( cd "$repo" && "$AP" ship on ) >/dev/null
   printf 'work\n' > "$repo/newfile.txt"
-  jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" >/dev/null 2>&1 || true
+  ( cd "$repo" && "$ROOT/bin/ship-checkpoint.sh" ) >/dev/null 2>&1 || true
   git -C "$repo" branch | grep -q 'autopilot/'                    # moved onto an autopilot/* branch
   git -C "$repo" log -1 --pretty=%s | grep -q 'autopilot: checkpoint'  # a checkpoint WAS committed (non-vacuous)
   ! git -C "$repo" cat-file -e main:newfile.txt 2>/dev/null       # …but main NEVER received the work
@@ -1315,16 +1335,15 @@ _sw_task() {  # $1=subject $2=id
   mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sw"
   jq -n --arg s "$1" --arg i "$2" '{id:$i,subject:$s,status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sw/$2.json"
 }
-_sw_decision() {  # -> "block" when the drain keeps going, "" when it lets the session stop
-  # Re-arm first: a dry queue DISARMS autopilot, so without this the first "" answer would make
-  # every later case in the same test read "" too, and the sweep assertions would pass vacuously.
-  ( cd "$1" && "$AP" on ) >/dev/null 2>&1
-  printf '{"session_id":"sw","cwd":"%s"}' "$1" | bash "$STOP" | jq -r '.decision // ""' 2>/dev/null
+# R100/Pass 4: stop-autopilot.sh is retired; the sweep-eligibility logic it only ever READ lives in
+# (and is driven directly via) tq stopfields now — same rules, no Stop-hook wrapper left.
+_sw_next() {  # -> the next-subject field, or "" when nothing is eligible/startable
+  CLAUDE_COMPANION_SESSION_ID=sw "$TQ" stopfields "${1:-true}" 2>/dev/null | cut -d $'\x1f' -f4
 }
 _sw_repo() {
   local r; r="$(_tmpd)"; git -C "$r" init -q
   git -C "$r" -c user.email=t@t -c user.name=t commit -q --allow-empty -m i
-  ( cd "$r" && "$AP" on ) >/dev/null; printf '%s' "$r"
+  printf '%s' "$r"
 }
 
 @test "autopilot sweep: flag persists per-repo and is independent of ship/decisive (R77)" {
@@ -1338,74 +1357,39 @@ _sw_repo() {
 }
 
 @test "autopilot sweep: OFF stops on a parked-only queue, ON works a rev: park (R77)" {
-  local repo; repo="$(_sw_repo)"
+  local repo; repo="$(_sw_repo)"; cd "$repo"
   _sw_task "❓ [parked] rev: colour scheme — options: A) dark B) light; rec: A + matches the app" 1
-  ( cd "$repo" && "$AP" sweep off ) >/dev/null
-  [ "$(_sw_decision "$repo")" = "" ]          # parked-only -> done, session may stop
-  # Assert the note's ABSENCE where a nudge is actually emitted: with sweep off and plain work
-  # present the hook blocks, so the text exists to be checked. Asserting it on the parked-only
-  # queue above passes vacuously — the hook prints nothing at all there (a mutation that emitted
-  # the note unconditionally slipped through exactly that way).
-  _sw_task "plain work that keeps the drain going" 9
-  ( cd "$repo" && "$AP" on ) >/dev/null       # the parked-only read above ran dry and disarmed
-  run bash -c 'printf "{\"session_id\":\"sw\",\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$repo" "$STOP"
-  [[ "$output" == *"Autopilot:"* ]]           # a nudge really was emitted...
-  [[ "$output" != *"SWEEP (R77)"* ]]          # ...and carries no sweep note while the flag is off
-  rm -f "$CLAUDE_COMPANION_TASKS_DIR/sw/9.json"
-  ( cd "$repo" && "$AP" sweep on ) >/dev/null
-  [ "$(_sw_decision "$repo")" = "block" ]     # sweep -> the rev: park is work
-  ( cd "$repo" && "$AP" on ) >/dev/null
-  run bash -c 'printf "{\"session_id\":\"sw\",\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$repo" "$STOP"
-  [[ "$output" == *"colour scheme"* ]]
-  [[ "$output" == *"SWEEP (R77)"* ]]          # ...and present while it is on
+  [ -z "$(_sw_next false)" ]                  # sweep off: parked-only -> nothing startable
+  [[ "$(_sw_next true)" == *"colour scheme"* ]]  # sweep on: the rev: park is work
 }
 
 @test "autopilot sweep: an IRREVERSIBLE park (no rev: marker) is never eligible (R77/R59)" {
   # The case that killed the first design: decisive mode parks ONLY the irreversible and writes
   # `rec:` on it, so a rec-based filter selected precisely the set it had to protect.
-  local repo; repo="$(_sw_repo)"; ( cd "$repo" && "$AP" sweep on ) >/dev/null
+  local repo; repo="$(_sw_repo)"; cd "$repo"
   _sw_task "❓ [parked] force-push the rewrite to origin/main — options: A) force B) PR; rec: A + why" 1
-  [ "$(_sw_decision "$repo")" = "" ]
+  [ -z "$(_sw_next)" ]
   _sw_task "❓ [parked] delete the staging bucket and its snapshots — options: A) delete B) keep; rec: A + cost" 2
-  [ "$(_sw_decision "$repo")" = "" ]          # still nothing sweepable
+  [ -z "$(_sw_next)" ]                        # still nothing sweepable
   _sw_task "❓ [parked] rev: button copy — options: A) Save B) Done; rec: A + clearer" 3
-  [ "$(_sw_decision "$repo")" = "block" ]     # only the marked-reversible one is work
-  run bash -c 'printf "{\"session_id\":\"sw\",\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$repo" "$STOP"
-  [[ "$output" == *"button copy"* ]]
-  [[ "$output" != *"force-push"* ]]
-  [[ "$output" != *"delete the staging bucket"* ]]
+  [[ "$(_sw_next)" == *"button copy"* ]]      # only the marked-reversible one is work
+  [[ "$(_sw_next)" != *"force-push"* ]]
+  [[ "$(_sw_next)" != *"delete the staging bucket"* ]]
 }
 
 @test "autopilot sweep: ⏳, decompose:, unrecorded and prose-only markers stay excluded (R77/R65)" {
-  local repo; repo="$(_sw_repo)"; ( cd "$repo" && "$AP" sweep on ) >/dev/null
+  local repo; repo="$(_sw_repo)"; cd "$repo"
   # each fixture carries EVERY other marker, so it can only be excluded by the rule it targets
   _sw_task "⏳ [blocked] rev: delete the production bucket; rec: yes do it" 1
   _sw_task "❓ [parked] rev: Decompose: migrate the store — need: which fields; rec: split by table" 2
   _sw_task "❓ [parked] rev: drop the legacy table? — A) drop B) keep; no rec: recorded, this one is yours" 3
   _sw_task "❓ [parked] mentions rev: only in prose here; rec: A + why" 4
-  [ "$(_sw_decision "$repo")" = "" ]          # not one of them is eligible
+  [ -z "$(_sw_next)" ]                        # not one of them is eligible
   _sw_task "❓ [parked] rev: wording — options: A) terse B) chatty; rec: A + the voice" 5
-  [ "$(_sw_decision "$repo")" = "block" ]
-  run bash -c 'printf "{\"session_id\":\"sw\",\"cwd\":\"%s\"}" "$1" | bash "$2"' _ "$repo" "$STOP"
-  [[ "$output" == *"wording"* ]]
-  [[ "$output" != *"production bucket"* ]]
-  [[ "$output" != *"migrate the store"* ]]
-  [[ "$output" != *"legacy table"* ]]
-}
-
-@test "autopilot sweep TERMINATES: bounded by a counter no completion resets (R77)" {
-  # The stall cap cannot bound a sweep — closing a swept park advances DONE, which resets stall.
-  # Measured before the fix: 25/25 turns blocked against a cap of 8. Plain work must stay unbounded.
-  local repo; repo="$(_sw_repo)"; ( cd "$repo" && "$AP" sweep on ) >/dev/null
-  local i turns=0
-  for i in 1 2 3 4 5 6 7 8 9 10 11 12; do            # close one rev: park, open the next
-    _sw_task "❓ [parked] rev: choice $i — options: A) x B) y; rec: A + why" "$i"
-    [ "$i" -gt 1 ] && jq -n --arg d "$((i-1))" '{id:$d,subject:"done",status:"completed"}'       > "$CLAUDE_COMPANION_TASKS_DIR/sw/$((i-1)).json"
-    [ "$(_sw_decision "$repo")" = "block" ] || break
-    turns=$((turns+1))
-  done
-  [ "$turns" -le 8 ]                                  # yields at the cap instead of forever
-  [ "$turns" -ge 1 ]                                  # ...but does sweep before yielding
+  [[ "$(_sw_next)" == *"wording"* ]]
+  [[ "$(_sw_next)" != *"production bucket"* ]]
+  [[ "$(_sw_next)" != *"migrate the store"* ]]
+  [[ "$(_sw_next)" != *"legacy table"* ]]
 }
 
 # ── doc-lint (R78) ─────────────────────────────────────────────────────────────────────────────
@@ -1530,23 +1514,26 @@ _sw_repo() {
 
 @test "R81 hook budget: the gate CATCHES a store-scaling hook and PASSES a bounded one" {
   # The gate's own guard. A budget gate that cannot fail is theatre, so prove both directions
-  # against a REAL scaling hook rather than a stub: a fake bin/ whose session-start.sh reads the
-  # whole store (the shape of the 2085ms->16108ms regression) must FAIL, and a bounded one PASS.
+  # against a REAL scaling hook rather than a stub: a fake bin/ whose statusline.sh reads the
+  # whole store (the shape of the 2085ms->16108ms session-start regression this gate was built to
+  # catch — session-start.sh, then stop-autopilot.sh, both retired since, R100/Pass 2 and Pass 4,
+  # but the scaling failure mode is generic to any hook that reads the store, so the fixture keeps
+  # getting renamed to whatever hook is still standing, never dropped) must FAIL, and a bounded one PASS.
   command -v jq >/dev/null 2>&1 || skip "jq not installed"
   local fake; fake="$(_tmpd)"; mkdir -p "$fake/bin" "$fake/lib"
   cp "$DEV/hook-budget.sh" "$fake/bin/"; cp "$ROOT/lib/companion.sh" "$fake/lib/"
   # BOUNDED: touches nothing in the store. Must pass.
-  printf '#!/usr/bin/env bash\nexit 0\n' > "$fake/bin/session-start.sh"
-  chmod +x "$fake/bin/session-start.sh"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$fake/bin/statusline.sh"
+  chmod +x "$fake/bin/statusline.sh"
   # Pin the ABSOLUTE cap, which is the hard gate since the recalibration, and use a store big
   # enough that the unbounded hook clears the noise floor. With the old tiny store the fake
   # hook measured UNDER NOISE_MS, where the ratio is not enforced — so the gate passed it and
   # this guard silently stopped guarding. It failed only under load, which is how it surfaced.
   run env HOOK_BUDGET_BIN="$fake/bin" HOOK_BUDGET_BASEDIRS=8 HOOK_BUDGET_PERDIR=8 HOOK_BUDGET_ABSCAP=200 bash "$fake/bin/hook-budget.sh"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"session-start.sh"* ]]
+  [[ "$output" == *"statusline.sh"* ]]
   # UNBOUNDED: one jq per file across every session dir — cost tracks the store. Must fail.
-  cat > "$fake/bin/session-start.sh" <<'EOS'
+  cat > "$fake/bin/statusline.sh" <<'EOS'
 #!/usr/bin/env bash
 for f in "${CLAUDE_COMPANION_TASKS_DIR:-/nonexistent}"/*/*.json; do
   [ -f "$f" ] || continue
@@ -1554,7 +1541,7 @@ for f in "${CLAUDE_COMPANION_TASKS_DIR:-/nonexistent}"/*/*.json; do
 done
 exit 0
 EOS
-  chmod +x "$fake/bin/session-start.sh"
+  chmod +x "$fake/bin/statusline.sh"
   run env HOOK_BUDGET_BIN="$fake/bin" HOOK_BUDGET_BASEDIRS=8 HOOK_BUDGET_PERDIR=8 HOOK_BUDGET_ABSCAP=200 bash "$fake/bin/hook-budget.sh"
   [ "$status" -eq 1 ]
   [[ "$output" == *"FAIL"* ]]
@@ -1573,20 +1560,18 @@ EOS
   [[ "$output" == *"SKIP"* ]]
 }
 
-@test "session start: the compact re-anchor carries BOTH halves of the posture, not the core (R80)" {
-  # The posture is what decays across a long session, and the closing-verdict half decays first —
-  # it was missing from this message while the options half was present. R30·d2 still holds: the
-  # STEERING core itself is NOT re-pasted, only these ~40 bytes of posture.
+@test "resume: carries BOTH halves of the posture — the options half and the honesty-rides-the-pick half (R80)" {
+  # R80's original "the verdict is unconditional" clause was already reversed by R80·b (2026-08-03);
+  # what survives here is the OTHER half: the honest read stays attached to the recommendation, not
+  # tacked onto every reply. R30·d2's separate abbreviated compact path is gone with the hook it
+  # lived in (R100/Pass 2) — resume now always shows the full core, which already contains both
+  # halves, so there is no longer a distinct "does the short path drop one" case to guard.
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  local p; p="$(jq -nc --arg c "$repo" '{source:"compact",cwd:$c,session_id:"sC"}')"
-  run bash -c 'printf "%s" "$1" | "$2"' _ "$p" "$SS"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
   [ "$status" -eq 0 ]
-  local ctx; ctx="$(printf '%s' "$output" | jq -r '.hookSpecificOutput.additionalContext')"
-  [[ "$ctx" == *"recommendation-first options"* ]]   # the options half
-  [[ "$ctx" == *"ON the recommendation"* ]]          # honesty rides the pick (the closing verdict is RETIRED, R80·b)
-  [[ "$ctx" == *"compacted"* ]]
-  [[ "$ctx" != *"How we keep it clean"* ]]           # the core is still NOT re-pasted (R30·d2)
-  [[ "$ctx" != *"Wireframe convention"* ]]
+  [[ "$output" == *"recommendation-first"* ]]      # the options half
+  [[ "$output" == *"goes ON the pick"* ]]           # honesty rides the pick (the closing verdict is RETIRED, R80·b)
+  [[ "$output" == *"Posture"* ]]                    # the core (incl. this section) DOES ride now (R30·d2 retired with the hook)
 }
 
 @test "tq prune: removes FINISHED old stores, never one with open/parked/blocked work (R81)" {
@@ -1643,67 +1628,6 @@ EOS
   [ ! -d "$CLAUDE_COMPANION_TASKS_DIR/old" ]        # real run: gone
 }
 
-@test "autopilot RUN bound: the TURN cap stops a PRODUCTIVE drain the stall cap never could (R81)" {
-  # The hole this closes: `stall` resets on every completion, so a drain that keeps finishing work
-  # ran forever. Complete a task on EVERY turn — the stall cap can never fire — and prove the turn
-  # cap still ends it. This is the overnight-runaway case.
-  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  ( cd "$repo" && "$AP" on ) >/dev/null
-  local sid=apTurns; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"
-  _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
-  jq -n '{id:"9",subject:"always open",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/9.json"
-  local i r
-  for i in 1 2 3; do
-    # a NEW completed task each turn → DONE rises → stall resets to 0 every single time
-    jq -n --arg i "$i" '{id:$i,subject:"done \($i)",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/$i.json"
-    r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' \
-         | CLAUDE_COMPANION_AUTOPILOT_TURNS=4 "$STOP" | jq -r '.decision // "allow"')"
-    [ "$r" = "block" ]
-  done
-  jq -n '{id:"4",subject:"done 4",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/4.json"
-  r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_TURNS=4 "$STOP")"
-  [ -z "$r" ]        # 4th continuation hits the cap → yields, despite constant progress
-}
-
-@test "autopilot RUN bound: the wall-clock deadline yields, and 0 disables both bounds (R81)" {
-  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  ( cd "$repo" && "$AP" on ) >/dev/null
-  local sid=apClock; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"
-  _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
-  jq -n '{id:"1",subject:"open work",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
-  # one turn to create the counter file
-  local r; r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" | jq -r '.decision // "allow"')"
-  [ "$r" = "block" ]
-  local cf="$CLAUDE_COMPANION_STATE_DIR/autopilot/continue-$sid"
-  [ -f "$cf" ]
-  # backdate the run's start by ~7h, leaving the other fields intact. `|| true`: the counter file is
-  # written with printf and NO trailing newline, so `read` returns 1 having set the vars correctly —
-  # the same newline-less trap the task-store markers have (see the BATCHED scan test).
-  local d s w st tn; read -r d s w st tn < "$cf" || true
-  printf '%s %s %s %s %s' "$d" "$s" "$w" "$((st - 25200))" "$tn" > "$cf"
-  r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | CLAUDE_COMPANION_AUTOPILOT_HOURS=6 "$STOP")"
-  [ -z "$r" ]        # past the 6h deadline → yields
-  # ...and with both bounds disabled it keeps going regardless of how old the run is
-  printf '%s %s %s %s %s' "$d" "$s" "$w" "$((st - 999999))" "9999" > "$cf"
-  r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' \
-       | CLAUDE_COMPANION_AUTOPILOT_HOURS=0 CLAUDE_COMPANION_AUTOPILOT_TURNS=0 "$STOP" | jq -r '.decision // "allow"')"
-  [ "$r" = "block" ]
-}
-
-@test "autopilot RUN bound: an OLD 3-field continue-file still works (no migration, no lost run)" {
-  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
-  ( cd "$repo" && "$AP" on ) >/dev/null
-  local sid=apOld; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"
-  _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
-  jq -n '{id:"1",subject:"open work",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
-  local cf="$CLAUDE_COMPANION_STATE_DIR/autopilot/continue-$sid"
-  mkdir -p "$(dirname "$cf")"; printf '0 1 0' > "$cf"     # pre-2026-07-29 format
-  local r; r="$(jq -nc --arg c "$repo" --arg s "$sid" '{cwd:$c,session_id:$s}' | "$STOP" | jq -r '.decision // "allow"')"
-  [ "$r" = "block" ]                                       # keeps going, no crash
-  local _a _b _c st tn; read -r _a _b _c st tn < "$cf" || true   # no trailing newline -> read exits 1
-  [ -n "$st" ] && [ "$st" -gt 0 ]                          # start re-seeded
-  [ "$tn" = "1" ]                                          # turn counter started
-}
 
 @test "resume: ONE corrupt task file loses only ITSELF, never the whole backlog (DA blocker)" {
   # The batched jq aborts at the first parse error, so a single half-written file took every task
@@ -1757,24 +1681,15 @@ EOS
   rm -rf "$arch"
 }
 
-@test "secret gate: NON-STRING content (NotebookEdit array/object) still BLOCKS — no fail-open (R43)" {
-  # jq's `+` throws on a non-string, so `rec` came back empty and the gate exited 0 — a real
-  # credential straight through, on the very tool R43 added the gate to cover.
-  local k="AKIA""ABCDEFGHIJKLMNOP" p          # split so THIS file isn't itself a secret
-  p="$(jq -nc --arg k "$k" '{tool_input:{file_path:"/r/n.ipynb",new_source:[$k,"x"]}}')"
-  run bash -c 'printf "%s" "$1" | "$2"' _ "$p" "$GUARD"
-  [ "$status" -eq 2 ]
-  p="$(jq -nc --arg k "$k" '{tool_input:{file_path:"/r/n.ipynb",content:{a:$k}}}')"
-  run bash -c 'printf "%s" "$1" | "$2"' _ "$p" "$GUARD"
-  [ "$status" -eq 2 ]
-}
-
-@test "secret gate: an EMPTY edit never scans the FILE PATH as content (no false block)" {
-  # With no content there was no newline to split on, so the path itself became the scanned text:
-  # an Edit clearing a file under a directory literally named AKIA… was BLOCKED.
-  local k="AKIA""ABCDEFGHIJKLMNOP" p        # split so THIS file isn't itself a secret
-  p="$(jq -nc --arg d "/tmp/$k/notes.txt" '{tool_input:{file_path:$d,new_string:""}}')"
-  run bash -c 'printf "%s" "$1" | "$2"' _ "$p" "$GUARD"
+@test "check-secrets: EMPTY content never scans the FILE PATH as content (no false block)" {
+  # The old gate concatenated path+content into one newline-joined stdin blob and split on the
+  # FIRST newline — with no content there was no newline, so the path itself became the scanned
+  # text, and an Edit clearing a file under a directory literally named AKIA… was BLOCKED. That
+  # coupling can't happen here BY STRUCTURE (R100/Pass 3): path arrives via --path, content only
+  # ever via stdin, two separate channels, never joined into one string to mis-split. Kept as a
+  # regression guard in case a future "simplify" re-couples them.
+  local k="AKIA""ABCDEFGHIJKLMNOP"        # split so THIS file isn't itself a secret
+  run bash -c 'printf "%s" "$1" | "$2" --path "/tmp/$3/notes.txt"' _ "" "$GUARD" "$k"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
@@ -1934,8 +1849,8 @@ _shim() {
   [[ "$output" != *"caught"* ]]
 }
 
-@test "session start: LESSONS is two-tier — only the core above the marker is injected (R69/R30·d7)" {
-  # The cap is on INJECTED bytes, not on the file. Before the split, LESSONS sat 5B under its
+@test "resume: LESSONS is two-tier — only the core above the marker prints (R69/R30·d7)" {
+  # The cap is on PRINTED bytes, not on the file. Before the split, LESSONS sat 5B under its
   # ceiling while the process told every session to append to it, so each new lesson was paid for
   # by deleting a true one — two real remedies were lost that way before this landed.
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q; mkdir -p "$repo/docs"
@@ -1945,31 +1860,30 @@ _shim() {
 <!-- lessons injection stops here -->
 - OMEGA-ONDEMAND-TRAP read on demand only
 EOF
-  run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" \
-    CLAUDE_COMPANION_SESSION_ID=sL bash "$4"' _ \
-    "$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')" "$(_tmpd)" "$(_tmpd)" "$SS"
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" \
+    CLAUDE_COMPANION_SESSION_ID=sL "$4"' _ "$repo" "$(_tmpd)" "$(_tmpd)" "$RESUME"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"ALPHA-CORE-TRAP"* ]]        # the core rides every session...
+  [[ "$output" == *"ALPHA-CORE-TRAP"* ]]        # the core rides every call...
   [[ "$output" != *"OMEGA-ONDEMAND-TRAP"* ]]    # ...the tail does not, which is the whole point
-  [[ "$output" != *"lessons injection stops here"* ]]   # and the marker itself is never injected
+  [[ "$output" != *"lessons injection stops here"* ]]   # and the marker itself is never printed
 
-  # FAILS OPEN on a file with no marker — a stranger's repo (R9) keeps working, whole file injected.
+  # FAILS OPEN on a file with no marker — a stranger's repo (R9) keeps working, whole file prints.
   printf '# Lessons\n- ZETA-UNSPLIT-TRAP\n' > "$repo/docs/LESSONS.md"
-  run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" \
-    CLAUDE_COMPANION_SESSION_ID=sL2 bash "$4"' _ \
-    "$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')" "$(_tmpd)" "$(_tmpd)" "$SS"
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" \
+    CLAUDE_COMPANION_SESSION_ID=sL2 "$4"' _ "$repo" "$(_tmpd)" "$(_tmpd)" "$RESUME"
   [[ "$output" == *"ZETA-UNSPLIT-TRAP"* ]]
 }
 
-@test "session start: autopilot mode prose rides ONLY when the mode is armed (R69)" {
+@test "resume: autopilot mode prose rides ONLY when the mode WAS armed at call time (R69)" {
   # ~2.7KB of mode rules that are dead weight in every session where autopilot is off — which is
   # most of them. Conditional, not deleted: when the mode IS on the rules are exactly as present as
-  # they ever were. This is rent paid per session forever, so the gate is worth having.
+  # they ever were. This is rent paid per call forever, so the gate is worth having. Checked
+  # PRE-clear (resume.sh always disarms autopilot as its own first step, R39) — "armed at call
+  # time" is what decides whether the prose shows, not the state after resume has already run.
   local repo st; repo="$(_tmpd)"; git -C "$repo" init -q; st="$(_tmpd)"
-  local pay; pay="$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')"
-  run bash -c 'cd "$4" && printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" \
-      CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)" CLAUDE_COMPANION_SESSION_ID=sAp bash "$3"' \
-      _ "$pay" "$st" "$SS" "$repo"
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" \
+      CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)" CLAUDE_COMPANION_SESSION_ID=sAp "$3"' \
+      _ "$repo" "$st" "$RESUME"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Working agreement"* ]]        # the core always rides...
   [[ "$output" != *"Keep-going mode"* ]]          # ...the mode prose does not
@@ -1977,9 +1891,9 @@ EOF
   local off_len="${#output}"
 
   ( cd "$repo" && CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/autopilot.sh" on ) >/dev/null
-  run bash -c 'cd "$4" && printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" \
-      CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)" CLAUDE_COMPANION_SESSION_ID=sAp2 bash "$3"' \
-      _ "$pay" "$st" "$SS" "$repo"
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" \
+      CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)" CLAUDE_COMPANION_SESSION_ID=sAp2 "$3"' \
+      _ "$repo" "$st" "$RESUME"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Keep-going mode"* ]]          # armed → the rules are there
   [[ "$output" == *"park with the full payload"* ]]
@@ -2461,30 +2375,6 @@ _bd_setup() {
   [ "$status" -eq 8 ]
 }
 
-@test "ask-guard: a blocked question is PARKED, not just denied (R36 + owner-asked)" {
-  # Denying alone made the block a dead end: the guard is enforced, the parking that should follow
-  # was advisory. The hook already holds the payload, so it writes a park carrying the real options.
-  local d st tk; d="$(_tmpd)"; git -C "$d" init -q; st="$(_tmpd)"; tk="$(_tmpd)"
-  ( cd "$d" && CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/autopilot.sh" on ) >/dev/null
-  local pay; pay="$(jq -nc --arg c "$d" '{cwd:$c,session_id:"sAsk",tool_input:{questions:[{question:"Which cache backend?",header:"Cache",options:[{label:"sqlite (Recommended)",description:"dep already vendored"},{label:"plain files",description:"no dep, slower"}]}]}}')"
-  run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' _ "$pay" "$st" "$tk" "$ROOT/bin/ask-guard.sh"
-  [ "$status" -eq 0 ]
-  [ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ]
-  [[ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecisionReason')" == *"ALREADY PARKED FOR YOU"* ]]
-  run env CLAUDE_COMPANION_SESSION_ID=sAsk CLAUDE_COMPANION_TASKS_DIR="$tk" "$TQ" list
-  [[ "$output" == *"Which cache backend?"* ]]
-  [[ "$output" == *"sqlite"* ]] && [[ "$output" == *"plain files"* ]]   # the real options, not a stub
-  [[ "$output" != *"rev:"* ]]        # NEVER rev: — the hook cannot know if it is reversible
-  # MARKED `decision:` — this park came from a QUESTION, so it is a decision by construction.
-  # candidates.sh relies on that marker to keep decisions out of buildable work (R82); without it
-  # burn-down would offer the owner's own unanswered question back to itself as a task.
-  [[ "$output" == *"❓ [parked] decision:"* ]]
-  # Re-asking must not stack a duplicate.
-  run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' _ "$pay" "$st" "$tk" "$ROOT/bin/ask-guard.sh"
-  run env CLAUDE_COMPANION_SESSION_ID=sAsk CLAUDE_COMPANION_TASKS_DIR="$tk" "$TQ" list
-  [ "$(printf '%s' "$output" | grep -c 'Which cache backend')" -eq 1 ]
-}
-
 @test "autopilot resume: refuses and KEEPS the marker when it cannot re-arm (R83)" {
   # The mirror of the pause fix, and it was missed: resume deleted the marker FIRST, then tried to
   # arm without checking, then printed "RESUMED" unconditionally — leaving autopilot off, the marker
@@ -2514,30 +2404,6 @@ _bd_setup() {
   [ "$(ls "$dir"/*.json | wc -l)" -eq 6 ]
   [ "$(cat "$dir"/*.json | jq -r .subject | sort -u | wc -l)" -eq 6 ]   # none lost
   [ "$(cat "$dir"/*.json | jq -r .id | sort | uniq -d | wc -l)" -eq 0 ] # no duplicate ids
-}
-
-@test "ask-guard: parks into the PAYLOAD's repo and survives a relative invocation (R84)" {
-  # Two silent failures in one path. (1) tq stamps a session store from $PWD, so running the hook
-  # from elsewhere poisoned the whole session's queue — invisible to resume, review, burn-down and
-  # the status line, while the model was told the decision was parked. (2) $SELF is RELATIVE when
-  # the hook is invoked by a relative path, so cd-ing to the repo broke tq resolution entirely:
-  # no task written, success still reported.
-  local d st tk elsewhere; d="$(_tmpd)"; git -C "$d" init -q
-  st="$(_tmpd)"; tk="$(_tmpd)"; elsewhere="$(_tmpd)"
-  ( cd "$d" && CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/autopilot.sh" on ) >/dev/null
-  local pay; pay="$(jq -nc --arg c "$d" '{cwd:$c,session_id:"sPay",tool_input:{questions:[{question:"Which backend?",options:[{label:"A"},{label:"B"}]}]}}')"
-  # Invoked BY A RELATIVE PATH (cwd = the plugin dir, script = bin/ask-guard.sh) while the payload
-  # points at a different repo. An absolute path here would not exercise the bug at all — the whole
-  # failure is that $SELF stays relative and stops resolving once the hook cd's into the payload's
-  # repo. Asserting "relative" while passing an absolute path is a test that cannot fail.
-  run bash -c 'cd "$5" && printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' \
-      _ "$pay" "$st" "$tk" "bin/ask-guard.sh" "$ROOT"
-  [ "$status" -eq 0 ]
-  [ "$(ls "$tk/sPay"/*.json 2>/dev/null | wc -l)" -eq 1 ]      # the task actually got written
-  # Compare against the RESOLVED root — tq stamps what git reports, which on macOS is the
-  # /private/var/... form rather than the raw mktemp path.
-  [ "$(cat "$tk/sPay/.root")" = "$(git -C "$d" rev-parse --show-toplevel)" ]   # the PAYLOAD's repo
-  [[ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecisionReason')" == *"ALREADY PARKED FOR YOU"* ]]
 }
 
 @test "burndown-branch: refuses a slug that collides with the default branch (R82)" {
@@ -2665,14 +2531,14 @@ _bd_setup() {
   cp -R "$ROOT" "$iso/companion"
   # Nothing from dev/ (the verification kit) or the repo root travels with it.
   [ ! -e "$iso/dev" ] && [ ! -e "$iso/companion/tests" ] && [ ! -e "$iso/companion/../check.sh" ]
-  run grep -rlE '(\.\./)+(dev|check\.sh)' "$iso/companion/bin" "$iso/companion/lib"
+  run grep -rlE '(\.\./)+(dev|check\.sh)' "$iso/companion/bin" "$iso/companion/lib" "$iso/companion/mcp-server/index.js"
   [ -z "$output" ]                       # no shipped file reaches up and out
 
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   local st tk; st="$(_tmpd)"; tk="$(_tmpd)"
   # The entry points a user actually triggers, run from the isolated copy.
-  run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' \
-      _ "$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')" "$st" "$tk" "$iso/companion/bin/session-start.sh"
+  run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' \
+      _ "$repo" "$st" "$tk" "$iso/companion/bin/resume.sh"
   [ "$status" -eq 0 ]; [[ "$output" == *"Working agreement"* ]]
   run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" NO_COLOR=1 bash "$3"' \
       _ "$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"s",cwd:$c}')" "$st" "$iso/companion/bin/statusline.sh"
@@ -2691,19 +2557,18 @@ _bd_setup() {
   [ "$output" -ge 1 ]
 }
 
-@test "session start: warns when the INSTALLED plugin lags this working tree (R6)" {
+@test "resume: warns when the INSTALLED plugin lags this working tree (R6)" {
   # Claude Code runs the plugin from its CACHE, not the checkout you are editing. On 2026-08-02 a
   # session opened on a cache with no UserPromptSubmit registration at all, so every hook added
   # that day was inert while the repo was green — six hours of work reported as shipped that was
   # not running. Nothing surfaced it; the status line showed the old version and neither of us
   # read it as a warning.
-  local repo st tk pay running
+  local repo st tk running
   repo="$(_tmpd)"; git -C "$repo" init -q; st="$(_tmpd)"; tk="$(_tmpd)"
   mkdir -p "$repo/plugins/companion/.claude-plugin"
   running="$(jq -r .version "$ROOT/.claude-plugin/plugin.json")"
-  pay="$(jq -nc --arg c "$repo" '{source:"startup",cwd:$c}')"
-  _ss2() { run bash -c 'cd "$5" && printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" bash "$4"' \
-             _ "$pay" "$st" "$tk" "$SS" "$repo"; }
+  _ss2() { run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" "$4"' \
+             _ "$repo" "$st" "$tk" "$RESUME"; }
 
   # Tree AHEAD of the running build → warn, and name both versions.
   jq -n '{name:"companion",version:"9.9.9"}' > "$repo/plugins/companion/.claude-plugin/plugin.json"
@@ -2723,56 +2588,22 @@ _bd_setup() {
   _ss2; [ "$status" -eq 0 ]; [[ "$output" != *"RUNNING v"* ]]
 }
 
-@test "the contract bound is stated where it is armed, not only in the guard (R86)" {
-  # A guard that refuses without the rule being visible reads as a malfunction. The bound is in the
-  # INJECTED steering core (so it governs every unattended session) and in the arming message (so it
-  # is visible at the moment the owner turns autopilot on) — and it is one rule, not a fifth mode.
+@test "the contract bound is stated where it is armed — advisory only now, no guard left (R86)" {
+  # contract-guard.sh is retired (R100/Pass 3) — nothing left can refuse a contract edit. What
+  # survives is the bound STATED where it matters: the STEERING core (governs every session) and
+  # the arming message (visible the moment the owner turns autopilot on). Whether the model
+  # actually honors it is judgment now, not a mechanism (R28) — this pins the statement, not
+  # enforcement of it, which is the honest ceiling of what's left to test.
   local core; core="$(awk '/injection stops here/{exit} {print}' "$ROOT/STEERING.md")"
   [[ "$core" == *"never rewrite it"* ]]
   [[ "$core" == *"Authoring a **need** is never yours"* ]]
   local d st; d="$(_tmpd)"; git -C "$d" init -q; st="$(_tmpd)"
   run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" on' _ "$d" "$st" "$ROOT/bin/autopilot.sh"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"R86"* ]]; [[ "$output" == *"never mine to edit"* ]]
+  [[ "$output" == *"R100"* ]]; [[ "$output" == *"never mine to write"* ]]
   # And no new mode was introduced — the four existing toggles are still the whole set.
   run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" contract on' _ "$d" "$st" "$ROOT/bin/autopilot.sh"
   [ "$status" -ne 0 ]
-}
-
-@test "contract-guard: unattended work may SATISFY the contract, never rewrite it (R86)" {
-  # Trace-bounded autonomy. Enforceable only because the contract is now FILES: "does this edit the
-  # contract?" is a path comparison, where "is this an L2 task?" would have been a judgement made by
-  # the very agent the bound exists to constrain.
-  local d st; d="$(_tmpd)"; git -C "$d" init -q; st="$(_tmpd)"
-  _cg() { run bash -c 'printf "%s" "$1" | CLAUDE_COMPANION_STATE_DIR="$2" bash "$3"' _ \
-            "$(jq -nc --arg c "$d" --arg p "$1" '{cwd:$c,tool_name:"Edit",tool_input:{file_path:$p}}')" \
-            "$st" "$ROOT/bin/contract-guard.sh"; }
-
-  # Autopilot OFF: the owner is present and can simply decide. Silence, not a nag.
-  _cg "$d/docs/needs.yaml"; [ "$status" -eq 0 ]; [ -z "$output" ]
-
-  mkdir -p "$st/autopilot"; touch "$(_flagpath "$st" autopilot "$d")"
-  # NEEDS are never the agent's — this is the one refusal with no escape hatch in the message.
-  _cg "$d/docs/needs.yaml"
-  [ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ]
-  [[ "$output" == *"never yours to write"* ]]; [[ "$output" == *"PARK it as a proposal"* ]]
-  # REQUIREMENTS: refused, but with the exact park format, because the delta IS the owner's choice.
-  _cg "$d/docs/requirements.yaml"
-  [ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ]
-  [[ "$output" == *"quietly rewrites what it is measured against"* ]]
-  [[ "$output" == *"Satisfying an EXISTING requirement needs no permission"* ]]
-  # Everything else is ordinary work and must be untouched — a guard that fires on normal edits
-  # would make autopilot useless, which is the failure mode worth guarding against here.
-  _cg "$d/plugins/companion/bin/tq";        [ -z "$output" ]
-  _cg "$d/docs/MAP.md";                     [ -z "$output" ]
-  _cg "$d/docs/adr/PROVENANCE.md";            [ -z "$output" ]
-  _cg "$d/src/needs.yaml.backup";           [ -z "$output" ]   # not the contract path
-  # Relative paths are the same file.
-  _cg "docs/needs.yaml"
-  [ "$(printf '%s' "$output" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ]
-  # Malformed input must never block a write (R7/R68).
-  run bash -c 'printf "%s" "{garbage" | CLAUDE_COMPANION_STATE_DIR="$1" bash "$2"' _ "$st" "$ROOT/bin/contract-guard.sh"
-  [ "$status" -eq 0 ]; [ -z "$output" ]
 }
 
 @test "tq report: next skips work that waits on an unanswered item (R47)" {

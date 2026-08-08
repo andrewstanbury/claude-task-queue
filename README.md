@@ -3,22 +3,26 @@
 One [Claude Code](https://claude.com/claude-code) plugin that makes Claude a disciplined
 pair: it turns your requests into a live task queue, decides with **brutally honest,
 multiple-choice recommendations** that name what each option would change, keeps code clean
-as it changes it, and keeps working on its own without stopping — while a small enforced core stops
-committed secrets and remembers unfinished work between sessions.
+as it changes it, and keeps working on its own without stopping — backed by a portable core (its
+own task queue, a ship rail, a credential-shape scanner) reachable from Claude Code or, via MCP,
+other agentic clients.
 
-It's built around one idea: **steering is a document, enforcement is code, and the two should
-never be confused.** Almost everything the companion "does" is one steering document Claude
-reads once per session. The only things that are code are the things that must actually
-*execute or block*.
+It's built around one idea: **steering is a document, and almost everything here is steering.**
+The companion's judgment — the queue discipline, the recommendation posture, the clean-as-you-go
+habit — is one document Claude reads on request, not code enforcing it. What's left as code is
+the mechanical part that has to reproduce byte-for-byte: the task-queue store, the ship rail, a
+credential-shape scanner — exposed both as CLIs and, for portability to other MCP-capable clients,
+as an MCP server. Nothing here blocks a write or forces a session to keep going anymore; that
+enforcement was traded, deliberately, for working the same way on more than one host.
 
 | Part | What it is |
 |---|---|
-| **Steering** ([STEERING.md](plugins/companion/STEERING.md)) | The working agreement: how Claude queues work, challenges the ask, recommends against a **requirements ledger** (🔒 locked / 🔓 open), keeps changes clean, and runs autonomously without stopping. Put in context once per session. |
-| **Secret gate** | Before any write, blocks a file that would commit a credential — the one thing native permissions can't scan. A leaked key is irreversible. |
-| **Resume / Review** | `/companion:resume [branch]` re-surfaces this repo's unfinished tasks (session pickup; also automatic at session start). `/companion:review` walks the backlog waiting on you — parked ❓ decisions + blocked ⏳ actions — one at a time, and runs when you turn autopilot off. |
+| **Steering** ([STEERING.md](plugins/companion/STEERING.md)) | The working agreement: how Claude queues work, challenges the ask, recommends against a **requirements ledger** (🔒 locked / 🔓 open), keeps changes clean, and runs autonomously without stopping. Printed on request by `/companion:resume` (or the MCP `resume` tool) — nothing injects it automatically. |
+| **Credential scanner** | On request, classifies a file as containing a credential shape (`check-secrets.sh` / the MCP `check_for_secrets` tool). Advisory — it can warn or flag, it cannot block a write. |
+| **Resume / Review** | `/companion:resume [branch]` re-surfaces this repo's unfinished tasks (session pickup, on request — nothing runs it automatically). `/companion:review` walks the backlog waiting on you — parked ❓ decisions + blocked ⏳ actions — one at a time, and runs when you turn autopilot off. |
 | **Ship** | `/companion:ship-it [pr] [--gate <cmd>]` — verify your gate, commit, push, and merge (or `pr` to open a pull request instead). |
-| **`tq`** | The task queue — self-owned, so it works everywhere (including the newest models where Claude's built-in task tracking is switched off) and doesn't depend on Claude Code internals. It reprints the queue on every change, so the CLI always shows what's in progress and next. |
-| **Autopilot** | `/companion:autopilot on` — Claude keeps working the queue **without stopping**, parking decisions it shouldn't make alone. It's "keep going," *not* "you're away": keep it on and keep queuing tasks while you watch. Enforced (won't stop or ask while on), persists across restarts. `ship on` also auto-commits work to an `autopilot/*` branch; `decisive on` auto-picks the recommended option for reversible decisions (recording each) and parks only the irreversible; `sweep on` goes further and works the **already-parked** pile too. |
+| **`tq`** | The task queue — self-owned, so it works everywhere (including the newest models where Claude's built-in task tracking is switched off) and doesn't depend on Claude Code internals. It reprints the queue on every change, so the CLI always shows what's in progress and next. Also reachable via the MCP server, for any MCP-capable client. |
+| **Autopilot** | `/companion:autopilot on` — Claude keeps working the queue **without stopping**, parking decisions it shouldn't make alone. It's "keep going," *not* "you're away": keep it on and keep queuing tasks while you watch. Advisory (a persisted preference the model follows, not a guarantee), persists across restarts. `ship on` also commits work to an `autopilot/*` branch on request (no longer automatic); `decisive on` auto-picks the recommended option for reversible decisions (recording each) and parks only the irreversible; `sweep on` goes further and works the **already-parked** pile too. |
 | **Status line** | One glance line, grouped with `:` dividers: ⠋ beacon · `v<x.y.z>` · `:` active features `:` (each shown only when relevant — `🛡️✗` only if the gate is off, ✈️ autopilot, 📦 ship-mode; omitted entirely when none) · `:` 📋 ❓ ⏳ `:` (the queue) · `:` ↻2h ▰▰▱▱▱ 23% ↻6d ▰▰▰▱▱ 41%▴ `:` (account rate limits — the label is the reset countdown, falling back to the 5h/7d window name when there isn't one; `▴`/`▾` on the 7d says whether you are on pace to spend the window before it resets) · model · ⇡⇣ tokens · project · ⎇ branch · ↑↓ ahead/behind. Wire it once with `/companion:setup` (legend below). |
 
 Bash + `jq`, zero build, one install.
@@ -74,8 +78,8 @@ Bash + `jq`, zero build, one install.
 ## Status line legend
 
 Three plugin sections then generic — `⠋` beacon `-` **active features** `-` **the queue** `-` model · git:
-`⠋` health beacon (spins while working) · `v<x.y.z>` the installed plugin version · `🛡️✗` secret gate
-**off** (shown only when disabled — no icon when it's on) · `✈️` autopilot on (`✈️⚡` decisive) · `📦` ship-mode armed · `📋` open · `❓` parked ·
+`⠋` health beacon (spins while working) · `v<x.y.z>` the installed plugin version · `🛡️✗` credential
+scanner **off** (shown only when disabled — no icon when it's on) · `✈️` autopilot on (`✈️⚡` decisive) · `📦` ship-mode armed · `📋` open · `❓` parked ·
 `⏳` blocked tasks · **account** rate-limit usage bars (labelled `↻`<time-to-reset>, or `5h`/`7d` when there is none; `▴`/`▾` on the 7d = on/behind pace to spend it) · `⇡`/`⇣` input/output tokens · project · `⎇` branch · `*N` uncommitted · `↑`/`↓`
 commits ahead/behind upstream. *(`⇡⇣` are tokens; `↑↓` are git — two arrow pairs, different meanings.)*
 
@@ -115,18 +119,21 @@ and ledger. `/companion:ship-it` keeps this index current (R57).
 
 Or run `/plugin` and pick it from the **Discover** tab.
 
-> **One thing to turn on:** the enforced core works the moment it's installed, but the *status
-> line* is the one opt-in — run **`/companion:setup`** once to wire it (nothing prompts you
-> otherwise).
+> **Two things to turn on:** the plugin installs inert — run **`/companion:resume`** once to bring
+> the working agreement and any carried-over tasks into context, and **`/companion:setup`** once to
+> wire the *status line* (nothing prompts you for either otherwise).
 
 ## What installing does
 
-The enforced core works as soon as it's enabled — the only opt-in is the status line (`/companion:setup`).
+Almost nothing, until you ask for it — R100's trade for working the same way on more than one
+MCP-capable client. Nothing blocks a write and nothing runs automatically at session start
+anymore.
 
-- **Each session start:** the working agreement (STEERING.md) is put in context once, and any
-  unfinished tasks from an earlier session in this repo are surfaced.
-- **Before a write:** a file that looks like it contains a hardcoded credential is blocked
-  (override with `CLAUDE_COMPANION_SECSCAN=0`).
+- **`/companion:resume`** (or the MCP `resume` tool) puts the working agreement (STEERING.md) in
+  context and surfaces any unfinished tasks from an earlier session in this repo.
+- **On request**, a file can be checked for a hardcoded-credential shape (`/companion:review`'s
+  workflow calls it where relevant, or call `check-secrets.sh` / the MCP `check_for_secrets` tool
+  directly) — advisory only, disable with `CLAUDE_COMPANION_SECSCAN=0` if you don't want it at all.
 - **Everything else** — the queue discipline, the recommendation posture, clean-as-you-go — is
   Claude following the steering document, not a hook forcing anything.
 
@@ -137,4 +144,4 @@ going*, not *you're gone* — you can stay and keep queuing tasks. Nothing hazar
 ## Turning it off
 
 - **Remove it:** `/plugin uninstall companion@andrewstanbury`.
-- **Silence the secret gate but keep the plugin:** `CLAUDE_COMPANION_SECSCAN=0`.
+- **Silence the credential scanner but keep the plugin:** `CLAUDE_COMPANION_SECSCAN=0`.

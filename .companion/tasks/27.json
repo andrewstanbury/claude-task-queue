@@ -1,0 +1,10 @@
+{
+  "id": "27",
+  "subject": "Pass 4: retire ask-guard.sh + stop-autopilot.sh, advisory autopilot skill loop, reverse R26/R33/R59/R81/R84",
+  "status": "completed",
+  "done_when": "hooks deleted from hooks.json, advisory equivalent documented, requirements reversed, dev/trace.sh + check.sh green (biggest fidelity loss — autopilot's forced-continuation guarantee ends here; contract edit will auto-park under active autopilot)",
+  "context": "plugins/companion/bin/ask-guard.sh, stop-autopilot.sh, hooks.json, docs/requirements.yaml R26/R33/R59/R81/R84",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "reading ask-guard.sh + stop-autopilot.sh + R26/R33/R59/R81/R84 before scoping the advisory replacement"
+}

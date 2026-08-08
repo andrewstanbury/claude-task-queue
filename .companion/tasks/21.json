@@ -1,0 +1,10 @@
+{
+  "id": "21",
+  "subject": "Pass 1: MCP server wrapping tq CLI as MCP tools (additive, non-breaking)",
+  "status": "completed",
+  "done_when": "mcp-server/ built, tools verified byte-parity with tq CLI, dev/trace.sh and check.sh still green, one new requirements.yaml entry added",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "checking node/npm availability + Claude Code plugin MCP server manifest mechanism"
+}

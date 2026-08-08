@@ -18,7 +18,7 @@ Loaded on demand (not injected each session).
 | **the ledger** | Retired term. The contract is `docs/requirements.yaml`; decisions live in `docs/adr/`, and the old ledger is frozen as `docs/adr/PROVENANCE.md`. |
 | **R-ID** | A ledger entry (e.g. R28), with status **🔒 locked / 🔓 open / ⚰️ retired**. Recommendations cite the R-IDs they touch (R5). |
 | **blast radius** | What a change ripples into (callers, dependents) — grep the symbol, cover them before changing (criterion 1). |
-| **the secret gate** | The PreToolUse floor that blocks a write committing a credential (`secret-guard.sh`) — the one sanctioned edit-breaker (R19). |
+| **the secret gate** | Retired term (R100/Pass 3). Was the PreToolUse floor that blocked a write committing a credential (`secret-guard.sh`) — the one sanctioned edit-breaker (R19). Now `check-secrets.sh` / the MCP `check_for_secrets` tool: same scan, advisory only, nothing it returns can block a write. |
 | **the beacon** | The status-line spinner (`⠋`) that animates *on activity only*, static when idle (R30·d9). |
 | **autopilot / keep-going mode** | The persisted, enforced "keep draining the queue without stopping" flag — *momentum, not owner-absence* (R26/R36). |
 | **park / `❓ [parked]`** | Under autopilot, defer a decision that's the owner's (direction, design, taste, irreversible) instead of stopping or auto-deciding (R33). |

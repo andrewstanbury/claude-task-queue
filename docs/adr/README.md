@@ -122,3 +122,57 @@ task count on its own — it shows a count it was handed, or nothing.
 **Still applicable here.** The plugin's `statusline.sh` reads companion state directly, which is
 fine *because it ships with that state*. If the line is ever extracted again, this is the seam —
 and the untrusted-provider rules are the load-bearing part, not the fork.
+
+## R100 — DECISION 🔒
+
+**companion's enforced core (secret-guard, ask-guard, contract-guard, stop-autopilot,
+session-start) is retired in favor of an MCP server + portable skills, trading guaranteed
+block/control-flow for cross-client portability.** Owner asked whether companion could become
+agnostic of Claude Code — built on MCP, with Claude-Code skills as the consuming layer — for
+eventual use with Cursor. Two facts were surfaced and accepted before this decision: **(1)** MCP
+itself ships no interception primitive today (the "Interceptors" work, SEP-1763, is a
+working-group draft, not spec) — this rewrite does not gain enforcement on Cursor either, since
+Cursor's own blocking (`beforeShellExecution`/`beforeMCPExecution`) is a Cursor-hook mechanism, not
+an MCP one, and building a Cursor-hook adapter is explicitly out of scope for this pass (owner
+picked full MCP+skills over the per-host-adapter option, knowing it lands advisory-only on both
+platforms). **(2)** Cursor's `stop` hook is observational-only (no block/deny) — even a
+per-host-adapter design could not have restored autopilot's forced-continuation guarantee on
+Cursor; that guarantee has no home outside Claude Code's own Stop hook, full stop. **Supersedes**
+**R24**'s "tiny enforced core" (the core is no longer enforced code — it becomes an MCP server +
+STEERING prose, consumed via skills); **retires R26**'s "autopilot stays enforced" ("a control-flow
+guarantee against the model's own helpfulness bias... the rule exists to end the re-litigation" —
+re-litigated and reversed here, explicitly, by owner decision, not case-by-case drift); **amends**
+**R28/R51**'s block/control-flow/session-boundary-I/O-only line (the dividing rule itself is
+retired, not just its examples — advisory-everywhere is now the deliberate default, the opposite of
+R51's "no advisory hooks"); **reopens R8/R9/R10** (queue *ownership* is unchanged — `tq`'s data
+model and CLI are reused verbatim as the MCP server's backend — only enforcement moves; the
+native-vs-own-queue split these decisions record is untouched); **reopens R67** (companion now IS
+machinery for domain-agnostic portability, the thing R67 previously declined to add — R67's
+target, natively-configured *domain* MCPs, is a different concern and is not itself reversed).
+| 2026-08-08, owner-decided after being shown the enforcement-loss cost twice
+(`AskUserQuestion`, both times: cheap-portable-wins-only and per-host-adapters were offered first
+and marked recommended; owner picked full-MCP both times, informed). Rolled out in bounded,
+check-gated passes (companion's own `/companion:redesign` discipline) — each hook's retirement and
+its requirements.yaml reversal happen together, in the same pass, never as a ledger-only or
+code-only change. See the redesign plan for the full pass breakdown.
+
+## R104 — DECISION 🔓
+
+**`prompt-continue.sh` (the last surviving Claude Code hook, `UserPromptSubmit`) stays
+Claude-Code-only — no Cursor-side equivalent is built.** Investigated as part of R100's Pass 5
+portability audit: Cursor 1.7+ has a `beforeSubmitPrompt` hook, but its output contract is
+block-only (`{continue, user_message}`) — it can allow or deny the prompt and show the *user* a
+message, but it **cannot inject additional context the model reads**, unlike Claude Code's
+`UserPromptSubmit` (`hookSpecificOutput.additionalContext`). `prompt-continue.sh`'s whole mechanism
+— silently steering the agent to review the parked pile before continuing — has no faithful Cursor
+counterpart; the closest equivalent would *hard-block the human's own prompt* instead, a materially
+different UX, built and shipped unverified (no Cursor install available to test against). Owner
+chose to accept the asymmetry rather than ship unverifiable Cursor-specific code: on Cursor, a bare
+"continue" with a full parked pile just continues — the MCP `review`-equivalent flow
+(`autopilot_toggle` pause/resume + `tq_list`) is still fully reachable there, just not
+auto-triggered. **🔓, not 🔒** — revisit if the owner starts actually running the plugin against
+Cursor and can report what its hook behavior looks like in practice (the third option offered and
+declined this round).
+| 2026-08-08, owner-decided (`AskUserQuestion`, three options offered — leave the asymmetry
+(recommended), build an unverified Cursor hook, or defer until Cursor is in actual use — owner
+picked the recommended option).

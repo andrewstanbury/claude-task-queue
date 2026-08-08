@@ -21,8 +21,9 @@ Nudges are offers: debt→task · big-blast→split · repetitive-drain→autopi
 `redesign` reproduces logged flows + quality bar, gated on safety checks, on a branch; implementation may change, experience may not. 👁
 
 ## guardrails-default-on [E]
-Safety on by default, opt-out only; disabled gate is loud.
-- [E] `secret gate: blocks a real AWS key (exit 2)` ✅
+Safety on by default, opt-out only; disabled gate is loud. (R100/Pass 3: the secret scan itself
+is advisory now, not enforced — the status-line loudness on disable is the part still real.)
+- [E] `check-secrets: BLOCKs a real AWS key (exit 2) — advisory only, R100/Pass 3` ✅
 - [E] `status line: 🛡✗ when the secret gate is disabled` ✅
 
 ## living-contract [E/S]

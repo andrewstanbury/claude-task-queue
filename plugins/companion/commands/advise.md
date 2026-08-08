@@ -20,11 +20,11 @@ is just one such pass). It's gated
 (document-first, checks-first, on-branch, confirmed, auto-revert on red); this command is the safe,
 read-only critique it grew out of.
 
-0. **Clear autopilot first.** If autopilot is on, run `"${CLAUDE_PLUGIN_ROOT}/bin/autopilot.sh" off`
-   before anything else — the ask-guard blocks `AskUserQuestion` while it's on, so without this the
-   panel spawns and burns sub-agent time only to hit a blocked question at step 4. A **mechanical
-   unblock** — **defer the R38 parked-pile review** until after this command; note the ❓/⏳ count in
-   one line, don't walk the pile first.
+0. **Clear autopilot first.** If autopilot is on, call **`autopilot_toggle`** (`action: "off"`)
+   before anything else — this command asks at step 4, and autopilot means don't (R100: advisory
+   now, not enforced — but skipping this still means the panel burns sub-agent time only to reach
+   a question with nowhere to put it). A **mechanical unblock** — **defer the R38 parked-pile
+   review** until after this command; note the ❓/⏳ count in one line, don't walk the pile first.
 
 1. **Scope + understand.** Resolve the target. Read what you genuinely need to critique it
    honestly: the relevant code, the contract (`docs/requirements.yaml`), `docs/MAP.md`, and —

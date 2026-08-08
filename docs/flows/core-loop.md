@@ -10,7 +10,7 @@ steps:
 - decisions → pick-from-CLI menus; every reply ends with one-line brutal-honest verdict [pattern:recommendation-first]
 - context nudges are offers, not actions [pattern:offer-not-act]
 - visual change → wireframe first [pattern:wireframe-first]; clean-as-you-go [pattern:clean-as-you-go]
-- credential write → BLOCKED [pattern:guardrails-default-on]
+- credential write → ADVISORY scan, was BLOCKED before R100/Pass 3 retired the enforced gate [pattern:guardrails-default-on]
 - verify by exercising; recap one line
 - ship via `/companion:ship-it [pr] [--gate <cmd>]`: `ship.sh preflight` (gate+drift+export+summary, one call) → judgment (case · DA · contract sync · message) → `ship.sh land` (stage·commit·ff-merge·push·prune, one call; bails hand back) [R71]; land then ENFORCES a bounded CI watch — RED → exit 10 SHIPPED-fix-forward [R74]. `--gate` supplies a non-`check.sh` gate to both calls; `pr` takes the PR path instead of `land` — no ff-merge, no enforced CI watch [R75]
 
@@ -23,7 +23,7 @@ tests:
 - [E] `tq: done-when — --done on add + the done-when subcommand STORE it` ✅
 - [E] `tq delta (R69): add/doing print a one-line counts delta, NOT the full queue; done prints the full report` ✅
 - [E] `parked/blocked (❓/⏳) is a prefix-view over pending, NOT a status value` ✅
-- [E] `secret gate: blocks a real AWS key (exit 2)` ✅
+- [E] `check-secrets: BLOCKs a real AWS key (exit 2) — advisory only, R100/Pass 3` ✅
 - [E] `ship.sh land: happy path — commit, ff-merge to default, push, prune shipped branch (local+remote)` ✅
 - [E] `ship.sh land: non-ff merge bails (exit 7), hands back ON the feature branch, default untouched` ✅
 - [E] `ship.sh land: ENFORCES the CI watch — GREEN run exits 0 (R74)` ✅
@@ -33,6 +33,9 @@ tests:
 - [S] wireframe-first · clean-as-you-go · one-line recap — judgment 👁
 
 changes:
+- 2026-08-08 credential write gate goes from BLOCKED to ADVISORY — secret-guard.sh's PreToolUse
+  hook retired, check-secrets.sh / MCP check_for_secrets return the same verdict but nothing
+  enforces it [R100/Pass 3, reverses R43]
 - 2026-07-23 land enforces a bounded CI watch — RED → exit 10, fix-forward [R74]
 - 2026-07-23 ship rail: preflight/land collapse the mechanical spine to two calls, judgment stays live [R71]
 - 2026-07-23 delta reports: mutations one-line, full report at boundaries [R69; amends R47 cadence]

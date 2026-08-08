@@ -14,21 +14,24 @@ visible, so be careful and confirm the irreversible steps.
   offering `pr` as the easy option.
 - **`--gate <cmd>`** — the project's gate command, when it isn't a `./check.sh` / `.companion/check.sh`
   the rail can find on its own (`--gate npm test`, `--gate make test`). Pass it through **verbatim**
-  to *both* rail calls — `preflight <cmd…>` positionally and `land --gate <cmd…>` last. With none,
-  recognize the gate yourself (R9) as before; **never ship without one** (exit 3 means stop).
+  as the `gate` array argument to *both* tool calls — `ship_preflight`'s `gate` and `ship_land`'s
+  `gate`. With none, recognize the gate yourself (R9) as before; **never ship without one** (exit 3
+  means stop).
 
-**The mechanical spine runs on the rail (R71):** `"${CLAUDE_PLUGIN_ROOT}/bin/ship.sh"` executes
-the deterministic steps in two calls — `preflight` before your judgment, `land` after it — so
-you spend turns on judgment, not on running git one command at a time. **The rail bails loudly
+**The mechanical spine runs on the rail (R71):** the **`ship_preflight`**/**`ship_land`**/
+**`ship_handoff`** tools on the `companion-tq` MCP server (R100/Pass 5b — the same portable surface
+any MCP client reaches; `bin/ship.sh` is the CLI they wrap, byte-identical behavior) execute
+the deterministic steps in two calls — `ship_preflight` before your judgment, `ship_land` after it —
+so you spend turns on judgment, not on running git one command at a time. **The rail bails loudly
 instead of improvising**; each nonzero exit hands a specific problem back to you (codes below).
 Judgment stays yours: the case, the devil's-advocate, the contract impact, the flow-page
 proposal, the commit message, the history curation.
 
-1. **Preflight — Verify FIRST, one call.** Run `"${CLAUDE_PLUGIN_ROOT}/bin/ship.sh" preflight`
-   (if `--gate <cmd…>` was passed, or the repo has no `./check.sh` / `.companion/check.sh`, append
-   the gate as trailing args — `preflight make test`, `preflight npm test`, whatever it uses;
+1. **Preflight — Verify FIRST, one call.** Call **`ship_preflight`**
+   (if `--gate <cmd…>` was passed, or the repo has no `./check.sh` / `.companion/check.sh`, pass
+   it as the `gate` array — `{gate: ["make", "test"]}`, `{gate: ["npm", "test"]}`, whatever it uses;
    recognizing an unpassed one is your job, R9.
-   Remember the same command — step 5's `land` needs it as `--gate <cmd…>`). This runs the
+   Remember the same command — step 5's `ship_land` needs it as its own `gate` argument). This runs the
    gate, the contract-drift backstop (R58 — read its output), the queue (it rides the commit — R96) (R60 — the queue
    snapshot rides the ship), and prints the branch/upstream summary + `git status` + diff stat
    you'd otherwise gather by hand. **Gate failed (exit 4) → STOP and report; do not ship broken
@@ -51,7 +54,7 @@ proposal, the commit message, the history curation.
    - **Scale the DEPTH to the risk, never the decision to run one** (R12 proportionality): a
      focused pass on a small, reversible diff; a full adversarial pass — parser/edge-case attack,
      delete paths, fail-open paths, portability — for anything touching `.companion/da-paths`
-     surface, a deletion, or a requirement reversal. **Depth is YOUR judgment; the `--da` note is
+     surface, a deletion, or a requirement reversal. **Depth is YOUR judgment; the `da` finding is
      what `land` enforces.** They are deliberately different scopes: a ledger-only edit reverses a
      requirement but changes no behaviour, so it is not in `da-paths` and will not be blocked —
      run the pass anyway, because that is a risk the gate cannot see. A rubber-stamp from a context that didn't build
@@ -99,13 +102,12 @@ proposal, the commit message, the history curation.
    - If a version/marketplace manifest is part of the change, make sure it's bumped **before** land
      (the gate re-runs there and checks version match).
 5. **Land — one call.** *(Invoked with `pr`? Skip straight to the PR-flow bullet — don't call
-   `land`.)* **If the diff touches `plugins/*/bin|lib` or `check.sh`, `land` REFUSES without
-   `--da "<what the devil's-advocate attacked, or: clean>"` (exit 11, R78)** — step 2's pass is
+   `ship_land`.)* **If the diff touches `plugins/*/bin|lib` or `check.sh`, `ship_land` REFUSES without
+   a `da` finding ("<what the devil's-advocate attacked, or: clean>", exit 11, R78)** — step 2's pass is
    required there, not optional, and the note rides the commit as a `Devil-advocate:` trailer.
-   Don't write "clean" unless one actually ran and found nothing. Run `"${CLAUDE_PLUGIN_ROOT}/bin/ship.sh" land -F <msgfile>` (with the same gate step 1
-   used — passed via `--gate` or recognized — append `--gate <cmd…>` **last** — it slurps the rest
-   of the line as the gate command, so a multi-word gate like `--gate make test` works, matching
-   the positional `preflight <cmd…>` form). The rail re-runs the gate on the exact tree
+   Don't write "clean" unless one actually ran and found nothing. Call **`ship_land`** with `message`
+   (the commit message text — the tool writes it to a temp file for you, no `-F <msgfile>` plumbing
+   needed) and the same `gate` step 1 used. The rail re-runs the gate on the exact tree
    being shipped, stages everything, refuses staged credential shapes, commits, **ff-only** merges
    to the default branch, pushes, and prunes the shipped branch (`-d` only, local + remote). It
    never force-pushes, never deletes the default, and its merged-branch sweep is **list-only**.
@@ -135,7 +137,7 @@ proposal, the commit message, the history curation.
    merged into the default (list-only by design — deleting a teammate's branch needs a human yes).
    If the repo is yours alone, or the owner confirms the list, prune now by hand: `git branch -d`
    each (never `-D`), `git push origin --delete` for confirmed remote ones, `git fetch --prune`. (Or
-   pass `--prune-all` to a future `land` call to have the rail do it.) Never mass-delete remote
+   pass `pruneAll: true` to a future `ship_land` call to have the rail do it.) Never mass-delete remote
    branches silently.
 7. **Confirm** in one plain line what shipped and what was cleaned up (branch / commit / PR URL +
    which branches were deleted), so the owner can install or review.

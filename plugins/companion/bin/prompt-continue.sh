@@ -49,7 +49,7 @@ case "$pile" in ''|*[!0-9]*) pile=0 ;; esac
 [ "$pile" -gt 0 ] || exit 0        # nothing waiting on them → say nothing, just drain
 
 if companion_autopilot_on "$root"; then
-  ap="AUTOPILOT IS ON. Exact order, no steps skipped: (1) \`${SELF%/*}/autopilot.sh pause\` — the ask-guard blocks questions while it is armed and would PARK your questions instead of asking them, so a review run without pausing accomplishes nothing; (2) put the whole pile to the owner and write every pick back to the queue; (3) \`${SELF%/*}/autopilot.sh resume\` — never leave autopilot off, pause/resume exists precisely so a review costs nothing; (4) THEN carry on with the work, including anything the answers just unblocked."
+  ap="AUTOPILOT IS ON. Exact order, no steps skipped: (1) \`${SELF%/*}/autopilot.sh pause\` — autopilot means don't ask (R100: advisory now, not enforced, but the discipline still holds), so pause before asking anything; (2) put the whole pile to the owner and write every pick back to the queue; (3) \`${SELF%/*}/autopilot.sh resume\` — never leave autopilot off, pause/resume exists precisely so a review costs nothing; (4) THEN carry on with the work, including anything the answers just unblocked."
 else
   ap="Autopilot is off, so no pause is needed: put the whole pile to the owner, write every pick back, then carry on with the work — including anything the answers just unblocked."
 fi

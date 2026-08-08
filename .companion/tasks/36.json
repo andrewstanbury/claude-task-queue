@@ -1,0 +1,10 @@
+{
+  "id": "36",
+  "subject": "Pass 5c: add a decompose_into_tasks MCP prompt to companion-tq — one portable instruction (large/ambiguous ask -> tq_add calls before starting), fetchable by any MCP client (confirmed: Cursor's current docs list prompts as Supported)",
+  "status": "completed",
+  "done_when": "",
+  "context": "plugins/companion/mcp-server/index.js, plugins/companion/STEERING.md",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "designing the decompose_into_tasks MCP prompt"
+}

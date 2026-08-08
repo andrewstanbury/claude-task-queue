@@ -2,8 +2,10 @@
 description: "(no args) — visual board: typed lanes, done as a real list, deps + rec: legible; what burn-down would propose next"
 ---
 
-Run `"${CLAUDE_PLUGIN_ROOT}/bin/board.sh"` and relay its output **verbatim** — this command is a
-render, not a judgment call, and the script already does the formatting.
+Call the **`board`** tool on the `companion-tq` MCP server (R100/Pass 5b — the same portable
+surface any MCP client reaches; `bin/board.sh` is the CLI it wraps, byte-identical output) and
+relay its output **verbatim** — this command is a render, not a judgment call, and the tool already
+does the formatting.
 
 **What this is, and isn't.** `tq report`/`delta` are the machine-facing, injected-every-turn views
 and stay deliberately terse (R69) — DONE collapses to a count, subjects truncate at 72 chars. Board

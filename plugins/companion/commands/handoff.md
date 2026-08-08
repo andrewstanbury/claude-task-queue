@@ -6,7 +6,7 @@ Hand the current state of this machine to another one, using git as the transpor
 a **checkpoint, not a ship**: the project gate is deliberately not run (a red tree mid-work is
 normal), and nothing lands on the default branch.
 
-1. Run `"${CLAUDE_PLUGIN_ROOT}/bin/ship.sh" handoff`. One call: (the queue rides the
+1. Call the **`ship_handoff`** MCP tool (`companion-tq` server, R100/Pass 5b). One call: (the queue rides the
    commit, R60) → stage everything → **refuse staged credential shapes** (it pushes) → commit —
    on the default branch the WIP moves to a fresh `wip/<stamp>` branch (WIP never lands on
    default); on a feature branch it commits in place → `push -u`.
