@@ -1,29 +1,37 @@
 # flow:first-run
-when: install → whenever `/companion:resume` is called (no longer automatic — R100)
-why: steering steers only if in context — but as of R100 nothing can put it there for you anymore;
-  calling resume is the model's own judgment call, every time [R28 N1]
+when: install → automatic at every session start (again, R100/Pass 6) → also on demand via `/companion:resume`
+why: steering steers only if in context — R100/Pass 2 made that the model's own judgment call
+  every time, and the owner watched that fail; R100/Pass 6 (docs/adr/README.md R105) restores the
+  guarantee via `session-start.sh`, while `/companion:resume` stays available mid-session [R28 N1]
 
 steps:
 - `/companion:setup` wires the status line (once)
-- `/companion:resume` prints the working agreement (the STEERING core above the marker only —
-  rationale never printed, ≤12KB check-gated) [R69] — on demand ONLY; the SessionStart hook that
-  used to do this automatically is retired (R100)
+- `session-start.sh` (SessionStart hook, reinstated) injects the working agreement automatically
+  at a fresh session start (the STEERING core above the marker only — rationale never printed,
+  check-gated) [R69] — `/companion:resume` prints the same content on demand, any time, and also
+  disarms autopilot as part of pulling it (session-start.sh deliberately does not)
 - earlier-session open tasks re-surface, scoped to THIS repo (no cross-repo bleed)
 - repo `LESSONS.md` gotchas surface if present [R30·d7]
-- the same full core + live queue print every time resume is called — there is no more separate,
-  abbreviated post-compaction path (R100/Pass 2 retired it along with the hook)
-- status line: beacon · version · feature icons (🛡✗ only when gate off, ✈️/✈️⚡, 📦) · 📋/❓/⏳ · 5h/7d account rate-limit bars, each labelled with its ↻ reset countdown (absent for API-key users and before the first response; rolling windows, NOT a billing cycle) and the 7d carrying a ▴/▾ on-pace marker [R76] · model · tokens · project · branch (unaffected by R100 — the status line was never a hook)
+- a FRESH start gets the full core + live queue; a POST-COMPACTION re-anchor gets a short message
+  instead of the full core (token cost, R30·d2) but the SAME cheap report tail (tasks, version-lag,
+  LESSONS, R93 out-of-band changes, rework) — a compaction is itself the state clear R93 exists to
+  survive, so that half is never abbreviated
+- status line: beacon · version · feature icons (🛡✗ only when gate off, ✈️/✈️⚡, 📦) · 📋/❓/⏳ · 5h/7d account rate-limit bars, each labelled with its ↻ reset countdown (absent for API-key users and before the first response; rolling windows, NOT a billing cycle) and the 7d carrying a ▴/▾ on-pace marker [R76] · model · tokens · project · branch (unaffected by R100/R105 — the status line was never a hook)
 
 quality:
-- steering loads on demand, never per-turn [N1]
+- steering is injected automatically AND available on demand — never per-turn [N1]
 - printed surface is check-gated (STEERING core ≤12KB, CLAUDE.md ≤4KB, LESSONS ≤6KB) [N1 R69]
 - guardrail icons only when relevant; disabled gate is loud (🛡✗)
 
 tests:
+- [E] `session-start: fresh start injects the FULL STEERING core + carried tasks, unlike resume it does NOT clear autopilot` ✅
+- [E] `session-start: post-compaction re-anchor is SHORT — queue + posture, not the full STEERING core` ✅
+- [E] `session-start: compact re-anchor carries the SAME version-lag + rework as a fresh start (R93 — a compaction IS a state clear)` ✅
 - [E] `resume: prints STEERING and resumes THIS repo's tasks only (scoped by .root) — R39` ✅
 - [E] `resume: shows the FULL STEERING core alongside the live queue — no abbreviated path left to pick (R100/Pass 2)` ✅
 - [E] `status line: renders version · model · tokens · task count · project · branch (no shield when gate on)` ✅
 - [E] `steering off (per-repo flag): resume drops the working agreement (tasks/lessons unaffected, R50)` ✅
+- [E] `session-start: steering=off drops the working agreement, carried tasks unaffected (R50)` ✅
 - [E] `status line: 5h + 7d usage bars render both windows from .rate_limits (R76)` ✅
 - [E] `status line: no .rate_limits (API-key user / pre-first-response) renders NO bar (R76)` ✅
 - [E] `status line: one window absent renders ONLY the other — no field shift (R76)` ✅
@@ -31,6 +39,11 @@ tests:
 - [E] `status line: a FAILED clock suppresses the countdown, never renders a 56-year one (R76/R68)` ✅
 
 changes:
+- 2026-08-08 SessionStart hook REINSTATED (owner-decided: "guaranteed context delivery" outweighed
+  portability for this one guarantee) — `session-start.sh` injects automatically again, sharing
+  content with `/companion:resume` via `lib/resume-report.sh` rather than duplicating it; the
+  post-compaction abbreviation is back too, now carrying the full cheap report tail instead of
+  being fully abbreviated [R100/Pass 6, docs/adr/README.md R105, re-reverses R39/R69/R80/R93]
 - 2026-08-08 SessionStart hook retired; `/companion:resume` absorbs its content and becomes the
   ONLY entry point, called on demand — no more automatic firing, no more separate abbreviated
   post-compaction path [R100/Pass 2, reverses R39/R69/R80/R93's injection guarantee]

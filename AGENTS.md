@@ -21,8 +21,9 @@ R100 lands in bounded passes, tracked in `tq` itself — see
 - **Steering** — `plugins/companion/STEERING.md`. All the prose that shapes how Claude works
   (queue discipline, the brutal-honest recommendation posture against the requirements
   ledger, clean-as-you-go, autopilot). Advisory by nature — the model reads it and follows it
-  by judgment. **Nothing puts it in context automatically anymore** — `/companion:resume` prints
-  it on demand (R100/Pass 2 retired the SessionStart hook that used to inject it).
+  by judgment. **Injected automatically at session start again** (R100/Pass 6, docs/adr/README.md
+  R105, reversing Pass 2's retirement of the SessionStart hook) — `/companion:resume` also still
+  prints it on demand mid-session.
 - **The portable core** — `plugins/companion/bin/` + `mcp-server/`:
   - `tq` — the task-queue CLI the companion owns (native tasks deliberately unused; R8/R10) —
     also reachable via the `companion-tq` MCP server (`mcp-server/index.js`) for any MCP-capable
@@ -30,19 +31,22 @@ R100 lands in bounded passes, tracked in `tq` itself — see
   - `check-secrets.sh` — the same credential-shape classification `secret-guard.sh` used to
     enforce, now advisory only: nothing calls it automatically, nothing it returns can block a
     write (R100/Pass 3). Also exposed as the MCP tool `check_for_secrets`.
-  - `resume.sh` — prints the STEERING core, this repo's `LESSONS.md`, a version-lag warning,
-    recent out-of-band changes, recorded rework, and carried-over open tasks — absorbed the
-    retired SessionStart hook's content wholesale (R100/Pass 2). The only way any of it reaches
-    a session now; call it yourself.
+  - `resume.sh` — the on-demand, triage-and-pull twin of `session-start.sh` (below): same content
+    (via shared `lib/resume-report.sh`), plus it disarms autopilot as part of pulling context,
+    which the automatic hook deliberately does not.
   - `ship-checkpoint.sh` — ship-mode's commit-to-`autopilot/*`-branch logic, byte-for-byte the
-    same as the retired Stop hook's version, now manually invoked (R100/Pass 4).
-  - `autopilot.sh` — toggles a persisted per-repo preference flag. **Not enforced** — nothing
-    denies `AskUserQuestion`, nothing forces a session to keep going (R100/Pass 4 retired
-    `ask-guard.sh` and `stop-autopilot.sh`, the mechanisms that used to do both).
+    same as the retired Stop hook's version, still manually invoked (not reinstated).
+  - `autopilot.sh` — toggles a persisted per-repo preference flag. **"Don't stop to ask" is
+    enforced again** (`ask-guard.sh`, R100/Pass 6) — **"keep going instead of stopping" is not**
+    (`stop-autopilot.sh` stays retired, still the biggest R100 fidelity loss).
   - `statusline.sh` — the glance surface (a `statusLine` command, not a hook; untouched by R100).
-- **The one surviving hook** — `prompt-continue.sh` (UserPromptSubmit): routes a bare "continue"
-  to the parked-pile review first, when one exists. It reads state (the queue) a session can't
-  see on its own, which is the one category R100 left a hook for.
+- **Three hooks** — `prompt-continue.sh` (UserPromptSubmit, never retired): routes a bare
+  "continue" to the parked-pile review first, when one exists. `session-start.sh` (SessionStart,
+  **reinstated** R100/Pass 6): guarantees STEERING + carried tasks reach a session automatically —
+  the owner's fix for a model ignoring context it never actually had. `ask-guard.sh`
+  (PreToolUse[AskUserQuestion], **reinstated** R100/Pass 6): denies + auto-parks a question while
+  autopilot is armed. See docs/adr/README.md R104 (why no Cursor equivalent exists for
+  prompt-continue.sh) and R105 (why these two came back, and stop-autopilot.sh did not).
 
 That's the whole system. (Replaced a four-plugin, ~12,500-line prompt-injection framework on
 2026-07-11 — R24 — realigned to the execute-or-block rule as R28, refined through R29–R99, then
@@ -83,21 +87,22 @@ CLAUDE.md  AGENTS.md  README.md    # this file = maintainer SSOT; README = disco
 docs/adr/README.md  docs/adr/PROVENANCE.md  docs/ROADMAP.md  docs/MAP.md
 plugins/companion/
   .claude-plugin/plugin.json       # version == the marketplace entry; declares mcpServers
-  hooks/hooks.json                 # UserPromptSubmit only (R100 — everything else retired)
-  STEERING.md                      # the steering layer (prose, always advisory)
-  mcp-server/                      # companion-tq MCP server (Node, stdio) — tq_* + check_for_secrets
-  bin/tq check-secrets.sh statusline.sh resume.sh ship-checkpoint.sh prompt-continue.sh
-  bin/autopilot.sh                 # persisted preference flag, NOT enforced (R100/Pass 4)
-  lib/companion.sh                 # shared helpers (state/enc/root, autopilot flag, open-tasks)
+  hooks/hooks.json                 # SessionStart, PreToolUse[AskUserQuestion], UserPromptSubmit
+  STEERING.md                      # the steering layer (prose, advisory — but injected by a hook)
+  mcp-server/                      # companion-tq MCP server (Node, stdio) — tq_* + check_for_secrets + rest
+  bin/tq check-secrets.sh statusline.sh resume.sh ship-checkpoint.sh
+  bin/prompt-continue.sh session-start.sh ask-guard.sh   # the three hooks
+  bin/autopilot.sh                 # "don't ask" enforced (R100/Pass 6); "keep going" is not
+  lib/companion.sh lib/resume-report.sh   # shared helpers; the latter feeds resume.sh + session-start.sh
   commands/{setup,autopilot,ship-it,resume,review,advise,redesign,docs,cover,board,burn-down,handoff}.md
-  tests/companion-{core,hud,fuzz,ship}.bats   # tests what's left: the portable core + the one hook
+  tests/companion-{core,hud,fuzz,ship}.bats   # the portable core + the three hooks
 ```
 
 ## Conventions
 
 - **Bash + `jq` for the core; Node for the MCP server.** No compiled languages.
 - **Hooks are best-effort and must NEVER break the action that triggered them** (`set -uo
-  pipefail`, swallow errors, exit 0 when silent). Applies to the one hook left.
+  pipefail`, swallow errors, exit 0 when silent). Applies to all three.
 - **Generic — no hardcoded language/framework allowlists** (R9). Delegate *recognition* to
   the model; detect *structure* generically. Wide-audience product (R1).
 - **Files ≤ 300 lines** (CI guard); env-overridable locations (`CLAUDE_COMPANION_*`) so tests

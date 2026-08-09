@@ -17,6 +17,7 @@ setup() {
   DEV="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   GUARD="$ROOT/bin/check-secrets.sh"; TQ="$ROOT/bin/tq"; SL="$ROOT/bin/statusline.sh"
   AP="$ROOT/bin/autopilot.sh"; RESUME="$ROOT/bin/resume.sh"
+  SS="$ROOT/bin/session-start.sh"; AG="$ROOT/bin/ask-guard.sh"   # R100/Pass 6 reinstated
   BOARD="$ROOT/bin/board.sh"
   DRIFT="$ROOT/bin/contract-drift.sh"   # R58 living contract (drift backstop)
   export CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)"   # the companion's OWN store, not ~/.claude/tasks
@@ -553,7 +554,7 @@ await client.close();
   # Fail-open (R7): a STEERING with no marker (old copy, botched edit) prints the WHOLE doc —
   # degraded-but-working beats silently steering-less. Build a marker-less plugin dir to prove it.
   local plug; plug="$(_tmpd)"; mkdir -p "$plug/bin" "$plug/lib"
-  cp "$RESUME" "$plug/bin/resume.sh"; cp "$ROOT/lib/companion.sh" "$plug/lib/"
+  cp "$RESUME" "$plug/bin/resume.sh"; cp "$ROOT/lib/companion.sh" "$ROOT/lib/resume-report.sh" "$plug/lib/"
   sed '/injection stops here/d' "$ROOT/STEERING.md" > "$plug/STEERING.md"
   run bash -c 'cd "$1" && "$2/bin/resume.sh"' _ "$repo" "$plug"
   [ "$status" -eq 0 ]
@@ -1191,12 +1192,13 @@ await client.close();
   [ "$(cd "$repo" && "$AP" decisive status)" = "on" ]            # decisive outlives plain autopilot toggling off
 }
 
-@test "the decisive/plain park-vs-decide guidance is stated in STEERING (R33/R59/R84) — advisory only, no guard left" {
-  # ask-guard.sh is retired (R100/Pass 4): nothing denies AskUserQuestion or writes the park for
-  # you anymore. What survives is the guidance STATED where autopilot's rules live — this pins
-  # that the prose still says it, not that anything enforces it.
+@test "the decisive/plain park-vs-decide guidance is stated in STEERING and ask-guard.sh enforces it again (R33/R59/R84, R100/Pass 6)" {
+  # ask-guard.sh is reinstated (R100/Pass 6, docs/adr/README.md R105): it denies AskUserQuestion
+  # and auto-parks again. This pins the prose still states the guidance where autopilot's rules
+  # live — the behavioral half (deny + auto-park itself) is pinned separately, by the ask-guard
+  # tests, so this structural guard isn't duplicating that coverage.
   local core; core="$(awk '/autopilot:start/{f=1;next} /autopilot:end/{f=0} f' "$ROOT/STEERING.md")"
-  [[ "$core" == *"there is no more auto-park"* ]]                # R84: the model must park it itself now
+  [[ "$core" == *"park it yourself, before"* ]]                  # R84: proactive parking is still the intended path
   [[ "$core" == *"park it even when trivially reversible"* ]]    # R33: taste, not reversibility, is the test
   [[ "$core" == *"Decisive mode (R59)"* ]]                       # R59: the decisive-mode override exists
   [[ "$core" == *"irreversible-critical"* ]]
@@ -2592,6 +2594,130 @@ _bd_setup() {
   # An ordinary repo with no plugin manifest at all → silent.
   rm -rf "$repo/plugins"
   _ss2; [ "$status" -eq 0 ]; [[ "$output" != *"RUNNING v"* ]]
+}
+
+# ---- SessionStart hook (R100/Pass 6 reinstated — guaranteed context delivery, docs/adr R105) ----
+
+_ss_ctx() {  # $1=repo  $2=source ("" for fresh start)
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,source:\$s}" | "$3" | jq -r ".hookSpecificOutput.additionalContext"' \
+    _ "$1" "$2" "$SS"
+}
+
+@test "session-start: fresh start injects the FULL STEERING core + carried tasks, unlike resume it does NOT clear autopilot" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sX"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/sX" "$repo"
+  jq -n '{id:"1",subject:"carried via session-start",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sX/1.json"
+  ( cd "$repo" && "$AP" on ) >/dev/null
+
+  _ss_ctx "$repo" ""
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Working agreement"* ]]           # STEERING core, unlike prompt-continue/ask-guard
+  [[ "$output" == *"carried via session-start"* ]]    # this repo's carried task
+  run bash -c 'cd "$1" && "$2" status' _ "$repo" "$AP"
+  [ "$output" = "on" ]                                # NOT cleared — the whole point vs resume.sh
+}
+
+@test "session-start: post-compaction re-anchor is SHORT — queue + posture, not the full STEERING core" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sY"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/sY" "$repo"
+  jq -n '{id:"1",subject:"survives compaction",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sY/1.json"
+
+  _ss_ctx "$repo" "compact"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"just compacted"* ]]
+  [[ "$output" == *"survives compaction"* ]]          # the live queue re-anchors
+  [[ "$output" == *"recommendation-first options"* ]]  # the posture clause, restated (R49)
+  [[ "$output" != *"## The two reflexes"* ]]           # NOT the full STEERING core (token cost, R69)
+}
+
+@test "session-start: compact re-anchor carries the SAME version-lag + rework as a fresh start (R93 — a compaction IS a state clear)" {
+  local repo st tk; repo="$(_tmpd)"; git -C "$repo" init -q; st="$(_tmpd)"; tk="$(_tmpd)"
+  mkdir -p "$repo/plugins/companion/.claude-plugin"
+  jq -n '{name:"companion",version:"9.9.9"}' > "$repo/plugins/companion/.claude-plugin/plugin.json"
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,source:\"compact\"}" | CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_TASKS_DIR="$3" "$4" | jq -r ".hookSpecificOutput.additionalContext"' \
+    _ "$repo" "$st" "$tk" "$SS"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"just compacted"* ]]
+  [[ "$output" == *"RUNNING v"* ]]                     # version-lag warning, not skipped on compact
+  [[ "$output" == *"INERT"* ]]
+}
+
+@test "session-start: steering=off drops the working agreement, carried tasks unaffected (R50)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  _feature_off steering "$repo"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/sZ"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/sZ" "$repo"
+  jq -n '{id:"1",subject:"still carried",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sZ/1.json"
+
+  _ss_ctx "$repo" ""
+  [[ "$output" != *"Working agreement"* ]]
+  [[ "$output" != *"Read the working agreement below"* ]]   # DA-caught: the preamble told the
+  # model to read a block that steering=off had already dropped — token waste dressed up as a
+  # correct render, exactly the R69 carelessness this test exists to pin.
+  [[ "$output" == *"still carried"* ]]
+  _feature_clear
+}
+
+@test "session-start: self-contained fallback — a marker-less plugin dir still reaches lib/resume-report.sh" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local plug; plug="$(_tmpd)"; mkdir -p "$plug/bin" "$plug/lib"
+  cp "$SS" "$plug/bin/session-start.sh"
+  cp "$ROOT/lib/companion.sh" "$ROOT/lib/resume-report.sh" "$plug/lib/"
+  cp "$ROOT/STEERING.md" "$plug/STEERING.md"
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,source:\"\"}" | "$2/bin/session-start.sh" | jq -r ".hookSpecificOutput.additionalContext"' \
+    _ "$repo" "$plug"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Working agreement"* ]]
+}
+
+# ---- PreToolUse[AskUserQuestion] guard (R100/Pass 6 reinstated, docs/adr R105) ----
+
+_ag_ask() {  # $1=repo  $2=session-id
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" \
+    "{cwd:\$c,session_id:\$s,tool_input:{questions:[{question:\"pick A or B\",options:[{label:\"A\",description:\"faster\"},{label:\"B\",description:\"safer\"}]}]}}" \
+    | "$3" | jq -r ".hookSpecificOutput.permissionDecision + \"|\" + .hookSpecificOutput.permissionDecisionReason"' \
+    _ "$1" "$2" "$AG"
+}
+
+@test "ask-guard: autopilot OFF silently allows — no denial, no park" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" "{cwd:\$c,session_id:\$s,tool_input:{questions:[{question:\"q\",options:[{label:\"A\"}]}]}}" | "$3"' \
+    _ "$repo" "off1" "$AG"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]                                    # no output at all -> Claude Code's default allow
+}
+
+@test "ask-guard: autopilot ON denies AND auto-parks the question with its real options + a recommendation (R84)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  _ag_ask "$repo" "on1"
+  [ "$status" -eq 0 ]
+  [[ "$output" == deny\|* ]]
+  [[ "$output" == *"ALREADY PARKED FOR YOU as task #"* ]]
+  run env CLAUDE_COMPANION_SESSION_ID=on1 "$TQ" list
+  [[ "$output" == *"❓ [parked] decision: pick A or B"* ]]
+  [[ "$output" == *"A (faster)"* ]] && [[ "$output" == *"B (safer)"* ]]
+  [[ "$output" == *"rec: A"* ]]                        # first option is the recommendation
+  [[ "$output" != *"rev:"* ]]                           # NEVER auto-marks reversible (R77)
+}
+
+@test "ask-guard: a RETRIED identical question dedups instead of parking twice" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  _ag_ask "$repo" "dup1"
+  _ag_ask "$repo" "dup1"
+  [[ "$output" == *"ALREADY PARKED"* ]]
+  run env CLAUDE_COMPANION_SESSION_ID=dup1 "$TQ" list
+  local n; n="$(printf '%s\n' "$output" | grep -c "pick A or B")"
+  [ "$n" -eq 1 ]                                        # exactly one park, not two
+}
+
+@test "ask-guard: DECISIVE mode swaps the guidance from park-every-decision to decide-if-reversible (R59)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on && "$AP" decisive on ) >/dev/null
+  _ag_ask "$repo" "dec1"
+  [[ "$output" == *"DECISIVE mode"* ]]
+  [[ "$output" == *"DECIDE it yourself"* ]]
+  [[ "$output" != *"park it even when trivially reversible"* ]]
 }
 
 @test "the contract bound is stated where it is armed — advisory only now, no guard left (R86)" {

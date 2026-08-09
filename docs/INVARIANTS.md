@@ -45,19 +45,19 @@ the SCANNER's classification behavior, not a guarantee about what gets written.
 | Ship-mode **never commits to the default branch** — from HEAD-on-main *and* detached HEAD (R34/R45) | `ship-mode … NEVER main` · `ship-mode never commits to the default branch, even from detached HEAD` | ✅ |
 | The **second** default-branch guard (after `checkout -b`) — last floor on never-commit-default (R45) | — | ⚠️ **unprovable** — fires only in a state `checkout -b` can't reproduce (its own failure); not unit-testable. **Preserve by its `# NEVER commit to default` comment.** |
 | Ship-mode **refuses to commit a credential** (staged re-scan backstop, R34) | `ship-mode: refuses to auto-commit a hardcoded credential` | ✅ |
-| Autopilot is **enforced + persisted** (ask-guard deny + Stop auto-continue) and **can't spin forever** (no-progress cap, R26) | `autopilot: toggle persists, and is enforced` · `autopilot: Stop yields after the no-progress cap` | ✅ |
-| Ship-mode **off** → Stop does not auto-commit | `ship-mode: off → Stop does NOT auto-commit` | ✅ |
-| **Decisive mode (R59)** is opt-in + persisted, and while on the ask-guard **still denies** asking (it flips the *guidance* park→decide, but never allows a stop) — and is a no-op when autopilot is off | `autopilot decisive: toggle persists, flips ask-guard guidance park→decide` | ✅ |
+| Autopilot is **persisted**, and **"don't ask" is enforced again** (ask-guard.sh deny, R100/Pass 6) — but forced continuation and the no-progress/run-bound caps are NOT (stop-autopilot.sh stays retired, still R100's biggest loss) | `autopilot: toggle persists per repo, independent of other modes (R26)` · `ask-guard: autopilot ON denies AND auto-parks the question with its real options + a recommendation (R84)` | ✅ (persistence + deny) · ⚠️ (no-progress/run-bound: RETIRED, watch your own progress) |
+| Ship-mode **off** → does not commit (manual now, not Stop-triggered) | `ship-checkpoint: off → does NOT commit (work stays uncommitted)` | ✅ |
+| **Decisive mode (R59)** is opt-in + persisted, and while on the ask-guard **still denies** asking (it flips the *guidance* park→decide) — and is a no-op when autopilot is off | `ask-guard: DECISIVE mode swaps the guidance from park-every-decision to decide-if-reversible (R59)` | ✅ |
 
 ## Session / scope
 `↳ protects:` flows: first-run (session start) · pick-up-where-you-left-off (resume)
 
 | Invariant | Check | Status |
 |---|---|---|
-| Resume + tasks are **scoped to this repo** (by the store's `.root` stamp) — no cross-repo bleed | `session start: … resumes THIS repo's tasks only (scoped by .root)` | ✅ |
-| Steering **off** (per-repo flag) drops the injection but resume/LESSONS still fire (R50) | `steering off (per-repo flag): SessionStart drops the working agreement (resume/lessons unaffected)` | ✅ |
-| Resume turns autopilot **off first** so a resurfaced decision isn't autopiloted (R39) | `manual resume: turns autopilot OFF first` | ✅ |
-| Compaction re-anchors with **queue+pointer, not full STEERING** (token cost, R30·d2/R32) | `session start: re-anchors on a compaction with queue+pointer, NOT the full STEERING` | ✅ |
+| Resume + tasks are **scoped to this repo** (by the store's `.root` stamp) — no cross-repo bleed | `resume: prints STEERING and resumes THIS repo's tasks only (scoped by .root) — R39` | ✅ |
+| Steering **off** (per-repo flag) drops the injection but tasks/LESSONS still fire (R50) — true on BOTH the automatic (session-start.sh) and on-demand (resume.sh) paths | `steering off (per-repo flag): resume drops the working agreement (tasks/lessons unaffected, R50)` · `session-start: steering=off drops the working agreement, carried tasks unaffected (R50)` | ✅ |
+| Resume (the manual, triage-handoff command) turns autopilot **off first** so a resurfaced decision isn't autopiloted (R39) — session-start.sh, the automatic path, deliberately does NOT | `manual resume: turns autopilot OFF first, announced when on and quiet when off (R39)` · `session-start: fresh start injects the FULL STEERING core + carried tasks, unlike resume it does NOT clear autopilot` | ✅ |
+| Compaction re-anchors with a **short message, not the full STEERING core** (token cost, R30·d2), but the SAME cheap report tail (tasks/version-lag/LESSONS/R93/rework) as a fresh start | `session-start: post-compaction re-anchor is SHORT — queue + posture, not the full STEERING core` · `session-start: compact re-anchor carries the SAME version-lag + rework as a fresh start (R93 — a compaction IS a state clear)` | ✅ |
 
 ## Hooks / structure
 `↳ protects:` cross-cutting (every path — best-effort reliability under any input)

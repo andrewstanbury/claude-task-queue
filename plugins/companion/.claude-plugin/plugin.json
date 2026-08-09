@@ -1,10 +1,10 @@
 {
   "name": "companion",
-  "version": "3.80.0",
+  "version": "3.81.0",
   "author": {
     "name": "Andrew Stanbury"
   },
-  "description": "A disciplined AI pair-programming companion: one steering document (STEERING.md — how Claude queues work, decides with brutal-honest recommendations against a requirements ledger, and keeps the code clean), printed on demand by /companion:resume, plus a portable core — its own task-queue CLI (`tq`; the companion owns the queue and deliberately does not use Claude Code's native tasks), also reachable via the companion-tq MCP server for any MCP-capable client; an advisory credential-shape scanner; cross-session resume; and an animated status line. It runs one loop — propose → queue → drain. Everything is advisory (R100) — nothing blocks a write or forces a session to keep going anymore, traded deliberately for portability beyond Claude Code. Replaces the earlier four-plugin system: ~15 hooks of advisory prose collapsed into one readable file, then its own enforced core retired in favor of an MCP server + skills.",
+  "description": "A disciplined AI pair-programming companion: one steering document (STEERING.md — how Claude queues work, decides with brutal-honest recommendations against a requirements ledger, and keeps the code clean), injected automatically at session start and printed on demand by /companion:resume, plus a portable core — its own task-queue CLI (`tq`; the companion owns the queue and deliberately does not use Claude Code's native tasks), also reachable via the companion-tq MCP server for any MCP-capable client; an advisory credential-shape scanner; cross-session resume; and an animated status line. It runs one loop — propose → queue → drain. Most of it is advisory (R100), traded deliberately for portability beyond Claude Code — except two guarantees the owner asked back as Claude-Code-only: guaranteed context delivery at session start, and a block on proceeding past an unanswered decision while autopilot drains (R105). Replaces the earlier four-plugin system: ~15 hooks of advisory prose collapsed into one readable file, then its own enforced core retired in favor of an MCP server + skills, then two of five hooks reinstated where portability lost to reliability.",
   "mcpServers": {
     "companion-tq": {
       "command": "node",

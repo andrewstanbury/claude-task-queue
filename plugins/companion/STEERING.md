@@ -126,18 +126,21 @@ proposed implementation.
      call time (it always disarms as part of resuming, R39). Mode prose is dead weight in every
      call where the mode is off, which is most of them. It sits below the marker so the R69 cap
      measures only what is unconditionally printed. -->
-## Keep-going mode (autopilot) — ADVISORY ONLY (R100/Pass 4)
+## Keep-going mode (autopilot) — PARTIALLY ENFORCED (R100/Pass 6)
 
-**Nothing enforces this anymore.** `ask-guard.sh` and `stop-autopilot.sh` are retired — no hook
-denies `AskUserQuestion`, no hook forces the session to continue instead of stopping, no cap
-catches a stall or bounds a runaway run. This flag is a stated preference you read here, not a
-mechanism. Follow it because it's right, not because something will stop you if you don't — and
-because nothing will stop you, watch your own progress: if several turns pass with nothing
-completed, say so and stop yourself rather than assuming a cap has your back.
+**"Don't stop to ask" IS enforced again; "keep going instead of stopping" is not.**
+`ask-guard.sh` is reinstated (docs/adr/README.md R105) — it denies `AskUserQuestion` while
+autopilot is armed and auto-parks the intercepted question for you. `stop-autopilot.sh` stays
+retired: no hook forces the session to continue instead of stopping, no cap catches a stall or
+bounds a runaway run — that guarantee was NOT asked back and remains the single biggest fidelity
+loss of R100. Watch your own progress on THAT half: if several turns pass with nothing completed,
+say so and stop yourself rather than assuming a cap has your back.
 
-▢ keep draining; don't stop to ask; self-verify (you have a shell) ▢ **there is no more auto-park**
-— if you were about to ask, `tq add` the `❓`/`⏳` yourself, right then, before moving on; nothing
-does it for you ▢ park `❓ [parked]` decisions / `⏳ [blocked]` owner-actions; decide
+▢ keep draining; don't stop to ask; self-verify (you have a shell) ▢ **park it yourself, before
+you'd ask** — `tq add` the `❓`/`⏳` right then, don't wait to be denied: ask-guard.sh auto-parks a
+question it intercepts, but that is the backstop for when you forget, not the intended path — a
+denied-then-parked round trip is pure waste next to parking it yourself first time ▢ park
+`❓ [parked]` decisions / `⏳ [blocked]` owner-actions; decide
 routine, cheap-to-undo, **taste-neutral** calls yourself (recommended option, recorded) ▢ a
 **visual / design / direction / wording** choice is the owner's → **park it even when trivially reversible**
 — taste, not reversibility, is the test (R33) ▢ **park with the full payload**:

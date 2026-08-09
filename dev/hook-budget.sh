@@ -84,10 +84,20 @@ build_store "$TMP/small" "$BASEDIRS"
 build_store "$TMP/big"   "$((BASEDIRS * MULT))"
 SID="s0"   # a session dir that exists in both stores, for the session-scoped hooks
 
-# Realistic stdin for each hook. ask-guard.sh and stop-autopilot.sh are retired (R100/Pass 4) —
-# statusline.sh is the only hook-shaped thing left that reads the task store at any real frequency.
+# Realistic stdin for each hook. stop-autopilot.sh stays retired (R100/Pass 4); session-start.sh
+# and ask-guard.sh are back (R100/Pass 6) and both read the task store, so both belong here now —
+# session-start.sh is in fact THE store-scaling-sensitive case this gate was originally written
+# against (see the header comment: 200 files 1.85x, 800 files 3.72x).
 jq -nc --arg c "$REPO" --arg s "$SID" '{model:{display_name:"Opus"},session_id:$s,
   workspace:{current_dir:$c},context_window:{total_input_tokens:1,total_output_tokens:1}}' > "$TMP/in-sl"
+jq -nc --arg c "$REPO" '{cwd:$c,source:""}' > "$TMP/in-ss"
+jq -nc --arg c "$REPO" --arg s "$SID" \
+  '{cwd:$c,session_id:$s,tool_input:{questions:[{question:"q",options:[{label:"A"}]}]}}' > "$TMP/in-ag"
+# ask-guard.sh only does real work while autopilot is ARMED for the repo (its dedup grep + `tq
+# add` path) — off, it exits in one `companion_autopilot_on` check regardless of store size, which
+# would measure nothing. Arm it here, in the SAME state dir ms_of() uses below, so the benchmark
+# exercises the path that actually scales.
+( cd "$REPO" && CLAUDE_COMPANION_STATE_DIR="$TMP/state" bash "$BIN/autopilot.sh" on ) >/dev/null 2>&1 || true
 
 # Milliseconds for one run, BEST of 3 (best-of, not mean: we want the hook's own cost, not the
 # scheduler's worst moment). `time` builtin + TIMEFORMAT — portable to bash 3.2, unlike date %N.
@@ -111,7 +121,9 @@ ms_of() {  # $1=script  $2=stdin file  $3=store dir
 printf '  %-22s %9s %9s %8s   %s\n' HOOK "small" "8x" "ratio" "verdict"
 rc=0
 for spec in \
-  "statusline.sh:in-sl"
+  "statusline.sh:in-sl" \
+  "session-start.sh:in-ss" \
+  "ask-guard.sh:in-ag"
 do
   script="${spec%%:*}"; inf="${spec##*:}"
   [ -f "$BIN/$script" ] || continue

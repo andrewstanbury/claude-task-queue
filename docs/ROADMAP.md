@@ -36,25 +36,30 @@ per-hook character-budget apparatus was retired: it defended a cost the read-onc
 steering model doesn't incur, and it drove prose into cryptic anchors. Efficiency now means
 "the steering doc stays lean," not a CI char-count.
 
-## Architecture — steering, a portable core, and one hook (R100, supersedes R24)
+## Architecture — steering, a portable core, and three hooks (R100/R105, supersedes R24)
 
 - **Steering** (`plugins/companion/STEERING.md`) — all the prose: queue discipline, the
-  brutal-honest recommendation posture against the ledger, clean-as-you-go, autopilot. Printed
-  on demand by `/companion:resume` — nothing injects it automatically anymore (R100/Pass 2).
-  Advisory by nature; it lives in one file, not scattered across hooks.
+  brutal-honest recommendation posture against the ledger, clean-as-you-go, autopilot. Injected
+  automatically at session start again (R100/Pass 6, docs/adr/README.md R105), and still printed
+  on demand by `/companion:resume` mid-session. Advisory by nature; it lives in one file, not
+  scattered across hooks.
 - **The portable core** (`plugins/companion/bin/` + `mcp-server/`) — `tq` (the companion owns its
   store — it does **not** use native tasks; R8/R10), also reachable via the `companion-tq` MCP
-  server for any MCP-capable client (R100/Pass 1); `check-secrets.sh`, an advisory credential
-  scanner (R100/Pass 3 — was the enforced secret gate); `resume.sh`, which absorbed cross-session
-  resume + steering printing + LESSONS + version-lag warning + recent-changes + rework
-  (R100/Pass 2 — was `session-start.sh`); `ship-checkpoint.sh`, ship-mode's commit logic, now
-  manually invoked (R100/Pass 4 — was part of `stop-autopilot.sh`); `autopilot.sh`, a persisted
-  preference flag, **not enforced** (R100/Pass 4); the status line (`statusline.sh`, untouched).
-- **The one surviving hook** — `prompt-continue.sh` (UserPromptSubmit), because it's the one
-  remaining case that needs session-boundary state a prompt can't see on its own. Everything that
-  used to *block* (`secret-guard.sh`, `contract-guard.sh`) or *guarantee control-flow*
-  (`ask-guard.sh`, `stop-autopilot.sh`) is retired outright — R100 traded that guarantee for
-  portability, deliberately, after the cost was shown twice.
+  server for any MCP-capable client (R100/Pass 1, expanded Pass 5a to the rest of `bin/`);
+  `check-secrets.sh`, an advisory credential scanner (R100/Pass 3 — was the enforced secret gate);
+  `resume.sh`, the on-demand triage-and-pull twin of `session-start.sh` (same content, shared via
+  `lib/resume-report.sh`, plus it disarms autopilot as part of pulling context); `ship-checkpoint.sh`,
+  ship-mode's commit logic, still manually invoked (not reinstated); `autopilot.sh`, a persisted
+  preference flag — **"don't ask" enforced again** (R100/Pass 6), **"keep going" still not**;
+  the status line (`statusline.sh`, untouched).
+- **Three hooks** — `prompt-continue.sh` (UserPromptSubmit, never retired): the case that needs
+  session-boundary state a prompt can't see on its own. `session-start.sh` (SessionStart,
+  **reinstated** R100/Pass 6): guarantees STEERING + carried tasks reach a session — the owner's
+  fix for a model ignoring context it never had. `ask-guard.sh` (PreToolUse[AskUserQuestion],
+  **reinstated** R100/Pass 6): denies + auto-parks a question while autopilot is armed.
+  `secret-guard.sh`/`contract-guard.sh` (block-on-write) and `stop-autopilot.sh` (forced
+  continuation, still the biggest R100 loss) stay retired — the owner picked context-delivery and
+  anti-rework back specifically, not full re-enforcement (docs/adr/README.md R104/R105).
 
 Bash + `jq` for the core, Node for the MCP server, zero build otherwise. The `file →
 responsibility` index is [docs/MAP.md](./MAP.md).
@@ -67,21 +72,24 @@ The product is one loop, and every capability is a stage of it:
    **recommendation-first nudge** (debt → a paydown task · wide blast radius → split · repetitive
    manual drain → autopilot · a finished chunk → ship-it). Nudges are the *funnel into the queue* —
    ephemeral model judgment, **not stored state** — delivered as STEERING. (Proactive plugin
-   surfaces are now the status line and `AskUserQuestion` only — SessionStart injection is retired,
-   R100/Pass 2; a plugin still **cannot** inject CLI autocomplete prompts, R51.)
+   surfaces: the status line, `AskUserQuestion` — now enforced under autopilot again, R100/Pass 6
+   — and SessionStart injection, also reinstated R100/Pass 6; a plugin still **cannot** inject
+   CLI autocomplete prompts, R51.)
 2. **Queue** — the owner picks (or edits, declines, or just talks it through); the chosen work
    enters `tq`, the durable, crash-safe spine (**R44/R8**). The queue — not the nudge — is the
    backbone; nudges are the best *content* flowing into it (**R52**: the two are asymmetric —
    infrastructure vs behavior).
-3. **Drain** — work the queue by hand, or under **autopilot** (keep-going, R26/R36 — advisory
-   only since R100/Pass 4, not enforced), landing finished work via **`/companion:ship-it`** (R40).
+3. **Drain** — work the queue by hand, or under **autopilot** (keep-going, R26/R36 — "don't ask"
+   enforced again since R100/Pass 6, "keep going instead of stopping" still not), landing finished
+   work via **`/companion:ship-it`** (R40).
 
-The portable core maps onto the loop, but no longer enforces any stage of it: `/companion:resume`
-seeds it (printed on demand, not injected), `tq` holds it, autopilot drains it (as a stated
-preference, not a control-flow guarantee), `check-secrets.sh` advises on every write (never
-blocks). Everything — the nudges, the recommendation contract, clean-as-you-go, and now autopilot
-and the secret check too — is **STEERING** (R28's rule, extended by R100 to cover what R28 itself
-used to carve out as enforced).
+The portable core maps onto the loop, and enforces two of its edges again: `session-start.sh`
+seeds it automatically (as well as on-demand via `/companion:resume`), `tq` holds it, autopilot
+drains it and `ask-guard.sh` blocks a premature question while it's armed (forced continuation
+itself is still a stated preference, not a guarantee), `check-secrets.sh` advises on every write
+(never blocks). The nudges, the recommendation contract, and clean-as-you-go stay **STEERING**
+(R28) — but "don't ask" and "guaranteed context" moved back to enforced code (R100/Pass 6,
+docs/adr/README.md R105), a narrower reopening of R28's own rule than R100 first drew it.
 
 ## Durable decisions → the ledger
 

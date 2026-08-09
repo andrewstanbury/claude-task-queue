@@ -176,3 +176,55 @@ declined this round).
 | 2026-08-08, owner-decided (`AskUserQuestion`, three options offered — leave the asymmetry
 (recommended), build an unverified Cursor hook, or defer until Cursor is in actual use — owner
 picked the recommended option).
+
+## R105 — DECISION 🔒
+
+**Two of R100's five retired hooks are REINSTATED — `session-start.sh` (SessionStart) and
+`ask-guard.sh` (PreToolUse[AskUserQuestion]) — Claude-Code-only, no Cursor equivalent attempted;
+`secret-guard.sh`/`contract-guard.sh`/`stop-autopilot.sh` stay retired.** Raised by the owner
+directly, independent of the Pass 5 portability audit: two principles they want at the CORE of
+this product — "avoid rework, including asking questions rather than working against
+requirements or repeating failed attempts" and "account for the limited context newer models can
+absorb, which seems to ignore or subvert clear plugin instructions" — argue for MORE enforced,
+blocking mechanism at the highest-leverage points, not less. R100 had traded nearly all of it
+away for Cursor portability. The two are not fully reconcilable as stated, and this decision is
+the resolution: a NARROW reopening of R100, not a reversal of it.
+
+**Why these two, not all five.** Ranked by how directly each addresses the two principles above:
+session-start.sh's automatic injection means an instruction is never merely *skipped* by the
+model — it is *present*, closing the harder failure mode ("ignores context" vs. "context was
+never there"); ask-guard.sh's deny-and-auto-park directly implements "don't let the model barrel
+past an unanswered decision." `secret-guard.sh`/`contract-guard.sh` (pre-write blocking) were
+offered as a third option and explicitly declined — this session's own discipline held without
+them, and a DA-pass-before-ship catches drift after the fact, so the marginal safety their
+reinstatement would buy did not clear the bar the other two did. `stop-autopilot.sh`'s forced
+continuation was not asked back at all and remains R100's single biggest fidelity loss — nothing
+in this decision touches it.
+
+**The trade, named plainly, mirrors R104's own reasoning:** portability to Cursor is reduced for
+exactly these two guarantees. Neither hook has a faithful Cursor equivalent — SessionStart is a
+Claude-Code-specific lifecycle event with no confirmed Cursor analogue, and PreToolUse-blocking
+has no MCP-portable form (the same finding R104 already made for `prompt-continue.sh`). This is
+evidence the R100 architecture is not a single lever — some guarantees are worth being
+host-specific for, and the owner is willing to name which ones on a case-by-case basis rather
+than treating "fully portable" as a rule that can't be reopened.
+
+**Implementation, for the record (not the decision itself):** `session-start.sh` and `resume.sh`
+now share content generation via `lib/resume-report.sh` (split into `companion_resume_steering`
+and `companion_resume_report`) rather than duplicating it — a compaction re-anchor gets the SAME
+cheap tail (carried tasks, version-lag, LESSONS, R93 out-of-band changes, rework) a fresh start
+does, differing only in whether the full STEERING core or a short message leads, matching the
+pre-R100 hook's own shape. `session-start.sh` deliberately does NOT clear autopilot on fire
+(unlike `resume.sh`) — an automatic hook silently disarming a persisted "keep draining" intent
+mid-compaction would defeat the exact workflow autopilot exists for. `ask-guard.sh` is restored
+close to verbatim from git history (proven correct twice in the same session it was reinstated,
+having intercepted the very `AskUserQuestion` calls that led to this decision).
+
+Reverses: R100/Pass 2's retirement of SessionStart (re-reverses R39/R69/R80/R93 back toward their
+pre-R100 shape) and the ask-blocking half of R100/Pass 4's retirement of ask-guard.sh (re-reverses
+R33/R59/R84; R26 splits — "don't ask" re-enforced, "keep going" stays advisory). Does NOT reverse:
+R100/Pass 3 (secret-guard.sh/contract-guard.sh stay retired) or the forced-continuation half of
+R100/Pass 4 (stop-autopilot.sh stays retired — R34/R77/R81/R82/R88 untouched).
+| 2026-08-08, owner-decided (`AskUserQuestion`, multiSelect over four independent candidates —
+session-start.sh reinstatement, ask-guard.sh reinstatement, secret/contract-guard reinstatement,
+or none — owner picked the two recommended, declined the third).

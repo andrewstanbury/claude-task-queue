@@ -51,19 +51,24 @@
 - id: R26
   satisfies: [UN-1]
   affirmed: 2026-08-08
-  affirmations: 1
+  affirmations: 2
   requirement: >
-    autopilot is a persisted, advisory preference — not enforced
+    autopilot is a persisted preference; "don't stop to ask" is ENFORCED again (ask-guard.sh) —
+    "keep going instead of stopping" is NOT (no Stop-hook forces continuation)
   note: >
-    REVERSED 2026-08-08, owner-decided (R100/Pass 4 — the biggest single fidelity loss of the whole
-    redesign). ask-guard.sh and stop-autopilot.sh are retired: nothing denies AskUserQuestion,
-    nothing forces the session to continue instead of stopping. "A control-flow guarantee against
-    the model's own helpfulness bias... the rule exists to end the re-litigation" (ADR R28, quoted
-    in R100's own entry) is exactly the guarantee this removes. The flag still persists per repo
-    and STEERING still states the rule — following it is now the model's judgment call, every
-    time, with nothing behind it if the judgment fails.
+    PARTIALLY RE-REVERSED 2026-08-08, owner-decided (R100/Pass 6, docs/adr/README.md R105) — split
+    from the single REVERSED 2026-08-08 (R100/Pass 4) entry this once was. Autopilot always bundled
+    two distinct guarantees under one flag: ask-guard.sh denying AskUserQuestion, and
+    stop-autopilot.sh forcing the Stop hook to continue instead of ending the turn. The owner
+    picked "avoid rework" / "don't let the model barrel past an unanswered decision" back for the
+    first (ask-guard.sh reinstated) but did NOT ask for the second (stop-autopilot.sh's forced
+    continuation stays retired — no reinstatement requested, still the single biggest fidelity loss
+    of R100). Reversing "the rule exists to end the re-litigation" (ADR R28) only partly, not
+    wholesale.
   verified_by:
     - "autopilot: toggle persists per repo, independent of other modes (R26)"
+    - "ask-guard: autopilot ON denies AND auto-parks the question with its real options + a recommendation (R84)"
+    - "ask-guard: autopilot OFF silently allows — no denial, no park"
 
 - id: R29
   satisfies: [UN-2]
@@ -86,17 +91,19 @@
 - id: R33
   satisfies: [UN-2]
   affirmed: 2026-08-08
-  affirmations: 1
+  affirmations: 2
   requirement: >
-    under autopilot, taste choices are STATED to be parked, not auto-decided — advisory, no guard
-    left
+    under autopilot, taste choices are DENIED and auto-parked by ask-guard.sh, not auto-decided
   note: >
-    REVERSED 2026-08-08, owner-decided (R100/Pass 4). ask-guard.sh is retired — nothing denies the
-    question or auto-parks it anymore. STEERING still states the rule (taste/design/direction
-    choices are the owner's, park even when reversible); whether the model actually follows it is
-    judgment now, not a mechanism.
+    RE-REVERSED 2026-08-08, owner-decided (R100/Pass 6, docs/adr/README.md R105) — ask-guard.sh is
+    reinstated, so the deny-and-auto-park mechanism is back: a taste/design/direction question
+    asked under autopilot is denied outright and written to the queue as a `❓ [parked]` carrying
+    the real options and a recommendation (never `rev:` — the hook cannot know reversibility).
+    Non-taste, reversible, taste-neutral mechanics still pass through undenied; the model decides
+    those itself, same as before.
   verified_by:
-    - "the decisive/plain park-vs-decide guidance is stated in STEERING (R33/R59/R84) — advisory only, no guard left"
+    - "ask-guard: autopilot ON denies AND auto-parks the question with its real options + a recommendation (R84)"
+    - "the decisive/plain park-vs-decide guidance is stated in STEERING and ask-guard.sh enforces it again (R33/R59/R84, R100/Pass 6)"
 
 - id: R34
   satisfies: [UN-3]
@@ -151,13 +158,14 @@
   requirement: >
     resume is a triage handoff, class-preserving
   note: >
-    The claim itself is unchanged by R100/Pass 2 — the merge only changed WHO calls it and WHEN.
-    Before, resume.sh was the manual twin of an automatic SessionStart hook that also fired at
-    every real session boundary. Now the hook is gone (docs/adr/README.md R100) and resume.sh has
-    absorbed its content-assembly (STEERING, LESSONS, version-lag warning, R93's out-of-band
-    changes, rework), so it is the ONLY way any of that reaches a session — always on demand,
-    never automatic. The triage semantics (disarm autopilot, preserve ❓/⏳/📋 classification) are
-    untouched.
+    Content-assembly (STEERING, LESSONS, version-lag warning, R93's out-of-band changes, rework)
+    now lives in lib/resume-report.sh, shared by resume.sh AND session-start.sh (reinstated
+    R100/Pass 6, docs/adr/README.md R105) — so it reaches a session BOTH automatically (fresh
+    start / post-compaction) and on demand (`/companion:resume`). The triage semantics this
+    requirement actually names — disarm autopilot, preserve ❓/⏳/📋 classification — stay scoped
+    to resume.sh alone: session-start.sh deliberately does NOT disarm autopilot on an automatic
+    fire (a compaction mid-drain must not silently kill a persisted "keep draining" intent), so
+    "resume is a triage handoff" is still true of exactly one command, not of every context pull.
   verified_by:
     - "resume: prints STEERING and resumes THIS repo's tasks only (scoped by .root) — R39"
     - "resume: shows the FULL STEERING core alongside the live queue — no abbreviated path left to pick (R100/Pass 2)"
@@ -166,6 +174,7 @@
     - "resume: keeps the recommendation-contract clause (R56 G3 — R49), since it now rides in the full core every call"
     - "resume: ONE corrupt task file loses only ITSELF, never the whole backlog (DA blocker)"
     - "manual resume: turns autopilot OFF first, announced when on and quiet when off (R39)"
+    - "session-start: fresh start injects the FULL STEERING core + carried tasks, unlike resume it does NOT clear autopilot"
 
 - id: R40
   satisfies: [UN-2]
@@ -259,6 +268,7 @@
     - "check-secrets FAIL-SAFE: a flag file that isn't exactly 'secret=off' still BLOCKS (R50/R54 never-fails-open)"
     - "check-secrets is self-contained: sources no lib (R50/R54 never-fails-open via a dependency)"
     - "steering off (per-repo flag): resume drops the working agreement (tasks/lessons unaffected, R50)"
+    - "session-start: steering=off drops the working agreement, carried tasks unaffected (R50)"
 
 - id: R55
   satisfies: [UN-3]
@@ -294,12 +304,13 @@
   requirement: >
     decisive mode
   note: >
-    Mechanically updated 2026-08-08 (R100/Pass 4): ask-guard.sh, which flipped its guidance
-    park→decide, is retired. The toggle and its STEERING-stated guidance survive; the flip is no
-    longer enforced by a guard, only stated.
+    Mechanically updated 2026-08-08 (R100/Pass 6, docs/adr/README.md R105): ask-guard.sh — which
+    flips its guidance park→decide when decisive mode is also on — is reinstated. The flip is
+    enforced by the guard again, the same as before R100/Pass 4 briefly retired it.
   verified_by:
     - "autopilot decisive (R59): toggle persists, independent of plain autopilot"
-    - "the decisive/plain park-vs-decide guidance is stated in STEERING (R33/R59/R84) — advisory only, no guard left"
+    - "ask-guard: DECISIVE mode swaps the guidance from park-every-decision to decide-if-reversible (R59)"
+    - "the decisive/plain park-vs-decide guidance is stated in STEERING and ask-guard.sh enforces it again (R33/R59/R84, R100/Pass 6)"
     - "autopilot sweep: an IRREVERSIBLE park (no rev: marker) is never eligible (R77/R59)"
     - "status line: ⚡ decisive indicator shows only when autopilot AND decisive are on (R59)"
 
@@ -365,19 +376,22 @@
   affirmed: 2026-08-08
   affirmations: 1
   requirement: >
-    printed artifacts are byte-capped; steering is two-tier
+    injected/printed artifacts are byte-capped; steering is two-tier
   note: >
-    REVERSED 2026-08-08, owner-decided (R100/Pass 2): nothing is INJECTED anymore — the SessionStart
-    hook that did the injecting is retired (docs/adr/README.md R100), so "injected" became
-    literally false. `/companion:resume` now PRINTS the same content, on demand. The two-tier
-    discipline (core above the marker only, rationale below stays on-demand) and the byte-cap
-    property both survive unchanged as properties of what gets printed — this reversal is about
-    the verb, not the shape.
+    RE-REVERSED 2026-08-08, owner-decided (R100/Pass 6, docs/adr/README.md R105): the SessionStart
+    hook is back — "injected" is literally true again for a fresh session start and a
+    post-compaction re-anchor, on top of `/companion:resume` still PRINTING the same content on
+    demand. The two-tier discipline (core above the marker only, rationale below stays on-demand)
+    and the byte-cap property are unchanged either way — this requirement was never really about
+    the verb, and now it doesn't have to pretend to be.
   verified_by:
     - "resume: prints the STEERING CORE only — rationale below the marker excluded; missing marker fails OPEN (R69)"
     - "tq delta (R69): add/doing print a one-line counts delta, NOT the full queue; done prints the full report"
+    - "session-start: fresh start injects the FULL STEERING core + carried tasks, unlike resume it does NOT clear autopilot"
+    - "session-start: post-compaction re-anchor is SHORT — queue + posture, not the full STEERING core"
     - "resume: LESSONS is two-tier — only the core above the marker prints (R69/R30·d7)"
     - "resume: autopilot mode prose rides ONLY when the mode WAS armed at call time (R69)"
+    - "session-start: self-contained fallback — a marker-less plugin dir still reaches lib/resume-report.sh"
 
 - id: R70
   satisfies: [UN-4]
@@ -532,12 +546,14 @@
   note: >
     The "verdict is unconditional" clause was already reversed by R80·b (2026-08-03) — this entry
     is left as-is per this repo's own convention (a new id reverses an old one's clause; the old
-    entry is not edited). Mechanically updated 2026-08-08 (R100/Pass 2) only because its verified_by
-    test moved: the posture used to ride in a SessionStart hook's special abbreviated compact-mode
-    message; that hook and its abbreviation are both gone, so the same posture now rides in the
-    ordinary full-core output `/companion:resume` prints on every call.
+    entry is not edited). Mechanically updated twice since: R100/Pass 2 moved the posture out of
+    the (then-retired) SessionStart hook's abbreviated compact-mode message into the ordinary
+    full-core output `/companion:resume` prints on every call; R100/Pass 6 (docs/adr/README.md
+    R105) reinstates session-start.sh, so the posture rides in BOTH the compact-mode abbreviation
+    (again) AND resume.sh's on-demand full output.
   verified_by:
     - "resume: carries BOTH halves of the posture — the options half and the honesty-rides-the-pick half (R80)"
+    - "session-start: post-compaction re-anchor is SHORT — queue + posture, not the full STEERING core"
     - "status line: a DRAINED queue renders no queue section at all (R80)"
 
 - id: R81
@@ -604,17 +620,22 @@
   affirmed: 2026-08-08
   affirmations: 1
   requirement: >
-    a blocked question must be parked BY THE MODEL — nothing parks it automatically anymore
+    a blocked question is auto-parked BY ask-guard.sh — deduped, never marked `rev:`, carrying the
+    real options + a recommendation
   note: >
-    REVERSED 2026-08-08, owner-decided (R100/Pass 4). ask-guard.sh — the auto-deny + auto-park +
-    dedup-by-grep logic — is retired outright, no advisory replacement code (the model calls
-    `tq add` itself now, per STEERING). The tq concurrent-write-safety property this once motivated
-    (a hook was a second writer) is unrelated to ask-guard's existence and stays proven regardless —
-    concurrent `tq add` calls can come from anywhere, not just a hook.
+    RE-REVERSED 2026-08-08, owner-decided (R100/Pass 6, docs/adr/README.md R105). ask-guard.sh's
+    auto-deny + auto-park + dedup-by-grep logic is reinstated verbatim (the R100/Pass 4 retirement
+    lasted one session): a denied question is written to the queue with its options and a
+    recommendation, deduped by raw grep over the session's own store (not `tq list`, which put an
+    O(store) jq pass on a per-question hook), never marked `rev:` (the hook cannot know
+    reversibility). The model calling `tq add` itself proactively is still the intended primary
+    path — the guard is the backstop for when it forgets, not a replacement for the reflex.
   verified_by:
     - "prompt-continue: a bare 'continue' with a parked pile routes to review FIRST (R85)"
     - "tq: concurrent adds cannot lose a task — a HOOK is now a writer (R84)"
-    - "the decisive/plain park-vs-decide guidance is stated in STEERING (R33/R59/R84) — advisory only, no guard left"
+    - "the decisive/plain park-vs-decide guidance is stated in STEERING and ask-guard.sh enforces it again (R33/R59/R84, R100/Pass 6)"
+    - "ask-guard: autopilot ON denies AND auto-parks the question with its real options + a recommendation (R84)"
+    - "ask-guard: a RETRIED identical question dedups instead of parking twice"
 
 - id: R53
   satisfies: [UN-5]
@@ -765,33 +786,22 @@
   affirmed: 2026-08-08
   affirmations: 1
   requirement: >
-    recent changes git cannot see are available on demand, at zero cost when there are none
+    recent changes git cannot see arrive unasked in every session, at zero cost when there are none
   note: >
-    REVERSED 2026-08-08, owner-decided (R100/Pass 2), and unlike this ledger's other Pass-2
-    reversals this one is a REAL loss, not a mechanical rename — recorded plainly rather than
-    dressed up. The original requirement (below, for the record) was that this class of fact
-    arrives UNASKED, specifically because the failure it guards against IS context loss: "a rule
-    saying 'go look' cannot survive a state clear, but a fact that arrives unasked can." R100
-    retired the hook that made that guarantee possible. `/companion:resume` still prints the exact
-    same content — same 14-day window, same zero-cost-when-empty property — but only when called,
-    and calling it is now the model's judgment call, the same kind of "go look" rule the original
-    reasoning said could not survive a state clear. This reopens the literal failure mode R93 was
-    written to close: the owner's AWS-change incident, where a real recent out-of-band change was
-    not top-of-mind and cost days chasing the wrong cause. Kept as a requirement, not deleted,
-    because the content is still worth having on demand — but the GUARANTEE is gone, and no design
-    in the chosen MCP+skills architecture can bring it back (nothing left in this plugin can inject
-    anything into a session unasked, by construction, R100).
-
-    Original text, for the record: "recent changes git cannot see arrive unasked in every session."
-    An owner lost days on another project chasing an Apple login configuration they had CONFIRMED
-    twice; the cause was a recent AWS change — infrastructure an agent had built wrong and trusted
-    because it was ours. Nothing in the repo recorded it, so clearing state erased the only place
-    that knowledge lived. git is already the timeline for in-repo changes, so this records ONLY
-    what git cannot: consoles, DNS, provider settings, rotations, hand-edits. Time-bounded to a
-    14-day window, so a repo with no recent out-of-band change contributes nothing, and only the
-    file's tail is read (R81).
+    RE-REVERSED 2026-08-08 back to its ORIGINAL text, owner-decided (R100/Pass 6, docs/adr/README.md
+    R105). The R100/Pass 2 reversal (2026-08-08, recorded plainly at the time as "a REAL loss, not
+    a mechanical rename") turned out to be exactly the failure mode this requirement exists to
+    close: "a rule saying 'go look' cannot survive a state clear, but a fact that arrives unasked
+    can" — and R100 had made this a 'go look' rule again. session-start.sh is reinstated
+    specifically because the owner watched a model ignore/subvert context it never had guaranteed
+    in the first place, which is the general form of the same AWS-change incident this requirement
+    was originally written for. The guarantee is back on BOTH paths session-start.sh fires
+    (fresh start and post-compaction, R100/Pass 6's own parity fix — a compaction is itself the
+    state clear this requirement is about, so it gets the same content, not an abbreviated one) —
+    same 14-day window, same zero-cost-when-empty property, unchanged throughout every reversal.
   verified_by:
     - "resume: RECENT out-of-band changes print; old ones and no-file cost nothing (R93, now on-demand only)"
+    - "session-start: compact re-anchor carries the SAME version-lag + rework as a fresh start (R93 — a compaction IS a state clear)"
 
 - id: R94
   satisfies: [UN-5]

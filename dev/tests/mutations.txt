@@ -24,7 +24,7 @@ dev/doc-lint.sh::s@sed -e 's/\[~≈\]@sed -e 's/ZZZ@::the ~ approximation exempt
 dev/doc-lint.sh::s@echo "  FAIL ledger file not found@return 0; echo "  FAIL ledger file not found@::a missing ledger file goes back to silent success
 plugins/companion/bin/ci-watch.sh::s@exit 12@exit 0@::a give-up watch goes back to reporting success
 plugins/companion/bin/statusline.sh::s@\[ "$NOPEN"  -gt 0 \] \&\& TASKS=@TASKS=@::the drained queue renders 📋 0 again
-plugins/companion/bin/resume.sh::s@  if \[ -f "$PLUGIN_DIR/STEERING.md" \]; then@  if false; then@::the STEERING core stops printing at all, so the honest-read-on-the-pick posture living inside it silently disappears with it
+plugins/companion/lib/resume-report.sh::s@  if \[ -f "$PLUGIN_DIR/STEERING.md" \]; then@  if false; then@::the STEERING core stops printing at all, so the honest-read-on-the-pick posture living inside it silently disappears with it
 plugins/companion/lib/ratelimit.sh::s@\[ "$left" -gt 0 \] || return 0@[ 1 -eq 1 ] || return 0@::an elapsed reset time renders a NEGATIVE countdown
 plugins/companion/lib/ratelimit.sh::s@case "$rst" in \*\[!0-9\]\*) return 0;; esac@case "$rst" in zzzNEVERzzz) return 0;; esac@::a non-numeric resets_at reaches $(( )) and can abort the line
 plugins/companion/lib/ratelimit.sh::s@if \[ "$3" -ge "$el" \]@if [ "$3" -ge 0 ]@::the pace marker reads ▴ always — it stops comparing against elapsed
@@ -33,10 +33,10 @@ plugins/companion/lib/ratelimit.sh::s@\[ -n "$rst" \] \&\& \[ "$NOW" -gt 0 \] ||
 plugins/companion/lib/ratelimit.sh::s@el=$(( ((len - left) \* 100 + len - 1) / len ))@el=$(( (len - left) * 100 / len ))@::the pace marker loses its ceiling — ▴ starts lying about being on pace
 dev/mutate-gate.sh::s@\[ "$plan" = "$3" \] && \[ "$res" = "$3" \] || return 1@:@::the gate stops requiring a COMPLETE run — a killed suite scores 'caught' again
 dev/mutate-gate.sh::s@if \[ "$expect" -lt 2 \]; then@if false; then@::an unparseable suite is no longer refused up front
-plugins/companion/bin/resume.sh::s@awk '/lessons injection stops here/{exit} {print}' "$lf"@cat "$lf"@::LESSONS prints its ON-DEMAND tail again, silently re-taxing every call
+plugins/companion/lib/resume-report.sh::s@awk '/lessons injection stops here/{exit} {print}' "$lf"@cat "$lf"@::LESSONS prints its ON-DEMAND tail again, silently re-taxing every call
 dev/mutate-gate.sh::s@if \[ "$brc" -ne 0 \]; then@if false; then@::an ALREADY-RED suite is measured anyway, scoring every mutation 'caught'
 dev/mutate-gate.sh::s@if ! mkdir "$_mut_lock" 2>/dev/null; then@if false; then@::concurrent --mutate runs are allowed to corrupt each other again
-plugins/companion/bin/resume.sh::s@    if \[ "$was_armed" -eq 1 \]; then@    if true; then@::autopilot mode prose prints unconditionally again, re-taxing every call regardless of whether the mode was ever armed
+plugins/companion/lib/resume-report.sh::s@    if \[ "$was_armed" -eq 1 \]; then@    if true; then@::autopilot mode prose prints unconditionally again, re-taxing every call regardless of whether the mode was ever armed
 plugins/companion/bin/burn-down.sh::s@companion_burndown_on "$root" ||@false ||@::burn-down runs without being armed
 plugins/companion/bin/burn-down.sh::s@\[ "$open" -eq 0 \] ||@[ 1 -eq 1 ] ||@::generated work stops yielding to real queued work
 plugins/companion/bin/burn-down.sh::s@\[ "$nb" -lt "$cap" \] ||@[ 1 -eq 1 ] ||@::unreviewed-branch backpressure stops applying
@@ -67,7 +67,7 @@ plugins/companion/bin/ship.sh::s@\[ "$cur" = "$def" \] &&@[ "$cur" = zzzNEVER ] 
 dev/mutate-gate.sh::s@if \[ "$shard_m" -gt 1 \] \&\& \[ $(( (idx - 1) % shard_m )) -ne "$shard_n" \]; then@if false; then@::--shard stops partitioning — every shard runs every mutation
 check.sh::s@dev/trace.sh 2>&1@:@::check.sh stops running the traceability gate
 plugins/companion/bin/prompt-continue.sh::s@STOP — DO NOT START ANY OTHER WORK YET@Note:@::the continue hook stops asserting that unblocking outranks other work
-plugins/companion/bin/resume.sh::s@    if \[ -n "$_ver_tree" \] \&\& \[ "$_ver_tree" != "$_ver_running" \]; then@    if false; then@::a stale installed plugin stops being announced — work looks shipped while inert
+plugins/companion/lib/resume-report.sh::s@    if \[ -n "$_ver_tree" \] \&\& \[ "$_ver_tree" != "$_ver_running" \]; then@    if false; then@::a stale installed plugin stops being announced — work looks shipped while inert
 plugins/companion/STEERING.md::s@Satisfy the contract; never rewrite it@Satisfy the contract@::the steering core stops stating that the contract must not be rewritten
 plugins/companion/bin/candidates.sh::s@| grep -vF 'decision:' | grep -vF 'decompose:'@| cat@::decision parks are offered as buildable work again, and can starve every other rank
 plugins/companion/bin/tq::s@map(select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0))@map(select(true))@::the next pointer points at work that cannot start again
@@ -85,8 +85,8 @@ plugins/companion/bin/burndown-branch.sh::s@grep -qvE .\^.{2} ..companion/.@grep
 dev/portability-lint.sh::s@  \[ -n "$vals" \] || { echo "  FAIL boundary: derived NO threshold constants — the lint would pass vacuously"; return 1; }@  :@::the boundary lint passes vacuously when it derives no constants at all
 check.sh::s@if out="$(dev/portability-lint.sh boundary dev/tests/\*.bats)"; then@if true; then@::check.sh stops invoking the boundary lint — the guard exists but never runs
 check.sh::s@if out="$(dev/command-lint.sh)"; then@if true; then@::check.sh stops invoking the command-contract lint — the guard exists but never runs
-plugins/companion/bin/resume.sh::s@      /^- \[0-9\]\[0-9\]\[0-9\]\[0-9\]-\[0-9\]\[0-9\]-\[0-9\]\[0-9\]/ { f = ($2 >= c) }@      /^-/ { f = 1 }@::the change ledger stops honouring its time window — every entry ever written prints on every call
-plugins/companion/bin/resume.sh::s@    \[ -n "$_recent" \] && out=@    [ -z "$_recent" ] \&\& out=@::recent out-of-band changes stop printing, so a cleared context loses them entirely
+plugins/companion/lib/resume-report.sh::s@      /^- \[0-9\]\[0-9\]\[0-9\]\[0-9\]-\[0-9\]\[0-9\]-\[0-9\]\[0-9\]/ { f = ($2 >= c) }@      /^-/ { f = 1 }@::the change ledger stops honouring its time window — every entry ever written prints on every call
+plugins/companion/lib/resume-report.sh::s@    \[ -n "$_recent" \] && out=@    [ -z "$_recent" ] \&\& out=@::recent out-of-band changes stop printing, so a cleared context loses them entirely
 plugins/companion/bin/rework.sh::s@      | awk -v t="$THRESH" .\$1 >= t@      | awk -v t="$THRESH" '$1 >= 99999@::a repeatedly-failing component stops being flagged for rebuild, so the fourth patch looks as reasonable as the first
 plugins/companion/bin/ship.sh::s@companion_rework_from_diff "$root" gate-fail ""; die 4@die 4@::a failed gate stops counting as rework, so the defect rate can be narrated again
 plugins/companion/bin/tq::s@def pk: (subj|startswith("⏳")) or (subj|startswith("⛔")) or@def pk: (subj|startswith("⏳")) or@::a hypothesis the owner CLOSED becomes work again — the exact re-investigation the ⛔ class exists to stop
@@ -108,3 +108,6 @@ plugins/companion/mcp-server/index.js::s@"land", "-F", msgfile@"land", "-x", msg
 plugins/companion/mcp-server/index.js::s@runBin("ship.sh", \["handoff"\])@runBin("ship.sh", ["preflight"])@::ship_handoff silently runs preflight instead of handing off work
 plugins/companion/mcp-server/index.js::s@runBin("ship-checkpoint.sh", \[\])@runBin("ship.sh", [])@::ship_checkpoint silently runs ship.sh instead of the checkpoint script, so nothing is ever captured
 plugins/companion/mcp-server/index.js::s@❓ \[parked\]@[parked]@::decompose_into_tasks drops the ❓ marker, so a parked decision no longer matches the classification tq itself expects
+plugins/companion/bin/session-start.sh::s@if \[ "\$src" = "compact" \]; then@if false; then@::session-start.sh never takes the short compact re-anchor, so every compaction re-injects the full STEERING core at full token cost
+plugins/companion/bin/ask-guard.sh::s@companion_autopilot_on "\$root" || exit 0@:@::ask-guard.sh denies AskUserQuestion even with autopilot off, blocking every question unconditionally
+plugins/companion/bin/ask-guard.sh::s@_dup=0; grep -qsF "\${subject:0:120}" "\$_store"/\*.json 2>/dev/null && _dup=1@_dup=0@::ask-guard.sh never detects a duplicate, so a retried question parks itself again on every attempt

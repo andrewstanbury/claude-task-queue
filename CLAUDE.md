@@ -1,29 +1,30 @@
 # CLAUDE.md
 
 This repo is the source of **`companion`** — a portable task-queue + steering system, shipped as
-a Claude Code plugin: one steering doc, a small MCP server, one hook left (**R100**, landing in
-bounded passes tracked in `tq` — see [docs/adr/README.md](./docs/adr/README.md) R100).
+a Claude Code plugin: one steering doc, a small MCP server, three hooks (**R100/Pass 6**, landing
+in bounded passes tracked in `tq` — see [docs/adr/README.md](./docs/adr/README.md) R100/R105).
 
 ## The working agreement lives in one file
 
 **[plugins/companion/STEERING.md](./plugins/companion/STEERING.md)** is how Claude works on
 any project the companion is installed in — queue discipline, the brutal-honest
-recommendation posture, clean-as-you-go, autopilot. **Nothing injects it automatically anymore**
-(R100) — run `/companion:resume` yourself, any time you want it back in context. **When working
-*on this repo*, read it — it governs how you work here too.**
+recommendation posture, clean-as-you-go, autopilot. **Injected automatically at session start
+again** (R105) — or `/companion:resume` any time mid-session. **On this repo, it governs how you
+work here too.**
 
-## Architecture (R100) — steering, a portable core, and one hook
+## Architecture (R100/R105) — steering, a portable core, two re-enforced hooks
 
-- **Steering** (prose the model reads, ignorable-by-nature, always advisory) → `STEERING.md`.
+- **Steering** (prose the model reads, ignorable-by-nature, advisory) → `STEERING.md`.
 - **The portable core** — `plugins/companion/bin/` + `mcp-server/`: `tq` (**THE task queue**,
   R8/R10; also an MCP server, `companion-tq`, for any MCP-capable client) · advisory
-  `check-secrets.sh` (was an enforced block) · `resume.sh` (prints STEERING/LESSONS/tasks on
-  demand — absorbed the retired SessionStart hook) · `ship-checkpoint.sh` (ship-mode's commit
-  logic, now manual) · `statusline.sh` · `autopilot.sh` (advisory preference, not enforced).
-- **The one surviving hook** — `prompt-continue.sh` (UserPromptSubmit): the one case left needing
-  session-boundary state a prompt can't see itself. Everything that used to *block* or *guarantee
-  control-flow* is retired outright — a deliberate, twice-confirmed owner trade for portability
-  to other MCP-capable clients (e.g. Cursor). See [docs/adr/README.md](./docs/adr/README.md) R100.
+  `check-secrets.sh` (was an enforced block) · `resume.sh` (on-demand triage pull) ·
+  `ship-checkpoint.sh` (ship-mode's commit logic, manual) · `statusline.sh` · `autopilot.sh`.
+- **Three hooks** — `prompt-continue.sh` (UserPromptSubmit, never retired) ·
+  `session-start.sh` (SessionStart, **reinstated**: guarantees STEERING+tasks reach a session) ·
+  `ask-guard.sh` (PreToolUse[AskUserQuestion], **reinstated**: denies+auto-parks under autopilot).
+  `secret-guard.sh`/`contract-guard.sh`/`stop-autopilot.sh` (forced continuation, still the
+  biggest R100 loss) stay retired — owner picked context-delivery + anti-rework back, not full
+  enforcement. See [docs/adr/README.md](./docs/adr/README.md) R100/R104/R105.
 - **Commands** — `setup` · `autopilot` · `ship-it` · `handoff` · `resume` · `review` ·
   `advise` · `redesign` · `docs` · `cover` · `burn-down` · `board`. Per-file responsibilities live
   in **[docs/MAP.md](./docs/MAP.md)** — read it before touching the core.

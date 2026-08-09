@@ -1,0 +1,8 @@
+{
+  "id": "38",
+  "subject": "❓ [parked] decision: Which of these should go back to being Claude-Code-only ENFORCED (blocking) code again, accepting the Cursor-portability cost each one carries? (Pick any/all/none — they're independent.) — options: Guaranteed context delivery (Recommended) (Bring back SessionStart auto-injection of STEERING + carried tasks, instead of r) · Block on an unanswered decision (Recommended) (Bring back an ask-guard-like gate: refuse to let the model barrel past something) · Block writes to the contract file (Bring back a narrow contract-guard: refuse to let the model silently rewrite doc) · None — stay fully portable, invest in schema instead (Keep R100 as-is. Lean harder on the one determinism lever that IS portable: MCP ); rec: Guaranteed context delivery (Recommended)",
+  "status": "cancelled",
+  "done_when": "",
+  "blocks": [],
+  "blockedBy": []
+}
