@@ -228,3 +228,113 @@ R100/Pass 4 (stop-autopilot.sh stays retired — R34/R77/R81/R82/R88 untouched).
 | 2026-08-08, owner-decided (`AskUserQuestion`, multiSelect over four independent candidates —
 session-start.sh reinstatement, ask-guard.sh reinstatement, secret/contract-guard reinstatement,
 or none — owner picked the two recommended, declined the third).
+
+## R106 — DECISION 🔓
+
+**The pre-code design step is STEERING, not a command.** A structural change (new seam or
+dependency, data-model or interface change) states its **interface delta + call-stack before code**,
+then slices into tasks carrying that sketch as `--context`. The reflex rides the SessionStart
+injection (**R105**), so it fires unasked.
+
+**Origin:** the owner read humanlayer's *Why Software Factories Fail* and asked how this plugin
+avoids that exact scenario. The audit found companion covered most of the chain — lights-off
+(**R5/R49** menus, ask-guard parking), no-planning (`--done`/`--context`, decompose-park **R65**),
+spec-rewriting-to-pass (**R86**), erosion detection (`advise`, the rework ledger), rewrite-from-
+scratch (**R55** bounded passes) — with **one real hole**: the article's phases 2–3. STEERING
+already named "architecturally significant" as a **pause** signal; on that signal companion asked a
+question and produced **no design**. The trigger existed; the artifact did not.
+
+**Four placements were offered; the owner rejected all four**, with the reason that decides this
+entry: *"I want this to be more of a steering system than a system where I have to specifically run
+commands, since I will forget to run these commands."* Rejected: **(a)** a `/companion:design`
+command — recommended in the menu, and the recommendation was **wrong**: the owner's recorded
+preference has been automatic-and-artifact-free since the redesign, and an opt-in step is precisely
+what this failure mode eats. Recorded as `owner-supplied` rework. **(b)** a `docs/design/<change>.md`
+doc class — a third Claude-facing doc class, and still opt-in. **(c)** a `tq --design` field — a
+queue field is a weak home for a call-stack, and design spans tasks while the field is per-task.
+**(d)** prose with the motivation stripped, to fit the byte cap — this is advisory text whose only
+power is persuading the model to spend effort before it must; stripping the *why* strips the
+mechanism.
+
+**Cost, paid visibly.** The injected core had **8B** of headroom. The reflex plus the R107 nudge
+needed 137B more than the cap allowed after **217B of duplication was cut to fund it** — the
+advisory/`bin` split (already in `flows/_quality-bar.md` N4), the wireframe clause and Posture's
+autonomy sentence (both already in `Run in auto`), the ripples-wide nudge (the new reflex owns
+splitting), and a **stale header claiming STEERING is "never automatically" injected**, which R105
+made false. Owner raised the cap **8384 → 8576** (~34 tokens/session), matching the 8192→8384 raise
+of 2026-08-07 in shape and size. **This is the fourth raise and is recorded as a smell:** the cap
+only works as a forcing function while it occasionally binds, and being *at* it is what surfaced
+the 217B of duplication. A fifth should trigger a core rebuild (**R55**), not a fifth raise. The cap
+was also hardcoded at three sites; it is now one variable, because a raise that missed a message
+would print a number the gate no longer enforces — output that lies while staying green.
+
+**Named limit.** This is prose the model can skip. `R106`'s test pins **delivery** (the reflex
+reaches a session through the real hook, not merely exists in a file) — it cannot pin compliance,
+and no shell check can. That is the same ceiling **R28** names, and the honest answer to the
+article's central claim: for now the judge is still the owner.
+
+**The level-0 gap this exposed — CLOSED the same day.** `needs.yaml` had **no maintainability
+need**, so R106 shipped tracing to **UN-3** (review before commitment) because that was the closest
+honest fit, not the right one. Authoring a need is never the agent's (`needs.yaml` header, R86), so
+it was parked (`#46`) rather than written. **Owner authored `UN-8` on review, 2026-08-09** — *"I
+want the codebase to still be workable in six months — not just passing its tests today"* — chosen
+over widening UN-5 and over keeping the UN-3 trace. R106 and R107 now satisfy `[UN-8, …]`. UN-8 is
+the **first need with no PRIN row behind it**, which is precisely why it was missing: nothing in the
+old ledger ever asked for maintainability, so recovering needs *from* that ledger could never have
+produced it. The park is the mechanism that made an absent need visible — worth noting, because a
+trace gate can only check that every requirement names *a* need, never that it names the *right*
+one. My park text also mis-stated the ceiling as seven; `needs.yaml` says ten, which materially
+weakened the cost I had put on the decision, and the correction was given before the owner chose.
+
+Composes **R105** (the injection that makes it proactive), **R65** (decompose-park, the interview
+that precedes a sketch it cannot yet draw), **R99** (`--context`, what the sketch travels in),
+**R58** (contract moves first), **R69** (the byte budget it spent).
+| 2026-08-09, owner-decided: placement rejected via `AskUserQuestion` free-text, then the funding
+choice picked from a 3-option menu (raise / strip the motivation / cut named prose elsewhere).
+
+## R107 — DECISION 🔓
+
+**Autopilot's quality checkpoint is a nudge, not a hook.** A run of tasks drained under autopilot
+offers `/companion:advise` on what it touched — surfaced once, parked as a `❓` while armed.
+
+Autopilot is the article's lights-off mode. It parks **decisions**, but structural erosion never
+presents as a decision — it presents as a diff that passes, which is the article's whole thesis
+(*"there is no penalty for eroding codebase maintainability"*). **Rejected: a Stop hook** that
+forced a review pass every N drained tasks — the only option that could not be skipped, and the
+only one that would have re-opened **R100/Pass 4**'s retirement of `stop-autopilot.sh`, offered to
+the owner on 2026-08-08 (**R105**) and declined then. **Also rejected: doing nothing**, on the
+argument that an unenforceable checkpoint is theatre — the owner took the nudge over the silence.
+
+**Named limit, stated at the point of choosing:** a nudge is the class of thing the model can skip.
+This raises the odds of a quality read mid-drain; it does not guarantee one.
+| 2026-08-09, owner-picked from a 3-option menu (nudge / nothing / Stop hook).
+
+## R108 — DECISION 🔓
+
+**An autopilot pause marker is bound to the session that wrote it.** Stale, foreign or unstamped
+markers are discarded and never arm autopilot.
+
+**Found by running the product on itself.** `/companion:review` step 0 calls `autopilot pause`,
+step 5 calls `resume`. On 2026-08-09 that sequence armed autopilot on the owner's machine when they
+had never turned it on: a review on **2026-08-08 16:55** paused and never resumed, leaving the
+marker behind; the next day's review found autopilot already OFF — so its own `pause` was a correct
+no-op that wrote nothing — and `resume` honoured the day-old marker. **R83's pause/resume pair was
+correct in isolation and wrong across sessions**, because the marker carried no identity. Same class
+as the mode-state oscillation already flagged in queue item #19: transient state outliving its
+session.
+
+**Rejected: expire the marker on a timestamp** (`(b)` in the queued fix list) — it needs an
+arbitrary constant, and a review's real duration is unbounded; a bound loose enough to be safe is
+loose enough to miss the overnight case that actually fired. **Rejected: tie it to the paused
+process** (`(c)`) — wrong unit, since `pause` and `resume` are separate invocations by design.
+
+**Fails safe, deliberately.** An unverifiable marker leaves autopilot **OFF**. Failing to
+auto-resume is visible and one `autopilot on` away; wrongly arming starts unattended work nobody is
+watching. That asymmetry also settles the upgrade case: a pre-fix version still in the plugin cache
+leaves an *unstamped* marker, which is refused rather than trusted.
+
+**Process note, recorded against myself:** the requirement entry was written while autopilot was
+armed, which **R86** makes the owner's call, not mine. It was kept only because the change is atomic
+— fix, test and entry land together, and dropping the entry alone reddens `dev/trace.sh` on the
+orphan-test direction — and the ratification is parked (`#49`) rather than assumed.
+| 2026-08-09, defect reproduced live; fix chosen from three candidates recorded at queue time.

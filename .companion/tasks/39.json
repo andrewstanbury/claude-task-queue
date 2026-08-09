@@ -1,0 +1,10 @@
+{
+  "id": "39",
+  "subject": "design-before-code as a STEERING reflex, not a command — retarget the existing 'architecturally significant' pause into 'sketch the interface delta + call-stack, then slice into tasks'",
+  "status": "completed",
+  "done_when": "the injected core states the sketch-first reflex; core stays <=8384B; check.sh green",
+  "context": "plugins/companion/STEERING.md (## Working, 'Run in auto' bullet)",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "arch-significant clause moves OUT of 'Run in auto' into its own sketch-first bullet — relocation, not addition"
+}

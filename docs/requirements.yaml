@@ -1063,3 +1063,60 @@
     portable copy for a client with no equivalent injection mechanism.
   verified_by:
     - "MCP server: decompose_into_tasks PROMPT (not a tool) returns the decomposition instructions (Pass 5c, R103)"
+
+- id: R106
+  satisfies: [UN-8, UN-3]
+  affirmed: 2026-08-09
+  affirmations: 0
+  requirement: >
+    a structural change (new seam or dependency, data-model or interface change) states its
+    interface delta and call-stack BEFORE code is written, then slices into tasks carrying that
+    sketch as `--context` — and the reflex is DELIVERED by the SessionStart injection, never
+    behind a command the owner has to remember to run
+  note: >
+    The placement is the requirement. A `/companion:design` command, a `docs/design/` doc class
+    and a `tq --design` field were each rejected for the same reason (docs/adr R106): they are all
+    opt-in, and an opt-in step is exactly what the failure mode eats. Traced first to UN-8: this
+    requirement is what exposed that level 0 had no maintainability need at all, and it shipped
+    briefly against UN-3 alone before the owner authored one (2026-08-09, review of park #46).
+    UN-3 is kept as the secondary trace and is genuinely earned — a sketch is review before
+    commitment, and structure is the point where "cheap to undo" stops being true.
+  verified_by:
+    - "sketch-first is DELIVERED to a session, not merely stated in a file — no command to remember (R106)"
+
+- id: R107
+  satisfies: [UN-8, UN-2]
+  affirmed: 2026-08-09
+  affirmations: 0
+  requirement: >
+    a run of tasks drained under autopilot offers a quality read of what it touched
+    (`/companion:advise`), surfaced once and parked as a `❓` while autopilot is armed
+  note: >
+    Autopilot parks DECISIONS but never pauses on structural erosion, because erosion never
+    presents as a decision — it presents as a diff that passes. Owner-picked 2026-08-09 over a
+    Stop-hook checkpoint, which would have re-opened R100/Pass 4's retirement of
+    stop-autopilot.sh, and over doing nothing. Named limit, stated at the point of choosing: this
+    is a NUDGE, and a nudge is the class of thing the model can skip. It raises the odds of a
+    quality read mid-drain; it does not guarantee one, and nothing retired-enforcement-side can.
+  verified_by:
+    - "a drained autopilot run offers a quality read — the lights-off gap has a nudge (R107)"
+
+- id: R108
+  satisfies: [UN-3, UN-1]
+  affirmed: 2026-08-09
+  affirmations: 0
+  requirement: >
+    an autopilot pause marker is honoured only by the session that wrote it — a stale, foreign or
+    unstamped marker is discarded and NEVER arms autopilot
+  note: >
+    Not a hypothetical: reproduced live on the owner's machine 2026-08-09 by running
+    /companion:review. A review on 2026-08-08 paused and never resumed; the next day a review found
+    autopilot already OFF (so its own `pause` was a correct no-op that wrote nothing) and `resume`
+    honoured the day-old marker, arming a mode the owner had never turned on. R83's pause/resume
+    pair was correct in isolation and wrong across sessions, because the marker carried no identity.
+    Fails SAFE by design: an unverifiable marker means autopilot stays OFF. Failing to auto-resume
+    is visible and one `autopilot on` away; wrongly arming starts unattended work nobody is
+    watching. That also covers the upgrade case, where a pre-fix version in the plugin cache leaves
+    an unstamped marker behind.
+  verified_by:
+    - "autopilot resume: a pause marker from ANOTHER session cannot arm autopilot (R108)"

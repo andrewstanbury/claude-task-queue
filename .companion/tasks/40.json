@@ -1,0 +1,10 @@
+{
+  "id": "40",
+  "subject": "pay for the reflex by subtracting: the core header's 'never automatically (R100)' is STALE since R105 reinstated SessionStart auto-injection",
+  "status": "completed",
+  "done_when": "header is factually correct AND shorter; bytes freed >= bytes added by #39+#41",
+  "context": "plugins/companion/STEERING.md lines 3-8 (pre-marker header)",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "editing the pre-marker header; R105 made 'never automatically' false"
+}

@@ -2291,6 +2291,34 @@ _bd_setup() {
   _ap status; [ "$output" = off ]
 }
 
+@test "autopilot resume: a pause marker from ANOTHER session cannot arm autopilot (R108)" {
+  # Reproduced live 2026-08-09, on the owner's own machine, by running /companion:review: a review
+  # on 2026-08-08 paused and never resumed, leaving the marker behind. The next day a review found
+  # autopilot already OFF — so its own `pause` was a correct no-op writing nothing — and `resume`
+  # then honoured the DAY-OLD marker and armed a mode the owner had never turned on. Transient
+  # state outliving its session. A marker is now only honoured by the session that wrote it.
+  local repo st; repo="$(_tmpd)"; git -C "$repo" init -q; st="$(_tmpd)"
+  _aps() { run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" CLAUDE_COMPANION_SESSION_ID="$3" bash "$4" "${@:5}"' _ "$repo" "$st" "$1" "$ROOT/bin/autopilot.sh" "${@:2}"; }
+
+  # A genuine same-session round trip still works — the fix must not cost R83 its whole point.
+  _aps sA on >/dev/null; _aps sA pause; [[ "$output" == *"PAUSED"* ]]
+  _aps sA resume; [[ "$output" == *"RESUMED"* ]]
+  _aps sA status; [ "$output" = on ]
+
+  # THE DEFECT: session A pauses and never resumes; session B must NOT inherit that promise.
+  _aps sA pause >/dev/null
+  _aps sB resume; [[ "$output" == *"NOT resumed"* ]]
+  _aps sB status; [ "$output" = off ]
+  # ...and the marker is DISCARDED, not left to mis-fire on the session after that.
+  _aps sB resume; [[ "$output" == *"not paused"* ]]
+
+  # An UNSTAMPED marker — written by a pre-fix version still in the plugin cache — is refused too,
+  # which is the case that actually fires during an upgrade.
+  mkdir -p "$repo/.companion/modes"; : > "$repo/.companion/modes/autopilot-paused"
+  _aps sC resume; [[ "$output" == *"NOT resumed"* ]]
+  _aps sC status; [ "$output" = off ]
+}
+
 @test "tq report: a parks-only queue names the next action, not just the counts" {
   # Asked to "continue" with nothing buildable, the honest answer is not silence — it is which
   # command clears the pile. Mechanical, so it survives a compaction without costing injected prose.
@@ -2736,6 +2764,45 @@ _ag_ask() {  # $1=repo  $2=session-id
   # And no new mode was introduced — the four existing toggles are still the whole set.
   run bash -c 'cd "$1" && CLAUDE_COMPANION_STATE_DIR="$2" bash "$3" contract on' _ "$d" "$st" "$ROOT/bin/autopilot.sh"
   [ "$status" -ne 0 ]
+}
+
+@test "sketch-first is DELIVERED to a session, not merely stated in a file — no command to remember (R106)" {
+  # The owner's constraint, verbatim: "I will forget to run these commands — is there any way to
+  # make it proactive instead of hoping I remember?" So a placement that only exists as a slash
+  # command fails the requirement no matter how good its prose is. The property under test is
+  # DELIVERY: the reflex must ride the SessionStart injection (R105) into every session, unasked.
+  # Asserting the file's bytes alone would pass with the whole injection path deleted — the exact
+  # "check that re-implements the logic" hole recorded in LESSONS.
+  local core; core="$(awk '/injection stops here/{exit} {print}' "$ROOT/STEERING.md")"
+  [[ "$core" == *"SKETCH BEFORE CODE"* ]]        # ...and ABOVE the marker, or it is never injected
+  [[ "$core" == *"interface delta"* ]]
+  [[ "$core" == *"No sketch = not scoped yet"* ]]
+
+  # Now the half that matters: a fresh session receives it without anyone typing anything.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  _ss_ctx "$repo" ""
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"SKETCH BEFORE CODE"* ]]
+  [[ "$output" == *"interface delta"* ]]
+}
+
+@test "a drained autopilot run offers a quality read — the lights-off gap has a nudge (R107)" {
+  # Autopilot parks DECISIONS but never pauses on structural erosion, because erosion never
+  # presents as a decision — it presents as a diff that passes. This is the cheapest honest
+  # counterweight (owner-picked over a Stop hook, which would re-open R100/Pass 4): a nudge that
+  # rides the same injection, and becomes a parked ❓ under autopilot like every other nudge.
+  local core; core="$(awk '/injection stops here/{exit} {print}' "$ROOT/STEERING.md")"
+  [[ "$core" == *"drained under autopilot"* ]]
+  [[ "$core" == *"/companion:advise"* ]]
+  # It must sit in the Nudging section, so the once-only + park-under-autopilot rules govern it.
+  local nudge; nudge="$(awk '/^## Nudging/{f=1;next} /^## /{f=0} f' "$ROOT/STEERING.md")"
+  [[ "$nudge" == *"drained under autopilot"* ]]
+  [[ "$nudge" == *"Surface each"* ]]   # ...the once-only rule is in the same block, still
+
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  _ss_ctx "$repo" ""
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"drained under autopilot"* ]]
 }
 
 @test "tq report: next skips work that waits on an unanswered item (R47)" {

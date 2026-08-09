@@ -1,0 +1,9 @@
+{
+  "id": "41",
+  "subject": "autopilot quality checkpoint (owner-picked): nudge line — a run of tasks drained under autopilot -> offer /companion:advise on what it touched",
+  "status": "completed",
+  "done_when": "line present in ## Nudging; parks as a ❓ under autopilot like every other nudge",
+  "context": "plugins/companion/STEERING.md (## Nudging)",
+  "blocks": [],
+  "blockedBy": []
+}

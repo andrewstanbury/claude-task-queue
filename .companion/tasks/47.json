@@ -1,0 +1,10 @@
+{
+  "id": "47",
+  "subject": "add UN-8 to needs.yaml and re-trace R106/R107 onto it — my draft wording is provisional, owner rewords",
+  "status": "completed",
+  "done_when": "needs.yaml carries UN-8; R106 (and R107 where honest) satisfy it; dev/trace.sh green both directions; check.sh PASS",
+  "context": "docs/needs.yaml, docs/requirements.yaml R106/R107, dev/trace.sh, docs/adr/README.md R106",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "adding UN-8; must also fix the header's 'Seven.' count and its derived-from-PRIN claim"
+}

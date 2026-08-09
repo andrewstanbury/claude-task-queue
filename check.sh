@@ -108,13 +108,30 @@ section "Token budget (injected artifacts stay capped — R69)"
 # advisory (the pre-R69 STEERING silently grew to 2.5x its documented token size — a doc-only
 # budget demonstrably fails). BSD wc pads output — strip whitespace before numeric use (LESSONS).
 tok_fail=0
+# ONE owner for the cap. It was hardcoded at three sites (the test, the FAIL message, the ok
+# message); a raise that missed a message would report a number the gate no longer enforces —
+# output that lies while staying green, which is this repo's own recorded failure shape.
+core_cap=8576
 core_b="$(awk '/injection stops here/{exit} {print}' plugins/companion/STEERING.md | wc -c | tr -d '[:space:]')"
 marker_n="$(grep -c 'injection stops here' plugins/companion/STEERING.md || true)"
 # Marker must appear EXACTLY once: zero → the whole doc gets injected; two+ → the awk cut
 # silently truncates the core at the first occurrence while this gate keeps reading green.
 if [ "${marker_n:-0}" -ne 1 ]; then
   echo "  FAIL STEERING.md: 'injection stops here' marker count is ${marker_n:-0}, must be exactly 1"; tok_fail=1; failsec
-elif [ "${core_b:-0}" -gt 8384 ]; then
+elif [ "${core_b:-0}" -gt "$core_cap" ]; then
+  # 8384 -> 8576 (2026-08-09) funds the sketch-first reflex: a structural change (new seam or
+  # dependency, data-model / interface change) states its interface delta + call-stack BEFORE code,
+  # then slices into tasks carrying that sketch as `--context`. ~137B = ~34 tokens/session, with
+  # 55B headroom. Owner-asked after reading humanlayer's "why software factories fail": tests
+  # answer in seconds, bad structure bills for months, and nothing in this loop measured that.
+  # Funded FIRST by 217B of duplication cut from the core in the same change — the advisory/`bin`
+  # split (already in flows/_quality-bar.md N4 + the below-marker rationale), the wireframe clause
+  # (already in `Run in auto`), Posture's autonomy sentence (already in `Run in auto`), the
+  # ripples-wide nudge (the new reflex owns splitting), and a stale header claiming STEERING is
+  # "never automatically" injected, which R105 made false when it reinstated SessionStart.
+  # FOURTH raise, and recorded as a smell for the same reason the 2026-08-03 note gives: the cap
+  # only works as a forcing function while it occasionally binds, and being AT it is what surfaced
+  # the 217B of duplication above. If a fifth is proposed, rebuild the core instead (R55).
   # 8192 -> 8384 (2026-08-07) funds R99: `--context` alongside `--done` on a task (what's
   # load-bearing for it survives a compaction/clear, the way the acceptance test always did), and
   # decompose-park (R65) triggering on "wide to gather" as well as "risky" — a task that would need
@@ -154,7 +171,7 @@ elif [ "${core_b:-0}" -gt 8384 ]; then
   # This is still a 40% cut from 11097B, with the eight restored and ~380B of honest headroom.
   # A cap should track what the content genuinely needs; it stops being a budget the moment it
   # starts deciding what the content is allowed to say.
-  echo "  FAIL STEERING.md injected core: ${core_b}B > 8384B"; tok_fail=1; failsec
+  echo "  FAIL STEERING.md injected core: ${core_b}B > ${core_cap}B"; tok_fail=1; failsec
 fi
 # LESSONS is two-tier like STEERING (owner-picked 2026-08-01): the cap applies to what is actually
 # INJECTED, not to the file. Without the split the file was 5B under its ceiling while the process
@@ -186,7 +203,7 @@ if ! out="$(dev/doc-lint.sh ledger docs/adr/PROVENANCE.md)"; then
 fi
 [ "$led_fail" -eq 0 ] && echo "  ok (ledger measurements cite their evidence)"
 
-[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/8384B; command descriptions ≤140B; arg-taking commands hinted)"
+[ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/${core_cap}B; command descriptions ≤140B; arg-taking commands hinted)"
 
 # NOTE: the contract-drift backstop (bin/contract-drift.sh) deliberately does NOT run here
 # (R58 amended 2026-07-22): a warning on every mid-work gate run — where drift is the normal

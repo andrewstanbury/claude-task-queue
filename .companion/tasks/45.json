@@ -1,0 +1,10 @@
+{
+  "id": "45",
+  "subject": "sync docs/flows/_patterns.md + docs/MAP.md if the reflex changes what they describe",
+  "status": "completed",
+  "done_when": "no doc still describes the pre-change behaviour; check.sh doc lints green",
+  "context": "docs/flows/_patterns.md, docs/MAP.md",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "syncing _patterns.md + MAP.md"
+}

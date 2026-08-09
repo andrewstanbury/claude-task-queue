@@ -48,3 +48,5 @@
 1786224677 ci-red .github/workflows/ci.yml
 1786225413 ci-red .companion/rework
 1786225413 ci-red dev/tests/companion-core.bats
+1786298325 owner-supplied plugins/companion/STEERING.md
+1786299954 da-caught plugins/companion/bin/autopilot.sh

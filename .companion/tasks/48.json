@@ -1,0 +1,9 @@
+{
+  "id": "48",
+  "subject": "BUG: autopilot 'resume' arms autopilot from a STALE pause marker — reproduced live 2026-08-09. pause correctly no-op'd ('already off — nothing to pause') and wrote nothing, but resume honoured an autopilot-paused marker left at 2026-08-08 16:55 by an earlier review that never resumed, and armed a mode the owner never turned on. Transient state outliving its session, which is exactly what task #19 flagged about mode files. Candidate fixes: (a) resume refuses a marker it cannot tie to THIS session, (b) pause writes a session/timestamp stamp and resume ignores a stale one, (c) resume is a no-op unless the same process paused it",
+  "status": "completed",
+  "done_when": "a stale marker CANNOT arm autopilot; a real pause->resume within a session still round-trips; bats covers both, and the stale case is proved by planting an old marker",
+  "context": "plugins/companion/bin/autopilot.sh, .companion/modes/, dev/tests/companion-core.bats, tq #19 (modes as committed state)",
+  "blocks": [],
+  "blockedBy": []
+}

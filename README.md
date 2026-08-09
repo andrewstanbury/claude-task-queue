@@ -95,9 +95,12 @@ Pro/Max plans after the session's first response; on an API key you won't see th
 The full design lives under [`docs/`](docs/) — the contract a rebuild must preserve, plus the map
 and ledger. `/companion:ship-it` keeps this index current (R57).
 
+- **[docs/needs.yaml](docs/needs.yaml)** — **level 0**: what "useful" means, in the owner's words. The one level an agent never authors, because a system that writes its own definition of useful has no falsifiable standard left.
+- **[docs/requirements.yaml](docs/requirements.yaml)** — **level 1, and the contract**: one observable behaviour per entry, each satisfying a real need and naming the tests that verify it. `dev/trace.sh` gates both directions, so a requirement with no test and a test with no requirement are equally loud.
 - **[docs/flows/](docs/flows/)** — the user-experience contract: one dense spec per user flow (`when · why · steps · quality · tests · changes` — machine shape, R66), with shared [conventions](docs/flows/_patterns.md) and a global [quality bar](docs/flows/_quality-bar.md).
 - **[docs/INVARIANTS.md](docs/INVARIANTS.md)** — the safety/correctness net: the must-holds, each tied to an executable check.
-- **[docs/adr/PROVENANCE.md](docs/adr/PROVENANCE.md)** — the requirements ledger (🔒 locked / 🔓 open / ⚰️ retired), the source of truth for durable decisions.
+- **[docs/adr/README.md](docs/adr/README.md)** — decisions, architecture choices and **rejected options**: why it is this way and what was turned down.
+- **[docs/adr/PROVENANCE.md](docs/adr/PROVENANCE.md)** — the *frozen* evidence behind the older requirements (🔒 locked / 🔓 open / ⚰️ retired). History, never edited — the live contract is `requirements.yaml`.
 - **[docs/MAP.md](docs/MAP.md)** — the code map: every file and what it does.
 - **[docs/ROADMAP.md](docs/ROADMAP.md)** — where it's heading.
 - **[docs/GLOSSARY.md](docs/GLOSSARY.md)** — the coined vocabulary.

@@ -1,0 +1,10 @@
+{
+  "id": "43",
+  "subject": "bats tests that CAN redden for both new prose reflexes",
+  "status": "completed",
+  "done_when": "each test FAILS when its STEERING line is deleted (proved by deleting it, then restoring)",
+  "context": "dev/tests/companion-core.bats",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "writing prose-existence tests that can actually redden"
+}

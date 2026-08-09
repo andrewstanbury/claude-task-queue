@@ -1,0 +1,10 @@
+{
+  "id": "44",
+  "subject": "ADR entry recording this decision + the rejected placements (command / doc-class / tq field)",
+  "status": "completed",
+  "done_when": "docs/adr/README.md carries the entry, naming the 4 rejected placements and why",
+  "context": "docs/adr/README.md",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "writing the ADR entry; must name the 4 rejected placements"
+}

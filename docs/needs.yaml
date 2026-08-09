@@ -4,13 +4,15 @@
 # Written in the owner's language, about outcomes. No mechanism, no R-IDs, no implementation. If a
 # need names HOW, it has leaked down a level and belongs in requirements.yaml.
 #
-# Derived from the 22 PRIN rows in docs/adr/PROVENANCE.md (see dev/ledger-classification.tsv). Those
-# rows are the closest thing this project had to needs — but almost every one was phrased as a
-# CONSTRAINT ON THE IMPLEMENTATION ("no hardcoded allowlists", "hooks are best-effort") rather than
-# as something a person wanted. Recovering the want behind each constraint is the whole point of
-# this file; the constraints themselves survive as requirements, traced back up to here.
+# UN-1..UN-7 are derived from the 22 PRIN rows in docs/adr/PROVENANCE.md (see
+# dev/ledger-classification.tsv). Those rows are the closest thing this project had to needs — but
+# almost every one was phrased as a CONSTRAINT ON THE IMPLEMENTATION ("no hardcoded allowlists",
+# "hooks are best-effort") rather than as something a person wanted. Recovering the want behind each
+# constraint is the whole point of this file; the constraints themselves survive as requirements,
+# traced back up to here. UN-8 has no PRIN row behind it — it was authored fresh (2026-08-09), which
+# is why it was missing: nothing in the old ledger ever asked for it.
 #
-# Seven. If this list grows past ten, the product has acquired a second purpose and should be split
+# Eight. If this list grows past ten, the product has acquired a second purpose and should be split
 # rather than described.
 #
 # THIS LEVEL DOES NOT EXPIRE, and that is why it carries no `affirmed:` stamp while every
@@ -81,3 +83,17 @@
     Everything injected is rent paid in every session forever, and every unnecessary interruption
     is the cost the autonomy was supposed to remove.
   from: [R3, R15, R16, R51]
+
+# WORDING IS PROVISIONAL — drafted by Claude 2026-08-09 and approved in shape, not in prose. Level 0
+# is the owner's act in the owner's words (header above); overwrite this freely, it changes nothing
+# downstream but the sentence. Origin: humanlayer's "Why Software Factories Fail" — the audit it
+# prompted found companion had requirements serving a want that was never written down here, which
+# is exactly the gap this level exists to make visible.
+- id: UN-8
+  need: >
+    I want the codebase to still be workable in six months — not just passing its tests today.
+  because: >
+    Tests answer in seconds; bad structure bills for months. If the agent can pass every check
+    while making the next change harder, the green tick is measuring the wrong thing and I only
+    find out when it is expensive.
+  from: [R106, R107]

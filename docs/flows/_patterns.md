@@ -11,11 +11,16 @@ Requests → `tq` tasks, smallest-blast-first, each with done-when; one at a tim
 ## wireframe-first [S]
 Visual change → wireframe/ASCII agreed before code. 👁
 
+## sketch-first [E/S]
+Structural change (new seam or dependency, data-model or interface change) → interface delta + call-stack stated BEFORE code, then sliced into tasks carrying the sketch as `--context` [R106]. Steering, not a command, and delivered by the SessionStart injection so it fires unasked — an opt-in design step is what the failure mode eats (adr R106).
+- [E] `sketch-first is DELIVERED to a session, not merely stated in a file — no command to remember (R106)` ✅
+
 ## clean-as-you-go [S]
 Weigh blast radius · subtract · YAGNI · verify by exercising · one-line recap. 👁
 
 ## offer-not-act [S]
-Nudges are offers: debt→task · big-blast→split · repetitive-drain→autopilot · finished-chunk→ship-it. 👁
+Nudges are offers: debt→task · repetitive-drain→autopilot · **drained-run→advise on what it touched** [R107] · finished-chunk→ship-it. 👁
+- [E] `a drained autopilot run offers a quality read — the lights-off gap has a nudge (R107)` ✅
 
 ## contract-preserving-rebuild [S]
 `redesign` reproduces logged flows + quality bar, gated on safety checks, on a branch; implementation may change, experience may not. 👁

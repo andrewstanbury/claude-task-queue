@@ -52,7 +52,7 @@ plugins/companion/bin/tq::s@Run /companion:review — it asks the whole pile at 
 plugins/companion/bin/burndown-branch.sh::s@mkdir -p "$MANIFEST_DIR" || die@mkdir -p "$MANIFEST_DIR" 2>/dev/null; true || die@::a branch is opened even when its manifest cannot be written
 plugins/companion/bin/burndown-branch.sh::s@valid_slug "$slug" || die@true || die@::a slug can escape the manifest dir again via ../
 plugins/companion/bin/burn-down.sh::s@grep -cv -e '\^  ◻ \*❓' -e '\^  ◻ \*⏳'@grep -c '^  ◻'@::parks and blocked items block burn-down again, making rank 1 unreachable
-plugins/companion/bin/autopilot.sh::s@if ! companion_mode_set "$root" autopilot-paused; then@if false; then@::pause disarms autopilot without recording that it was armed
+plugins/companion/bin/autopilot.sh::s@if ! _pause_stamp "$root"; then@if false; then@::pause disarms autopilot without recording that it was armed (re-aimed R108: the marker write moved from companion_mode_set into _pause_stamp, one writer instead of two)
 plugins/companion/bin/autopilot.sh::s@if ! companion_mode_set "$root" autopilot; then@if false; then@::resume destroys the paused marker without re-arming
 plugins/companion/bin/tq::s@if ( set -o noclobber; : > "$DIR/$id.json" ) 2>/dev/null; then@if true; then@::tq id allocation races again — concurrent adds silently overwrite each other
 plugins/companion/bin/burndown-branch.sh::s@case "$slug" in "$def"|main|master) die "slug@case "$slug" in zzzNEVER) die "slug@::start mints a branch discard can never remove
@@ -111,3 +111,6 @@ plugins/companion/mcp-server/index.js::s@❓ \[parked\]@[parked]@::decompose_int
 plugins/companion/bin/session-start.sh::s@if \[ "\$src" = "compact" \]; then@if false; then@::session-start.sh never takes the short compact re-anchor, so every compaction re-injects the full STEERING core at full token cost
 plugins/companion/bin/ask-guard.sh::s@companion_autopilot_on "\$root" || exit 0@:@::ask-guard.sh denies AskUserQuestion even with autopilot off, blocking every question unconditionally
 plugins/companion/bin/ask-guard.sh::s@_dup=0; grep -qsF "\${subject:0:120}" "\$_store"/\*.json 2>/dev/null && _dup=1@_dup=0@::ask-guard.sh never detects a duplicate, so a retried question parks itself again on every attempt
+plugins/companion/STEERING.md::s@SKETCH BEFORE CODE@SKETCH@::the steering core stops telling the model to state an interface delta + call-stack BEFORE building structure, so design silently reverts to being emitted alongside the code
+plugins/companion/STEERING.md::s@drained under autopilot@drained@::the drained-run quality nudge disappears, and with it autopilot's only counterweight to structural erosion
+plugins/companion/bin/autopilot.sh::s@if \[ -f "$pflag" \] && ! _pause_is_ours "$root"; then@if false; then@::resume stops checking that the pause marker belongs to THIS session, so a stale marker from another session arms autopilot again (the live 2026-08-09 defect)

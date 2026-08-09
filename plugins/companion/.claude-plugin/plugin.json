@@ -1,6 +1,6 @@
 {
   "name": "companion",
-  "version": "3.81.0",
+  "version": "3.82.0",
   "author": {
     "name": "Andrew Stanbury"
   },
@@ -8,7 +8,9 @@
   "mcpServers": {
     "companion-tq": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/index.js"]
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/mcp-server/index.js"
+      ]
     }
   }
 }

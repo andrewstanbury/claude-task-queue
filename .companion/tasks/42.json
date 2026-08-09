@@ -1,0 +1,9 @@
+{
+  "id": "42",
+  "subject": "contract delta: new requirement for the sketch-first reflex + the autopilot review nudge, each with a real verified_by test",
+  "status": "completed",
+  "done_when": "requirements.yaml entries added, each satisfies a real need; dev/trace.sh green both ways",
+  "context": "docs/requirements.yaml, docs/needs.yaml, dev/trace.sh",
+  "blocks": [],
+  "blockedBy": []
+}

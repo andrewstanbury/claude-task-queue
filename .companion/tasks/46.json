@@ -1,0 +1,15 @@
+{
+  "id": "46",
+  "subject": "❓ [parked] needs.yaml has NO maintainability need — the article's entire thesis is that structural erosion is the cost nothing measures, and level 0 is silent on it. R106 traces to UN-3 (review before commitment) because that is the closest honest fit, NOT the right one. Authoring a need is never mine (needs.yaml header / R86), so this is yours or it stays open. Shape if you want one: 'I want the codebase to still be workable in six months — not just passing its tests today.' Cost of adding: needs.yaml says seven is the ceiling before the product has acquired a second purpose, so an eighth is itself a signal worth weighing; rec: add it — R106 and R107 both exist to serve a need that is not written down, and a requirement tracing to a need it does not really satisfy is the drift the V-model gate exists to catch",
+  "status": "completed",
+  "done_when": "owner authors UN-8 in their own words, or explicitly declines and R106/R107 keep their UN-3/UN-2 traces with this park recorded as the reason",
+  "context": "docs/needs.yaml, docs/requirements.yaml R106/R107, docs/adr/README.md R106",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-09T18:22:14Z",
+      "text": "decided: ADD UN-8 (maintainability/workability over time). Owner picked add-an-eighth over widening UN-5 and over keeping the UN-3 trace. My draft is a starting point — level 0 is the owner's words, so the wording is theirs to overwrite."
+    }
+  ]
+}
