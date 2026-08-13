@@ -1,0 +1,15 @@
+{
+  "id": "54",
+  "subject": "A: the three observation-point steering lines — (1) --done names where the OWNER meets it in THEIR runtime, not what the agent can close alone; (2) 'I can't verify X' is never a conclusion, it is a ❓ park asking HOW; (3) an owner naming their runtime makes that runtime the verification target. Goes in the injected core, above the R69 marker.",
+  "status": "cancelled",
+  "done_when": "the three lines are in the core above the marker, check.sh token budget green, and a bats test reddens if any of the three is removed",
+  "context": "plugins/companion/STEERING.md (Working section, 'Verify observably' bullet), docs/needs.yaml UN-5",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-10T16:40:25Z",
+      "text": "BLOCKED on the parked 154B shortfall (check.sh:132 forbids a fifth cap raise without owner override). The replacement bullet is DRAFTED and measured at 531B vs the 376B it replaces — staged at scratchpad/bullet2.md, one edit away from landing once the owner rules."
+    }
+  ]
+}

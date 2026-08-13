@@ -338,3 +338,249 @@ armed, which **R86** makes the owner's call, not mine. It was kept only because 
 — fix, test and entry land together, and dropping the entry alone reddens `dev/trace.sh` on the
 orphan-test direction — and the ratification is parked (`#49`) rather than assumed.
 | 2026-08-09, defect reproduced live; fix chosen from three candidates recorded at queue time.
+
+## R109 — DECISION 🔓
+
+**Evidence at the completion boundary.** `tq done --seen "<what was exercised, in which running
+thing>"`, refused by `seen-gate.sh` when it reports the agent's own layer, and rendered back by
+`tq list`.
+
+**Owner-reported, 2026-08-10, from four misses with one shape:** completion declared at the
+boundary of what a shell can observe, when the owner's experience of the work lived one layer
+further out. A media fix written, tested, committed and reported done — never **deployed**. A route
+move proved by a typecheck that **cannot see string-typed router paths**. An approval gate whose
+refuse path was proved and whose **accept path was declared untestable while `pty.openpty()` was
+available the whole time**. A bundle server three days stale while code and API were inspected
+instead. *Every check run was real. None was the check that mattered.*
+
+The four are not equal, and the ranking drove the design. Two are **observation-layer** errors —
+prose can plausibly move them. One is a **state** error (built ≠ deployed) that only a mechanism
+catches. The fourth is the deep one: a **self-issued verdict of impossibility that never got tested
+against the owner**. It is structurally a decision — it trades verification for delivery — but it
+never enters the parked pile because it does not look like a choice, so it walks straight past
+UN-2's "decisions reach the owner intact". That is the miss the steering half targets.
+
+**Rejected: `B`, a `.companion/surfaces` manifest + freshness probe at ship** — the only option with
+a real mechanism, and it was the runner-up. Two costs sank it: it fires only at the **ship**
+boundary, and three of the four misses were declared done long before ship (it narrows the window,
+it does not close it); and an unmaintained manifest **certifies staleness**, which is UN-5's own
+named failure shape — a green tick that cannot fail is worse than no tick. **Rejected: `D`, do
+nothing** on the R28 ceiling. The owner took `A+C` over both.
+
+**Funding, and a recorded pre-commitment honoured.** `A`'s steering half is an in-place rewrite of
+the existing `Verify observably` bullet — 376B → 531B — because that bullet **already covered this
+territory and lost**, so replacing it beats stacking a fourth line beside it. It still needs 154B
+the core does not have (8575 against a 8576 cap). `check.sh:132` records *"FOURTH raise… If a fifth
+is proposed, rebuild the core instead (R55)"*, so **the cap was not raised**: the shortfall is
+parked with its four options, and `A` is not shipped until the owner rules. Scanned for the
+subtraction that funded the fourth raise and there is no honest 154B left — the core's
+`wireframe` / `decompose-park` / `playtest` mentions are two-tier **pointers**, and cutting a
+pointer breaks the reference.
+
+**Named limit, stated where it is enforced.** `--seen` is **fabricable by design** and `A` is prose
+the model can skip — and **two of the owner's four misses already had prose covering them**
+(`Verify observably — exercise, don't assert`, `Human-observable surface → offer a playtest`) and
+both lost. The whole bet is that naming the specific shapes beats stating the principle. That bet
+is unproven, and it is the part of this decision most likely to be wrong.
+
+Composes **R78** (the `--da` guard this mirrors, including its recorded non-ASCII bug), **R58·a**
+(the retired capture hook — why the reader is pinned by its own assertion), **R28** (the ceiling),
+**R9** (plain-English shape check, never an ecosystem table).
+| 2026-08-10, owner-picked `A+C` from a 4-option review menu, then "do all of your recommendations".
+
+### R109·b — a backstop that manufactured the thing it backs up
+
+Shipping R109 surfaced a live defect in `ask-guard.sh`, found the only way it could be: **by the
+product parking a real decision of its own.** The auto-park cut every option description to 80
+chars and the whole payload to 900 bytes, **both silently**. On the 4-option park that funded this
+very entry, every cost clause — the byte-budget raise, the per-project setup, the staleness risk —
+landed mid-word, and what reached the queue read like a complete thought. The payload had to be
+re-attached by hand with `tq note`.
+
+STEERING's autopilot block says a thin park "makes the review a rubber-stamp". The **backstop was
+manufacturing exactly that**, on the path taken when the model forgets to park for itself — so the
+failure lands precisely when the discipline has already lapsed. Same class as **R108**: correct in
+isolation, wrong at the seam.
+
+Fixed by removing the per-description cut and raising the payload ceiling to 6000, but the real
+change is that **a cut now says so** (`…[TRUNCATED — …]`). A truncation a reader cannot see is
+worse than a truncation, because it reads as the end of the sentence. `tq list` is non-truncating
+by design; the queue could always have held the whole thing.
+| 2026-08-10, defect measured live while parking R109's own funding question.
+
+### R109·c — the parity gap I shipped, then caught
+
+`--seen` first landed on the CLI only. `tq_done`'s MCP wrapper still took `{id}`, so **every
+MCP client — Cursor, or Claude Code with the server registered — could close a task with evidence
+the CLI would have refused**, while `docs/MAP.md` claimed the server is "byte-identical to the CLI".
+The mechanism was invisible on exactly the surface R100 built the server for.
+
+Caught by reading the wrapper rather than by any gate: no test asserted parity for a parameter that
+did not exist yet, which is the blind spot a **new** optional argument always has. The fix passes
+`seen` straight through — the guard is never re-implemented in JS, so both surfaces refuse the same
+strings — and the new parity test reddens if the parameter is dropped again.
+| 2026-08-10, found while checking MAP.md's parity claim against the code.
+
+## R110 — DECISION 🔓
+
+**The gate could not fail on the file that matters most.** `check.sh` builds its lint set as
+`scripts=(check.sh plugins/*/bin/*.sh plugins/*/lib/*.sh)`. **`bin/tq` has no `.sh` extension** and
+is the only extensionless file in `bin/`, so THE task queue — R8/R10, the file every command and
+the MCP server route through — was outside **ShellCheck, portability-lint and the 300-line size
+guard simultaneously**. It had grown 355 → 382 lines with nothing to say so.
+
+Found by asking why the size gate stayed green while `tq` was visibly over the cap. Nobody decided
+this; a glob did. That is the worst version of a hole, because it is indistinguishable from
+coverage — which is exactly what **UN-5** says is worse than no check at all.
+
+**Rejected: widening the glob to `bin/*`.** It closes today's hole and opens an unknowable one — the
+set a gate iterates must stay something a reader can enumerate, and `bin/*` would silently absorb
+any future non-script. Named the file instead.
+
+**Rejected: decomposing `tq` in the same change.** Every command and the MCP server depend on it;
+doing high-blast surgery inside the change that *discovered* the hole is how a fix becomes an
+incident. Queued (tq #63) and exempted **out loud** instead: the exemption prints on every run,
+names the task that closes it, and the gate goes **RED** once `tq` drops under 300 — so the skip
+cannot outlive the debt it documents. An exemption nobody can see is a lie; one that survives its
+own fix silently re-opens the hole.
+
+**Provenance worth recording.** This surfaced while draining a task queued *because the owner asked
+autopilot to keep going instead of stopping at the parked pile* — the tail of the queue, not the
+head, which is the part that never gets reached when a run stops early.
+| 2026-08-11, hole measured live; both guards mutation-verified.
+
+## R111 — DECISION 🔓 (reverses R105's and R107's declines)
+
+**Autopilot's "keep going" is a hook again.** While autopilot is armed and a **startable** task
+remains, `stop-autopilot.sh` refuses the stop and hands over the next task.
+
+**Why the third time was different: behaviour, not argument.** A Stop hook was offered on
+2026-08-08 (**R105**) and declined, and again on 2026-08-09 (**R107**), where it is recorded as
+*"the only option that could not be skipped"* and rejected anyway. What changed is evidence. In the
+session that produced this, STEERING already said *"keep draining; don't stop to ask"* — and the
+model stopped with a startable task in the queue and reported instead. That is the same shape as
+the two misses in the owner's 2026-08-10 defect report that **already had prose covering them and
+lost**. A nudge the model can skip is not a mode (**R36**).
+
+The confirming detail arrived the same day: **R110** — a gate that could not fail on the most-called
+file in the product — was found only while draining *past* the parked pile, into the tail of the
+queue. That is exactly the region a run that stops early never reaches, and it is the concrete
+argument the two earlier declines did not have.
+
+**PARTIAL restore — 135 of the retired 183 lines**, and the omissions are the decision, not an
+accident of the splice. Both dropped concerns acquired another owner while the file was gone:
+**ship-mode auto-commit (R34)** now belongs to `bin/ship-checkpoint.sh`, invoked deliberately; the
+**burn-down hand-off (R82)** is now something STEERING tells the model to call itself. Restoring
+either would put two owners on one concern and silently re-automate a path the owner made manual on
+purpose. What came back is the continuation guarantee plus **every terminator that bounds it** — the
+no-progress stall cap, the R81 wall-clock and total-turn run bounds, the R77 sweep terminator, and
+the `CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0` kill switch. **Restoring the continuation without its
+bounds would have been the one genuinely dangerous version of this change**, and each bound is
+pinned by a test that reddens when it is disabled.
+
+**Cost, stated where it was chosen.** This is Claude-Code-only: MCP clients (Cursor) get nothing
+from it, and R100's portability thesis pays for it. The hook is also now in the **measured** R81
+budget (`dev/hook-budget.sh`, 0.98x scaling at 8x store size) and in the fuzz set — restoring code
+without restoring its measurement would have re-shipped the guarantee and dropped the guard on it.
+
+**Named limit.** The hook was **verified inert in the running session**: the plugin cache serves
+3.82.0, whose `hooks.json` declares no `Stop` entry, while the source is 3.83.0. It changes nothing
+until the owner refreshes the plugin (tq #62). Saying so is the point — this repo's own hard
+constraint is that the hooks which fire are not the ones you edit.
+| 2026-08-12, owner-picked "partial restore" from a 4-option menu after a paused-autopilot review.
+
+## R112 — DECISION 🔓
+
+**The review opens with a multi-select accept sweep.** Tick the recommendations you already agree
+with — arrow keys, enter — and only the rest get walked one at a time.
+
+**What was actually missing.** The owner asked for arrow-key selectable recommendations, and that
+already existed: `/companion:review` has always driven `AskUserQuestion`. Diagnosing the request as
+"build the picker" would have rebuilt a working feature and fixed nothing. The real defect was that
+**agreeing cost the same interaction as overruling** — every park was its own single-select menu, so
+a twelve-item pile was three rounds of arrowing through options to say "yes, your pick". The tool
+takes 2–4 options per question and 4 questions per call, so grouping into questions of four accepts
+**16 parks per interaction** against 4.
+
+**The safety property is the requirement.** A `multiSelect` payload returns only the PRESENCE of a
+yes — there is no "no" in it. A review that read an unticked box as a rejection would **silently
+invent decisions across the entire pile**, which is strictly worse than the drip-feed it replaces
+and is precisely what **UN-2** forbids: *"I do not want anything else pretending to be [a
+decision]"*. So unticked means **"ask me properly"**, and the item falls through to its own full
+menu with its options intact.
+
+**Excluded, each for its own reason:** `⏳` blocked items (an owner *action* is not a recommendation
+to accept), `decompose:` parks (**R65** — they carry questions, not options, so there is nothing to
+accept yet), and any park whose `rec:` is a thin guess. **Irreversible parks stay eligible** — the
+owner is consciously ticking, unlike **R77** sweep mode where the agent applies `rev:` picks
+unattended — but they are labelled `⚠ IRREVERSIBLE` so a batch tick cannot hide a one-way door.
+
+**Named limit.** Prose: the ceiling is **R28**. A **R56·P3** structural guard pins that the sweep
+and its absence-is-not-rejection rule were not deleted; nothing can pin that they are obeyed.
+
+**Process note, against myself.** **R58** says a change to what the owner *does* moves the flow page
+FIRST. I wrote the command and the guard before touching `docs/flows/`, and only caught it while
+looking for the flow page to update — at which point I also found `hands-off-drain.md` still
+asserting `stop-autopilot.sh` was retired, **R111 drift I had left behind a turn earlier**.
+`contract-drift.sh` runs at the ship boundary by design (R58), so nothing was going to catch either
+until much later.
+| 2026-08-12, owner-asked; the picker already existed, the batch did not.
+
+### R87·b — the dependency that never parsed
+
+**Owner-reported 2026-08-12: "autopilot doesn't seem to be running through the backlog."** It had
+two independent causes, and only one was the one being discussed.
+
+**Cause 1, mechanism:** the restored Stop hook (**R111**) is inert — the plugin cache serves 3.82.0,
+which declares no `Stop` entry. Nothing can force continuation until the owner refreshes (tq #62).
+
+**Cause 2, and the one that mattered more:** `tq stopfields` reported **STARTABLE=4** while every
+one of those tasks was in fact waiting on an unanswered park. **The dependencies existed only in
+prose written to the owner.** Had the hook been live, it would have driven straight into a task
+whose entire premise was a decision the owner had not made yet — *worse* than not running, because
+it would have looked like progress.
+
+**Root cause: `after #<id>` in the subject is the ONLY dependency syntax `stopfields()` reads, and
+it was documented nowhere** — not in `tq --help`, not in `STEERING.md`. Writing `(after 1/2)`, which
+is what had been written on the real task, parses as nothing and leaves the task looking perfectly
+startable. **A dependency that silently fails to parse is worse than one that errors**: the queue
+does not go quiet, it reports confident nonsense.
+
+**Compounding it, `blocks`/`blockedBy` are vestigial** — initialised `[]` at `add`, never written by
+any verb, never read by anything (grepped: zero readers, zero writers). They look exactly like the
+dependency mechanism and are not, which cost two tool calls of misdiagnosis before the real parser
+was found. That is **R58·a's "data nobody reads"** in schema form. Documented at the only line that
+touches them rather than removed, so old task files stay shape-stable.
+
+**Fixed:** the syntax is documented in `tq --help`; the live backlog was re-encoded with real
+`after #<id>` dependencies (STARTABLE 4 → 0, which is the honest number); a test pins both the
+parser's strictness and the documentation, each mutation-verified. The behaviour was never
+wrong — only invisible, which is the same shape as **R110**.
+| 2026-08-12, owner-reported; diagnosed by reading stopfields rather than trusting the field names.
+
+### R110·b — the debt was paid, and the trap is what collected it
+
+`bin/tq` is **285 lines**. The named size exemption is **deleted**, and it was not deleted because
+anyone remembered — the staleness check written alongside it went **RED** the moment `tq` dropped
+under 300 (*"FAIL stale exemption: plugins/companion/bin/tq is now 285 lines — delete the size_skip
+block"*) and refused a green gate until the block was gone. A debt marker that cannot expire on its
+own is how the 382-line drift happened in the first place.
+
+**The seam is cohesion, not line count.** `usage()` and `report()` moved to `bin/tq-output.sh`:
+everything there **renders**, nothing there **decides**. Queue state — id allocation, the
+atomic-rename crash-safety, `stopfields()`'s startable selection — stayed in `tq`, because splitting
+state across files is how two owners of one concern start. This is why the earlier proposal to
+extract `usage()` alone was **refused**: 21 lines of help text chasing a number, landing at ~333 and
+still over, is the seam-smell trap STEERING names.
+
+**The parked objection was measured and was wrong.** Extracting `report()` was held back on the
+grounds that it is the hot path and a `source` would cost every `tq` invocation. Measured before
+acting, per R110's own lesson: **0.634s vs 0.635s over 100 invocations** — inside the noise floor,
+against a ~21ms `tq report`. The cost I had flagged did not exist, and the number settled it rather
+than my intuition. Worth recording that the caution was unfounded, not just that the extraction
+happened.
+
+**The guard was rewritten, not retired.** It watched an exemption that no longer exists; it now pins
+that **no size exemption may reappear**. A named, printed, self-expiring exemption was defensible
+for a day. A silent one is how `tq` reached 382 unseen.
+| 2026-08-12, trap fired on its own terms; the hot-path objection measured and disproved.

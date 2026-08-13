@@ -1,0 +1,10 @@
+{
+  "id": "78",
+  "subject": "A: the three observation-point steering lines (after #60) — (1) --done names where the OWNER meets it in THEIR runtime, not what the agent can close alone; (2) \"I cannot verify X\" is never a conclusion, it is a ❓ park asking HOW; (3) an owner naming their runtime makes that runtime the verification target. Blocked on #60 because the replacement bullet needs 154B the injected core does not have.",
+  "status": "completed",
+  "done_when": "the three lines are in the core above the R69 marker, check.sh token budget green, and a bats test reddens if any is removed",
+  "context": "plugins/companion/STEERING.md Verify-observably bullet, scratchpad/bullet2.md (drafted, measured 531B vs the 376B it replaces), check.sh core_cap",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "the three lines are in the injected core and DELIVERED — drove session-start.sh with real JSON on a scratch repo and read the three shapes plus \"never a conclusion\" and \"what is actually serving it\" back out of the hook output; removing the cant-test line or the runtime-target clause each reddened the test"
+}

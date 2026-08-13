@@ -84,8 +84,12 @@ build_store "$TMP/small" "$BASEDIRS"
 build_store "$TMP/big"   "$((BASEDIRS * MULT))"
 SID="s0"   # a session dir that exists in both stores, for the session-scoped hooks
 
-# Realistic stdin for each hook. stop-autopilot.sh stays retired (R100/Pass 4); session-start.sh
-# and ask-guard.sh are back (R100/Pass 6) and both read the task store, so both belong here now —
+# Realistic stdin for each hook. session-start.sh and ask-guard.sh are back (R100/Pass 6) and
+# stop-autopilot.sh is back too (owner-decided 2026-08-12, partial restore) — all three read the
+# task store, so all three belong here. The Stop hook is the store-scaling case that MATTERS most:
+# it fires on EVERY stop of an autopiloted run, and it calls `tq stopfields`, which reads the whole
+# session store. CLAUDE.md: an unmeasured budget is not a budget — restoring the code without
+# restoring its measurement would have re-shipped the guarantee and dropped the guard on it.
 # session-start.sh is in fact THE store-scaling-sensitive case this gate was originally written
 # against (see the header comment: 200 files 1.85x, 800 files 3.72x).
 jq -nc --arg c "$REPO" --arg s "$SID" '{model:{display_name:"Opus"},session_id:$s,
@@ -93,6 +97,9 @@ jq -nc --arg c "$REPO" --arg s "$SID" '{model:{display_name:"Opus"},session_id:$
 jq -nc --arg c "$REPO" '{cwd:$c,source:""}' > "$TMP/in-ss"
 jq -nc --arg c "$REPO" --arg s "$SID" \
   '{cwd:$c,session_id:$s,tool_input:{questions:[{question:"q",options:[{label:"A"}]}]}}' > "$TMP/in-ag"
+# The Stop hook, like ask-guard, only does real work while autopilot is ARMED (it exits at
+# `companion_autopilot_on` otherwise). The same arming below covers both.
+jq -nc --arg c "$REPO" --arg s "$SID" '{cwd:$c,session_id:$s}' > "$TMP/in-sa"
 # ask-guard.sh only does real work while autopilot is ARMED for the repo (its dedup grep + `tq
 # add` path) — off, it exits in one `companion_autopilot_on` check regardless of store size, which
 # would measure nothing. Arm it here, in the SAME state dir ms_of() uses below, so the benchmark
@@ -123,7 +130,8 @@ rc=0
 for spec in \
   "statusline.sh:in-sl" \
   "session-start.sh:in-ss" \
-  "ask-guard.sh:in-ag"
+  "ask-guard.sh:in-ag" \
+  "stop-autopilot.sh:in-sa"
 do
   script="${spec%%:*}"; inf="${spec##*:}"
   [ -f "$BIN/$script" ] || continue

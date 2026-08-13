@@ -1,0 +1,15 @@
+{
+  "id": "60",
+  "subject": "❓ [parked] STEERING core is 154B short for option A, and closing it OVERRIDES A RECORDED PRE-COMMITMENT — check.sh:132 says 'FOURTH raise... If a fifth is proposed, rebuild the core instead (R55)'. I will not raise it silently. Measured: the in-place rewrite of the 'Verify observably' bullet is 531B vs the 376B it replaces (+155B); core lands 8730 vs cap 8576. options: A) fifth cap raise 8576->8730, +154B ≈ +38 tokens/session forever in every installed repo — the SMALLEST of the five raises, but it is a conscious override of check.sh:132 B) rebuild the core (R55) as check.sh instructs — the recorded answer; a whole-doc redesign that would likely free far more than 154B, but it is a big job and risks losing prose each of the four previous raises bought after a real incident C) pay by cutting named core prose — concretely the '→ next: is mechanical' bullet (~140B; it explains tq's OWN output and arguably belongs in 'tq --help', not in text billed every session) plus dropping '--seen' from the bullet (~40B); no cap change, but check.sh:132 itself warns that sacrificing prose to protect a byte count is 'the wrong trade in any budget' D) ship only the strongest third of A so it fits the 1 free byte — keep '\"I can't test this\" is a ❓ asking how, never a conclusion' (your miss #3, the deepest and the only one where the capability existed the whole time) and lose the built≠running/typed≠resolved shapes + the runtime-target line; rec: A — 154B is ~38 tokens/session and buys a fix for a live UN-5 defect you hit in production; the 'rebuild instead' pre-commitment was written against a 384B ask, not a 154B one, and rebuilding the whole core risks far more incident-funded prose than a 1.8% budget increase. Deliberately NOT marked rev: — overriding a recorded ledger decision must never be swept automatically.",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-13T06:06:37Z",
+      "text": "decided: A — raise the cap (owner, 2026-08-12, 'do it for me'). This is the FIFTH raise and a conscious override of check.sh:132's 'if a fifth is proposed, rebuild the core instead (R55)'. Owner made the call; recording that it WAS an override, not an oversight."
+    }
+  ]
+}

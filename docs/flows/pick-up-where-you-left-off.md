@@ -4,7 +4,7 @@ why: parked decisions are only trustworthy if they reliably reach the owner late
 
 steps:
 - `/companion:resume [branch]` — autopilot OFF first (resumed decisions go to the owner, not the next drain), then re-surface earlier tasks preserving ❓/⏳/📋 class; a named handoff branch is authoritative (missing → say so, skip the checkout, still do the local pickup; never guess another branch), no argument auto-detects [R75] [pattern:recommendation-first]
-- `/companion:review` — walk ❓+⏳ pile one at a time, recommendation-first; each pick written back BEFORE new work; `decompose:` parks run as context interviews → minimal-blast children [R65]; this is also the autopilot-off trigger
+- `/companion:review` — opens with a `multiSelect` ACCEPT SWEEP (R112): tick the recommendations you already agree with, arrow keys + enter, up to 16 parks per interaction; UNTICKED is not a rejection, it falls through to that item's own full options. ⏳ and `decompose:` parks are never swept. Then walks the rest recommendation-first; each pick written back BEFORE new work; `decompose:` parks run as context interviews → minimal-blast children [R65]; this is also the autopilot-off trigger
 
 quality:
 - resume never promotes a parked ❓ into plain open (would let the next drain decide it)
@@ -17,7 +17,7 @@ tests:
 - [E] `resume: carried tasks render the done-when + LATEST note sub-lines` ✅
 - [E] `resume survives a repo MOVE — scoping keys on a per-worktree identity` ✅
 - [E] `resume ISOLATES git worktrees — same history, separate trees, separate queues` ✅
-- [S] review walks pile recommendation-first, one at a time — judgment 👁
+- [S] review opens with the multiSelect accept sweep, then walks the rest recommendation-first — judgment 👁
 
 changes:
 - 2026-07-25 `resume [branch]` — explicit handoff pickup, auto-detect is the fallback [R75]

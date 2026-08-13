@@ -1,0 +1,10 @@
+{
+  "id": "51",
+  "subject": "BUG: ask-guard.sh's auto-park TRUNCATES option descriptions — found live on #50, same class as R108 (product defect found by running it on itself). The intercepted AskUserQuestion carried 4 options with their real costs (byte-cap raise, per-project setup, UN-5 staleness risk); what reached the queue was 'Three steering lines: (1) --done must name where YOU meet it, in your runtime, n' — cut mid-word. STEERING's own autopilot block says a thin park 'makes the review a rubber-stamp', which is precisely what the BACKSTOP now produces. I had to re-attach the costs by hand via tq note. Fix candidates: (a) park the full option descriptions untruncated (tq list is already non-truncating by design), (b) truncate the LABEL but never the cost line, (c) write the payload to a note instead of cramming the subject.",
+  "status": "completed",
+  "done_when": "an intercepted AskUserQuestion with long option descriptions round-trips through ask-guard.sh into the queue with every cost line intact, verified by reading it back through tq list",
+  "context": "plugins/companion/bin/ask-guard.sh, plugins/companion/bin/tq, tests covering ask-guard auto-park, STEERING.md autopilot block",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "piped a real 2-option AskUserQuestion payload through ask-guard.sh into a scratch queue and read it back with tq list: the tail clause 'eighty characters at all' survived, which the old 80-char cut removed; mutation-restoring the cut reddened the new test"
+}

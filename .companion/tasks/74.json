@@ -1,0 +1,9 @@
+{
+  "id": "74",
+  "subject": "❓ [parked] rev: tq's last 23 lines — the cohesion-correct extractions (orphans + usage = 59) leave tq at ~323, still over the 300 cap. The only block big enough to close it is report() (60 lines), and it is the HOT path: done/import/session-start all call it, so extracting it puts a  on the most-called script in the product. options: A) extract report() too — tq lands ~263 with real headroom, at the cost of one source per invocation on the hot path (measure it: the R81 gate already benchmarks hooks, so the number is gettable, not guessable) B) leave tq at ~323 and keep the named size exemption from R110, with the number falling 382->323 — honest, visible, still a debt C) raise the 300 cap for tq specifically and record why THE task queue is allowed to be bigger than everything else D) split tq by concern rather than by line count — a real redesign pass, not a trim; rec: A, but ONLY after measuring the source cost — the whole point of R110 was that an unmeasured claim about this file is how it drifted to 382 unnoticed, and I will not trade a hot-path cost I have not measured for a line count. If the measurement is bad, B is honest and the exemption already exists to hold it.",
+  "status": "cancelled",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": []
+}

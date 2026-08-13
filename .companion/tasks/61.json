@@ -1,0 +1,10 @@
+{
+  "id": "61",
+  "subject": "R109·c FIXED: MCP tq_done now passes --seen through to the same shell gate; parity test added and mutation-verified",
+  "status": "completed",
+  "done_when": "already satisfied — recorded for the ledger, closing with evidence",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "drove the real MCP server end-to-end via _mcp_call in a scratch git repo: tq_done with seen='tests pass' returned 'reports YOUR layer' and left the task pending; a substantive observation closed it and rendered under tq_list. Dropping the pass-through reddened the test."
+}

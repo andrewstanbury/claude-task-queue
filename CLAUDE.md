@@ -12,19 +12,19 @@ recommendation posture, clean-as-you-go, autopilot. **Injected automatically at 
 again** (R105) — or `/companion:resume` any time mid-session. **On this repo, it governs how you
 work here too.**
 
-## Architecture (R100/R105) — steering, a portable core, two re-enforced hooks
+## Architecture (R100/R105/R111) — steering, a portable core, three re-enforced hooks
 
 - **Steering** (prose the model reads, ignorable-by-nature, advisory) → `STEERING.md`.
 - **The portable core** — `plugins/companion/bin/` + `mcp-server/`: `tq` (**THE task queue**,
   R8/R10; also an MCP server, `companion-tq`, for any MCP-capable client) · advisory
   `check-secrets.sh` (was an enforced block) · `resume.sh` (on-demand triage pull) ·
   `ship-checkpoint.sh` (ship-mode's commit logic, manual) · `statusline.sh` · `autopilot.sh`.
-- **Three hooks** — `prompt-continue.sh` (UserPromptSubmit, never retired) ·
-  `session-start.sh` (SessionStart, **reinstated**: guarantees STEERING+tasks reach a session) ·
-  `ask-guard.sh` (PreToolUse[AskUserQuestion], **reinstated**: denies+auto-parks under autopilot).
-  `secret-guard.sh`/`contract-guard.sh`/`stop-autopilot.sh` (forced continuation, still the
-  biggest R100 loss) stay retired — owner picked context-delivery + anti-rework back, not full
-  enforcement. See [docs/adr/README.md](./docs/adr/README.md) R100/R104/R105.
+- **Four hooks** — `prompt-continue.sh` (UserPromptSubmit) · `session-start.sh` (STEERING+tasks
+  reach every session) · `ask-guard.sh` (PreToolUse[AskUserQuestion]: denies+parks under autopilot) ·
+  `stop-autopilot.sh` (Stop, **restored**: refuses the stop while autopilot is armed and a
+  *startable* task remains — bounded, and a partial restore; details in MAP).
+  `secret-guard.sh`/`contract-guard.sh` stay retired.
+  See [docs/adr/README.md](./docs/adr/README.md) R100/R105/R107/R111.
 - **Commands** — `setup` · `autopilot` · `ship-it` · `handoff` · `resume` · `review` ·
   `advise` · `redesign` · `docs` · `cover` · `burn-down` · `board`. Per-file responsibilities live
   in **[docs/MAP.md](./docs/MAP.md)** — read it before touching the core.

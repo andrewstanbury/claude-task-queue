@@ -1,0 +1,10 @@
+{
+  "id": "72",
+  "subject": "tq split 1/2: extract the 'orphans' verb (~38 lines incl. its ORPHANED STATE comment) into bin/tq-orphans.sh — a diagnostic, not queue mechanics; it already has its own tests, which retarget rather than get rewritten",
+  "status": "completed",
+  "done_when": "tq drops ~38 lines, tq orphans behaves identically (report by default, --orphans removes), its existing tests pass retargeted, and full check.sh green",
+  "context": "plugins/companion/bin/tq lines ~288-325, dev/tests/companion-core.bats orphans tests, docs/MAP.md",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran tq orphans and tq-orphans.sh directly against a scratch state dir with a planted bogus-kind: identical output on both paths, --orphans removed it, exit code passed through a missing state dir, and breaking the delegation reddened the existing R96 test — so the seam is guarded by the test that already existed, not by a new one"
+}

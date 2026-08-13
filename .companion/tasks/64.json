@@ -1,0 +1,9 @@
+{
+  "id": "64",
+  "subject": "❓ [parked] rev: R109 (seen-gate + tq done --seen + MCP parity + ask-guard truncation fix + version bump to 3.83.0) is a verified chunk sitting uncommitted — check.sh PASS, 219 tests, 0 failures, trace closed both directions, every new assertion mutation-verified. options: A) /companion:ship-it — commit + push + merge to main; note ship.sh will demand a --da devil's-advocate finding because bin/ and check.sh are both touched (R78) B) commit locally only, leave the push to you C) leave it uncommitted until #60 is ruled on, so the steering half lands in the SAME commit as the mechanism half; rec: C — A and B split one decision across two commits and leave main carrying a half-answer to your report, and #60 is a short question. But if you want the ask-guard truncation fix on main now regardless of #60, take A: that fix is independent and is currently inert in your plugin cache.",
+  "status": "pending",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": []
+}

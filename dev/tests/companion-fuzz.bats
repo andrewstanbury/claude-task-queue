@@ -27,7 +27,10 @@ teardown() { rm -rf "$CLAUDE_COMPANION_TASKS_DIR" "$CLAUDE_COMPANION_STATE_DIR";
   # Feed stdin from a FILE, not a bash -c argument — a 100KB arg blows the test's own ARG_MAX
   # (the hooks read stdin fine at any size; that's what we're proving).
   local f; f="$(mktemp)"
-  local hooks=(check-secrets statusline prompt-continue session-start ask-guard)
+  # stop-autopilot added 2026-08-12 with its restore (R26). A Stop hook fires on EVERY stop of an
+  # autopiloted run, so garbage stdin there degrades the whole session rather than one action —
+  # it belongs in this set at least as much as the others (R30·d8, best-effort R68).
+  local hooks=(check-secrets statusline prompt-continue session-start ask-guard stop-autopilot)
   local inputs=("" "not json at all" "{" '{"tool_input":' "{}" '{"cwd":"/nope","tool_input":{"file_path":"/no/such"}}')
   local h input
   for h in "${hooks[@]}"; do

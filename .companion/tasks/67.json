@@ -1,0 +1,11 @@
+{
+  "id": "67",
+  "subject": "Restore stop-autopilot.sh from d8a46ff^ MINUS the ship-mode block (lines ~31-123) — keep the continuation guarantee, the no-progress stall cap (CLAUDE_COMPANION_AUTOPILOT_MAX default 8), both R81 run bounds, and the CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0 kill switch. MUST keep reading 'tq stopfields' and MUST NOT re-derive the selection in its own jq — the file's own comment records that drift bug: it offered a task blocked on an unanswered park four turns running.",
+  "status": "completed",
+  "done_when": "the restored hook refuses a stop while autopilot is armed AND a startable task exists, allows it otherwise, and contains NO git-commit logic",
+  "context": "git show d8a46ff^:plugins/companion/bin/stop-autopilot.sh, plugins/companion/bin/tq stopfields (lines 213-232), plugins/companion/bin/ship-checkpoint.sh (owns ship-mode)",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "restoring from d8a46ff^ minus ship-mode",
+  "seen": "drove the restored hook with real JSON on stdin against a scratch repo: armed+startable returned decision:block naming task #1, a drained queue returned empty (allow), and CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0 returned empty"
+}

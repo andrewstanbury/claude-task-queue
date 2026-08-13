@@ -53,22 +53,39 @@
   affirmed: 2026-08-08
   affirmations: 2
   requirement: >
-    autopilot is a persisted preference; "don't stop to ask" is ENFORCED again (ask-guard.sh) —
-    "keep going instead of stopping" is NOT (no Stop-hook forces continuation)
+    autopilot is a persisted preference, and BOTH its guarantees are enforced: "don't stop to ask"
+    (ask-guard.sh) and "keep going instead of stopping while startable work remains"
+    (stop-autopilot.sh), the latter bounded by a stall cap and two run bounds
   note: >
-    PARTIALLY RE-REVERSED 2026-08-08, owner-decided (R100/Pass 6, docs/adr/README.md R105) — split
-    from the single REVERSED 2026-08-08 (R100/Pass 4) entry this once was. Autopilot always bundled
-    two distinct guarantees under one flag: ask-guard.sh denying AskUserQuestion, and
-    stop-autopilot.sh forcing the Stop hook to continue instead of ending the turn. The owner
-    picked "avoid rework" / "don't let the model barrel past an unanswered decision" back for the
-    first (ask-guard.sh reinstated) but did NOT ask for the second (stop-autopilot.sh's forced
-    continuation stays retired — no reinstatement requested, still the single biggest fidelity loss
-    of R100). Reversing "the rule exists to end the re-litigation" (ADR R28) only partly, not
-    wholesale.
+    FULLY RE-REVERSED 2026-08-12, owner-decided. Autopilot always bundled two distinct guarantees
+    under one flag: ask-guard.sh denying AskUserQuestion, and stop-autopilot.sh forcing the Stop
+    hook to continue instead of ending the turn. R100/Pass 4 retired both; R105 (2026-08-08) brought
+    back only the first, and R107 (2026-08-09) declined a Stop hook again. This entry now reverses
+    BOTH declines, at the owner's request: "I want autopilot to keep going if there are new tasks in
+    the queue and it's turned on" (2026-08-11).
+
+    The evidence that decided it was behavioural, not theoretical. STEERING already said "keep
+    draining; don't stop to ask", and in the session that produced this change the model stopped
+    anyway with a startable task in the queue — the same pattern as the prose that lost twice in the
+    owner's original defect report. A nudge the model can skip is not a mode (ADR R36).
+
+    PARTIAL RESTORE, deliberately: 135 of the retired file's 183 lines. Ship-mode auto-commit (R34)
+    stays deleted because bin/ship-checkpoint.sh owns it now, and the burn-down hand-off (R82) stays
+    deleted because STEERING tells the model to call burn_down itself — restoring either would put
+    two owners on one concern and silently re-automate a path made manual on purpose. What returned
+    is the continuation guarantee plus EVERY terminator that bounds it: the no-progress stall cap
+    (CLAUDE_COMPANION_AUTOPILOT_MAX, 8), the R81 wall-clock and total-turn run bounds, the R77 sweep
+    terminator, and the CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0 kill switch. Restoring the
+    continuation WITHOUT its bounds would have been the one genuinely dangerous version.
+
+    Cost stated where it was chosen: this is Claude-Code-only, so MCP clients (Cursor) get nothing
+    from it — R100's portability thesis pays for it.
   verified_by:
     - "autopilot: toggle persists per repo, independent of other modes (R26)"
     - "ask-guard: autopilot ON denies AND auto-parks the question with its real options + a recommendation (R84)"
     - "ask-guard: autopilot OFF silently allows — no denial, no park"
+    - "stop-autopilot: armed + a startable task BLOCKS the stop; a drained queue allows it (R26 restored)"
+    - "stop-autopilot: the kill switch and its bounds all yield, and ship-mode/burn-down stay dead (R26/R81)"
 
 - id: R29
   satisfies: [UN-2]
@@ -699,6 +716,7 @@
     dangling one never strands work. Owner-decided 2026-08-02 from a 3-option menu.
   verified_by:
     - "tq stopfields: the pointer is the first STARTABLE task, and every blocker counts (R87)"
+    - "tq dependencies: ONLY 'after #<id>' blocks, and the syntax is documented where the author looks (R87)"
 
 - id: R88
   satisfies: [UN-1]
@@ -1120,3 +1138,129 @@
     an unstamped marker behind.
   verified_by:
     - "autopilot resume: a pause marker from ANOTHER session cannot arm autopilot (R108)"
+
+- id: R109
+  satisfies: [UN-5]
+  affirmed: 2026-08-10
+  affirmations: 0
+  requirement: >
+    a task can carry EVIDENCE of what was exercised and in which running thing, refused when it
+    reports the agent's own layer instead of the owner's, and always readable back
+  note: >
+    Owner-reported 2026-08-10, from four misses with one shape: completion declared at the boundary
+    of what a shell can observe, when the owner's experience of the work lived one layer further
+    out. A fix written, tested, committed and reported done that was never DEPLOYED; a route move
+    proved by a typecheck that cannot see string-typed router paths; an approval gate whose refuse
+    path was proved and whose accept path was declared untestable while `pty.openpty()` was
+    available the whole time; a bundle server three days stale while code and API were inspected
+    instead. Every check run was real; none was the check that mattered.
+
+    OPTIONAL BY DESIGN. Mandatory evidence would gate every routine close behind prose and train
+    exactly the rubber-stamping the gate exists to refuse — the same reasoning R78 records for
+    `--da`. The guard runs BEFORE the state change: a gate that complains about a task it has
+    already closed is decorative, so a refusal leaves the task OPEN.
+
+    NAMED LIMIT, and it is the honest one. This cannot verify that anything was observed — no shell
+    check can (the R28 ceiling da-gate.sh states about its own pass), and it is FABRICABLE BY
+    DESIGN. It can tell that evidence is thin; it can never tell that it is about the right layer.
+    What it buys is that the claim is WRITTEN in the owner's terms at the moment of closing, where
+    `tq list` makes the gap between "tests pass" and "I opened it" legible to a human. The reader is
+    not decoration: a field nobody prints is R58·a's retired capture hook (456KB banked, zero
+    readers), which is why the render is pinned by its own assertion.
+
+    GENERIC (R9): the denylist is plain-English self-referential completion talk, never an
+    ecosystem, language or framework table. Recognising what a bundle server or a simulator is
+    stays the model's job.
+
+    THE STEERING HALF LANDED 2026-08-12 (owner: "do it for me"), and it is the part that actually
+    addresses the deepest of the four misses. `--seen` cannot: an agent that rules something
+    untestable never produces evidence to guard, because it never tried. The reflex reframes that
+    ruling as what it is — a DECISION, verification traded for delivery, wearing the costume of a
+    fact about the world — so it reaches the owner as a `❓` instead of shipping. `pty.openpty()`
+    was available the whole time.
+
+    It cost the FIFTH cap raise (8576 -> 8730), a conscious override of `check.sh`'s recorded "if a
+    fifth is proposed, rebuild the core instead (R55)", taken by the owner and recorded as an
+    override rather than an oversight. Only 154B because the fix REPLACED the `Verify observably`
+    bullet in place rather than adding beside it — that bullet already covered this ground and lost
+    on two of the four misses, which is the argument for replacing it.
+  verified_by:
+    - "tq done --seen: a rubber stamp leaves the task OPEN; a real observation closes it and renders in list (R109)"
+    - "seen-gate: refuses self-referential completion talk, ACCEPTS a non-ASCII observation (R1/R109)"
+    - "ask-guard: a parked question keeps its option COSTS — no silent truncation (R109·b)"
+    - "MCP tq_done: --seen reaches the SAME shell gate as the CLI — a rubber stamp is refused (R109 parity)"
+    - "STEERING: the observation-point reflex reaches a session through the REAL hook (R109 steering half)"
+
+- id: R110
+  satisfies: [UN-5]
+  affirmed: 2026-08-11
+  affirmations: 0
+  requirement: >
+    every shipped script is in the gate's lint set — including the extensionless one — and any size
+    exemption is named, printed on every run, and goes RED once the debt it documents is paid
+  note: >
+    Found 2026-08-11 by asking why the 300-line size guard reported green with `bin/tq` at 382
+    lines. `scripts=(check.sh plugins/*/bin/*.sh plugins/*/lib/*.sh)` globs on `.sh`, and `tq` is
+    the ONLY extensionless file in `bin/` — so THE task queue (R8/R10), which every command and the
+    MCP server route through, was invisible to ShellCheck, portability-lint AND the size guard at
+    once. It had grown 355 -> 382 with nothing to say so. The exclusion was an accident of a
+    filename, never a decision, which is the worst version: it looks exactly like coverage.
+
+    `tq` is clean under both linters, so wiring it in cost nothing there. The size guard could not
+    pass at 382, and the two honest options were to decompose THE task queue inside the change that
+    discovered the hole (high blast: every command and the MCP server depend on it) or to exempt it
+    VISIBLY. It was exempted by name, printed on every run, with a staleness check that went RED the
+    moment `tq` dropped back under 300.
+
+    THE TRAP FIRED AND THE DEBT WAS PAID, 2026-08-12: `tq` 382 -> 285, `usage()` + `report()`
+    extracted to `bin/tq-output.sh` on a cohesion seam (everything there renders, nothing decides;
+    queue state stays in `tq`). The staleness check refused to let the exemption outlive its reason
+    and the block is gone. What is pinned now is the invariant that outlasts it — NO size exemption
+    may reappear. A named, printed, self-expiring exemption was defensible for a day; a silent one
+    is exactly how `tq` reached 382 unseen.
+
+    Named explicitly rather than by widening the glob to `bin/*`: the iterated set must stay
+    something a reader can enumerate, and a bare `bin/*` would silently absorb any future
+    non-script — trading a known hole for an unknowable one.
+
+    Structural guards, not behavioural: bats cannot run `check.sh` because `check.sh` runs bats —
+    the same shape as the doc-lint and portability-lint wiring guards.
+  verified_by:
+    - "check.sh's lint set INCLUDES bin/tq — the extensionless file the glob silently missed (R110 wiring guard)"
+    - "check.sh's size guard has NO exemptions — the tq debt was PAID, not waived (R110)"
+
+- id: R112
+  satisfies: [UN-2]
+  affirmed: 2026-08-12
+  affirmations: 0
+  requirement: >
+    the review opens with a multi-select ACCEPT SWEEP over the parks the owner already agrees with,
+    and an unticked option is never read as a rejection
+  note: >
+    Owner-asked 2026-08-12: "I want the plugin to give me recommendations to pick from... using
+    Claude CLI with my arrow keys and by pressing enter." The arrow-key picker already existed —
+    review has always driven `AskUserQuestion` — so what was actually missing was the BATCH. Every
+    park was its own single-select menu, which made agreeing with a recommendation cost the same
+    interaction as overruling it, and turned a twelve-item pile into three rounds.
+
+    The tool takes 2-4 options per question and up to 4 questions per call, so the sweep groups
+    parks into questions of four: 16 accepted per interaction against 4 under the per-item path.
+
+    THE SAFETY PROPERTY, and the reason this is a requirement rather than a preference: a
+    multiSelect returns only the PRESENCE of a yes. There is no "no" in the payload. A review that
+    read an unticked box as a rejection would silently invent decisions across the whole pile —
+    strictly worse than the drip-feed it replaces, and a direct violation of UN-2 ("I do not want
+    anything else pretending to be a decision"). Unticked therefore means "ask me properly": the
+    item falls through to its own full single-select with its options intact.
+
+    Excluded, each for its own reason: `⏳` blocked items (an owner ACTION is not a recommendation
+    to accept), `decompose:` parks (R65 — they carry questions, not options, so there is nothing to
+    accept yet), and any park whose `rec:` is a thin guess rather than a real pick. Irreversible
+    parks ARE sweepable — the owner is consciously picking, unlike R77 sweep mode where the agent
+    applies `rev:` picks unattended — but they are labelled `⚠ IRREVERSIBLE` so a batch tick cannot
+    hide a one-way door.
+
+    Prose, so the ceiling is R28/R56·P3: a structural guard pins that the sweep and its
+    absence-is-not-rejection rule were not deleted. It cannot pin that they are obeyed.
+  verified_by:
+    - "command prompts retain their critical gate steps (R56 P3 — structural guard for prose)"

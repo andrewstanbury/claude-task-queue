@@ -1,0 +1,10 @@
+{
+  "id": "71",
+  "subject": "bats tests that CAN redden for the restored Stop hook + an ADR entry recording the reversal of R105/R107's declines and WHY the ship-mode half stayed dead",
+  "status": "completed",
+  "done_when": "each new test fails when its target behaviour is removed (verified by removing it), full check.sh green, ADR names both prior declines",
+  "context": "dev/tests/companion-core.bats, dev/tests/companion-fuzz.bats (all hooks fuzzed), docs/adr/README.md",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran both new stop-autopilot tests against the real hook with JSON on stdin, then mutation-verified: flipping decision:block to allow reddened the BLOCKS assertion, and disabling the TURNS run bound reddened the bounds assertion; control green. Fuzz suite re-run with stop-autopilot in the hook list, still green."
+}

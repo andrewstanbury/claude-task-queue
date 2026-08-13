@@ -1,0 +1,10 @@
+{
+  "id": "70",
+  "subject": "Contract delta for the restore: re-reverse R26 (autopilot enforced again, not advisory), restore the trimmed R77/R81/R82 verified_by entries that had no surviving code, revisit R84/R88. Owner picking A blesses the delta (R86). STEERING's autopilot block currently SAYS stop-autopilot.sh stays retired and calls it 'the single biggest fidelity loss of R100' — that prose becomes false the moment this lands.",
+  "status": "completed",
+  "done_when": "dev/trace.sh green both directions, and no shipped doc still claims the Stop hook is retired",
+  "context": "docs/requirements.yaml R26/R77/R81/R82/R84/R88, plugins/companion/STEERING.md autopilot block, docs/adr/README.md R100/R105/R107, CLAUDE.md architecture section",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran dev/trace.sh after re-reversing R26 and adding its two new verified_by titles: 'traceability closed: 8 needs <- 69 requirements <- 223 tests, no orphans either way'. Also read back STEERING/CLAUDE.md/MAP.md to confirm no shipped doc still claims the Stop hook is retired."
+}

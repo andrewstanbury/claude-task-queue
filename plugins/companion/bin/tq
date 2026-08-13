@@ -41,25 +41,13 @@ else
   STORE="$HOME/.claude/companion/tasks"; DIR="$_qlegacy"
 fi
 
-usage() { cat >&2 <<'EOF'
-tq — fallback task queue (native task tools gated off)
-  tq add "<subject>" [more...] [--done "<acceptance>"] [--context "<files/flows>"]
-                                 queue pending task(s) + delta line
-  tq doing <id> ["<breadcrumb>"] mark in progress (opt. crash-resume note) + delta line
-  tq note  <id> "<breadcrumb>"   update the in-progress breadcrumb
-  tq done-when <id> "<accept>"   set/replace a task's done-when (survives compaction/clear)
-  tq context <id> "<files>"      set/replace what's load-bearing for a task (survives compaction/clear)
-  tq done  <id>                  mark completed + print the FULL report (completion boundary)
-  tq cancel <id>                 retract a mis-queued task (cancelled; kept for audit, uncounted)
-  tq list                        terse one-line-each queue
-  tq orphans [--orphans]         report state dirs no shipped code builds a path to
-  tq report                      full grouped status report (also fires on done/import; other
-                                 mutations print a one-line counts delta, R69)
-  tq prune [--days N] [--dry-run] delete THIS repo's finished session stores older than N days
-                                 (default 90); never a store with open/parked/blocked work
-Lead a subject with ❓ (a parked decision) or ⏳ (owner-blocked) to defer it.
-EOF
-}
+# usage() + report() live in tq-output.sh (rendering, not mechanics). SOURCED so they share this
+# shell's $DIR/$STORE and stdout. Resolved from $0's dir like the other siblings; if it is missing
+# tq must still RUN — a queue that dies because its help text moved is worse than one with no help.
+_out="$(dirname "$0")/tq-output.sh"
+# shellcheck source=./tq-output.sh
+[ -r "$_out" ] && . "$_out"
+
 
 next_id() { local f n max=0; for f in "$DIR"/*.json; do [ -f "$f" ] || continue
   n="$(basename "$f" .json)"; case "$n" in ''|*[!0-9]*) continue;; esac; [ "$n" -gt "$max" ] && max="$n"; done; printf '%d' $((max+1)); }
@@ -110,66 +98,6 @@ repo_id() { local f id
   printf '%s' "$id"; }
 # Every *.json across sessions whose `.root` stamp equals $1 — the repo-scoped task set (same
 # scoping rule as lib/companion.sh `companion_open_tasks`, so export/resume agree on membership).
-report() {
-  local files=("$DIR"/*.json); [ -e "${files[0]}" ] || { printf '📋 Task queue — (empty)\n'; return 0; }
-  # Design D (ultra-compact): glyph-count header, one line per ACTIVE task (no done-when),
-  # completed shown as a count only. done-when still lives in the store and is re-surfaced on
-  # cross-session resume (lib/companion.sh), so trimming it here costs no crash-resume context.
-  jq -rs '
-    def pk: ((.subject//"")|sub("^\\s+";"")|startswith("❓")); def bl: ((.subject//"")|sub("^\\s+";"")|startswith("⏳"));
-    # ⛔ = a hypothesis the OWNER closed. It is not work and must never be offered, but it has to
-    # survive compaction — the Apple/AWS incident happened because "confirmed twice" lived only in
-    # a context window. A prefix-view over pending, exactly like ❓/⏳ (R42), so it rides the same
-    # resume path that already re-injects open tasks.
-    def rl: ((.subject//"")|sub("^\\s+";"")|startswith("⛔"));
-    # strip a leading ❓/⏳ marker so the front glyph is not duplicated, then truncate
-    def s72: ((.subject//"")|sub("^\\s*[❓⏳⛔]\\s*";"")|if length>72 then .[0:71]+"…" else . end);
-    def ln($g): "  "+$g+" #"+(.id|tostring)+"  "+s72;
-    # A park is REQUIRED to carry its own `rec:` so the review is a decision, not a rubber stamp —
-    # and s72 truncated at 72 chars, which is exactly where `rec:` lives. The convention was being
-    # stored and then hidden in the one place anyone reads it. Parks (and blocked items) now get a
-    # continuation line with the recommendation, so "what should I do about this?" is answerable
-    # from the queue alone. Costs nothing when nothing is parked, which is the common case.
-    def rec: ((.subject//"") | if test("rec:") then "\n       └ rec: " + (split("rec:")[1]|sub("^\\s+";"")) else "" end);
-    def lnr($g): ln($g) + rec;
-    # A task can WAIT on another — most often on an unanswered park. Convention: the subject
-    # names `after #N`. The next-pointer skips it while #N is still live, because pointing at
-    # work that cannot start is how the drain offers the same blocked task repeatedly (it
-    # offered one four times in a row before this existed). Such a task stays plain: it is not
-    # parked and not a manual job, it is simply not next.
-    # NOTE: no apostrophes anywhere in this jq program — a single quote ENDS it (LESSONS).
-    # EVERY "after #N" in the subject, not just the first: a task naming two blockers must wait
-    # for both. `capture` returns only the first match, so it started as soon as blocker one closed.
-    def waits: [((.subject//"") | match("after #([0-9]+)";"g").captures[0].string)];
-    (map(select(.status=="pending" or .status=="in_progress")) | map(.id|tostring)) as $live
-    |(map(select(.status=="in_progress"))|sort_by(.id|tonumber)) as $ip
-    |(map(select(.status=="pending" and (pk|not) and (bl|not) and (rl|not)))|sort_by(.id|tonumber)) as $op
-    |(map(select(.status=="pending" and pk))|sort_by(.id|tonumber)) as $p
-    |(map(select(.status=="pending" and bl))|sort_by(.id|tonumber)) as $b
-    |(map(select(.status=="pending" and rl))|sort_by(.id|tonumber)) as $rlist
-    |(map(select(.status=="completed"))|sort_by(.id|tonumber)) as $d
-    |([ (if($ip|length)>0 then "▸\($ip|length)" else empty end),
-        (if($op|length)>0 then "◻\($op|length)" else empty end),
-        (if($p|length)>0 then "❓\($p|length)" else empty end),
-        (if($b|length)>0 then "⏳\($b|length)" else empty end),
-        (if($rlist|length)>0 then "⛔\($rlist|length)" else empty end),
-        (if($d|length)>0 then "✔\($d|length)" else empty end)]|join(" ")) as $h
-    |("📋"+(if $h=="" then " Task queue — (all clear)" else "  "+$h end)),
-     ($ip[]|ln("▸")),($op[]|ln("◻")),($p[]|lnr("❓")),($b[]|lnr("⏳")),($rlist[]|ln("⛔")),
-     (([$ip[], $op[]] | map(select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)) | .[0]) as $nx
-      | if $nx then "  → next: #\($nx.id)"
-       elif ([$ip[], $op[]]|length) > 0 then
-         "  → nothing STARTABLE — " + (([$ip[], $op[]]|length)|tostring)
-           + " task(s) wait on an earlier item. Answer that first."
-       elif (($p|length)+($b|length))>0 then
-         "  → nothing left to build — "
-           + (if ($p|length)>0 then (($p|length)|tostring)+" decision(s) for you" else "" end)
-           + (if ($p|length)>0 and ($b|length)>0 then " and " else "" end)
-           + (if ($b|length)>0 then (($b|length)|tostring)+" manual job(s) only you can do" else "" end)
-           + ". Run /companion:review — it asks the whole pile at once, then resumes autopilot if it was on."
-       else empty end)
-  ' "${files[@]}" 2>/dev/null || printf '📋 Task queue — (unreadable)\n'
-}
 
 # Delta line (R69): mutations print ONE line — glyph counts + → next — not the full queue. The
 # model just wrote the op; reading the whole queue back on every add/doing was linear-in-queue-size
@@ -255,49 +183,48 @@ case "$cmd" in
     [ -f "$DIR/.repo" ] || printf '%s' "$(repo_id)" > "$DIR/.repo" 2>/dev/null || true   # path-stable identity (survives moves)
     for s in "${subs[@]}"; do [ -n "$s" ] || continue
       id="$(claim_id)"          # claimed per subject, so a multi-add cannot stride over a racer
+      # `blocks`/`blockedBy` are VESTIGIAL — written empty here, never set by any verb, never read
+      # by anything (grepped 2026-08-12: zero readers, zero writers). Dependencies are parsed from
+      # the SUBJECT as `after #<id>` by stopfields(). Kept only so old task files stay shape-stable;
+      # do NOT reach for them. They cost two tool calls of misdiagnosis by looking like the
+      # mechanism they are not — the R58a "data nobody reads" shape, in schema form.
       jq -n --arg id "$id" --arg s "$s" --arg dw "$dw" --arg ctx "$ctx" '{id:$id,subject:$s,status:"pending",done_when:$dw,context:$ctx,blocks:[],blockedBy:[]}' >"$DIR/.$id.tmp" && mv "$DIR/.$id.tmp" "$DIR/$id.json"
       echo "added #$id  $s${dw:+  (done when: $dw)}${ctx:+  (context: $ctx)}"; done
     delta ;;
   doing) { [ "$#" -ge 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" in_progress "${2:-}"; echo "#$1 → in_progress"; delta ;;
-  done) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" completed ""; echo "#$1 → completed"; echo; report ;;
+  # `--seen` (R109) is the evidence that the work was observed WHERE THE OWNER MEETS IT. Optional
+  # by design: making it mandatory would gate every routine close behind prose and train exactly
+  # the rubber-stamping seen-gate.sh exists to refuse.
+  done)
+    id="${1:-}"; [ "$#" -ge 1 ] && shift; sv=""
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --seen) shift; case "${1:-}" in ""|-*) echo "tq: --seen needs a value" >&2; exit 1 ;; *) sv="$1" ;; esac ;;
+        *) echo "tq: usage: tq done <id> [--seen \"<what was exercised, in which running thing>\"]" >&2; exit 1 ;;
+      esac; shift
+    done
+    { [ -n "$id" ] && [ -f "$DIR/$id.json" ]; } || { echo "tq: no task #${id:-?}" >&2; exit 1; }
+    if [ -n "$sv" ]; then
+      # GUARD BEFORE THE STATE CHANGE. A rubber stamp must leave the task OPEN — a gate that
+      # complains about a task it has already closed is decorative.
+      g="$(dirname "$0")/seen-gate.sh"
+      if [ -x "$g" ]; then "$g" check "$sv" || exit 2
+      # Best-effort, never break the close (R68) — but SAY SO, or the gate could silently vanish
+      # and the queue would keep reporting evidence nothing had checked (R48, gates stay wired).
+      else echo "tq: warning — seen-gate.sh not found at $g; recording --seen unchecked" >&2; fi
+      f="$DIR/$id.json"; t="$DIR/.$id.tmp"; jq --arg v "$sv" '.seen=$v' "$f" >"$t" && mv "$t" "$f"
+    fi
+    set_task "$id" completed ""; echo "#$id → completed${sv:+  (seen: $sv)}"; echo; report ;;
   cancel) { [ "$#" -eq 1 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: no task #${1:-?}" >&2; exit 1; }; set_task "$1" cancelled ""; echo "#$1 → cancelled (retracted; kept for audit, excluded from counts)"; delta ;;
   note) { [ "$#" -eq 2 ] && [ -n "$2" ] && [ -f "$DIR/$1.json" ]; } || { echo "tq: usage: tq note <id> \"<breadcrumb>\"" >&2; exit 1; }; append_note "$1" "$2"; echo "#$1 note added" ;;
   done-when|dw) { [ "$#" -eq 2 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: usage: tq done-when <id> \"<acceptance>\"" >&2; exit 1; }
     f="$DIR/$1.json"; t="$DIR/.$1.tmp"; jq --arg d "$2" '.done_when=$d' "$f" >"$t" && mv "$t" "$f"; echo "#$1 done-when set" ;;   # no delta: counts can't change (R69)
   context|ctx) { [ "$#" -eq 2 ] && [ -f "$DIR/${1:-}.json" ]; } || { echo "tq: usage: tq context <id> \"<files/flows>\"" >&2; exit 1; }
     f="$DIR/$1.json"; t="$DIR/.$1.tmp"; jq --arg c "$2" '.context=$c' "$f" >"$t" && mv "$t" "$f"; echo "#$1 context set" ;;   # no delta: counts can't change (R69)
-  # ORPHANED STATE (owner-decided 2026-08-05). Deleting a feature used to leave its state directory
-  # behind forever: `captures/`, `review/`, `intent-*` and `reminded-*` all outlived the code that
-  # wrote them, and the only way to know they were dead was to grep the source by hand.
-  #
-  # The legitimate kinds are DERIVED FROM THE SHIPPED SOURCE, never listed here — a hardcoded list
-  # is a second thing to update whenever a state kind is added, which is the drift this repo keeps
-  # deleting. Anything on disk that no shipped code builds a path to is reported.
-  #
-  # REPORT by default, remove only with --orphans. Automatically deleting data whose purpose is
-  # unknown is precisely the operation that should stay deliberate.
-  orphans)
-    plug="$(cd "$(dirname "$0")/.." && pwd)"
-    sd="${CLAUDE_COMPANION_STATE_DIR:-$HOME/.claude/companion}"
-    [ -d "$sd" ] || { echo "tq orphans: no state dir at $sd"; exit 0; }
-    known="$( { grep -rhoE "printf '%s/[a-z-]+" "$plug/lib" "$plug/bin" 2>/dev/null | sed "s|.*/||"
-                grep -rhoE 'companion_state_dir\)/[a-z-]+' "$plug/lib" "$plug/bin" 2>/dev/null | sed 's|.*/||'
-                grep -rhoE 'companion_mode_[a-z]+ "[^"]*" [a-z-]+' "$plug/lib" "$plug/bin" 2>/dev/null | awk '{print $NF}'
-                printf 'tasks\n'
-              } | sort -u )"
-    [ -n "$known" ] || { echo "tq orphans: derived NO known kinds — refusing to call anything an orphan" >&2; exit 1; }
-    found=0
-    for e in "$sd"/*; do
-      [ -e "$e" ] || continue
-      name="${e##*/}"
-      printf '%s\n' "$known" | grep -qx "$name" && continue
-      found=$((found+1))
-      if [ "${1:-}" = "--orphans" ]; then rm -rf "$e" 2>/dev/null && echo "  removed $name" || echo "  FAILED to remove $name"
-      else echo "  orphan: $name"; fi
-    done
-    if [ "$found" -eq 0 ]; then echo "tq orphans: none — every state kind on disk is built by shipped code"
-    elif [ "${1:-}" = "--orphans" ]; then echo "tq orphans: removed $found"
-    else echo "tq orphans: $found orphaned state kind(s); re-run with --orphans to remove"; fi ;;
+  # ORPHANED-STATE REPORTING lives in bin/tq-orphans.sh. Extracted at the 300-line cap (behaviour unchanged, still R96),
+  # the same move as ci-watch.sh / da-gate.sh / mutate-gate.sh: it is a DIAGNOSTIC over the state
+  # dir, not queue mechanics, and it already had its own tests. `exec` so its exit code is tq's.
+  orphans) exec "$(dirname "$0")/tq-orphans.sh" "$@" ;;
 
   prune)
     # R81 follow-up: PERF#1 made the cross-session resume scan 56x faster, but it is still O(store)
@@ -348,8 +275,11 @@ case "$cmd" in
   # interface, not something the model should drive. Exit 1 with no output when the store is
   # empty, so the caller can tell "no tasks" from "unreadable" and stay best-effort either way.
   stopfields) stopfields "${1:-false}" ;;
-  list) l=""; if [ -d "$DIR" ]; then for f in "$DIR"/*.json; do [ -f "$f" ] || continue; l+="$(jq -r '"\(.id)\t\(.status)\t\(.subject)"' "$f" 2>/dev/null)"$'\n'; done; fi
-    if printf '%s' "$l" | grep -q '[^[:space:]]'; then printf '%s' "$l" | sort -n | awk -F'\t' 'NF>=3{printf "  #%s  [%s]  %s\n",$1,$2,$3}'; else echo "(queue empty)"; fi ;;
+  # `list` is the NON-TRUNCATING reader — parked payloads and `seen:` evidence are both read back
+  # here. A `--seen` value nobody prints is pure cost: that is exactly R58·a's retired capture hook
+  # (456KB banked, zero readers). So it renders, or the field should not exist.
+  list) l=""; if [ -d "$DIR" ]; then for f in "$DIR"/*.json; do [ -f "$f" ] || continue; l+="$(jq -r '"\(.id)\t\(.status)\t\(.subject)\t\(.seen // "")"' "$f" 2>/dev/null)"$'\n'; done; fi
+    if printf '%s' "$l" | grep -q '[^[:space:]]'; then printf '%s' "$l" | sort -n | awk -F'\t' 'NF>=3{printf "  #%s  [%s]  %s\n",$1,$2,$3; if(NF>=4&&$4!="")printf "        seen: %s\n",$4}'; else echo "(queue empty)"; fi ;;
   -h|--help|help) usage ;;
   *) echo "tq: unknown command '$cmd'" >&2; usage; exit 1 ;;
 esac

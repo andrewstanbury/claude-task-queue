@@ -1,0 +1,19 @@
+{
+  "id": "58",
+  "subject": "bats tests that CAN redden for A and C — prose-existence tests for the three A lines (the R106 precedent: pin DELIVERY through the real hook, not just presence in a file) + behavioural tests for seen-gate.sh and tq done --seen",
+  "status": "cancelled",
+  "done_when": "./check.sh green, and each new test fails when its target line/behaviour is removed (verified by actually removing it, not asserted)",
+  "context": "tests/ bats suite, check.sh, plugins/companion/bin/seen-gate.sh, plugins/companion/STEERING.md",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-10T16:40:25Z",
+      "text": "C HALF DONE and mutation-verified, not asserted: 3 mutants each reddened the intended assertion — (1) guard call removed from tq done -> the 'stays OPEN' assertion failed, (2) list reader removed -> the 'seen:' render assertion failed, (3) seen-gate.sh deleted -> BOTH tests failed. Control run green after restore. A HALF STILL BLOCKED on the parked 154B cap decision — the prose-existence tests for the three observation-point lines cannot be written until the lines exist. Do NOT close this task until A ships or A is dropped."
+    },
+    {
+      "ts": "2026-08-10T16:45:53Z",
+      "text": "R109·b test added and mutation-verified too (restoring the 80-char cut reddens it). Still open ONLY for the A-half prose tests, which cannot exist until the parked 154B decision (#60) is ruled on."
+    }
+  ]
+}

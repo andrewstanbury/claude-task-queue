@@ -1,0 +1,15 @@
+{
+  "id": "73",
+  "subject": "tq split 2/2 (after 1/2): extract usage() (21 lines, cold path, help text) into the same helper or its own file — takes tq to ~323, still 23 over the cap",
+  "status": "cancelled",
+  "done_when": "tq -h/--help/help print identically, tq is ~323 lines, check.sh green",
+  "context": "plugins/companion/bin/tq lines 44-64",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-12T15:17:06Z",
+      "text": "RECOMMEND AGAINST AS SCOPED — surfaced while picking it up, not before queueing it (my miss). Extracting usage() is 21 lines of HELP TEXT into its own file, and it does NOT reach the cap: tq lands ~333, still 33 over. So it buys no gate change, adds a file, and splits the CLI's help away from the CLI. STEERING is explicit that ~300 lines is a seam SMELL and the split must be on cohesion, not to trim length — this is trimming for the number, which is the thing it warns against. Folded into #75: if the answer there is D (split tq by concern), usage() moves as part of a real seam or not at all; if it is A (extract report()), tq lands ~263 and usage() never needed to move. Do not drain this independently."
+    }
+  ]
+}

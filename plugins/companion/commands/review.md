@@ -40,6 +40,31 @@ pile that needs deciding — to *re-surface carried-over tasks from an earlier s
    a decompose-park interview (below), or a choice whose options depend on how an earlier one in
    the same batch was answered. In that case ask the independent ones first, then the dependent.
 
+   **2a. OPEN WITH THE ACCEPT SWEEP — `multiSelect: true` (owner-asked 2026-08-12).** Most parks
+   arrive carrying a `rec:` the owner simply agrees with, and making them arrow through a separate
+   4-option menu to say "yes, your pick" is the interruption this command exists to remove. So when
+   **two or more** eligible parks are in the pile, ask **first**:
+
+   > *"Which of my recommendations should I just apply?"* — `multiSelect: true`, one option per
+   > park. **Label** = `#<id> <the choice in a few words>`. **Description** = the recorded `rec:`
+   > and its real cost, plus `⚠ IRREVERSIBLE` when the park is not marked `rev:`, so a batch tick
+   > never hides a one-way door.
+
+   The tool takes **2–4 options per question and up to 4 questions per call**, so group the pile
+   into questions of 4 — that is **16 parks accepted in a single interaction**, against 4 under
+   the per-item path alone. Keep issuing batches until the pile is covered.
+
+   **Unselected is NOT rejected — it is "ask me properly".** A multiSelect returns only the
+   *presence* of a yes, never a no, so treating an unticked box as a decision would silently
+   invent one. Every park the owner does not tick falls through to its own full single-select
+   question below, options intact. Say this in one line when you ask, so ticking nothing is
+   understood as "walk me through them", not "reject everything".
+
+   **NOT eligible for the sweep**, and each for its own reason: **⏳ blocked** items (an owner
+   action is not a recommendation to accept), **decompose-parks** (R65 — they carry questions, not
+   options, so there is nothing to accept yet), and any park whose `rec:` is missing or is a thin
+   guess rather than a real pick. Those go straight to the per-item path.
+
    For each item:
    - **❓ parked** — the subject already frames the choice; surface its recorded options + your
      recommendation. Options recommended-first, `(Recommended)` on your pick, each naming its

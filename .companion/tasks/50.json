@@ -1,0 +1,19 @@
+{
+  "id": "50",
+  "subject": "❓ [parked] decision: Which of these should companion grow to prevent the \"verified my layer, not yours\" shape? — options: Observation-point rule (Recommended) (Three steering lines: (1) --done must name where YOU meet it, in your runtime, n) · Ship-boundary freshness gate (A .companion/surfaces manifest (owner-authored, exactly like the existing .compa) · Evidence at task close (`tq done` takes --seen \"<what was exercised, in which running thing>\", rubber-st) · Nothing — name it as the ceiling (Argue R28: only block/inject/control-flow are hookable, companion cannot observe); rec: Observation-point rule (Recommended)",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-10T15:33:43Z",
+      "text": "FULL COSTS (the auto-park truncated every option description — these are what /companion:review must read back): A) Observation-point rule — 3 steering lines: --done must name where the OWNER meets it in their runtime, not what the agent can close alone; \"I can't verify X\" is never a conclusion, it is a ❓ park asking HOW; an owner naming their runtime makes that runtime the verification target. COST ~450B injected → check.sh core_cap raise 8576→~9050 (core is at 8575, ONE byte free) ≈ +110 tokens/session forever in every installed repo, owner-decided per the R106 precedent. CEILING: skippable prose — and 2 of the 4 misses ALREADY had prose covering them. B) Ship-boundary freshness gate — .companion/surfaces manifest (owner-authored, da-paths precedent), each entry = a surface the owner actually uses + a liveness/freshness probe; ship-it refuses when what is SERVING predates HEAD. COST ~120 lines + tests + requirement + ADR + per-project setup. VALUE: the only option that mechanically catches 'built but never deployed' and 'three-day-old bundle'. RISK: an unmaintained manifest certifies staleness — a green tick that lies is this repo's OWN named failure shape (UN-5). C) Evidence at close — tq done --seen \"<what was exercised, in which running thing>\", rubber-stamp-guarded like da-gate.sh --da. COST ~40 lines + friction on every close, ZERO injected bytes. Fabricable by design: forces the claim to be stated where the gap between 'tests pass' and 'I opened it' becomes visible. D) Nothing — R28 ceiling, record in ADR and stop; accepts that the 2 misses with no mechanism stay uncovered. Traces to UN-5 ('I want to trust the green tick... something was actually observed')."
+    },
+    {
+      "ts": "2026-08-10T16:30:00Z",
+      "text": "decided: A+C (owner, 2026-08-10, /companion:review), then 'do all of your recommendations' — build BOTH. A = three steering lines (observation point on --done; 'I can't verify X' is a ❓ not a conclusion; owner-named runtime becomes the verification target). C = tq done --seen '<what was exercised, in which running thing>' with a da-gate-style rubber-stamp guard AND a real reader in report/list. B (surfaces manifest) and D (nothing) NOT taken."
+    }
+  ]
+}

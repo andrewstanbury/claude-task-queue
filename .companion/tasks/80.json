@@ -1,0 +1,9 @@
+{
+  "id": "80",
+  "subject": "tq usage() extraction — DO NOT DO AS SCOPED (after #75). 21 lines of help text into its own file lands tq at ~333, still over the cap: no gate change, one more file, help split from the CLI. That is trimming for the number, which STEERING names as the seam-smell trap. #75 option A makes it unnecessary; option D subsumes it.",
+  "status": "pending",
+  "done_when": "resolved by whichever way #75 goes — never drained independently",
+  "context": "plugins/companion/bin/tq usage(), STEERING keeping-it-clean section",
+  "blocks": [],
+  "blockedBy": []
+}

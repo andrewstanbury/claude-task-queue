@@ -48,10 +48,21 @@ sid="$(printf '%s' "$in" | jq -r '.session_id // empty' 2>/dev/null || true)"
 subject="$(printf '%s' "$in" | jq -r '
   (.tool_input.questions // []) | if length == 0 then empty else
   ("❓ [parked] decision: " + (.[0].question // "a decision"))
-  + " — options: " + ([ .[0].options[]? | (.label // "") + (if (.description//"")!="" then " (" + (.description|.[0:80]) + ")" else "" end) ] | join(" · "))
+  + " — options: " + ([ .[0].options[]? | (.label // "") + (if (.description//"")!="" then " (" + .description + ")" else "" end) ] | join(" · "))
   + "; rec: " + ((.[0].options[0].label // "the first option"))
   + (if length > 1 then " [+" + ((length-1)|tostring) + " more question(s) in the same ask]" else "" end)
-  end' 2>/dev/null | head -c 900 | tr -d '\n\r' || true)"
+  end' 2>/dev/null | tr -d '\n\r' || true)"
+# NO SILENT TRUNCATION (R109·b). This used to cut every option description to 80 chars and the whole
+# payload to 900 bytes, with no marker. Measured on a real 4-option park: every COST clause — the
+# byte-budget raise, the per-project setup, the staleness risk — landed mid-word, and what reached
+# the queue read like a complete thought. STEERING's own autopilot block says a thin park "makes the
+# review a rubber-stamp"; the BACKSTOP was manufacturing exactly that, and the payload had to be
+# re-attached by hand. `tq list` is non-truncating by design, so the queue can hold the whole thing.
+# A ceiling still exists (a runaway payload should not become the store), but it is generous and,
+# when it bites, it SAYS SO — a reader must never mistake a cut for the end of the sentence.
+if [ "${#subject}" -gt 6000 ]; then
+  subject="${subject:0:6000} …[TRUNCATED — the full options were longer; re-ask or read the transcript]"
+fi
 if [ -n "$subject" ] && [ -n "$sid" ]; then
   # Do not stack duplicates: a retried question would otherwise park itself again on every attempt.
   # DEDUP BY RAW GREP, not `tq list`. `list` renders every task through jq, which put an O(store)

@@ -32,7 +32,15 @@ failsec() { fail=1   # NOT failsec — this is the definition, and a bulk rewrit
   esac
 }
 
-scripts=(check.sh plugins/*/bin/*.sh plugins/*/lib/*.sh)
+# `bin/tq` has NO `.sh` extension, so `plugins/*/bin/*.sh` NEVER MATCHED IT. THE task queue (R8/R10)
+# — the most-called file in the product, and the one every command and the MCP server route through
+# — was invisible to ShellCheck, to portability-lint AND to the size guard below. Found 2026-08-11
+# while asking why the size gate stayed green with tq at 382 lines; it had been silently growing
+# (355 at the previous commit). A gate that cannot fail on the file that matters most is UN-5's
+# named failure shape, and the exclusion was an accident of a filename, not a decision.
+# Named explicitly rather than by widening the glob to `bin/*`: the set this iterates must stay
+# something a reader can enumerate, and a bare `bin/*` would silently absorb any future non-script.
+scripts=(check.sh plugins/*/bin/*.sh plugins/*/lib/*.sh plugins/*/bin/tq)
 manifests=(plugins/*/.claude-plugin/plugin.json plugins/*/hooks/hooks.json)
 
 section "JSON valid"
@@ -111,7 +119,19 @@ tok_fail=0
 # ONE owner for the cap. It was hardcoded at three sites (the test, the FAIL message, the ok
 # message); a raise that missed a message would report a number the gate no longer enforces —
 # output that lies while staying green, which is this repo's own recorded failure shape.
-core_cap=8576
+core_cap=8730
+# 8576 -> 8730 (2026-08-12, owner-decided: "do it for me"). FIFTH raise, and it is a CONSCIOUS
+# OVERRIDE of the note below, which said a fifth should rebuild the core instead (R55). Recording
+# that it was overridden, not overlooked — the pre-commitment was written against a 384B ask, and
+# what landed is 154B (~38 tokens/session) because the fix REPLACED the `Verify observably` bullet
+# in place rather than adding beside it. That bullet already covered this ground and LOST, which is
+# the whole argument: the owner reported four production misses (a fix never deployed, a route move
+# proved by a typecheck that cannot see router strings, an approval gate whose accept path was
+# declared untestable while pty.openpty() was available, a three-day-old bundle server) and TWO of
+# them were already covered by that exact sentence. Replacing a line that lost beats stacking a
+# fourth beside it. Scanned for the subtraction that funded raise #4 and there is none left: the
+# core's wireframe / decompose-park / playtest mentions are two-tier POINTERS, and cutting a
+# pointer breaks the reference. If a SIXTH is proposed, rebuild — and this time mean it.
 core_b="$(awk '/injection stops here/{exit} {print}' plugins/companion/STEERING.md | wc -c | tr -d '[:space:]')"
 marker_n="$(grep -c 'injection stops here' plugins/companion/STEERING.md || true)"
 # Marker must appear EXACTLY once: zero → the whole doc gets injected; two+ → the awk cut

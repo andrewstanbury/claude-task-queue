@@ -1,0 +1,15 @@
+{
+  "id": "62",
+  "subject": "⏳ [blocked] REINSTALL/REFRESH the plugin so the R109·b ask-guard fix actually FIRES — verified inert: ~/.claude/plugins/cache/andrewstanbury/companion/3.82.0/bin/ask-guard.sh still contains the .[0:80] cut and has no TRUNCATED marker, so the hook running THIS session still truncates parked payloads. Source is fixed and tested; the cache is not. I bumped plugin.json + marketplace.json to 3.83.0 so a refresh lands in a NEW cache dir (same-version edits are invisible to the cache by design). Only you can re-install/refresh.",
+  "status": "cancelled",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-12T14:42:57Z",
+      "text": "SCOPE GREW — this reinstall now gates TWO things, not one: (1) the R109·b ask-guard truncation fix, (2) the RESTORED Stop hook (autopilot continuation, owner-decided 2026-08-12). Verified against the cache, not assumed: ~/.claude/plugins/cache/andrewstanbury/companion/3.82.0/hooks/hooks.json declares only PreToolUse,SessionStart,UserPromptSubmit. Until you refresh to 3.83.0, autopilot still stops exactly as it does today — the fix you asked for is real in the tree and absent from the running session."
+    }
+  ]
+}

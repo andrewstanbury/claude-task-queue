@@ -1,0 +1,10 @@
+{
+  "id": "76",
+  "subject": "R112: review opens with a multiSelect ACCEPT SWEEP — tick the recs you agree with (arrow keys + enter), up to 16 parks per interaction; unticked falls through to the item's own full menu, never read as a rejection",
+  "status": "completed",
+  "done_when": "already satisfied — recorded for the ledger",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "edited commands/review.md step 2a, then drove the R56·P3 structural guard against the real file and mutation-verified BOTH pinned properties: deleting the multiSelect instruction reddened it, and deleting the 'Unselected is NOT rejected' line reddened it independently; control green after restore"
+}

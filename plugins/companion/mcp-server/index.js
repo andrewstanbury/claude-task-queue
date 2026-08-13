@@ -148,11 +148,18 @@ server.tool(
   async ({ id, files }) => runTq(["context", id, files]),
 );
 
+// `seen` (R109) is OPTIONAL here for the same reason it is optional on the CLI: mandatory evidence
+// would gate every routine close behind prose and train the rubber-stamping seen-gate.sh refuses.
+// It is passed straight through — the guard lives in the shell gate, never re-implemented here, so
+// an MCP client and the CLI refuse the same strings (MAP.md's parity claim is load-bearing).
 server.tool(
   "tq_done",
-  "Mark a task completed; returns the full queue report (the completion boundary).",
-  { id: z.string().min(1) },
-  async ({ id }) => runTq(["done", id]),
+  "Mark a task completed; returns the full queue report (the completion boundary). `seen` records " +
+    "WHAT YOU EXERCISED AND IN WHICH RUNNING THING — the layer the owner meets it at, not yours. " +
+    "Self-referential completion talk (\"tests pass\", \"it compiles\", \"committed\") is REFUSED and " +
+    "the task stays open.",
+  { id: z.string().min(1), seen: z.string().min(1).optional() },
+  async ({ id, seen }) => runTq(seen ? ["done", id, "--seen", seen] : ["done", id]),
 );
 
 server.tool(

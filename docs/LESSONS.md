@@ -169,3 +169,18 @@ the area, or when a gate points here.
   nonzero when KILLED (124) and when it cannot gather tests (a well-formed `1..1 / not ok
   bats-gather-tests`) — both having run nothing. Calibrate with `bats --count`, then require plan ==
   result-lines == count. The short version of this is above; the mechanism is here.
+- SINGLE-quote `tq` payloads: a backtick inside a double-quoted shell string runs as command
+  substitution and silently eats the word — it corrupted a parked option list, 2026-08-12. Kept
+  BELOW the marker deliberately: the injected core is at its cap, and a shell-quoting trap that
+  bites one caller does not earn ~24 tokens in every session of every installed repo forever.
+- Extracting code to a new file ORPHANS its declared mutations twice over: the path changes AND
+  re-indenting shifts the pattern. `dev/mutate-gate.sh --validate` catches the miss; only
+  `./check.sh --mutate <file>` proves the mutation is still KILLED after the move (2026-08-12,
+  the 8th and 9th extraction-orphaned patterns in this repo). **RUN `--validate` AS PART OF THE
+  EXTRACTION, not after the next full gate** — this lesson was written and then broken an hour
+  later by the very next extraction (4 more orphans, 10th-13th). Knowing the trap is not the same
+  as having a step that catches it: make retargeting the last line of the extraction itself.
+- `tq` DEPENDENCIES are parsed from the SUBJECT as `after #<id>` — nothing else. "(after 1/2)",
+  "depends on #3" and the vestigial `blockedBy` field are all silently ignored, so a mis-typed
+  dependency makes a blocked task read as STARTABLE and the queue reports confident nonsense
+  (2026-08-12: a whole backlog looked drainable while every item awaited an unanswered park).

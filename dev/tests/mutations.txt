@@ -45,10 +45,10 @@ plugins/companion/bin/candidates.sh::s@grep -F 'rec:'@cat@::a park with NO recom
 plugins/companion/bin/candidates.sh::s@if \[ "$found" -eq 0 \]; then@if true; then@::invention is emitted even when recorded signals exist
 plugins/companion/bin/burndown-branch.sh::s@\[ "$cur" = "burndown/$slug" \] &&@[ 1 -eq 2 ] \&\&@::discard deletes the branch you are standing on
 plugins/companion/bin/candidates.sh::s@-- . ':!\*.md' ':!\*.markdown'@-- .@::the todo signal reads prose about markers again, feeding on documentation
-plugins/companion/bin/tq::s@($p\[\]|lnr("❓")),($b\[\]|lnr("⏳"))@($p[]|ln("❓")),($b[]|ln("⏳"))@::a park's rec: is hidden again — the review becomes a rubber stamp
-plugins/companion/bin/tq::s@elif (($p|length)+($b|length))>0 then@elif false then@::a parks-only queue stops naming the decision that needs the owner
+plugins/companion/bin/tq-output.sh::s@($p\[\]|lnr("❓")),($b\[\]|lnr("⏳"))@($p[]|ln("❓")),($b[]|ln("⏳"))@::a park's rec: is hidden again — the review becomes a rubber stamp
+plugins/companion/bin/tq-output.sh::s@elif (($p|length)+($b|length))>0 then@elif false then@::a parks-only queue stops naming the decision that needs the owner
 plugins/companion/bin/autopilot.sh::s@rm -f "$(companion_autopilot_paused_flag "$root")" 2>/dev/null || true@:@::an explicit `autopilot off` is silently undone by a later review resume
-plugins/companion/bin/tq::s@Run /companion:review — it asks the whole pile at once@Run it@::a parks-only queue stops naming the command that clears it
+plugins/companion/bin/tq-output.sh::s@Run /companion:review — it asks the whole pile at once@Run it@::a parks-only queue stops naming the command that clears it
 plugins/companion/bin/burndown-branch.sh::s@mkdir -p "$MANIFEST_DIR" || die@mkdir -p "$MANIFEST_DIR" 2>/dev/null; true || die@::a branch is opened even when its manifest cannot be written
 plugins/companion/bin/burndown-branch.sh::s@valid_slug "$slug" || die@true || die@::a slug can escape the manifest dir again via ../
 plugins/companion/bin/burn-down.sh::s@grep -cv -e '\^  ◻ \*❓' -e '\^  ◻ \*⏳'@grep -c '^  ◻'@::parks and blocked items block burn-down again, making rank 1 unreachable
@@ -70,7 +70,7 @@ plugins/companion/bin/prompt-continue.sh::s@STOP — DO NOT START ANY OTHER WORK
 plugins/companion/lib/resume-report.sh::s@    if \[ -n "$_ver_tree" \] \&\& \[ "$_ver_tree" != "$_ver_running" \]; then@    if false; then@::a stale installed plugin stops being announced — work looks shipped while inert
 plugins/companion/STEERING.md::s@Satisfy the contract; never rewrite it@Satisfy the contract@::the steering core stops stating that the contract must not be rewritten
 plugins/companion/bin/candidates.sh::s@| grep -vF 'decision:' | grep -vF 'decompose:'@| cat@::decision parks are offered as buildable work again, and can starve every other rank
-plugins/companion/bin/tq::s@map(select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0))@map(select(true))@::the next pointer points at work that cannot start again
+plugins/companion/bin/tq-output.sh::s@map(select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0))@map(select(true))@::the next pointer points at work that cannot start again
 plugins/companion/bin/tq::s@$st\[0\].id@$o[0].id@::the startable pointer reverts to the first OPEN task
 plugins/companion/bin/tq::s@select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)\]@select(true)]@::the stopfields pointer forgets dependencies entirely
 plugins/companion/bin/tq::s@\[(subj | match("after #(\[0-9\]+)";"g").captures\[0\].string)\]@[(subj|capture("after #(?<n>[0-9]+)").n)]@::stopfields honours only the FIRST blocker, so a task with two starts early
@@ -99,8 +99,8 @@ plugins/companion/lib/companion.sh::s@  if \[ "$scoped" -eq 0 \]; then@  if fals
 plugins/companion/bin/candidates.sh::s@emit 5 rework "$line has failed@emit 5 zzzNEVER "$line has failed@::a repeatedly-failing component stops being offered as work, so the ladder ends at invention instead of a rebuild
 plugins/companion/bin/candidates.sh::s@':!\*.yaml' ':!\*.yml' @@::the TODO scanner reads the yaml CONTRACT again, offering its own prose as work
 plugins/companion/lib/companion.sh::s@  mkdir -p "${g%/\*}" 2>/dev/null && : > "$g" 2>/dev/null@  :@::mode flags stop dual-writing, so an OLDER installed hook sees autopilot OFF while the CLI says ON and the queue never drains
-plugins/companion/bin/tq::s@    \[ -n "$known" \] || { echo "tq orphans: derived NO known kinds@    [ 1 -eq 0 ] || { echo "tq orphans: derived NO known kinds@::the orphan sweep passes vacuously when it derives nothing, so every live state kind reads as dead
-plugins/companion/bin/tq::s@      if \[ "${1:-}" = "--orphans" \]; then rm -rf "$e"@      if true; then rm -rf "$e"@::the orphan sweep DELETES by default instead of reporting, removing data whose purpose is unknown without being asked
+plugins/companion/bin/tq-orphans.sh::s@  \[ -n "$known" \] || { echo "tq orphans: derived NO known kinds@  [ 1 -eq 0 ] || { echo "tq orphans: derived NO known kinds@::the orphan sweep passes vacuously when it derives nothing, so every live state kind reads as dead
+plugins/companion/bin/tq-orphans.sh::s@    if \[ "${1:-}" = "--orphans" \]; then rm -rf "$e"@    if true; then rm -rf "$e"@::the orphan sweep DELETES by default instead of reporting, removing data whose purpose is unknown without being asked
 plugins/companion/bin/ship.sh::s@  git reset -q -- .companion/modes 2>/dev/null || true@  :@::a ship SNAPSHOTS live mode state again, so a review pause is committed as "autopilot off" and silently disarms it
 plugins/companion/mcp-server/index.js::s@\[action\] : \[mode, action\]@["status"] : [mode, action]@::autopilot_toggle ignores the requested action and always reports status
 plugins/companion/mcp-server/index.js::s@candidate ?? ""@""@::burndown_branch start silently drops the candidate, so the branch is never created

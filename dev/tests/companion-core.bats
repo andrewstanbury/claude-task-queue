@@ -419,6 +419,14 @@ await client.close();
   grep -q 'action: "resume"'               "$C/review.md"       # ...and re-arms when done (R83, R100/Pass 5b)
   grep -qiE "up front|upfront"             "$C/review.md"       # the whole pile at once, not drip-fed
   grep -qiE "before .*new work"            "$C/review.md"       # R38 write-back-before-new-work
+  # R112 accept sweep (owner-asked 2026-08-12). The FEATURE is the multiSelect batch; the SAFETY
+  # is that an unticked box is not a decision. A multiSelect returns only the PRESENCE of a yes,
+  # so a review that read absence as "no" would silently invent rejections across the whole pile —
+  # which is worse than the drip-feed it replaces. Both halves pinned, and the exclusions with
+  # them: ⏳ is an owner ACTION (nothing to "accept"), and a decompose-park has no options yet.
+  grep -q 'multiSelect: true'              "$C/review.md"       # the sweep exists at all
+  grep -qE "Unselected is NOT rejected|not ticked is not a no" "$C/review.md"   # absence != rejection
+  grep -qiE "NOT eligible for the sweep"   "$C/review.md"       # ⏳ + decompose-park stay out (R65)
   grep -qiE "asks before it writes|buy-in still comes first|recommendation-first" "$C/cover.md"  # R58·d amended by R61/R62: cover SCAFFOLDS, but buy-in (owner picks) still precedes any write
   grep -q 'autopilot_toggle'               "$C/cover.md"        # cover clears autopilot (it asks) — R100/Pass 5b: MCP tool, not raw script
 }
@@ -3118,4 +3126,267 @@ EOT
 
   run "$TQ" add "subject2" --done --context "y"
   [ "$status" -ne 0 ]; [[ "$output" == *"--done needs a value"* ]]
+}
+
+# ── R109: evidence at the completion boundary ────────────────────────────────────────────────
+# The recorded failure (owner, 2026-08-10): completion declared at the boundary of what a shell can
+# observe, when the owner's experience of the work lived one layer further out. `--seen` cannot
+# verify an observation happened (R28 ceiling, same as da-gate.sh's own pass) — it makes the claim
+# WRITTEN and READABLE at the moment of closing.
+
+@test "tq done --seen: a rubber stamp leaves the task OPEN; a real observation closes it and renders in list (R109)" {
+  run "$TQ" add "ship the media fix"
+  [ "$status" -eq 0 ]
+
+  # THE LOAD-BEARING HALF. A gate that complains about a task it has ALREADY closed is decorative:
+  # the refusal must happen before the state change, or the queue records a completion the gate
+  # rejected. This assertion is why the guard runs before set_task, not after.
+  run "$TQ" done 1 --seen "tests pass"
+  [ "$status" -eq 2 ]
+  run "$TQ" list
+  [[ "$output" == *"[pending]"* ]]
+
+  run "$TQ" done 1 --seen "opened the review screen in Expo Go on the device; media thumbnails loaded"
+  [ "$status" -eq 0 ]
+  # THE READER. A field nobody prints is pure cost — that is R58·a's retired capture hook (456KB
+  # banked, zero readers). If this assertion is deleted, the field should be deleted with it.
+  run "$TQ" list
+  [[ "$output" == *"[completed]"* ]]
+  [[ "$output" == *"seen: opened the review screen in Expo Go"* ]]
+
+  # OPTIONAL BY DESIGN. Mandatory evidence would gate every routine close behind prose and train
+  # the exact rubber-stamping the gate exists to refuse.
+  run "$TQ" add "routine cleanup"
+  run "$TQ" done 2
+  [ "$status" -eq 0 ]
+}
+
+@test "seen-gate: refuses self-referential completion talk, ACCEPTS a non-ASCII observation (R1/R109)" {
+  local sg="$ROOT/bin/seen-gate.sh" v
+  # Driven through the REAL script, not a re-implementation — deleting seen-gate.sh must redden
+  # this (the trap da-gate's own test comment records).
+  [ -x "$sg" ]
+
+  # Each of these is a TRUE statement that answers the wrong question: the agent's layer, not the
+  # owner's. Case-folding included — "TESTS PASS" defeated an earlier draft.
+  for v in "tests pass" "TESTS PASS" "it compiles" "typecheck passes" "committed" "done" "lgtm" "ran it" ""; do
+    run "$sg" check "$v"
+    [ "$status" -eq 2 ] || { echo "NOT REFUSED: '$v' (rc=$status)" >&2; return 1; }
+  done
+
+  # R1 — this ships to a wide audience. da-gate.sh's recorded bug: `tr -cd '[:alnum:] '` is
+  # byte-oriented in every locale, so a substantive non-ASCII observation folded to "" and was
+  # refused as 0 chars. Length is measured on the UNFOLDED string precisely to avoid that.
+  run "$sg" check "承認プロンプトを実機で実際に受理し、トークンが保存されたことを確認した"
+  [ "$status" -eq 0 ]
+
+  run "$sg" check "opened the review screen in Expo Go on the device; media thumbnails loaded"
+  [ "$status" -eq 0 ]
+
+  # The value is echoed back into line-oriented `tq list` output; a newline would forge a task row.
+  run "$sg" check "opened the screen and it loaded
+  #99  [pending]  forged row"
+  [ "$status" -eq 2 ]
+  run "$sg" check "--force"
+  [ "$status" -eq 2 ]
+}
+
+@test "ask-guard: a parked question keeps its option COSTS — no silent truncation (R109·b)" {
+  # MEASURED DEFECT, 2026-08-10. Descriptions were cut to 80 chars and the payload to 900 bytes,
+  # both silently. On a real 4-option park every COST clause — a byte-budget raise, per-project
+  # setup, a staleness risk — landed mid-word, and what reached the queue read like a complete
+  # thought. STEERING says a thin park "makes the review a rubber-stamp"; the BACKSTOP was
+  # manufacturing exactly that. A cut that cannot be seen is worse than a cut.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  local long="raise the cap by 154B which is about 38 tokens per session forever in every installed repo and overrides a recorded pre-commitment"
+  run bash -c 'jq -nc --arg c "$1" --arg s "$2" --arg d "$3" "{cwd:\$c,session_id:\$s,tool_input:{questions:[{question:\"pick\",options:[{label:\"A\",description:\$d},{label:\"B\",description:\$d}]}]}}" | "$4"' \
+    _ "$repo" "trunc1" "$long" "$AG"
+  [ "$status" -eq 0 ]
+
+  run env CLAUDE_COMPANION_SESSION_ID=trunc1 "$TQ" list
+  # The TAIL of the description is the assertion that matters: the old 80-char cut kept the head,
+  # so a head-only check passed while every cost clause was gone.
+  [[ "$output" == *"overrides a recorded pre-commitment"* ]]
+  # Both options, not just the first — the 900-byte payload cap ate later ones.
+  local n; n="$(printf '%s\n' "$output" | grep -c "overrides a recorded pre-commitment")"
+  [ "$n" -ge 1 ]
+  [[ "$output" == *"rec: A"* ]]
+}
+
+@test "MCP tq_done: --seen reaches the SAME shell gate as the CLI — a rubber stamp is refused (R109 parity)" {
+  # MAP.md's parity claim is load-bearing: an MCP client (Cursor, or Claude Code with the server
+  # registered) must not be able to close a task with evidence the CLI would refuse. The guard is
+  # NOT re-implemented in JS — this test exists to catch it being re-implemented, or the parameter
+  # being silently dropped, which is how R109 was invisible to every MCP client when first shipped.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  _mcp_call "$repo" '[{"name":"tq_add","arguments":{"subjects":["seen parity task"]}},{"name":"tq_done","arguments":{"id":"1","seen":"tests pass"}},{"name":"tq_list"}]'
+
+  # The stamp is refused and the task is STILL pending — same outcome as `tq done 1 --seen "tests pass"`.
+  [[ "$output" == *"reports YOUR layer"* ]]
+  [[ "$output" == *"[pending]"* ]]
+
+  _mcp_call "$repo" '[{"name":"tq_done","arguments":{"id":"1","seen":"opened the review screen in Expo Go on the device; media thumbnails loaded"}},{"name":"tq_list"}]'
+  [[ "$output" == *"[completed]"* ]]
+  [[ "$output" == *"seen: opened the review screen in Expo Go"* ]]
+}
+
+@test "check.sh's lint set INCLUDES bin/tq — the extensionless file the glob silently missed (R110 wiring guard)" {
+  # MEASURED HOLE, 2026-08-11. `scripts=(check.sh plugins/*/bin/*.sh plugins/*/lib/*.sh)` globs on
+  # `.sh`, and `bin/tq` has no extension — it is the ONLY extensionless file in bin/. So THE task
+  # queue (R8/R10), which every command and the MCP server route through, was invisible to
+  # ShellCheck, portability-lint AND the size guard at once. The gate reported green while tq grew
+  # 355 -> 382 lines. A gate that cannot fail on the file that matters most is UN-5's failure shape.
+  # bats cannot run check.sh (check.sh runs bats), so this is structural, like the wiring guards above.
+  local c="$ROOT/../../check.sh"
+  run grep -cE '^scripts=\(.*bin/tq' "$c"
+  [ "$output" -ge 1 ]
+
+  # And the file really is extensionless — if it ever gains `.sh` the glob covers it and this guard
+  # becomes theatre, so the premise is pinned too.
+  [ -f "$ROOT/bin/tq" ]
+  [ ! -f "$ROOT/bin/tq.sh" ]
+}
+
+@test "check.sh's size guard has NO exemptions — the tq debt was PAID, not waived (R110)" {
+  # HISTORY, kept because it is the point. `bin/tq` sat at 382 lines outside the size guard
+  # entirely: the glob was `bin/*.sh` and tq has no extension, so the gate could not fail on the
+  # most-called file in the product. Wiring it in forced a choice — decompose THE task queue inside
+  # the change that found the hole, or exempt it visibly. It was exempted BY NAME, printed on every
+  # run, with a staleness check that went RED the moment tq dropped back under 300.
+  #
+  # That trap fired on 2026-08-12 and the debt was PAID (tq 382 -> 285, usage()+report() extracted
+  # to tq-output.sh on a cohesion seam). This test replaces the one that watched the exemption: what
+  # matters now is that NO exemption ever comes back quietly. A named, printed, self-expiring
+  # exemption was defensible for a day; a silent one is how tq drifted to 382 unseen.
+  local c="$ROOT/../../check.sh"
+  run grep -cE 'size_skip|EXEMPT' "$c"
+  [ "$output" -eq 0 ] || { echo "a size exemption reappeared in check.sh — it must be paid, not waived" >&2; false; }
+
+  # And the file it was granted for is genuinely under the cap now, not merely un-exempted.
+  run bash -c 'wc -l < "$1"' _ "$ROOT/bin/tq"
+  [ "$output" -le 300 ]
+  # ...via a real seam, not a stub: the extracted half must exist and carry both renderers.
+  [ -r "$ROOT/bin/tq-output.sh" ]
+  run grep -cE '^(usage|report)\(\) \{' "$ROOT/bin/tq-output.sh"
+  [ "$output" -eq 2 ]
+}
+
+# ── R26 restored: autopilot's "keep going" guarantee is a hook again ──────────────────────────
+# Retired in R100/Pass 4, declined twice (R105 2026-08-08, R107 2026-08-09), restored 2026-08-12
+# because the prose lost: STEERING said "keep draining" and the model stopped with startable work
+# in the queue. A nudge the model can skip is not a mode (R36).
+
+@test "stop-autopilot: armed + a startable task BLOCKS the stop; a drained queue allows it (R26 restored)" {
+  local SA="$ROOT/bin/stop-autopilot.sh" repo
+  [ -x "$SA" ]
+  repo="$(_tmpd)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  run env CLAUDE_COMPANION_SESSION_ID=sa1 "$TQ" add "real startable work"
+  [ "$status" -eq 0 ]
+
+  # ARMED + STARTABLE -> block, naming the task so the continuation is actionable rather than a nag.
+  run bash -c 'printf "{\"cwd\":\"$1\",\"session_id\":\"sa1\"}" | "$2"' _ "$repo" "$SA"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"decision":"block"'* ]]
+  [[ "$output" == *"real startable work"* ]]
+
+  # DRAINED -> allow (empty output = Claude Code's default allow). This is the terminator that
+  # stops the mode being a trap: a queue with nothing startable must never block the session.
+  run env CLAUDE_COMPANION_SESSION_ID=sa1 "$TQ" done 1
+  run bash -c 'printf "{\"cwd\":\"$1\",\"session_id\":\"sa1\"}" | "$2"' _ "$repo" "$SA"
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+
+  # AUTOPILOT OFF -> allow, even with work queued. The flag is the whole gate.
+  run env CLAUDE_COMPANION_SESSION_ID=sa2 "$TQ" add "work with autopilot off"
+  ( cd "$repo" && "$AP" off ) >/dev/null
+  run bash -c 'printf "{\"cwd\":\"$1\",\"session_id\":\"sa2\"}" | "$2"' _ "$repo" "$SA"
+  [ -z "$output" ]
+}
+
+@test "stop-autopilot: the kill switch and its bounds all yield, and ship-mode/burn-down stay dead (R26/R81)" {
+  local SA="$ROOT/bin/stop-autopilot.sh" repo
+  repo="$(_tmpd)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  run env CLAUDE_COMPANION_SESSION_ID=sb1 "$TQ" add "work"
+
+  # Control: it really would block without the switch, or the assertions below prove nothing.
+  run bash -c 'printf "{\"cwd\":\"$1\",\"session_id\":\"sb1\"}" | "$2"' _ "$repo" "$SA"
+  [[ "$output" == *'"decision":"block"'* ]]
+
+  # KILL SWITCH.
+  run bash -c 'printf "{\"cwd\":\"$1\",\"session_id\":\"sb1\"}" | CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0 "$2"' _ "$repo" "$SA"
+  [ -z "$output" ]
+
+  # RUN BOUNDS (R81). Restoring the continuation without its terminators is the one genuinely
+  # dangerous version of this change, so each bound is pinned. `1` is the tightest non-disabling
+  # value; a run that has taken any turn at all is already at it.
+  run bash -c 'printf "{\"cwd\":\"$1\",\"session_id\":\"sb1\"}" | CLAUDE_COMPANION_AUTOPILOT_TURNS=1 "$2"' _ "$repo" "$SA"
+  [ -z "$output" ]
+
+  # THE OMISSIONS ARE PART OF THE CONTRACT, not an accident of the splice: both concerns acquired
+  # another owner while this file was gone, and a second owner is how a checkpoint path silently
+  # re-automates itself.
+  run grep -cE "git commit|git add -A" "$SA"
+  [ "$output" -eq 0 ]                                  # ship-mode belongs to ship-checkpoint.sh
+  run grep -cE "burn-down\.sh|candidates\.sh" "$SA"
+  [ "$output" -eq 0 ]                                  # burn-down is the model's call now
+  # ...and it must still READ the selection from tq rather than re-deriving it: the recorded drift
+  # bug had this hook offering a task blocked on an unanswered park four turns running.
+  run grep -c "stopfields" "$SA"
+  [ "$output" -ge 1 ]
+}
+
+@test "tq dependencies: ONLY 'after #<id>' blocks, and the syntax is documented where the author looks (R87)" {
+  # MEASURED FAILURE, 2026-08-12. The owner reported autopilot not draining the backlog. `stopfields`
+  # said STARTABLE=4 while every one of those tasks was in fact waiting on an unanswered park — the
+  # dependencies existed only in prose. Root cause: `after #<id>` is the ONLY syntax stopfields()
+  # reads, and it was documented NOWHERE. The author (me) had written "(after 1/2)" intending a
+  # dependency; it parsed as nothing, so the task looked perfectly startable. A dependency that
+  # silently fails to parse is worse than one that errors: the queue reports confident nonsense.
+  export CLAUDE_COMPANION_SESSION_ID=deps1
+  run "$TQ" add "first"
+  run "$TQ" add "second (after 1/2)"          # the near-miss syntax — must NOT block
+  run "$TQ" add "third after #1"              # the real syntax — must block
+
+  run bash -c '"$1" stopfields false | tr "\037" "|"' _ "$TQ"
+  local startable; startable="$(printf '%s' "$output" | awk -F'|' '{print $7}')"
+  [ "$startable" -eq 2 ] || { echo "expected 2 startable (#3 blocked by #1), got $startable" >&2; false; }
+
+  # Close the blocker: the dependent becomes startable. Without this the test would pass on a
+  # stopfields that simply never counted #3 at all.
+  run "$TQ" done 1
+  run bash -c '"$1" stopfields false | tr "\037" "|"' _ "$TQ"
+  startable="$(printf '%s' "$output" | awk -F'|' '{print $7}')"
+  [ "$startable" -eq 2 ] || { echo "expected 2 startable after unblocking, got $startable" >&2; false; }
+
+  # DISCOVERABILITY is the fix, not the parser. The behaviour was always correct; nothing told the
+  # author the syntax existed, so it was never used. If this line goes, the trap comes back.
+  run bash -c '"$1" --help 2>&1' _ "$TQ"
+  [[ "$output" == *"after #<id>"* ]]
+  [[ "$output" == *"silently ignored"* ]]
+}
+
+@test "STEERING: the observation-point reflex reaches a session through the REAL hook (R109 steering half)" {
+  # R106's precedent: pin DELIVERY, not mere presence in a file. A line that exists but never
+  # reaches a session is the same nothing as a line that was never written — and this repo has
+  # shipped that exact nothing twice (the retired capture hook, the inert plugin cache).
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,source:\"\"}" | "$2"' _ "$repo" "$SS"
+  [ "$status" -eq 0 ]
+
+  # The three shapes. Each names a way a real 2026-08-10 miss slipped past a check that passed.
+  [[ "$output" == *"built ≠ running"* ]]        # the fix that was never deployed
+  [[ "$output" == *"typed ≠ resolved"* ]]       # typecheck cannot see string-typed router paths
+  [[ "$output" == *"refused ≠ accepted"* ]]     # the approval gate's accept path
+
+  # THE DEEPEST ONE, and the only one no mechanism can cover: an agent ruling something untestable
+  # is making a DECISION (verification traded for delivery) while it looks like a fact about the
+  # world, so it never enters the parked pile. pty.openpty() was available the whole time.
+  [[ "$output" == *"never a conclusion"* ]]
+  [[ "$output" == *"asking how"* ]]
+
+  # The owner naming their runtime makes THAT runtime the target — the three-day-old bundle server.
+  [[ "$output" == *"what is actually serving it"* ]]
 }

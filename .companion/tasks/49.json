@@ -1,9 +1,15 @@
 {
   "id": "49",
   "subject": "❓ [parked] rev: RATIFY R108 (autopilot pause markers are session-bound) — I added it to requirements.yaml while autopilot was ARMED, which R86 says is yours to decide, not mine. Keeping it was the lesser evil only because the change is ATOMIC: the fix, its test and the requirement land together, and dropping the entry alone turns dev/trace.sh red on the orphan-test direction. EVIDENCE it is a real requirement, not invented scope: reproduced live on your machine this session — /companion:review armed autopilot off a marker left by a review on 2026-08-08, and you never turned it on. Rejected alternatives, recorded: (b) timestamp the marker and expire it after N hours — needs an arbitrary constant, and a review's real duration is unbounded; (c) tie it to the paused PROCESS — wrong unit, pause and resume are separate invocations by design; options: A) ratify as written B) ratify but reword the requirement C) reverse it — drop R108, its test and the session-binding, accepting that a stale marker can arm autopilot; rec: A — it fails safe (an unverifiable marker leaves autopilot OFF), the same-session round trip is unchanged and still tested by R83, and the upgrade case where a cached pre-fix version leaves an unstamped marker is covered",
-  "status": "pending",
+  "status": "completed",
   "done_when": "owner ratifies, rewords, or reverses R108; if reversed, the fix + test + entry come out together so the trace gate stays green",
   "context": "docs/requirements.yaml R108, plugins/companion/bin/autopilot.sh, dev/tests/companion-core.bats (R108 test), tq #48",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-10T16:30:00Z",
+      "text": "decided: RATIFY AS WRITTEN (owner, 2026-08-10, /companion:review). R108 stands unchanged — fails safe (unverifiable marker leaves autopilot OFF), same-session round trip still covered by R83, unstamped-marker upgrade case covered. R86 ratification satisfied."
+    }
+  ]
 }

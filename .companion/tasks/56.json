@@ -1,0 +1,10 @@
+{
+  "id": "56",
+  "subject": "C2 (after C1): wire --seen into tq done + the MANDATORY reader — parse the flag, call seen-gate.sh BEFORE the state change so a rubber stamp leaves the task OPEN, persist .seen via jq, and PRINT it in report/list. --seen stays OPTIONAL (omitting it closes the task as today): making it mandatory would gate every routine close behind prose and train exactly the rubber-stamping the guard exists to stop.",
+  "status": "completed",
+  "done_when": "tq done 1 --seen '<substantive>' closes the task and the evidence reads back in tq list; tq done 1 --seen 'tests pass' exits non-zero and the task is STILL pending; plain tq done 1 still works",
+  "context": "plugins/companion/bin/tq:262 (done verb), set_task, report/list output, plugins/companion/bin/seen-gate.sh",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran tq done --seen end-to-end in a scratch git repo: rubber stamp exited 2 and left #1 PENDING, real evidence closed it and rendered under tq list, plain tq done still closed #2"
+}

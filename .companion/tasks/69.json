@@ -1,0 +1,10 @@
+{
+  "id": "69",
+  "subject": "R81 BUDGET: measure the restored hook against the hook-work ceiling — CLAUDE.md says a budget that is asserted rather than measured by check.sh is not a budget. The stall/run-bound tests were TRIMMED from R81 in R100/Pass 4; restoring the code means restoring its measurement.",
+  "status": "completed",
+  "done_when": "check.sh measures the Stop hook's cost and the number is printed, not asserted",
+  "context": "check.sh hook budget section, docs/requirements.yaml R81, dev/tests/companion-fuzz.bats",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran dev/hook-budget.sh with stop-autopilot.sh added to the measured set: it reports 68ms small / 67ms at 8x store size = 0.98x scaling ratio, verdict ok. Measured on this machine, printed by the gate, not asserted."
+}

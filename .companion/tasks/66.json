@@ -1,0 +1,10 @@
+{
+  "id": "66",
+  "subject": "R110 contract entry + test for the gate hole: check.sh must include bin/tq in the lint/size set (it was excluded by filename), and the named size exemption must go RED when tq drops back under 300 so it cannot outlive the debt",
+  "status": "completed",
+  "done_when": "a bats test reddens if bin/tq is removed from the scripts array, and another reddens if the stale-exemption check is deleted; dev/trace.sh green both directions",
+  "context": "check.sh scripts array + File size section, dev/tests/companion-core.bats, docs/requirements.yaml, docs/MAP.md check.sh row",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran both R110 guards against the real check.sh and mutation-verified each: removing bin/tq from the scripts array reddened the wiring guard, deleting the stale-exemption line reddened the outlive-the-debt guard; control green after restore. Watched check.sh print 'EXEMPT plugins/companion/bin/tq: 382 > 300' on a live run."
+}

@@ -1,0 +1,9 @@
+{
+  "id": "77",
+  "subject": "⏳ [blocked] R112 is INERT until the plugin refresh too — commands/*.md are served from the same version cache as the hooks (3.82.0 running, 3.83.0 in tree). Folded into #62 rather than a separate ask: one refresh lands the ask-guard fix, the restored Stop hook AND the accept sweep.",
+  "status": "cancelled",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": []
+}

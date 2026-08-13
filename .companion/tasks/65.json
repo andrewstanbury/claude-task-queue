@@ -1,0 +1,15 @@
+{
+  "id": "65",
+  "subject": "❓ [parked] MAKE AUTOPILOT ACTUALLY KEEP GOING when startable tasks remain (owner, 2026-08-11: 'I want autopilot to keep going if there are new tasks in the queue and it's turned on'). CONTRADICTION I MUST FLAG BEFORE YOU PICK: this is the guarantee stop-autopilot.sh gave, retired in R100/Pass 4 — and a Stop hook has been offered and DECLINED TWICE, on 2026-08-08 (R105, 'owner picked context-delivery + anti-rework back, not full enforcement') and 2026-08-09 (R107, 'Rejected: a Stop hook... the only option that could not be skipped'). Asking for the behaviour is asking to reverse those. Half the machinery already survived: 'tq stopfields' computes the first STARTABLE task + blocker counts and is still directly tested (R87/R91); only the hook consuming it is gone. options: A) reinstate stop-autopilot.sh as a Stop hook — reads stopfields, and while autopilot is armed AND a startable task exists it forces continuation instead of stopping; the ONLY option that cannot be skipped. COST: reverses R100/Pass 4 + both declines above; Claude-Code-only, so MCP clients (Cursor) get nothing (R100's whole portability thesis); and it MUST come back with its runaway bounds (stall cap, run cap, sweep terminator — R77/R81), or it is a loop with no brake. B) steering only — sharpen the autopilot block to 'hitting a park is not a stopping point: report the parks and keep draining startable work'. Zero mechanism, zero portability cost, BUT it is prose the model can skip and it just did, AND it costs injected bytes the core does not have — it competes directly with #60's 154B. C) A + B together — prose now, hook after, so the discipline is stated and also enforced. D) nothing. rec: A, with the caps — because what happened here is the evidence: #63 was startable, autopilot was armed, and I stopped to report anyway. The line telling me not to was already in STEERING and lost, which is the same pattern as two of the four misses in your original report. But this is genuinely yours: you declined this hook twice, and I am recommending you reverse yourself.",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-12T14:40:28Z",
+      "text": "decided: A — PARTIAL RESTORE (owner, 2026-08-12, reviewed with autopilot paused). Continuation + stall cap + both R81 run bounds return; ship-mode auto-commit stays deleted (ship-checkpoint.sh owns it). Owner picking A blesses the contract delta this needs (R86), same as R109."
+    }
+  ]
+}

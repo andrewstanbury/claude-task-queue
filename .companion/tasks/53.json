@@ -1,0 +1,15 @@
+{
+  "id": "53",
+  "subject": "FUND option A by SUBTRACTION, not a 5th cap raise — check.sh:132 records 'FOURTH raise... if a fifth is proposed, rebuild the core instead (R55)'. Find ~450B of duplication in the STEERING injected core the way the 4th raise found 217B. If less than ~450B is genuinely duplicated, STOP and park the shortfall as an owner cap-raise decision rather than silently raising it.",
+  "status": "completed",
+  "done_when": "core stays <= 8576 bytes with the three new A lines present, and check.sh's token-budget section is green; OR the shortfall is parked as a ❓",
+  "context": "check.sh:105-135 (core_cap, token budget section), plugins/companion/STEERING.md core above the R69 marker",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-10T16:33:37Z",
+      "text": "MEASURED. Rewriting the existing 'Verify observably' bullet in place (rather than adding three lines) cuts the ask from 384B to 155B: the 376B bullet becomes 531B carrying all four new ideas, after dropping content genuinely duplicated elsewhere — 'recap what now works in one plain line' (reflex 3 already mandates the closing recap) and '--done states the acceptance' (line 32 already defines it). Scanned for more: the core's 'wireframe'/'decompose-park'/'playtest'/'taste-neutral' mentions are two-tier POINTERS to below-marker detail, not duplication — cutting them breaks the reference. There is no honest 154B of waste left. Core would land at 8730 vs cap 8576."
+    }
+  ]
+}

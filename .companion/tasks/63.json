@@ -1,0 +1,21 @@
+{
+  "id": "63",
+  "subject": "tq is 382 lines, over the ≤300 hard constraint (CLAUDE.md). PRE-EXISTING — it was already 355 at HEAD — but R109's done-verb flag parsing took it to 382, so I made it worse. Candidates for extraction, smallest blast first: (a) the 'orphans' verb (~40 lines, self-contained, already has its own tests), (b) the done-verb flag parsing into a helper, (c) report/list rendering. HIGH BLAST — this is THE task queue, R8/R10, and every command plus the MCP server calls it; do NOT auto-drain, decompose first.",
+  "status": "completed",
+  "done_when": "tq is ≤300 lines with no behaviour change, full suite green, and the MCP parity tests still pass",
+  "context": "plugins/companion/bin/tq, plugins/companion/mcp-server/index.js, dev/tests/companion-core.bats, CLAUDE.md file-size constraint",
+  "blocks": [],
+  "blockedBy": [],
+  "description": "owner says keep draining — #63 is the one startable task; decomposing it rather than parking it",
+  "notes": [
+    {
+      "ts": "2026-08-11T15:04:18Z",
+      "text": "ROOT CAUSE FOUND — bigger than the size violation itself. check.sh's scripts=(check.sh plugins/*/bin/*.sh plugins/*/lib/*.sh) globs on .sh, and bin/tq has NO extension. tq is the ONLY extensionless file in bin/, so THE task queue was invisible to ShellCheck (line 71), portability-lint (line 80) AND the 300-line size guard (line 100) — all three. That is why the gate stayed green at 382 lines, and why the growth from 355 went unremarked. Verified tq is CLEAN under both shellcheck and portability-lint, so wiring it in cost nothing there; the size guard is now a NAMED, PRINTED exemption pointing at this task, with a staleness check that goes RED once tq drops back under 300 so the exemption cannot outlive the problem."
+    },
+    {
+      "ts": "2026-08-12T14:52:23Z",
+      "text": "MEASURED decomposition (not estimated): tq is 382, needs ≤300, so 82+ lines must go. Blocks: usage() 21 lines (cold path, help text, zero risk) · orphans verb ~38 incl. its comment (diagnostic, NOT queue mechanics, already has its own tests) · report() 60 (presentation, but HOT — called by done/import/session-start) · stopfields() 20 (MUST stay: tq owns 'first startable task', and the recorded drift bug was the Stop hook re-deriving it). usage+orphans = 59, which is 23 SHORT of the cap — so the cohesion-correct split does not reach 300 without touching report(), and that is the real decision."
+    }
+  ],
+  "seen": "partially delivered and re-scoped rather than left dangling: the gate hole it exposed is fixed and shipped as R110, the orphans extraction landed as #72 (tq 382->354, verified through both call paths), and the remaining 54 lines are now the parked decision #75. Nothing about #63 is still in flight."
+}

@@ -65,10 +65,12 @@ on returning without asking. Ordinary replies get neither.
   hypothesis. Record it as ruled out and do not re-open it without NEW evidence you can name out
   loud. Re-investigating a confirmed component is the rework this whole loop exists to prevent,
   and it feels like diligence while it happens.
-- **Verify observably** — exercise, don't assert; existing checks green before "done"; recap what
-  now works in one plain line. TDD as design discipline, not ritual: `--done` states the acceptance;
-  write a real test where it earns a *durable* safety net (irreversible / un-eyeball-able, R48/R51).
-  Human-observable surface → offer a playtest (autopilot on → `⏳`).
+- **Verify observably, at the layer the OWNER meets** — built ≠ running, typed ≠ resolved,
+  refused ≠ accepted. `--done` names where THEY see it, not what you can close alone; they name
+  a runtime, check what is actually serving it. **"I can't test this" is a `❓` asking how,
+  never a conclusion.** Checks green before "done"; `--seen` records what you exercised; a test where
+  it earns a *durable* net (irreversible / un-eyeball-able, R48/R51). Human-observable → offer a
+  playtest (autopilot on → `⏳`).
 
 ## Deciding
 
@@ -128,15 +130,20 @@ Boring & reversible beats clever. Honor the owner's *outcome*, not their propose
      call time (it always disarms as part of resuming, R39). Mode prose is dead weight in every
      call where the mode is off, which is most of them. It sits below the marker so the R69 cap
      measures only what is unconditionally printed. -->
-## Keep-going mode (autopilot) — PARTIALLY ENFORCED (R100/Pass 6)
+## Keep-going mode (autopilot) — ENFORCED (R26 restored, 2026-08-12)
 
-**"Don't stop to ask" IS enforced again; "keep going instead of stopping" is not.**
-`ask-guard.sh` is reinstated (docs/adr/README.md R105) — it denies `AskUserQuestion` while
-autopilot is armed and auto-parks the intercepted question for you. `stop-autopilot.sh` stays
-retired: no hook forces the session to continue instead of stopping, no cap catches a stall or
-bounds a runaway run — that guarantee was NOT asked back and remains the single biggest fidelity
-loss of R100. Watch your own progress on THAT half: if several turns pass with nothing completed,
-say so and stop yourself rather than assuming a cap has your back.
+**Both halves are enforced again.** `ask-guard.sh` denies `AskUserQuestion` while armed and
+auto-parks the intercepted question (R105). `stop-autopilot.sh` is **restored** (owner-decided,
+reversing the declines of R105 and R107): while autopilot is armed and a **startable** task
+remains, the Stop hook refuses the stop and hands you the next task. It ends the turn on its own
+when nothing is startable, and it is bounded — a no-progress stall cap
+(`CLAUDE_COMPANION_AUTOPILOT_MAX`, 8), wall-clock and total-turn run bounds (R81), the R77 sweep
+terminator, and `CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0` to switch it off.
+
+**Reaching a parked item is NOT a stopping point.** Report the parks and keep draining whatever is
+startable — the tail of the queue is where the un-looked-at work is. Ship-mode commits and the
+burn-down hand-off stay YOURS to call (below): the hook restores continuation only, never
+side effects.
 
 ▢ keep draining; don't stop to ask; self-verify (you have a shell) ▢ **park it yourself, before
 you'd ask** — `tq add` the `❓`/`⏳` right then, don't wait to be denied: ask-guard.sh auto-parks a

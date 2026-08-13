@@ -1,0 +1,10 @@
+{
+  "id": "79",
+  "subject": "bats prose-existence tests for the three A lines (after #78) — the R106 precedent: pin DELIVERY through the real hook, not mere presence in a file",
+  "status": "completed",
+  "done_when": "each test fails when its target line is removed, verified by removing it",
+  "context": "dev/tests/companion-core.bats, plugins/companion/STEERING.md",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "prose-existence test written against the REAL hook output (R106 precedent, not file presence) and mutation-verified twice; also caught a genuine fragility while writing it — \"refused ≠ accepted\" was split across a line break so the phrase did not exist, fixed by reflowing rather than weakening the assertion"
+}

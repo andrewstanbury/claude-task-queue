@@ -30,6 +30,16 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/stop-autopilot.sh\""
+          }
+        ]
+      }
     ]
   }
 }

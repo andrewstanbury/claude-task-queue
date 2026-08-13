@@ -1,0 +1,10 @@
+{
+  "id": "68",
+  "subject": "Wire the Stop hook into hooks.json (after the restore) and VERIFY IT FIRES — plugin.json is already 3.83.0 but the cache serves 3.82.0, so a hooks.json change is inert until reinstall (#62). Name the version that actually ran before claiming it works.",
+  "status": "completed",
+  "done_when": "hooks.json declares Stop -> stop-autopilot.sh, check.sh green, and the inertness is stated explicitly rather than assumed away",
+  "context": "plugins/companion/hooks/hooks.json, ~/.claude/plugins/cache/andrewstanbury/companion/, CLAUDE.md hard constraint on cached hooks",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "hooks.json now declares PreToolUse/SessionStart/Stop/UserPromptSubmit and jq-validates. VERIFIED INERT THIS SESSION, not assumed: the cache serving this session is 3.82.0 and its hooks.json declares only PreToolUse,SessionStart,UserPromptSubmit — no Stop. Source is 3.83.0. The hook will not fire until #62's reinstall."
+}

@@ -1,0 +1,10 @@
+{
+  "id": "57",
+  "subject": "Contract delta for A+C: new requirement(s) in docs/requirements.yaml tracing to UN-5 ('I want to trust the green tick'), each naming real verified_by tests. Owner blessed the delta by picking A+C in the 2026-08-10 review, which satisfies R86.",
+  "status": "completed",
+  "done_when": "dev/trace.sh green in BOTH directions (no requirement without a need, no orphan test) with the new entries and their affirmed:/affirmations: stamps present",
+  "context": "docs/requirements.yaml, docs/needs.yaml UN-5, dev/trace.sh, R86/R97",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran ./dev/trace.sh after adding R109: reports 'traceability closed: 8 needs <- 68 requirements <- 217 tests, no orphans either way' — both directions green with the two new verified_by titles matching real @test names"
+}

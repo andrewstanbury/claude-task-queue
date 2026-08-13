@@ -1,0 +1,16 @@
+{
+  "id": "81",
+  "subject": "❓ [parked] \"Reinstall so it actually runs\" is a NO-OP as things stand — MEASURED, not assumed. The marketplace source is github:andrewstanbury/claude-task-queue and the install record pins gitCommitSha 00cce40. Local HEAD is STILL 00cce40 with 57 files uncommitted: this entire session (R109/R110/R111/R112/R87b) exists nowhere a reinstall can fetch from. Running the reinstall would succeed, install the same 3.82.0, and change nothing — the exact built-not-deployed shape from your 2026-08-10 report, arriving as a live instruction. options: A) SHIP FIRST then reinstall — /companion:ship-it commits+pushes to GitHub (ship.sh will demand a --da finding, R78, since bin/ and check.sh are touched), then claude plugin marketplace update. Real and permanent, but it publishes the R109 steering half UNRESOLVED while #60 is still parked B) POINT THE MARKETPLACE AT THE LOCAL TREE — claude plugin marketplace add /home/deck/Documents/claude-task-queue (verified: marketplace add accepts a path). Runs the working tree IMMEDIATELY, nothing published, reversible with marketplace remove. Footgun: it changes how EVERY session on this machine resolves the plugin, including future ones where the tree may be mid-edit and broken C) reinstall as literally asked — a verified no-op, recorded here so nobody re-proposes it; rec: B to see it working now, then A once #60 is answered so main carries a whole answer rather than half of one. B is the only option that gets you a running Stop hook, ask-guard fix and accept sweep today.",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-12T19:52:15Z",
+      "text": "decided: B (owner, 2026-08-12). Marketplace repointed to the local tree; plugin updated 3.82.0 -> 3.83.0. Recorded in docs/CHANGES-OUTSIDE-GIT.md with the revert command, because git cannot see it."
+    }
+  ],
+  "seen": "drove the SERVED cache binaries at ~/.claude/plugins/cache/andrewstanbury/companion/3.83.0, not the source tree: hooks.json declares Stop, stop-autopilot.sh is present+executable (151 lines) and returned decision:block naming the task on a scratch repo then empty (allow) once drained; ask-guard.sh has the TRUNCATED marker and zero of the old .[0:80] cut; review.md carries multiSelect; seen-gate.sh and tq --seen are present"
+}

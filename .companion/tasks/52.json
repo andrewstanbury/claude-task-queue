@@ -1,0 +1,9 @@
+{
+  "id": "52",
+  "subject": "SKETCH (structural, before code) — C's interface delta: task JSON gains a 'seen' string field (default \"\"), exactly the shape done_when/context already use. CLI delta: 'tq done <id> [--seen \"<evidence>\"]'. Call stack: tq done -> parse --seen -> seen-gate.sh guard (exit 2 = task NOT closed) -> set_task completed + jq .seen -> report. Guard lives in its OWN file (bin/seen-gate.sh) for the same reason da-gate.sh was extracted: the suite exercises it directly and tq stays under its 300-line cap. MANDATORY reader: tq report/list must PRINT seen: — a field nobody reads repeats R58a's retired capture hook (456KB, zero readers).",
+  "status": "completed",
+  "done_when": "the delta above is written down and every child task below carries it as --context",
+  "context": "plugins/companion/bin/tq, plugins/companion/bin/da-gate.sh (guard precedent), docs/adr/README.md R58a",
+  "blocks": [],
+  "blockedBy": []
+}

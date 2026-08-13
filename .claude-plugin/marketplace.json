@@ -11,7 +11,7 @@
       "name": "companion",
       "source": "./plugins/companion",
       "description": "How Claude works on your project, in one place. A steering document (in context automatically at session start, and on demand any time) defines how Claude turns your requests into a live task queue, decides with brutally honest multiple-choice recommendations that name what each option would change, runs autonomously when you step away, and keeps code clean as it changes it. A portable core backs it — its own task-queue CLI (a self-owned queue that works even where Claude's native task tools are switched off), also reachable via an MCP server for any MCP-capable client, an advisory credential-shape scanner, cross-session resume, and an animated status line. Most of it is advisory — traded deliberately for portability beyond Claude Code — except guaranteed context delivery and a block on proceeding past an unanswered decision under autopilot, kept as Claude-Code-only guarantees. Everything else (wireframe-first, outcome-checks, present-parked-first) is steering, not machinery.",
-      "version": "3.82.0"
+      "version": "3.83.0"
     }
   ]
 }
