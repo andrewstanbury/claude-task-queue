@@ -28,7 +28,16 @@ then `claude plugin update companion@andrewstanbury` moved the install 3.82.0 ->
 is still local HEAD — R109/R110/R111/R112/R87b are uncommitted, so a plain reinstall would have
 fetched the identical 3.82.0, reported success, and changed nothing.
 
-**This is a LOCAL OVERRIDE, and it is a footgun while it stands.** Every session on this machine now
+**RESOLVED THE SAME DAY — the override is gone.** 13fd573 shipped to main, the marketplace was
+repointed back to `{github: andrewstanbury/claude-task-queue}`, and companion was reinstalled FROM
+GITHUB at 3.83.0 / sha 13fd573. Verified by driving the GitHub-served binaries, not the version
+string: hooks.json declares Stop, stop-autopilot.sh returns `decision:block` on a startable task,
+ask-guard carries the TRUNCATED marker with zero of the old cut. **Note `marketplace remove`
+UNINSTALLS the plugin** — `claude plugin install companion@andrewstanbury` is the required follow-up,
+which is not obvious from the remove/add pair. Machine state is back to normal; nothing below still
+applies.
+
+**It was a LOCAL OVERRIDE, and a footgun while it stood.** Every session on this machine now
 resolves companion from the working tree, including mid-edit or broken states — the tree is no
 longer a safe scratch space. **Revert with** `claude plugin marketplace remove andrewstanbury` then
 `claude plugin marketplace add andrewstanbury/claude-task-queue`; config backed up at

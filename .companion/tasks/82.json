@@ -1,0 +1,10 @@
+{
+  "id": "82",
+  "subject": "R110b/R109 steering half + tq-output extraction shipped as 13fd573; marketplace restored to GitHub",
+  "status": "completed",
+  "done_when": "already satisfied — recorded for the ledger",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "verified the GITHUB-SERVED cache at sha 13fd573, not the source tree: hooks.json declares Stop, stop-autopilot.sh returned decision:block on a scratch repo with a startable task, ask-guard has TRUNCATED and zero .[0:80], review.md has multiSelect, seen-gate.sh + tq-output.sh present, STEERING carries the observation-point reflex"
+}
