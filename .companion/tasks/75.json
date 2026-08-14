@@ -1,7 +1,7 @@
 {
   "id": "75",
   "subject": "❓ [parked] rev: tq's last 23 lines — the cohesion-correct extractions (orphans + usage = 59 lines) leave tq at ~323, still over the 300 cap. The only block big enough to close it is report() at 60 lines, and it is the HOT path: done/import/session-start all call it, so extracting it puts a shell \"source\" on the most-called script in the product. options: A) extract report() too — tq lands ~263 with real headroom, at the cost of one source per invocation on the hot path; the number is GETTABLE, not guessable, because dev/hook-budget.sh already benchmarks this kind of thing B) leave tq at ~323 and keep R110s named size exemption, with the number falling 382 -> 323 — honest, visible, still a debt C) raise the 300 cap for tq specifically and record why THE task queue is allowed to be bigger than everything else D) split tq by concern rather than by line count — a real redesign pass, not a trim; rec: A, but ONLY after measuring the source cost. The whole point of R110 was that an unmeasured claim about this file is how it drifted to 382 unnoticed, and I will not trade a hot-path cost I have not measured for a line count. If the measurement is bad, B is honest and the exemption already exists to hold it.",
-  "status": "pending",
+  "status": "completed",
   "done_when": "",
   "context": "",
   "blocks": [],
@@ -10,6 +10,11 @@
     {
       "ts": "2026-08-12T15:17:06Z",
       "text": "#73 (extract usage(), 21 lines) now DEPENDS on this — see its note. It buys no cap change on its own (~333, still over) and splits help text from the CLI to chase a number, which is the seam-smell trap STEERING names. Option A (extract report(), measured first) makes it unnecessary; option D (split by concern) subsumes it."
+    },
+    {
+      "ts": "2026-08-14T04:50:11Z",
+      "text": "RESOLVED BY EVENTS. Recommended option was A but ONLY after measuring the source cost. Measured: 0.634s vs 0.635s over 100 invocations — inside the noise floor against a ~21ms tq report, so the hot-path objection I raised did not exist. Extracted usage()+report() to tq-output.sh on a cohesion seam; tq 382 -> 285; R110's staleness trap then went RED and forced the size exemption to be deleted."
     }
-  ]
+  ],
+  "seen": "tq is 285 lines and check.sh's File size section reports plain 'ok' with no exemption; drove tq report/list/--help through the sourced tq-output.sh and output was identical, and removing the helper left tq still able to add tasks (best-effort fallback)"
 }

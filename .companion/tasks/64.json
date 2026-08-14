@@ -1,9 +1,16 @@
 {
   "id": "64",
   "subject": "❓ [parked] rev: R109 (seen-gate + tq done --seen + MCP parity + ask-guard truncation fix + version bump to 3.83.0) is a verified chunk sitting uncommitted — check.sh PASS, 219 tests, 0 failures, trace closed both directions, every new assertion mutation-verified. options: A) /companion:ship-it — commit + push + merge to main; note ship.sh will demand a --da devil's-advocate finding because bin/ and check.sh are both touched (R78) B) commit locally only, leave the push to you C) leave it uncommitted until #60 is ruled on, so the steering half lands in the SAME commit as the mechanism half; rec: C — A and B split one decision across two commits and leave main carrying a half-answer to your report, and #60 is a short question. But if you want the ask-guard truncation fix on main now regardless of #60, take A: that fix is independent and is currently inert in your plugin cache.",
-  "status": "pending",
+  "status": "completed",
   "done_when": "",
   "context": "",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-14T04:50:11Z",
+      "text": "RESOLVED BY EVENTS, not by a fresh decision — recorded so the audit trail shows which option ran. Recommended option was C (hold until #60 so both halves land together). #60 was answered 2026-08-12 ('do it for me'), the steering half landed, and the whole set shipped as ONE commit 13fd573 — which is exactly C, then A. Nothing was decided behind the owner's back; the park simply outlived its own question."
+    }
+  ],
+  "seen": "13fd573 is on main at github.com/andrewstanbury/claude-task-queue with CI green (run 31674353310), and companion 3.83.0 was reinstalled FROM GitHub at that sha — verified by driving the GitHub-served stop-autopilot.sh, which returned decision:block on a scratch repo with a startable task"
 }

@@ -1,9 +1,16 @@
 {
   "id": "80",
   "subject": "tq usage() extraction — DO NOT DO AS SCOPED (after #75). 21 lines of help text into its own file lands tq at ~333, still over the cap: no gate change, one more file, help split from the CLI. That is trimming for the number, which STEERING names as the seam-smell trap. #75 option A makes it unnecessary; option D subsumes it.",
-  "status": "pending",
+  "status": "completed",
   "done_when": "resolved by whichever way #75 goes — never drained independently",
   "context": "plugins/companion/bin/tq usage(), STEERING keeping-it-clean section",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-14T04:50:26Z",
+      "text": "SUPERSEDED, and the distinction matters. This task said DO NOT extract usage() as scoped — and that objection stands: pulling 21 lines of help text out ALONE, landing tq at ~333 and still over the cap, would have been trimming for the number, which STEERING names as the seam-smell trap. What actually happened is different: usage() moved TOGETHER WITH report() into tq-output.sh on a real cohesion seam (everything there renders, nothing decides). So the thing I argued against was never done; the thing that was done is what #75 option A authorised."
+    }
+  ],
+  "seen": "usage() now lives in bin/tq-output.sh alongside report(); drove tq --help through the sourced helper and the output is identical including the new 'after #<id>' dependency documentation, and a bats assertion pins that tq-output.sh carries BOTH renderers"
 }
