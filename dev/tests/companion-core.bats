@@ -2501,6 +2501,19 @@ _bd_setup() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"real.sh"* ]]     # signal outside the tool's own tree is untouched
   [[ "$output" != *"index.js"* ]]    # a sibling explaining the ranking is not buildable work
+
+  # AND THE SAME THING THROUGH A SYMLINK. This half exists because the direct case shipped GREEN on
+  # Linux and RED on the macOS lane: bash's `pwd` is logical, git reports the physical path, and
+  # macOS's /var -> /private/var made the two disagree — so the exclusion silently did nothing and
+  # the tool fed on its own source again. Reproducing that here means the cheap lane catches it
+  # instead of CI, and it is the trap lib/companion.sh already documents for the task-store scan.
+  local link; link="$(_tmpd)/via-symlink"
+  ln -s "$d" "$link"
+  run env BURNDOWN_ROOT="$link" CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)" REWORK_ROOT="$link" \
+    bash "$link/plugins/companion/bin/candidates.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"real.sh"* ]]
+  [[ "$output" != *"index.js"* ]]
 }
 
 @test "tq report: a park shows its rec:, and 'next' names the decision when nothing is buildable" {

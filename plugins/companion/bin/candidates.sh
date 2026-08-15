@@ -38,9 +38,20 @@ PLUGIN_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 root="$(companion_root "${BURNDOWN_ROOT:-$PWD}")"
 # The tool's own tree as a git pathspec, ONLY when it actually sits inside the project being
 # scanned (see rank 3). Empty otherwise, which is the normal install: nothing to exclude.
+#
+# BOTH SIDES RESOLVED (`pwd -P`), and this is not defensive padding — it is the trap companion.sh
+# already documents one function over: bash's `pwd` is LOGICAL, so a path reached through a symlink
+# stays symlinked while git reports the physical one, and comparing them silently matches NOTHING.
+# That is precisely macOS's /var -> /private/var, which is why this shipped green on Linux and RED
+# on the macOS lane: the exclusion quietly did nothing there, so the tool fed on its own source
+# again. Reproduced on Linux through a deliberate symlink before fixing.
 SELFTREE=""
-case "$PLUGIN_DIR/" in
-  "$root"/*) SELFTREE=":!${PLUGIN_DIR#"$root"/}" ;;
+_selfdir="$(cd "$PLUGIN_DIR" 2>/dev/null && pwd -P)" || _selfdir="$PLUGIN_DIR"
+[ -n "$_selfdir" ] || _selfdir="$PLUGIN_DIR"
+_scanroot="$(cd "$root" 2>/dev/null && pwd -P)" || _scanroot="$root"
+[ -n "$_scanroot" ] || _scanroot="$root"
+case "$_selfdir/" in
+  "$_scanroot"/*) SELFTREE=":!${_selfdir#"$_scanroot"/}" ;;
 esac
 LIMIT="${CANDIDATES_LIMIT:-5}"          # bounded: a long list is not more useful than a short one
 found=0
