@@ -1,12 +1,12 @@
 ---
-description: "on|off|status (empty=status) · ship on|off · decisive on|off · sweep on|off — drain the queue autonomously, without stopping"
-argument-hint: "[on|off|status | ship|decisive|sweep on|off|status]"
+description: "on|off|status (empty=status) · ship/decisive/sweep/burndown on|off — drain the queue autonomously, without stopping"
+argument-hint: "[on|off|status | ship|decisive|sweep|burndown on|off|status]"
 ---
 
 Toggle autopilot for this repo by calling the **`autopilot_toggle`** tool on the `companion-tq`
 MCP server (the portable surface, R100/Pass 5b — any MCP-capable client reaches the same flag this
 way, not just Claude Code), passing `$ARGUMENTS` through: `mode` is `autopilot` (default) or
-`ship`/`decisive`/`sweep`; `action` is `on`/`off`/`status`/`pause`/`resume` (pause/resume apply to
+`ship`/`decisive`/`sweep`/`burndown`; `action` is `on`/`off`/`status`/`pause`/`resume` (pause/resume apply to
 `mode: autopilot` only). **empty → `status`**, the tool's own default — never assume `on`.
 
 **R100/Pass 4: none of this is enforced anymore.** `ask-guard.sh` and `stop-autopilot.sh` are
@@ -49,6 +49,17 @@ without finishing anything, say so and stop rather than assuming a cap has your 
   turning it on:** it reverses R33 for marked parks — a reversible taste call is normally the
   owner's even when trivially undoable — and by the time autopilot goes off, the pile the R38
   review exists to walk is empty by construction.
+
+- **burndown on|off** — toggle **burn-down mode** (R82), the arming switch for everything in the
+  paragraph below. OFF, a dry queue simply idles. ON, and only while the 7d window is forecast to
+  end UNDERSPENT, work may be GENERATED from signals the owner already recorded — a `❓` park
+  carrying `rec:`, an unchecked ROADMAP item, a TODO in tracked source, an untested contract flow —
+  each built on its own `burndown/*` branch behind a flag defaulting OFF. Nothing merges, nothing
+  pushes, and it stops on its own at 3 branches awaiting review (`burndown-branch.sh list`). **Say
+  plainly what it is when turning it on:** this is the ONLY mode that authors its own work, so the
+  guard that keeps it defensible is that authorship of "what is worth doing" stays with the owner —
+  every candidate is something they already wrote down and didn't get to. Shown as 🔥 appended to
+  ✈️ — like ⚡ and 🧹, only while autopilot is also on, since it cannot fire without a drain.
 
 **The queue running dry doesn't hand off to burn-down automatically anymore either (R82).** Call
 **`burn_down`** (`action: "should_burn"`) yourself; if it says burn, take rank-1 from **`candidates`**

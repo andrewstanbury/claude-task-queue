@@ -48,6 +48,7 @@ UNREACH="${BURNDOWN_UNREACHABLE_FACTOR:-3}"
 # everywhere else in this mode. The honest cost: a legitimate burn can be delayed by one cycle.
 SAMPLETOL="${BURNDOWN_SAMPLE_TOLERANCE:-5}"     # max points two readings may differ and still count
 HEADROOM5="${BURNDOWN_MIN_5H_HEADROOM:-15}"     # refuse when the 5h window is nearly spent
+FIVE="${BURNDOWN_FIVE_HOUR:-18000}"             # the 5h window, from the field's own name — the staleness yardstick
 
 root="$(companion_root "${BURNDOWN_ROOT:-$PWD}")"
 now="$(date +%s 2>/dev/null || echo 0)"
@@ -75,10 +76,9 @@ evaluate() {
   local snap ts u5 r5 u7 r7 age left elapsed projected open nb
   snap="$(companion_rl_snapshot)"
   [ -f "$snap" ] || { say "no rate-limit snapshot yet — the status line writes it; is it wired?"; return; }
-  # Field order is the snapshot's contract; r5 is read to hold its POSITION, not to be used —
-  # dropping it would silently shift u7/r7 by one, which is the whole class of bug the status
-  # line's US-separator fix exists to prevent.
-  # shellcheck disable=SC2034
+  # Field order is the snapshot's contract; dropping any field would silently shift u7/r7 by one,
+  # which is the whole class of bug the status line's US-separator fix exists to prevent. r5 was
+  # read purely to hold its POSITION until the staleness check below gave it an actual job.
   IFS=' ' read -r ts u5 r5 u7 r7 < "$snap" 2>/dev/null || true
   case "${ts:-}" in ''|*[!0-9]*) say "snapshot unreadable"; return ;; esac
   [ "$now" -gt 0 ] || { say "no usable clock — cannot forecast"; return; }
@@ -95,11 +95,41 @@ evaluate() {
       say "5h window is at ${u5%%.*}% — less than ${HEADROOM5}% headroom to actually work"; return; fi ;;
   esac
 
+  # THE PAYLOAD CAN BE STALE WHILE THE FILE IS FRESH, and the `age` check above cannot see it: the
+  # status line rewrites this snapshot on EVERY repaint, so `ts` is always seconds old even when the
+  # window fields inside it have not moved for days. Observed live 2026-08-15 — ts=now, yet
+  # r5=Aug 7 and r7=Aug 11, with usage figures that disagreed with the owner's own UI.
+  #
+  # The 5h reset is what makes this detectable, and it is exact rather than heuristic: a 5h window
+  # rolls at least every 5 hours, so a LIVE reading can never carry a `resets_at` more than 5h in
+  # the past. Further back than that is not a rolled window, it is frozen data — and it is the only
+  # cheap way to catch the dangerous shape, where r7 sits slightly in the FUTURE (so every bounds
+  # check below passes) while the usage number it is paired with is days old. That case forecasts
+  # from garbage and BURNS; the accidental `left <= 0` catch below does nothing for it.
+  # BOTH directions. The first draft only tested the past, which the adversarial pass caught as an
+  # asymmetric bound: a 5h window cannot reset more than 5h AHEAD either, so a wildly future value
+  # is equally impossible and equally a sign the payload is not describing now. Cheap to close, and
+  # a half-checked bound invites exactly the "it passed the guard" reasoning the guard exists to stop.
+  case "${r5:-}" in ''|*[!0-9]*) : ;; *)
+    if [ "$(( now - r5 ))" -gt "$FIVE" ]; then
+      say "snapshot payload is STALE — its 5h reset is $(( now - r5 ))s in the past, and a live 5h window is never more than ${FIVE}s behind; the file is being rewritten but the data in it is frozen"
+      return
+    fi
+    if [ "$(( r5 - now ))" -gt "$FIVE" ]; then
+      say "snapshot payload is IMPOSSIBLE — its 5h reset is $(( r5 - now ))s away, further than the ${FIVE}s window itself; the payload does not describe now"
+      return
+    fi ;;
+  esac
+
   case "${u7:-}" in ''|*[!0-9.]*) say "no 7d usage in the snapshot — nothing to forecast"; return ;; esac
   case "${r7:-}" in ''|*[!0-9]*) say "no 7d reset time in the snapshot — nothing to forecast"; return ;; esac
   left=$(( r7 - now ))
   [ "$left" -gt 0 ] || { say "the 7d window has already rolled — waiting for fresh data"; return; }
   elapsed=$(( WINDOW - left ))
+  # `left > WINDOW` is not "just started" — a 7d reset further out than 7 days cannot describe now,
+  # so it is bad data and deserves to say so. The old wording reported it as a timing condition and
+  # sent anyone reading it looking at the clock instead of at the payload.
+  [ "$left" -le "$WINDOW" ] || { say "the snapshot's 7d reset is ${left}s out, further than the ${WINDOW}s window itself — the payload does not describe the current window"; return; }
   [ "$elapsed" -gt 0 ] || { say "the 7d window just started — too early to forecast"; return; }
 
   # THE FORECAST: extrapolate the current rate to the end of the window. Integer maths, floored,
@@ -160,7 +190,15 @@ evaluate() {
   #   · one long-lived ⏳ (which R83 explicitly expects to sit for weeks) disabled the mode forever.
   # -e alternation, NOT a [❓⏳] bracket: a bracket expression over multibyte characters is
   # not portable — BSD grep (the macOS CI lane) can match bytes rather than characters.
-  open="$(companion_open_tasks "$root" | grep '^  ◻' | grep -cv -e '^  ◻ *❓' -e '^  ◻ *⏳' -e '^  ◻ *⛔' || true)"
+  # BOTH markers: R113 gave in_progress its own glyph (▸) so a crashed session's mid-flight task is
+  # distinguishable on resume — and this count, which had only ever seen ◻, silently stopped seeing
+  # the task actually being WORKED ON. That inverted the rule one line above: work in flight is the
+  # most real work there is, and it would have been the only kind burn-down ignored, generating
+  # speculative branches mid-task. Caught here, not by the suite, which is the honest record.
+  # -e alternation for the markers too, never [◻▸] — same multibyte-bracket portability trap as below.
+  open="$(companion_open_tasks "$root" | grep -e '^  ◻' -e '^  ▸' \
+          | grep -cv -e '^  ◻ *❓' -e '^  ◻ *⏳' -e '^  ◻ *⛔' \
+                     -e '^  ▸ *❓' -e '^  ▸ *⏳' -e '^  ▸ *⛔' || true)"
   case "$open" in ''|*[!0-9]*) open=0 ;; esac
   [ "$open" -eq 0 ] || { say "$open task(s) still queued — real work outranks generated work"; return; }
 

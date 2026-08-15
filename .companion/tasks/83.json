@@ -1,0 +1,10 @@
+{
+  "id": "83",
+  "subject": "C1: back up the legacy global task store before any triage",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran tar czf on ~/.claude/companion/tasks and listed the archive: 52 session dirs captured into tasks-backup-2026-08-15.tar.gz, verified non-empty with du"
+}

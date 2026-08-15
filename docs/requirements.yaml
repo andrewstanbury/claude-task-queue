@@ -330,6 +330,7 @@
     - "the decisive/plain park-vs-decide guidance is stated in STEERING and ask-guard.sh enforces it again (R33/R59/R84, R100/Pass 6)"
     - "autopilot sweep: an IRREVERSIBLE park (no rev: marker) is never eligible (R77/R59)"
     - "status line: ⚡ decisive indicator shows only when autopilot AND decisive are on (R59)"
+    - "status line: 🔥 burn-down indicator shows only when autopilot AND burndown are on (R82)"
 
 - id: R60
   satisfies: [UN-4]
@@ -477,6 +478,7 @@
   verified_by:
     - "doc-lint frontmatter: rejects shapes the HOST throws on (R75/R78)"
     - "command-lint: the COMMAND CONTRACT checks can now fail — they could not while inline (R75)"
+    - "command-lint: a mode autopilot.sh IMPLEMENTS but no document mentions is caught (doc vs CODE)"
 
 - id: R76
   satisfies: [UN-7]
@@ -608,12 +610,15 @@
     - "burn-down: HOLD is the default and every unknown resolves to it"
     - "burn-down: burns ONLY on a forecast underspend, never when on track"
     - "burn-down: real queued work outranks generated work"
+    - "burn-down: a FRESH FILE carrying STALE WINDOW DATA cannot burn (the write clock is not the data clock)"
+    - "burn-down: an IN-PROGRESS task outranks generated work too — work in flight is the realest work"
     - "burn-down: unreviewed branches apply backpressure — the loop is self-limiting"
     - "burn-down: refuses when the 5h window has no room to actually work"
     - "candidates: never invents while a recorded signal remains, and labels it when it does"
     - "candidates: a DECISION park is never offered as buildable work (R82 soft spots)"
     - "burndown-branch: work is containerised — never on main, never pushed, always discardable"
     - "candidates: does not feed on prose ABOUT markers, only real annotations"
+    - "candidates: excludes its own PLUGIN TREE, not just its own file — a sibling describing the ranking is still a mirror"
     - "burn-down: a branch can NEVER exist without a manifest, even with the mode ARMED (R82)"
     - "burn-down: parks and blocked items are NOT buildable work and must not block it (R82)"
     - "burndown-branch: a slug cannot escape the manifest dir (R82)"
@@ -1264,3 +1269,62 @@
     absence-is-not-rejection rule were not deleted. It cannot pin that they are obeyed.
   verified_by:
     - "command prompts retain their critical gate steps (R56 P3 — structural guard for prose)"
+
+- id: R113
+  satisfies: [UN-4]
+  affirmed: 2026-08-15
+  affirmations: 0
+  requirement: >
+    a session that stopped mid-task says so on the way back: an in_progress task renders ▸ (not ◻),
+    a dirty tree with NO task in_progress warns UNRECONCILED WORK and names the files, and a task
+    store dir carrying open work but NO repo stamp is reported as an UNREACHABLE QUEUE
+  note: >
+    Owner-asked 2026-08-15: "sometimes the terminal crashes, I want to make sure I can continue
+    where I left off... or have work partially completed." The audit found most of the crash story
+    already durable — the queue is JSON on disk, atomically written (R44), carrying done_when and
+    --context and cumulative notes, and session-start.sh hands it back unasked. Two holes remained,
+    and both are about the SAME thing: the queue could not say where the work had stopped.
+
+    First, `in_progress` and `pending` rendered IDENTICALLY as ◻, so the task a crashed session was
+    actually working on came back looking like one merely queued. The queue knew; the resume path
+    threw it away. Now ▸, reusing `tq report`'s own glyph.
+
+    Second, and the real gap: when no breadcrumb was left at all — the common case, measured on this
+    repo's own store, where 0 of 89 tasks were in_progress and the 3 open ones had no notes — a
+    dirty tree carried real work that NOTHING in the queue claimed. The edits survive (git keeps
+    them); what is lost is which task they belong to and how far they got, so the next session
+    cannot tell 10%-done from 90%-done and either redoes the work or builds on a half-applied
+    change.
+
+    THIS IS DETECTION, NOT PREVENTION, and the distinction is the whole design. R99 already settled
+    that no hook can FORCE a good breadcrumb — STEERING has asked for `doing`/`note` since R47 and
+    the store shows it being skipped. The two prevention-shaped attempts were both reversed: the
+    UserPromptSubmit capture hook (R58·a) banked state nobody read, and PreCompact (R32·d4) tried to
+    save state on the way into a wipe. So this NOTICES the state a missing breadcrumb leaves behind
+    instead — which is an inject, the one class R28 permits, and unlike R58·a it has a reader by
+    construction: the next session, in the same breath as the carried queue. It also makes the
+    advisory half self-correcting, since skipping `tq doing` is what makes the warning appear.
+
+    Two false-positive defenses, because a warning that fires when there is nothing to reconcile is
+    the same as no warning: it is silent while a task IS in_progress (the breadcrumb did its job),
+    and `.companion/` is excluded from the dirty set (the queue store is untracked in most projects,
+    so counting it would fire every session). The exclusion is the plugin's OWN state directory, not
+    an ecosystem guess — R9 is intact.
+
+    COST, measured not asserted: one `git status --porcelain` per session, which walks the worktree
+    (~6ms small, ~43ms on 17k files — the number statusline.sh already paid for and caches because
+    it re-renders constantly). Deliberately NOT cached here: this fires once per session, and a
+    stale answer on the one path whose job is telling the truth about the tree is worse than the
+    milliseconds. dev/hook-budget.sh previously used a ONE-FILE fixture repo, so every `git status`
+    in a hook was measuring nothing; it now scales the worktree (400 files, a tenth dirty) as well
+    as the store, which is what makes this budget real rather than claimed.
+  verified_by:
+    - "resume: an in_progress task renders ▸ (mid-flight), a pending one ◻ — a crash left them different"
+    - "resume: dirty tree + NO task in_progress warns UNRECONCILED and names the files"
+    - "resume: UNRECONCILED is silent on a clean tree, and silent while a task IS in_progress"
+    - "resume: UNRECONCILED ignores the companion's OWN store — it must not warn about its bookkeeping"
+    - "session-start: the UNRECONCILED warning reaches the HOOK path too, not just manual resume"
+    - "resume: UNRECONCILED survives a corrupt task file — a bad file must not hide a mid-flight task"
+    - "resume: a store path containing a NEWLINE still returns the whole backlog"
+    - "resume: an UNSTAMPED store dir holding open work is reported as UNREACHABLE"
+    - "resume: UNREACHABLE never reports another repo's dir — a stamp is a stamp even if that repo is not here"

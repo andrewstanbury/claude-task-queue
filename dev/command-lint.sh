@@ -106,5 +106,34 @@ $dp
 EOF
   fi
 done
+
+# ---- DOC vs IMPLEMENTATION: a mode the script implements must be documented (R75) ----
+# The checks above prove the description, the argument-hint and the body agree WITH EACH OTHER.
+# They cannot catch the failure that actually happened: `autopilot.sh` implemented
+# `burndown on|off|status` and all three documents omitted it CONSISTENTLY, so a whole mode — the
+# only one that authors its own work — was reachable but invisible, found by accident 2026-08-15.
+# Three agreeing documents are not evidence when the thing they agree about is absent from all of
+# them; the missing edge was always doc-vs-CODE.
+#
+# Scoped to autopilot deliberately: it is the one command whose surface is a mode ENUM parsed by a
+# top-level `case` in a single script, which is what makes the modes mechanically extractable. A
+# generic "every command vs its bin script" check would have to guess at each script's arg parsing,
+# and a guess that fails open is the shape this is replacing.
+_ap_sh="plugins/companion/bin/autopilot.sh"
+_ap_md="plugins/companion/commands/autopilot.md"
+if [ -f "$_ap_sh" ] && [ -f "$_ap_md" ]; then
+  _ap_doc="$(cat "$_ap_md" 2>/dev/null)"
+  # Top-level case arms only (exactly two leading spaces), minus the actions every mode shares.
+  while IFS= read -r m; do
+    [ -n "$m" ] || continue
+    case "$m" in on|off|status|pause|resume) continue ;; esac
+    case "$_ap_doc" in *"$m"*) continue ;; esac
+    echo "  FAIL autopilot.md never mentions the \`$m\` mode, which $_ap_sh implements (R75 — doc vs CODE, not doc vs doc)"
+    cmd_fail=1
+  done <<EOF
+$(sed -n 's/^  \([a-z][a-z]*\)).*/\1/p' "$_ap_sh" 2>/dev/null)
+EOF
+fi
+
 [ "$cmd_fail" -eq 0 ] || exit 1
 exit 0

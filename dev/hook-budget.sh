@@ -59,6 +59,19 @@ git -C "$REPO" init -q >/dev/null 2>&1 || { echo "  SKIP — git init unavailabl
 git -C "$REPO" config user.email t@t >/dev/null 2>&1; git -C "$REPO" config user.name t >/dev/null 2>&1
 : > "$REPO/f"; git -C "$REPO" add -A >/dev/null 2>&1; git -C "$REPO" commit -qm init >/dev/null 2>&1
 
+# The fixture repo used to hold ONE file, which meant every `git status` a hook runs measured
+# nothing: the store scaled, the WORKTREE never did. `companion_unreconciled` (R113) walks the
+# worktree, so the repo has to be big enough for that walk to show up, and DIRTY enough that the
+# warning takes its expensive branch (building the file list) rather than returning early.
+# CLAUDE.md: an unmeasured budget is not a budget — adding the call without this would have shipped
+# exactly the "43ms on a 17k-file repo" cost statusline.sh already learned about, unmeasured.
+REPOFILES="${HOOK_BUDGET_REPOFILES:-400}"
+i=0; while [ "$i" -lt "$REPOFILES" ]; do printf 'x\n' > "$REPO/f$i"; i=$((i+1)); done
+git -C "$REPO" add -A >/dev/null 2>&1; git -C "$REPO" commit -qm bulk >/dev/null 2>&1
+# A tenth of them modified + a handful untracked: a real interrupted-session tree, not a clean one.
+i=0; while [ "$i" -lt "$((REPOFILES / 10))" ]; do printf 'y\n' >> "$REPO/f$i"; i=$((i+1)); done
+i=0; while [ "$i" -lt 5 ]; do printf 'z\n' > "$REPO/new$i"; i=$((i+1)); done
+
 # One task file, copied rather than re-generated per file — building the store must not dominate.
 jq -nc '{id:"1",subject:"a carried task with a reasonably typical subject length",
          status:"pending",done_when:"some acceptance text that survives a compaction",

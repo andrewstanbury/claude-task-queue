@@ -1,0 +1,24 @@
+{
+  "id": "90",
+  "subject": "session-start reconciles dirty working tree against the queue: warn when edits exist but no task is in_progress",
+  "status": "completed",
+  "done_when": "session-start/resume print a loud reconcile warning naming dirty files when the tree is dirty AND no task is in_progress; silent when clean or when a task IS in_progress; requirement + tests added; check.sh green incl. hook budget",
+  "context": "plugins/companion/lib/resume-report.sh, plugins/companion/lib/companion.sh, docs/requirements.yaml, docs/adr/README.md, tests/",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-15T16:53:30Z",
+      "text": "start: owner picked option C (detect bad state on start) over discipline-only/stamp-hook/do-nothing. Implementing in lib/resume-report.sh so resume.sh + session-start.sh share it."
+    },
+    {
+      "ts": "2026-08-15T16:57:48Z",
+      "text": "code done in lib/: ▸ marker for in_progress in _COMPANION_TASK_RENDER, companion_task_files extracted, companion_any_in_progress + companion_unreconciled in resume-report.sh, wired after carried tasks, .companion/ excluded from the dirty set. All 3 branches verified by hand in a scratch repo. REMAINING: bats tests, fix ◻-count test at companion-core.bats:636, requirements.yaml, ADR, hook-budget repo scaling."
+    },
+    {
+      "ts": "2026-08-15T17:17:50Z",
+      "text": "check.sh FULL PASS (231 tests, traceability closed 8 needs/71 reqs/231 tests, hook budget green: session-start 98ms->236ms on 8x store + 400-file dirty repo vs 1500ms cap). R113 in requirements.yaml + ADR + MAP.md. Version bumped 3.83.0->3.84.0 both manifests. REMAINING: 3 new mutation patterns running (background bnhw6ltuy)."
+    }
+  ],
+  "seen": "ran resume.sh + session-start.sh against real scratch repos: warning fires with file list on a dirty/unclaimed tree, silent when clean, silent when a task is ▸, silent when only .companion is dirty; hand-verified all 3 new mutations flip the suite RED"
+}

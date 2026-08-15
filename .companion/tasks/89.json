@@ -1,0 +1,10 @@
+{
+  "id": "89",
+  "subject": "GAP: /companion:autopilot's description documents 'ship on|off · decisive on|off · sweep on|off' but NOT 'burndown on|off|status', which autopilot.sh:118 implements — I went looking for a toggle in burn-down.sh and concluded there wasn't one",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "documented burndown in autopilot.md (description 148B->118B, back under the 140B injection cap), and closed the CLASS: dev/command-lint.sh now checks doc-vs-CODE; demonstrated it flags 'burndown' when stripped from the doc and stays clean when present. Statusline-indicator gap found in passing, parked as #92."
+}

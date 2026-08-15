@@ -584,3 +584,68 @@ happened.
 that **no size exemption may reappear**. A named, printed, self-expiring exemption was defensible
 for a day. A silent one is how `tq` reached 382 unseen.
 | 2026-08-12, trap fired on its own terms; the hot-path objection measured and disproved.
+
+## R113 — DECISION 🔓 (crash resume: detect the state a missing breadcrumb leaves)
+
+**The ask.** Owner, 2026-08-15: *"sometimes the terminal crashes, I want to make sure I can continue
+where I left off, does the plugin allow for that or should we make a change so I don't have to
+restart the work or have work partially completed?"*
+
+**Most of it already worked, and saying so first mattered.** The queue is JSON on disk, written
+temp-file-then-rename (R44), carrying `done_when`, `--context` and cumulative `notes[]`; the mode
+flags persist; `session-start.sh` hands the whole thing back unasked (R105). Outside the plugin,
+`claude --continue` restores the transcript. The honest answer to "does it allow for that" was
+**largely yes** — and the four options put to the owner therefore included *do nothing* as a real
+option, not a strawman.
+
+**What the store actually said.** 0 of 89 tasks were `in_progress`; the 27 with notes were almost
+all `completed`, i.e. notes written as evidence at the END rather than as a trail during. The three
+open tasks had none. STEERING has asked for `doing`/`note` as-you-go since R47. **The advisory rule
+is being skipped, and the evidence for that is my own queue** — this is a defect in how I work, not
+a missing feature, and the fix had to account for that rather than re-ask for the discipline.
+
+**Options put, owner picked "detect the bad state on start" (option C):**
+
+| | |
+|---|---|
+| **A** discipline only — no code | free, but re-promises exactly the advisory thing the store proves gets skipped |
+| **B** Stop hook stamps the dirty list | only fires when a task IS in_progress, so it inherits the gap it fixes; the R58·a "bank it just in case" shape |
+| **C** ✅ detect on start | notices the state instead of hoping to prevent it; self-correcting |
+| **D** nothing, use `claude --continue` | fails on a new terminal, a reboot, a clone, a container |
+
+**Why detection is not a rerun of the two reversed attempts.** R99 settled that nothing here can
+*force* a good breadcrumb. R58·a's capture hook was retired for banking data with **zero readers**;
+R32·d4's PreCompact tried to protect state on the way *into* a wipe. This does neither: it **reads
+durable state that already exists** and reports a contradiction between the tree and the queue. That
+is an *inject*, the one class R28 permits, and its reader is the next session by construction.
+
+**Two changes, both about "where did the work stop":**
+
+1. `in_progress` renders **▸**, not ◻. These were byte-identical, so the task a crashed session was
+   *working on* returned indistinguishable from one merely queued. Free; reuses `tq report`'s glyph.
+2. **UNRECONCILED WORK** — a dirty tree with no `in_progress` task prints a warning naming the files
+   and what to do (claim / commit / revert).
+
+**The false-positive defenses are the load-bearing part.** A warning that fires when there is
+nothing to reconcile is worth the same as no warning at all, and it would fire *every session*: the
+`.companion/` store is untracked in most projects. So the store is excluded from the dirty set (the
+plugin's own state dir — not an ecosystem guess, R9 intact), and the warning stands down entirely
+while a task is `in_progress`, because that breadcrumb is the reconciliation.
+
+**The budget was fake and I fixed that, not just claimed it.** `companion_unreconciled` runs one
+`git status --porcelain`, which walks the worktree — ~43ms on a 17k-file repo, a number
+`statusline.sh` already measured and caches because it re-renders constantly. Not cached here: once
+per session, and a stale answer on the path whose whole job is telling the truth about the tree is
+worse than the milliseconds. The real find was that **`dev/hook-budget.sh` used a ONE-FILE fixture
+repo** — it scaled the task store and never the worktree, so every `git status` any hook ran was
+measured against nothing. Adding this call under that gate would have satisfied the letter of R81
+while measuring air. The fixture now carries 400 files with a tenth dirty; `session-start.sh`
+measures 98ms → 236ms on the 8x store against the 1500ms cap.
+
+**What this does NOT do, stated plainly.** It cannot reconstruct *reasoning* — only that work exists
+and nothing claims it. It cannot make me leave breadcrumbs; it can only make skipping them visible
+next session. And `lib/companion.sh` came out of this at **exactly 300 lines**, the cap: the next
+change there has to decompose it first, and that debt is mine, recorded rather than left to be
+discovered.
+
+| 2026-08-15, owner picked detection over discipline; the unmeasured hook budget was the real catch.

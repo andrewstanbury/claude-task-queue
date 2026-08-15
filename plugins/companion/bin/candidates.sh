@@ -36,6 +36,12 @@ PLUGIN_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
 . "$PLUGIN_DIR/lib/companion.sh"
 
 root="$(companion_root "${BURNDOWN_ROOT:-$PWD}")"
+# The tool's own tree as a git pathspec, ONLY when it actually sits inside the project being
+# scanned (see rank 3). Empty otherwise, which is the normal install: nothing to exclude.
+SELFTREE=""
+case "$PLUGIN_DIR/" in
+  "$root"/*) SELFTREE=":!${PLUGIN_DIR#"$root"/}" ;;
+esac
 LIMIT="${CANDIDATES_LIMIT:-5}"          # bounded: a long list is not more useful than a short one
 found=0
 
@@ -80,7 +86,13 @@ if [ "$found" -lt "$LIMIT" ]; then
   #     was never the rule; the rule is that documentation is not a note-to-self left in code.
   #   · this file — self-exclusion is the general rule, not a special case: a tool must never
   #     propose work sourced from its own explanation of what it looks for.
-  done < <(git -C "$root" grep -nIE '(TODO|FIXME|XXX)[: ]' -- . ':!*.md' ':!*.markdown' ':!*.yaml' ':!*.yml' 2>/dev/null \
+  #   · the tool's OWN TREE — the rule above was written as "this file", which was too narrow by
+  #     exactly one directory: `mcp-server/index.js` describes this ranking in a string literal
+  #     ("a TODO/FIXME in tracked source") and duly ranked ABOVE two real signals. Same mirror,
+  #     one file over. Scoped to $PLUGIN_DIR at runtime rather than any written-down path, so it
+  #     stays generic (R9): in a normal install the plugin is not inside the project at all and
+  #     this adds nothing, and where it IS vendored in, excluding it is right for that repo too.
+  done < <(git -C "$root" grep -nIE '(TODO|FIXME|XXX)[: ]' -- . ':!*.md' ':!*.markdown' ':!*.yaml' ':!*.yml' ${SELFTREE:+"$SELFTREE"} 2>/dev/null \
            | grep -vE '(^|/)(dev/tests|node_modules|vendor)/' \
            | grep -vF "${SELF##*/}" \
            | sed -e 's/[[:space:]]*$//' | head -"$LIMIT")

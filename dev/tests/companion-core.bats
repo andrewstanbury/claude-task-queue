@@ -632,8 +632,9 @@ await client.close();
   # against a resolved stamp and silently matches nothing.
   run bash -c 'cd "$1" && source "$2" && companion_open_tasks "$(git rev-parse --show-toplevel)"' _ "$repo" "$ROOT/lib/companion.sh"
   [ "$status" -eq 0 ]
-  # every OPEN task across BOTH matching dirs survives the batch — the count is the real assertion
-  [ "$(printf '%s\n' "$output" | grep -c '◻')" -eq 4 ]
+  # every OPEN task across BOTH matching dirs survives the batch — the count is the real assertion.
+  # Both markers, since open means pending (◻) OR in_progress (▸) and alpha A2 is the latter.
+  [ "$(printf '%s\n' "$output" | grep -c '[◻▸]')" -eq 4 ]
   [[ "$output" == *"alpha A1"* ]] && [[ "$output" == *"alpha A2"* ]]
   [[ "$output" == *"beta B1"*  ]] && [[ "$output" == *"beta B2"*  ]]
   [[ "$output" != *"alpha A3"* ]]    # completed excluded
@@ -865,6 +866,32 @@ await client.close();
   printf -- '---\ndescription: Do the thing\n---\n\nUse $ARGUMENTS here.\n' \
     > "$d/plugins/companion/commands/ok.md"
   _cl; [ "$status" -ne 0 ]; [[ "$output" == *"argument-hint"* ]]
+}
+
+@test "command-lint: a mode autopilot.sh IMPLEMENTS but no document mentions is caught (doc vs CODE)" {
+  # The live 2026-08-15 miss: `burndown on|off|status` was implemented and the description, the
+  # argument-hint and the body ALL omitted it — so every doc-vs-doc check agreed, and agreed about
+  # nothing. Three consistent documents are not evidence when the mode is absent from all three.
+  local d; d="$(_tmpd)"; mkdir -p "$d/plugins/companion/commands" "$d/plugins/companion/bin" "$d/dev"
+  cp dev/doc-lint.sh dev/command-lint.sh "$d/dev/"
+  _cl() { run bash -c 'cd "$1" && dev/command-lint.sh' _ "$d"; }
+  # a stand-in autopilot.sh whose top-level case implements one shared action and two modes
+  printf '%s\n' '#!/usr/bin/env bash' 'case "${1:-}" in' \
+    '  status) echo s ;;' '  ship) echo x ;;' '  burndown) echo y ;;' 'esac' \
+    > "$d/plugins/companion/bin/autopilot.sh"
+
+  # documents BOTH modes -> clean
+  printf -- '---\ndescription: on|off|status · ship/burndown on|off\n---\n\nModes: ship, burndown.\n' \
+    > "$d/plugins/companion/commands/autopilot.md"
+  _cl; [ "$status" -eq 0 ]
+
+  # drops one mode from every document at once -> exactly the drift that shipped, now caught
+  printf -- '---\ndescription: on|off|status · ship on|off\n---\n\nModes: ship.\n' \
+    > "$d/plugins/companion/commands/autopilot.md"
+  _cl; [ "$status" -ne 0 ]
+  [[ "$output" == *"burndown"* ]]
+  [[ "$output" != *"never mentions the \`ship\`"* ]]   # the documented mode is not flagged
+  [[ "$output" != *"never mentions the \`status\`"* ]] # shared actions are not modes
 }
 
 @test "resume: RECENT out-of-band changes print; old ones and no-file cost nothing (R93, now on-demand only)" {
@@ -1150,6 +1177,158 @@ await client.close();
   [[ "$output" == *"done when: green tests"* ]]   # acceptance re-surfaced (the R47 resume side)
   [[ "$output" == *"note: latest crumb"* ]]       # LATEST note (PR #126), not the first
   [[ "$output" != *"note: first crumb"* ]]        # only the latest, not the whole trail
+}
+
+# ---- crash resume: what an interrupted session leaves behind, and what says so on the way back ----
+
+@test "resume: an in_progress task renders ▸ (mid-flight), a pending one ◻ — a crash left them different" {
+  # Both statuses used to render "◻", so the task a crashed session was actually WORKING ON came
+  # back indistinguishable from one merely queued — the queue knew where the work stopped and the
+  # resume path threw it away.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local sid=rIP; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
+  jq -n '{id:"1",subject:"merely queued",status:"pending"}'    > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  jq -n '{id:"2",subject:"was mid-flight",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"▸ was mid-flight"* ]]
+  [[ "$output" == *"◻ merely queued"* ]]
+  [[ "$output" != *"◻ was mid-flight"* ]]
+}
+
+@test "resume: dirty tree + NO task in_progress warns UNRECONCILED and names the files" {
+  # The crash case the durable queue does not already cover: edits survive on disk, but nothing in
+  # the queue claims them, so the next session cannot tell 10%-done from 90%-done.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
+  echo hi > "$repo/tracked.txt"; git -C "$repo" add -A; git -C "$repo" commit -qm init
+  local sid=rUn; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
+  jq -n '{id:"1",subject:"open but unclaimed",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  echo edited >> "$repo/tracked.txt"; echo brand-new > "$repo/untracked.txt"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"UNRECONCILED WORK"* ]]
+  [[ "$output" == *"2 uncommitted change(s)"* ]]
+  [[ "$output" == *"NO task is in_progress"* ]]
+  [[ "$output" == *"tracked.txt"* ]] && [[ "$output" == *"untracked.txt"* ]]
+  [[ "$output" == *"tq doing"* ]]                 # says what to DO about it, not just that it is so
+}
+
+@test "resume: UNRECONCILED is silent on a clean tree, and silent while a task IS in_progress" {
+  # A warning that fires when there is nothing to reconcile gets ignored, which costs the warning
+  # its whole value on the one session where it matters.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
+  echo hi > "$repo/f.txt"; git -C "$repo" add -A; git -C "$repo" commit -qm init
+  local sid=rQu; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
+  jq -n '{id:"1",subject:"queued",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [[ "$output" != *"UNRECONCILED"* ]]             # clean tree -> nothing to say
+  # now dirty it, but leave a proper breadcrumb: the mid-flight task IS the reconciliation
+  echo edited >> "$repo/f.txt"
+  jq -n '{id:"2",subject:"claimed it",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [[ "$output" != *"UNRECONCILED"* ]]             # breadcrumb present -> the warning stands down
+  [[ "$output" == *"▸ claimed it"* ]]             # …and the mid-flight task is what shows instead
+}
+
+@test "resume: UNRECONCILED ignores the companion's OWN store — it must not warn about its bookkeeping" {
+  # .companion/ is untracked in most projects. Counting it would make this fire every single
+  # session, which is the same as not having it.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
+  echo hi > "$repo/f.txt"; git -C "$repo" add -A; git -C "$repo" commit -qm init
+  mkdir -p "$repo/.companion/tasks"
+  jq -n '{id:"1",subject:"in the repo store",status:"pending"}' > "$repo/.companion/tasks/1.json"
+  local sid=rSelf; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [[ "$output" != *"UNRECONCILED"* ]]             # only the store is dirty -> silent
+  echo edited >> "$repo/f.txt"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [[ "$output" == *"UNRECONCILED"* ]]             # a REAL edit appears -> it fires…
+  [[ "$output" == *"1 uncommitted change(s)"* ]]  # …counting 1, not 2: the store never counted
+}
+
+@test "session-start: the UNRECONCILED warning reaches the HOOK path too, not just manual resume" {
+  # session-start.sh is the one that fires after a crash without anyone asking, so the warning is
+  # worth nothing if it only rides the manual pull.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
+  echo hi > "$repo/f.txt"; git -C "$repo" add -A; git -C "$repo" commit -qm init
+  echo edited >> "$repo/f.txt"
+  run bash -c 'jq -nc --arg c "$1" "{cwd:\$c,source:\"\"}" | "$2" | jq -r ".hookSpecificOutput.additionalContext"' \
+    _ "$repo" "$SS"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"UNRECONCILED WORK"* ]]
+  [[ "$output" == *"f.txt"* ]]
+}
+
+@test "resume: an UNSTAMPED store dir holding open work is reported as UNREACHABLE" {
+  # `tq` only writes stamps on `add`, so once the owning session is gone a stamp-less dir can never
+  # heal itself — no later `add` runs there. Its open tasks are invisible to every repo forever.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/ghost"          # deliberately NO .repo and NO .root
+  jq -n '{id:"1",subject:"lost work",status:"pending"}'     > "$CLAUDE_COMPANION_TASKS_DIR/ghost/1.json"
+  jq -n '{id:"2",subject:"also lost",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/ghost/2.json"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"UNREACHABLE QUEUE"* ]]
+  [[ "$output" == *"2 open"* ]]                          # counts open only, and both statuses count
+  [[ "$output" == *"ghost"* ]]                           # names the directory so it can be acted on
+}
+
+@test "resume: UNREACHABLE never reports another repo's dir — a stamp is a stamp even if that repo is not here" {
+  # THE bleed guard. The first draft required the .root path to exist on disk, and immediately
+  # reported a dir belonging to a repo that simply was not mounted — turning a cross-project-safety
+  # feature into the cross-project leak it exists to prevent. Absent path = repo elsewhere, not
+  # unclaimable. Also: a stamp-less dir whose tasks are all FINISHED is dead weight, not lost work.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/elsewhere"
+  printf '%s' "/no/such/path/anymore" > "$CLAUDE_COMPANION_TASKS_DIR/elsewhere/.root"
+  jq -n '{id:"1",subject:"theirs",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/elsewhere/1.json"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/byid"
+  printf '%s' "some-identity" > "$CLAUDE_COMPANION_TASKS_DIR/byid/.repo"
+  jq -n '{id:"1",subject:"id-stamped",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/byid/1.json"
+  mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/spent"          # unstamped, but nothing open in it
+  jq -n '{id:"1",subject:"finished",status:"completed"}' > "$CLAUDE_COMPANION_TASKS_DIR/spent/1.json"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"UNREACHABLE"* ]]
+  [[ "$output" != *"theirs"* ]]                          # and no other repo's task text leaks in
+}
+
+@test "resume: a store path containing a NEWLINE still returns the whole backlog" {
+  # Found by the pre-ship adversarial pass: extracting companion_task_files made it hand paths back
+  # newline-separated, and a store path with a newline in it split one path into two non-existent
+  # ones — every task silently rendered as ZERO, on the one path whose entire job is handing the
+  # backlog back after a crash. Same total-loss shape as the corrupt-file abort, different cause.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local root; root="$(git -C "$repo" rev-parse --show-toplevel)"
+  local weird="$CLAUDE_COMPANION_TASKS_DIR/we"$'\n'"ird"
+  mkdir -p "$weird"; printf '%s' "$root" > "$weird/.root"
+  jq -n '{id:"1",subject:"still here",status:"pending"}'  > "$weird/1.json"
+  jq -n '{id:"2",subject:"mid-flight",status:"in_progress"}' > "$weird/2.json"
+  run bash -c 'cd "$1" && . "$2" && companion_open_tasks "$(git rev-parse --show-toplevel)"' \
+    _ "$repo" "$ROOT/lib/companion.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"still here"* ]]
+  [[ "$output" == *"▸ mid-flight"* ]]
+}
+
+@test "resume: UNRECONCILED survives a corrupt task file — a bad file must not hide a mid-flight task" {
+  # companion_any_in_progress batches its jq, and jq aborts at the first unparseable file. If the
+  # batch failure were read as "nothing in progress", one torn write would resurrect the warning on
+  # top of work that WAS properly claimed — noise exactly when the store is already damaged.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
+  echo hi > "$repo/f.txt"; git -C "$repo" add -A; git -C "$repo" commit -qm init
+  echo edited >> "$repo/f.txt"
+  local sid=rCor; mkdir -p "$CLAUDE_COMPANION_TASKS_DIR/$sid"; _stamp_root "$CLAUDE_COMPANION_TASKS_DIR/$sid" "$repo"
+  printf '{ NOT VALID JSON' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/1.json"
+  jq -n '{id:"2",subject:"claimed it",status:"in_progress"}' > "$CLAUDE_COMPANION_TASKS_DIR/$sid/2.json"
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$RESUME"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"UNRECONCILED"* ]]             # the mid-flight task is still found
 }
 
 @test "tq report: glyph-count header + → next pointer (R56 G3/G4 — R47 spec)" {
@@ -2099,6 +2278,57 @@ _bd_setup() {
   _bd 10; [[ "$output" == BURN:* ]]
 }
 
+@test "burn-down: a FRESH FILE carrying STALE WINDOW DATA cannot burn (the write clock is not the data clock)" {
+  # Observed live 2026-08-15: the status line rewrites this snapshot every repaint, so `ts` was
+  # seconds old while r5/r7 inside it were 4-8 DAYS old and the usage figures disagreed with the
+  # owner's own UI. The age check cannot see that — it measures when the file was written.
+  # The dangerous shape is the one asserted second: r7 slightly in the FUTURE passes every bounds
+  # check, so the forecast runs on days-old usage and BURNS. A 5h window is never more than 5h
+  # behind when live, which is what makes the staleness provable rather than guessed.
+  _bd_setup
+  local n; n="$(date +%s)"
+  # file written NOW, 7d reset 2 days out (perfectly plausible), 7d usage low enough to burn —
+  # but the 5h reset is 8 days in the past, which no live reading can produce.
+  printf '%s %s %s %s %s\n' "$n" 20 "$(( n - 691200 ))" 10 "$(( n + 172800 ))" > "$BD_STATE/ratelimit"
+  run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+      BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
+  [ "$status" -eq 0 ]
+  [[ "$output" == HOLD:* ]]
+  [[ "$output" == *"STALE"* ]]
+  [[ "$output" != *"already rolled"* ]]      # named for what it IS, not the incidental symptom
+  # …and a 7d reset further out than the window itself is bad data, not "just started"
+  # 14 days out — comfortably past a 7d window without PINNING the fixture to its exact value, which
+  # is the boundary-flake class the portability lint guards (and duly caught this line's first draft).
+  printf '%s %s %s %s %s\n' "$n" 20 "$(( n + 7200 ))" 10 "$(( n + 1209600 ))" > "$BD_STATE/ratelimit"
+  run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+      BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
+  [[ "$output" == HOLD:* ]]
+  [[ "$output" == *"does not describe the current window"* ]]
+  [[ "$output" != *"just started"* ]]
+  # …and the bound is SYMMETRIC: a 5h reset cannot be 5h+ in the FUTURE either. The first draft
+  # only checked the past, which the pre-ship adversarial pass caught as a half-checked bound.
+  printf '%s %s %s %s %s\n' "$n" 20 "$(( n + 90000 ))" 10 "$(( n + 172800 ))" > "$BD_STATE/ratelimit"
+  run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+      BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
+  [[ "$output" == HOLD:* ]]
+  [[ "$output" == *"IMPOSSIBLE"* ]]
+}
+
+@test "burn-down: an IN-PROGRESS task outranks generated work too — work in flight is the realest work" {
+  # R113 regression, caught by hand and not by this suite: giving in_progress its own glyph (▸) made
+  # it invisible to a count that had only ever matched ◻, so the one kind of work burn-down would
+  # have ignored was the task actively being WORKED ON — it would have spun up speculative branches
+  # mid-task. The count must follow the queue's meaning, not one of its two renderings.
+  _bd_setup
+  mkdir -p "$BD_TASKS/sIP"; _stamp_root "$BD_TASKS/sIP" "$BD_REPO"
+  jq -n '{id:"1",subject:"actively being worked on",status:"in_progress"}' > "$BD_TASKS/sIP/1.json"
+  _bd 10
+  [[ "$output" == HOLD:* ]]; [[ "$output" == *"still queued"* ]]
+  # finished -> the capacity is genuinely free again
+  jq -n '{id:"1",subject:"actively being worked on",status:"completed"}' > "$BD_TASKS/sIP/1.json"
+  _bd 10; [[ "$output" == BURN:* ]]
+}
+
 @test "burn-down: unreviewed branches apply backpressure — the loop is self-limiting" {
   _bd_setup
   # THE anti-waste guarantee. If the owner is not reviewing, generating more output is by
@@ -2247,6 +2477,30 @@ _bd_setup() {
   [[ "$output" == *"a.sh"* ]]        # a real annotation in code is still a candidate
   [[ "$output" != *"guide.md"* ]]    # prose about markers is not
   [[ "$output" != *"candidates.sh"* ]]  # and never its own source
+}
+
+@test "candidates: excludes its own PLUGIN TREE, not just its own file — a sibling describing the ranking is still a mirror" {
+  # The live miss (2026-08-15): the self-exclusion was written as "this file", which was too narrow
+  # by exactly one directory. mcp-server/index.js describes this very ranking in a string literal
+  # ("a TODO/FIXME in tracked source") and duly ranked ABOVE two real signals — same mirror, one
+  # file over. Only reachable when the plugin is VENDORED INSIDE the project being scanned, which
+  # is exactly the shape of this repo.
+  local d tk; d="$(_tmpd)"; tk="$(_tmpd)"; git -C "$d" init -q
+  # a real annotation OUTSIDE the vendored plugin — must survive
+  printf 'y=2  # FIXME: handle the empty case\n' > "$d/real.sh"
+  # the plugin, vendored in-tree, with a sibling that merely DESCRIBES the marker it looks for
+  mkdir -p "$d/plugins/companion/bin" "$d/plugins/companion/lib" "$d/plugins/companion/mcp-server"
+  cp "$ROOT/bin/candidates.sh" "$d/plugins/companion/bin/"
+  cp "$ROOT/lib/companion.sh"  "$d/plugins/companion/lib/"
+  printf '%s\n' 'const desc = "ranked: a TODO/FIXME in tracked source beats a coverage gap";' \
+    > "$d/plugins/companion/mcp-server/index.js"
+  git -C "$d" add -A; git -C "$d" -c user.email=t@t -c user.name=t commit -q -m i
+  # run the VENDORED copy, so PLUGIN_DIR really is inside the scanned repo
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" REWORK_ROOT="$d" \
+    bash "$d/plugins/companion/bin/candidates.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"real.sh"* ]]     # signal outside the tool's own tree is untouched
+  [[ "$output" != *"index.js"* ]]    # a sibling explaining the ranking is not buildable work
 }
 
 @test "tq report: a park shows its rec:, and 'next' names the decision when nothing is buildable" {

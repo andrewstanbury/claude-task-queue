@@ -1,0 +1,16 @@
+{
+  "id": "92",
+  "subject": "❓ [parked] rev: should burn-down mode get a status-line indicator? — FOUND while fixing #89's doc gap, and it is the sharper half of it. statusline.sh renders ✈️ autopilot, ⚡ decisive, 🧹 sweep, 📦 ship — and NOTHING for burndown, verified by grep. So the ONE mode that authors its own work unattended is the only mode you cannot see is armed; the others, all of which merely change how existing work is handled, are all visible. Nothing warns either — it is discoverable only by asking '/companion:autopilot burndown status'. NOT decided by me because docs/requirements.yaml enumerates each indicator as its OWN requirement (R34 📦, R59 ⚡, R77 🧹), so adding one is a contract ADDITION and R86 makes that yours. OPTIONS: (A) rec: add 🔥 next to ✈️ when burndown is armed, mirroring how 🧹 appends to the autopilot icon — ~1 line in statusline.sh + a requirement + a test, and it makes the highest-consequence mode the most visible instead of the least. (B) leave it invisible on the grounds that burndown only ACTS when the 7d window forecasts underspend, so an armed flag is not the same as active generation — cheaper, but the owner still cannot tell armed from not. (C) show it only while it is actually generating (a burndown/* branch exists) — truest signal, most code, and it goes quiet exactly when you most want to know it is armed.",
+  "status": "completed",
+  "done_when": "",
+  "context": "plugins/companion/bin/statusline.sh:155-161,181-188, plugins/companion/bin/autopilot.sh:118-124, docs/requirements.yaml R34/R59/R77 indicator entries",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-15T17:44:07Z",
+      "text": "decided: add 🔥 next to ✈️ when burndown is armed, mirroring 🧹 — the only mode that authors its own work must not be the only invisible one."
+    }
+  ],
+  "seen": "decision recorded; successor task queued"
+}

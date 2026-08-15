@@ -1,0 +1,16 @@
+{
+  "id": "91",
+  "subject": "❓ [parked] rev: should tq REFUSE to write a task it cannot stamp? — MEASURED FIRST, and the premise has mostly expired. tq add does mkdir -p (tq:162) BEFORE stamping (tq:182-183), writes BOTH .root and .repo, in git and non-git dirs, and no other verb creates a task — verified empirically on a fresh global store. The legacy home store on this machine is now 1 dir, 0 unstamped (was 52 before #83-#86). So 'unstamped task' is a HISTORICAL class, not one tq can still produce. OPTIONS: (A) rec: do NOT add a refusal — it would guard a closed hole and ADD a failure mode (a refused write = a task the owner typed and lost), which is strictly worse than the thing it prevents; instead close the REAL residual below. (B) refuse the write when both stamps are missing — costs a lost task on any transient FS hiccup, buys nothing measurable. (C) warn on stderr when a stamp write fails, don't refuse — cheap, but the swallowed-stamp case is contrived (needs /.root to exist as a non-file) and a warning nobody reads is R58a. THE RESIDUAL THAT IS REAL, and it is detection-shaped like R113: a session dir whose stamp is STALE (repo moved, legacy .root abspath, no .repo because it predates R63) is silently unreachable FOREVER once that session dies — no add ever runs again to self-heal it, and NOTHING warns that a store dir holds open tasks no repo can see. rec: pair (A) with a resume-time notice for orphaned-but-open store dirs (tq-orphans.sh already exists — check whether it covers this before building anything).",
+  "status": "completed",
+  "done_when": "",
+  "context": "plugins/companion/bin/tq:162,182-183, plugins/companion/lib/companion.sh companion_task_files, plugins/companion/bin/tq-orphans.sh",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-15T17:44:07Z",
+      "text": "decided: no refusal — the premise expired (tq cannot write an unstamped task, measured). Instead close the real residual: detect store dirs holding OPEN tasks that no repo can reach. Verified tq-orphans.sh does NOT cover it."
+    }
+  ],
+  "seen": "decision recorded; successor task queued"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "85",
+  "subject": "C3 (after C2): verify the orphans are gone and keepers are reachable via companion_open_tasks in their target repos",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "listed each target repo's .companion/tasks after the move: StarTrader 22 open (ids 111-131), Strata 7 (80-85), XvT-Prototype 43 (1-43), core-go 9, practitioner 4, client 1; legacy store now holds only the live session"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "95",
+  "subject": "BUG: burn-down's snapshot freshness guard measures the WRONG CLOCK — it checks when the snapshot was WRITTEN (always ~1s, the status line rewrites it every render) not how old the DATA is. Live proof 2026-08-15: ts=now but r7=2026-08-11T07:00Z and r5=2026-08-07, i.e. reset fields 4-8 days stale, usage 7d=38%/5d=30% while the owner's UI showed ~18%. Only the incidental 'left<=0 → window already rolled' check caught it; had r7 been slightly in the FUTURE with stale usage, burn-down would have forecast from garbage and could BURN wrongly. Fix candidates: treat a resets_at in the past as UNUSABLE data (not just 'rolled'), and/or refuse to forecast when the reset fields have not moved across N distinct writes.",
+  "status": "completed",
+  "done_when": "burn-down holds with an explicit 'stale data' reason whenever the snapshot's window fields are inconsistent with its write time; a frozen payload can never produce a BURN; test covers reset-in-past AND reset-in-future-with-frozen-usage",
+  "context": "plugins/companion/bin/burn-down.sh:75-104 (FRESH/age check, left<=0), plugins/companion/bin/statusline.sh:206-217 (the writer), ~/.claude/companion/ratelimit",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "reproduced the live failure as a fixture (fresh ts + 8-day-old 5h reset + plausible 7d reset) and confirmed burn-down now HOLDs naming STALE instead of burning on it; also verified against the REAL snapshot after it refreshed — 7d 19%, 2.54d left, which matches the owner's UI and passes the new guard cleanly."
+}

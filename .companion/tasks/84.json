@@ -1,0 +1,10 @@
+{
+  "id": "84",
+  "subject": "C2 (after C1): triage the 101 unreachable orphans — identify owning repo from content, back-stamp keepers into that repo's .companion/tasks, delete the dead",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran migrate.sh wet: 81 tasks copied into 5 repo stores with provenance notes, verified all 81 parse via jq .id/.subject/.status; 51 dead legacy session dirs removed, live session 02a270f4 detected by mtime and preserved with its 45 files"
+}

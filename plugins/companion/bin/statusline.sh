@@ -159,6 +159,12 @@ if [ "$APON" = 1 ]; then
   companion_decisive_on "$ROOT" && AP=" ${Y}${B}✈️⚡${X}"
   # 🧹 sweep (R77) — a louder state still: autopilot is also working the already-parked pile.
   companion_sweep_on "$ROOT" && AP="${AP%"${X}"}🧹${X}"
+  # 🔥 burn-down (R82, owner-decided 2026-08-15) — the loudest: the ONLY mode that AUTHORS its own
+  # work rather than changing how existing work is handled, and until now the only one with no
+  # indicator at all, so the highest-consequence flag was the single least visible thing on screen.
+  # Nested under autopilot like ⚡ and 🧹 because it is inert without it — burn-down only generates
+  # during a drain — so showing it outside would advertise a mode that cannot fire.
+  companion_burndown_on "$ROOT" && AP="${AP%"${X}"}🔥${X}"
 fi
 
 # ⠋ health beacon — animates ONLY while there's work in motion (autopilot draining or a task

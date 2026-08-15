@@ -1,0 +1,16 @@
+{
+  "id": "93",
+  "subject": "detect UNREACHABLE task store dirs: a dir holding open tasks whose stamp matches no repo is invisible forever once its session dies — report it on resume (R113-shaped)",
+  "status": "completed",
+  "done_when": "resume/session-start name any store dir with open tasks whose .repo/.root matches no reachable repo; silent when none; requirement + tests; check.sh green",
+  "context": "plugins/companion/lib/companion.sh companion_task_files, plugins/companion/lib/resume-report.sh, plugins/companion/bin/tq-orphans.sh (does NOT cover this)",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-15T17:49:39Z",
+      "text": "start: 'unreachable' must NOT mean 'belongs to another repo' (that is normal, and reporting it would be the cross-project bleed the store scoping exists to stop). Definition: a SCOPED store's session dir with OPEN tasks and no usable stamp at all — no .repo, and no .root or a .root naming a path that no longer exists. Those can never be matched by any resume in any repo."
+    }
+  ],
+  "seen": "ran resume.sh against scratch stores covering all five branches: unstamped+open warns and names the dir with its open count; stamped-by-.repo, stamped-by-.root-with-absent-path, unstamped-but-all-finished, and empty store are all silent. Bleed mutation verified RED."
+}

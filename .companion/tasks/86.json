@@ -1,0 +1,10 @@
+{
+  "id": "86",
+  "subject": "B: turn burn-down ON in one repo and record what it proposes",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran autopilot.sh burndown on then burn-down.sh status/should-burn in this repo: it armed, then HELD with 'real work outranks generated work' while #86/#87 were open, and reported the 100% target UNREACHABLE (17% used, 63% of window elapsed, needs 223%/window vs 27% sustained). candidates.sh returned 5 ranked items and its rank-3 TODO was a false positive"
+}

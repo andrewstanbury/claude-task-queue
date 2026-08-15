@@ -1,0 +1,10 @@
+{
+  "id": "94",
+  "subject": "statusline: 🔥 when burn-down mode is armed, appended to the ✈️ autopilot icon like 🧹",
+  "status": "completed",
+  "done_when": "statusline renders 🔥 only when burndown is armed; absent when off; new requirement entry + test; check.sh green",
+  "context": "plugins/companion/bin/statusline.sh:155-161, companion_burndown_on in lib/companion.sh, docs/requirements.yaml R34/R59/R77 indicator entries",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "rendered the real status line via its stdin payload in a scratch repo: 🔥 absent with burndown armed but autopilot off, ✈️🔥 with both on, flame gone when burndown is turned off. Also corrected the autopilot.md line I wrote earlier this session claiming burn-down has no indicator."
+}

@@ -1,0 +1,10 @@
+{
+  "id": "87",
+  "subject": "BUG: tasks written before R96 have no .root stamp and are unreachable by every resume path — decide whether tq should refuse to write an unstamped task",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "measured tq's live stamping on a fresh global store (git + non-git + other verbs): always stamps, cannot produce an unstamped task; legacy store audited at 1 dir / 0 unstamped. Decision itself parked as #91 with options + rec."
+}

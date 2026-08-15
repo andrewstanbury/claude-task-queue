@@ -165,6 +165,22 @@ _feature_off() {  # $1=feature  $2=repo-dir
   [[ "$output" != *"⚡"* ]]; [[ "$output" != *"✈️"* ]]
 }
 
+@test "status line: 🔥 burn-down indicator shows only when autopilot AND burndown are on (R82)" {
+  # Burn-down is the only mode that AUTHORS its own work, and it was the only one with no indicator
+  # at all — armed was indistinguishable from off without running a status command.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sBrn",cwd:$c}')"
+  ( cd "$repo" && "$AP" burndown on ) >/dev/null          # armed, but autopilot off → inert
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [[ "$output" != *"🔥"* ]]
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [[ "$output" == *"✈️🔥"* ]]                             # both on → appended to the autopilot icon
+  ( cd "$repo" && "$AP" burndown off ) >/dev/null
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
+  [[ "$output" == *"✈️"* ]]; [[ "$output" != *"🔥"* ]]    # autopilot stays, the flame goes
+}
+
 @test "status line: sections render in R34 plugin-relevance order — beacon → features → queue → git (R56 #24)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init

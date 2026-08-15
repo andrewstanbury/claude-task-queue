@@ -213,14 +213,20 @@ companion_session_dir() {  # $1 repo root · $2 session id
 # none. Shared by the SessionStart hook (auto-resume) and `bin/resume.sh` (manual).
 # The one render program, shared by the batched pass and its per-file fallback so the two can
 # never drift into printing different things for the same task.
-_COMPANION_TASK_RENDER='select(.status=="pending" or .status=="in_progress") | "  ◻ " + (.subject // "") + (if (.done_when//"")!="" then "\n       └ done when: " + .done_when else "" end) + (if (.context//"")!="" then "\n       └ context: " + .context else "" end) + (if ((.notes//[])|length)>0 then "\n       └ note: " + ((.notes[-1].text)//"") elif (.description//"")!="" then "\n       └ note: " + .description else "" end)'
+# `▸` in_progress vs `◻` pending — NOT decoration: these rendered identically, so a task a crashed
+# session left MID-FLIGHT returned looking exactly like one never started. `tq`'s own delta glyphs.
+_COMPANION_TASK_RENDER='select(.status=="pending" or .status=="in_progress") | (if .status=="in_progress" then "  ▸ " else "  ◻ " end) + (.subject // "") + (if (.done_when//"")!="" then "\n       └ done when: " + .done_when else "" end) + (if (.context//"")!="" then "\n       └ context: " + .context else "" end) + (if ((.notes//[])|length)>0 then "\n       └ note: " + ((.notes[-1].text)//"") elif (.description//"")!="" then "\n       └ note: " + .description else "" end)'
 
 # NOTE: $1 must be a RESOLVED root (what companion_root returns). The `.root` stamps are written
 # resolved, so passing an unresolved path — e.g. $PWD after cd-ing through a symlink, which stays
 # logical — compares apples to oranges and silently matches NOTHING. Every shipped caller already
 # goes through companion_root; a test that did not spent a while looking like a product bug.
-companion_open_tasks() {
-  local root="$1" store d id rid rroot f out; local -a files=(); local -a stores=()
+# companion_task_files ROOT -> scoped task-file paths, NUL-separated. Extracted so every reader
+# scopes IDENTICALLY — a second hand-rolled scan is how cross-repo bleed gets reintroduced. NUL,
+# not newline: the line-based first draft rendered the ENTIRE backlog as zero tasks when a store
+# path contained one — the corrupt-file total-loss shape below, on the same crash-resume path.
+companion_task_files() {
+  local root="$1" store d id rid rroot; local -a files=(); local -a stores=()
   # Two stores now: the repo's own (R96 stage 2 — every session in it belongs to this repo by
   # construction, so no stamp is needed) and the legacy home one, still stamp-matched so an
   # in-flight queue from before the move is not orphaned. Duplicates cannot arise: a session lives
@@ -263,6 +269,13 @@ companion_open_tasks() {
     files+=("$@")
   done
   done
+  [ "${#files[@]}" -gt 0 ] || return 0
+  printf '%s\0' "${files[@]}"
+}
+
+companion_open_tasks() {
+  local root="$1" f out; local -a files=()
+  while IFS= read -r -d '' f; do [ -n "$f" ] && files+=("$f"); done < <(companion_task_files "$root")
   [ "${#files[@]}" -gt 0 ] || return 0
   # ONE jq for every matching file across every matching directory. It used to spawn a jq PER FILE:
   # 265 spawns / 818ms on a real store, growing with every session and task, on a hook path. Glob

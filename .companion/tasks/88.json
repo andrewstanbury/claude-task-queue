@@ -1,0 +1,10 @@
+{
+  "id": "88",
+  "subject": "BUG: candidates.sh rank-3 (TODO/FIXME in tracked source) matches its OWN documentation — mcp-server/index.js:252 is a string literal describing the ranking ('a TODO/FIXME in tracked source') and it ranked above two real signals. Found live by turning burn-down on 2026-08-15. Fix candidates: exclude the plugin's own source from the TODO scan, or require the marker at a line start / comment position rather than anywhere in a line",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran candidates.sh on this repo before/after: index.js:252 was the ONLY rank-3 output under the old rules and is gone under the new tree exclusion, with rank 4/5 real signals now surfacing in its place; new test mutation-checked RED"
+}
