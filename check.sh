@@ -117,7 +117,12 @@ tok_fail=0
 # ONE owner for the cap. It was hardcoded at three sites (the test, the FAIL message, the ok
 # message); a raise that missed a message would report a number the gate no longer enforces —
 # output that lies while staying green, which is this repo's own recorded failure shape.
-core_cap=8730
+core_cap=8500
+# 8730 -> 8500 (2026-08-16, owner-decided after the audit). THE CAP RATCHETS DOWN ONLY: an
+# addition to the injected core must be FUNDED BY A DELETION, never by another raise. Eight raises
+# (6144->8730, +42%) had ended at 8725/8730 — five bytes of headroom. Full reasoning and the honest
+# accounting of the 281B that made room: docs/adr/README.md R115. A bats case pins this constant at
+# <= 8500, so raising it is a two-place deliberate act rather than a one-character nudge.
 # 8576 -> 8730 (2026-08-12, owner-decided: "do it for me"). FIFTH raise, and it is a CONSCIOUS
 # OVERRIDE of the note below, which said a fifth should rebuild the core instead (R55). Recording
 # that it was overridden, not overlooked — the pre-commitment was written against a 384B ask, and

@@ -1,0 +1,9 @@
+{
+  "id": "113",
+  "subject": "AUDIT: delete 5 dead functions in lib/companion.sh — companion_ship_flag, companion_decisive_flag, companion_sweep_flag, companion_burndown_flag and companion_autopilot_paused have ZERO callers anywhere in plugins/, dev/, check.sh or the MCP server. Unused per-mode sugar over companion_mode_flag; STEERING's own clean-as-you-go rule says subtract as you add and YAGNI puts the burden of proof on adding",
+  "status": "in_progress",
+  "done_when": "the five are gone, every mode's on/set/clear path still works, check.sh green including mutations that touch mode flags",
+  "context": "plugins/companion/lib/companion.sh mode-flag family, plugins/companion/bin/autopilot.sh (the real caller, uses companion_mode_* and companion_autopilot_flag)",
+  "blocks": [],
+  "blockedBy": []
+}

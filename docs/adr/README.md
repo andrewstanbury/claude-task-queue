@@ -702,3 +702,47 @@ that would gain autonomy from saying yes* — so the caution, not the enthusiasm
 weighting.
 
 | 2026-08-15, owner picked acceptance-gating and the restored trigger; the self-dealing rank was the real find.
+
+## R115 — DECISION 🔓 (the STEERING cap ratchets DOWN; audit pass 1)
+
+**Found by audit**, owner-asked 2026-08-16. The injected STEERING core measured **8725B against an
+8730B cap — five bytes of headroom**, so the next edit to the working agreement was guaranteed to
+fail the gate.
+
+**The cap had risen eight times:** 6144 → 6656 → 7040 → 7360 → 7808 → 8192 → 8384 → 8576 → 8730,
+**+42%**. Each raise was justified in place and none was hidden; the problem is the shape, not any
+one of them. `check.sh` had been carrying the counter-argument in its own comments the whole time —
+*"A cap should track what the content genuinely needs; it stops being a budget the moment it"* — and
+a note pre-committing that a **fifth** raise should rebuild the core instead. It was overridden
+three times after that. Every byte is paid in every session in every repo the plugin is installed
+in, against a stated first principle that token efficiency is THE concern.
+
+**Decision: the cap may only ever DECREASE.** Set to **8500** against a measured 8444B. An addition
+must now be funded by a deletion.
+
+**THE HONEST ACCOUNTING**, because the owner picked "cut prose that now has a guard" and that is not
+mostly what happened. Of 281B recovered:
+
+- **71B was guard-justified.** The largest single item was a **false claim**: *"Enforced under
+  autopilot, not advisory"* on the contract rule — untrue since `contract-guard.sh` was retired
+  (R100/Pass 3), and sitting in the one document injected into every session. The rest was `--seen`,
+  breadcrumb and file-size wording that `seen-gate.sh`, R113's detectors and `dev/size-lint.sh` now
+  back mechanically.
+- **210B was wordsmithing**, with no instruction dropped.
+
+So the premise behind the chosen option was **only about a quarter right**. The core is mostly
+genuine judgment — prose no guard replaces — which is exactly why the ratchet had to be *stopped*
+rather than *reversed*. Recording that the option was picked on a reason that turned out weaker than
+it looked matters more than the bytes.
+
+**Teeth, and their limit.** A bats case asserts `core_cap <= 8500`, so raising it means editing the
+gate AND its test: a two-place, visible act instead of a one-character nudge inside an unrelated
+change. That is the property the eight raises lacked. It cannot stop a determined author, and it
+should not — it only removes "nobody noticed" as an explanation.
+
+**Immediately self-demonstrating:** writing this rationale INTO `check.sh` pushed that file to
+306 lines and the size gate refused it. Trimming the comment to squeak under would have been the
+exact behaviour this entry exists to name, so the reasoning moved here and `check.sh` kept a
+five-line pointer. The rule caught its own author within a minute of existing.
+
+| 2026-08-16, owner-decided from a 4-option menu; the cap's first-ever downward move.

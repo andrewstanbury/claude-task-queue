@@ -78,11 +78,28 @@ trap '_mut_restore' EXIT INT TERM HUP
 # ship.sh unable to see untracked critical paths, both sitting in the working tree ready to be
 # committed. `git status` was the only thing that revealed it.
 _mut_lock="${TMPDIR:-/tmp}/companion-mutate-$(printf '%s' "$PWD" | cksum | cut -d' ' -f1).lock"
+# LIVENESS, not just presence (2026-08-16). The lock was a bare directory removed only by the EXIT
+# trap, so a run killed with SIGKILL — which runs no trap — left a lock that blocked every later
+# run FOREVER, and the message said "another run holds" when nothing was running. Hit twice in one
+# day. The owning PID is recorded inside; a lock whose owner is gone is reclaimed rather than
+# obeyed. Still refuses a LIVE concurrent run, which is the case that actually corrupts backups.
 if ! mkdir "$_mut_lock" 2>/dev/null; then
-  echo "  FAIL another --mutate run holds $_mut_lock — concurrent runs corrupt each other's"
-  echo "       backups and can leave enforced core MUTATED. Wait, or remove the dir if stale."; exit 2
+  _mut_owner=""
+  [ -f "$_mut_lock/pid" ] && IFS= read -r _mut_owner < "$_mut_lock/pid" 2>/dev/null
+  if [ -n "$_mut_owner" ] && kill -0 "$_mut_owner" 2>/dev/null; then
+    echo "  FAIL another --mutate run (pid $_mut_owner) holds $_mut_lock — concurrent runs corrupt"
+    echo "       each other's backups and can leave enforced core MUTATED. Wait for it to finish."; exit 2
+  fi
+  # Stale: the owner is dead (or never recorded it). Reclaim, saying so — silently taking a lock is
+  # how the failure it guards against comes back.
+  echo "  note: reclaiming a STALE lock at $_mut_lock (owner ${_mut_owner:-unknown} is gone)" >&2
+  rm -f "$_mut_lock/pid" 2>/dev/null; rmdir "$_mut_lock" 2>/dev/null
+  if ! mkdir "$_mut_lock" 2>/dev/null; then
+    echo "  FAIL could not reclaim $_mut_lock — remove it by hand: rmdir $_mut_lock"; exit 2
+  fi
 fi
-trap 'rmdir "$_mut_lock" 2>/dev/null; _mut_restore' EXIT INT TERM HUP
+printf '%s\n' "$$" > "$_mut_lock/pid" 2>/dev/null || true
+trap 'rm -f "$_mut_lock/pid" 2>/dev/null; rmdir "$_mut_lock" 2>/dev/null; _mut_restore' EXIT INT TERM HUP
 expect="$(bats --count dev/tests 2>/dev/null | tr -d '[:space:]')"
 case "${expect:-}" in ''|*[!0-9]*) expect=0 ;; esac
 if [ "$expect" -lt 2 ]; then
@@ -119,6 +136,32 @@ if [ "$do_validate" = 1 ]; then
   exit "$vbad"
 fi
 
+
+# RESTORE, VERIFIED. `mv "$tgt.mutbak" "$tgt"` used to be fire-and-forget, and on 2026-08-16 it
+# failed twice — two "mv: cannot stat ...mutbak" lines to stderr that nothing read — leaving
+# lib/task-store.sh MUTATED while the gate printed "ok caught" and exited 0. The tree it left behind
+# had companion_open_tasks returning nothing, i.e. the crash-resume path dead, and every other gate
+# still green. A verification tool that can silently corrupt the thing it verifies is worse than no
+# tool, because its green is trusted.
+#
+# So: checksum before mutating, put back, checksum again, and treat any mismatch as a HARD failure
+# of the whole run rather than a per-mutation note. `cksum` is POSIX and present on the macOS lane;
+# read from STDIN so the filename never enters the digest.
+_mut_sum() { cksum < "${1:?}" 2>/dev/null || printf 'UNREADABLE'; }
+_mut_put_back() {  # $1 target · $2 checksum taken before the mutation
+  local tgt="$1" want="$2" got
+  mv "$tgt.mutbak" "$tgt" 2>/dev/null
+  got="$(_mut_sum "$tgt")"
+  if [ "$got" != "$want" ]; then
+    echo "  FAIL RESTORE FAILED for $tgt — the working tree is LEFT MUTATED. Recover with:"
+    echo "         git checkout -- $tgt      (or, if untracked, undo the mutation by hand)"
+    restore_broken=1
+    return 1
+  fi
+  return 0
+}
+restore_broken=0
+
 # THE BASELINE MUST BE GREEN. Every verdict below is "did the suite go RED?" — which measures
 # nothing if it was already red. One pre-existing failure makes EVERY mutation report "caught",
 # and that is the most dangerous reading this gate can produce: a clean bill of health for
@@ -139,21 +182,22 @@ while IFS= read -r line; do
     keep=0; for want in "${mfilter[@]}"; do [ "$want" = "$tgt" ] && keep=1; done
     [ "$keep" = 1 ] || continue
   fi
+  pre_sum="$(_mut_sum "$tgt")"
   cp "$tgt" "$tgt.mutbak"
   if ! sed -i.bak "$sedscript" "$tgt" 2>/dev/null; then
-    mv "$tgt.mutbak" "$tgt"; rm -f "$tgt.bak"
+    _mut_put_back "$tgt" "$pre_sum"; rm -f "$tgt.bak"
     echo "  FAIL mutation did not apply — the sed script is stale: $what"; holes=$((holes+1)); continue
   fi
   rm -f "$tgt.bak"
   if cmp -s "$tgt" "$tgt.mutbak"; then
-    mv "$tgt.mutbak" "$tgt"
+    _mut_put_back "$tgt" "$pre_sum"
     echo "  FAIL mutation matched NOTHING (stale pattern): $what"; holes=$((holes+1)); continue
   fi
   # Shard AFTER the filter and AFTER the stale-pattern checks, so every shard still validates
   # that each pattern it reads actually matches something.
   idx=$((idx+1))
   if [ "$shard_m" -gt 1 ] && [ $(( (idx - 1) % shard_m )) -ne "$shard_n" ]; then
-    mv "$tgt.mutbak" "$tgt"; continue
+    _mut_put_back "$tgt" "$pre_sum"; continue
   fi
   ran=$((ran+1))
   # A nonzero exit is NOT proof a test failed. bats exits nonzero when it is KILLED (124, nothing
@@ -176,9 +220,13 @@ while IFS= read -r line; do
     printf '%s\n' "$mout" | tail -3 | sed 's/^/        | /'
     errs=$((errs+1))
   fi
-  mv "$tgt.mutbak" "$tgt"
+  _mut_put_back "$tgt" "$pre_sum"
 done < "$mfile"
 echo
+if [ "$restore_broken" -ne 0 ]; then
+  printf '== Mutation result ==\n  RESTORE FAILED — the working tree may still be MUTATED. Fix that before reading anything else below; a green gate on a mutated tree is exactly the lie this file exists to prevent.\n'
+  exit 1
+fi
 if [ "$errs" -gt 0 ]; then printf '== Mutation result ==\n  %s INCOMPLETE RUN(S) of %s — the suite never finished, so nothing was measured\n' "$errs" "$ran"; exit 1; fi
 if [ "$holes" -gt 0 ]; then printf '== Mutation result ==\n  %s HOLE(S) of %s — a test that cannot fail is not coverage\n' "$holes" "$ran"; exit 1; fi
 echo "== Mutation result =="; echo "  all $ran mutations caught"; exit 0

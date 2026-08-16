@@ -552,6 +552,8 @@
     - "da-gate match: FAILS CLOSED on an unusable config, and CRLF cannot disable it"
     - "da-gate note: rejects stamps and trailer injection, ACCEPTS a non-ASCII finding (R1)"
     - "mutation gate: only a COMPLETE run that failed counts as caught (R78)"
+    - "mutate-gate: a FAILED RESTORE is reported and fails the run, never reported as caught"
+    - "mutate-gate: a STALE lock is reclaimed, a LIVE one is still refused"
     - "mutation gate: a suite ALREADY RED is refused — it would score every mutation caught (R78)"
     - "mutation gate: --shard partitions the set with no gaps and no overlap (R78)"
     - "mutation gate: an UNPARSEABLE suite is refused up front, not scored (R78)"
@@ -709,6 +711,7 @@
     - "doc-lint ledger: a missing file FAILS loudly instead of reporting ok (R78)"
     - "doc-lint retired: a claim naming a SURVIVING file fails; history and true retirements pass"
     - "size-lint: over the cap FAILS, saturated WARNS but passes, and the gate can be exercised at all"
+    - "STEERING cap may only RATCHET DOWN — a raise must be funded by a deletion (2026-08-16 audit)"
 
 - id: R48
   satisfies: [UN-5]

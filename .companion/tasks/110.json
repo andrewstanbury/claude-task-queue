@@ -1,9 +1,10 @@
 {
   "id": "110",
   "subject": "AUDIT: split dev/tests/companion-core.bats (3790 lines) by subject so failures are locatable — shipped code is held to 300 lines while the suite has no cap at all. after #109",
-  "status": "pending",
+  "status": "completed",
   "done_when": "the suite is split into cohesive files by subject with no test lost or renamed (traceability still closes at the same count), check.sh green, and the split is mechanical enough to review",
   "context": "dev/tests/companion-core.bats, dev/trace.sh (matches tests by NAME, so renames break traceability), check.sh",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "seen": "split 183 tests out of a 3,922-line file into six subject files plus a shared helper.bash, and verified the way that can actually go wrong: bats --count still reports 249 across dev/tests, the suite runs 249/249 with zero failures, and trace.sh still closes at 249 with no orphans in either direction — which is the real proof no test was renamed, since it matches requirements to tests by NAME. Largest file is now 969 lines."
 }

@@ -1,9 +1,10 @@
 {
   "id": "111",
   "subject": "AUDIT/bug: mutate-gate's lock is a bare directory with no liveness check, so a run killed before its trap fires leaves a lock that blocks check.sh's mutation-pattern validation FOREVER — hit twice in one day after a SIGKILL, and the failure text ('another --mutate run holds …') actively misleads because no run is active",
-  "status": "pending",
+  "status": "completed",
   "done_when": "a lock whose owning process is gone is detected and reclaimed (or reported as stale with the exact rmdir to run); a LIVE concurrent run is still refused; a test covers both",
   "context": "dev/mutate-gate.sh (the rmdir-based lock + its EXIT/INT/TERM trap), check.sh mutation-pattern section",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "seen": "drove both lock states against the real gate: a lock owned by pid 999999 (cannot be alive) is reclaimed with a printed note and the run proceeds; a lock owned by a genuinely running sleep is still refused with exit 2. Updated the pre-existing concurrency test, which had been passing on a bare ownerless lock, to hold a LIVE pid — the case that actually corrupts backups."
 }

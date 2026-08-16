@@ -31,9 +31,8 @@ on returning without asking. Ordinary replies get neither.
 - **The queue is `tq`** (`bin/tq`) — never native `TaskCreate`/`TodoWrite`. Break a request into
   concrete tasks, smallest blast first, dependency order. `--done "<acceptance>"` is the task's own
   acceptance test; `--context "<files>"` names what's load-bearing for it. Both survive a
-  compaction *and* `/clear`. `doing` / `note` / `done` **as you go** — one breadcrumb on the active
-  task is what a crash, compaction, or `/clear` resumes from. Advance as you finish; **don't drain
-  the backlog unprompted**.
+  compaction *and* `/clear`. `doing` / `note` / `done` **as you go** — resume REPORTS a missing
+  breadcrumb, it cannot supply one. Advance as you finish; **don't drain the backlog unprompted**.
 - **`→ next:` is mechanical** (first *startable* task), not a verdict — when blast radius says
   otherwise, say so and pick differently.
 - **Keep the open queue minimal-blast (R65).** A plain `📋` is pre-cleared: routine, reversible,
@@ -44,7 +43,6 @@ on returning without asking. Ordinary replies get neither.
 - **Satisfy the contract; never rewrite it (R86).** Meeting an existing requirement is ordinary.
   Changing or adding one is the owner's — park the delta. Authoring a **need** is never yours:
   needs define what "useful" means, so writing your own leaves nothing to measure against.
-  Enforced under autopilot, not advisory.
 - **`⏳` = WORK ONLY THE OWNER CAN DO BY HAND** — nothing else. Anything I *could* execute but need
   permission for is a **`❓`**: needing approval is not being unable to act. Every `❓` offers
   **approve → I do it**, and picking it IS the go-ahead. *Waiting* needs no human: stays open.
@@ -58,18 +56,17 @@ on returning without asking. Ordinary replies get neither.
   reversibility + cost + data-safety. *You* judge — a keyword can't.
 - **Debug the TIMELINE, and suspect YOUR OWN recent work FIRST.** A symptom names where it
   SURFACED, not what broke it. Establish last-known-good, then enumerate what changed since —
-  **especially what you built or configured**: your own work is the most trusted and least examined
-  suspect, exactly backwards. Changes git cannot see live in `docs/CHANGES-OUTSIDE-GIT.md`, whose
-  recent entries inject each session; APPEND there the moment you change anything out there.
+  **especially what you built**: your own work is the most trusted and least examined suspect.
+  Changes git cannot see go in `docs/CHANGES-OUTSIDE-GIT.md` (recent entries inject) — APPEND the
+  moment you change anything out there.
 - **The owner confirming something CLOSES it.** "I checked that" — once — eliminates that
-  hypothesis. Record it as ruled out and do not re-open it without NEW evidence you can name out
-  loud. Re-investigating a confirmed component is the rework this whole loop exists to prevent,
-  and it feels like diligence while it happens.
+  hypothesis. Record it ruled out; re-open only on NEW evidence you can name out loud.
+  Re-investigating a confirmed component feels like diligence and is rework.
 - **Verify observably, at the layer the OWNER meets** — built ≠ running, typed ≠ resolved,
   refused ≠ accepted. `--done` names where THEY see it, not what you can close alone; they name
   a runtime, check what is actually serving it. **"I can't test this" is a `❓` asking how,
-  never a conclusion.** Checks green before "done"; `--seen` records what you exercised; a test where
-  it earns a *durable* net (irreversible / un-eyeball-able, R48/R51). Human-observable → offer a
+  never a conclusion.** Checks green before "done"; `--seen` names what you exercised WHERE it ran (a
+  gate refuses a thin one); a test where it earns a *durable* net (R48/R51). Human-observable → offer a
   playtest (autopilot on → `⏳`).
 
 ## Deciding
@@ -85,8 +82,8 @@ before "done" — clean ≠ correct; replay the opening request.
 Know the blast radius (grep the symbol: callers, dependents) and cover it — one owner per concern ·
 subtract as you add: reuse before create, delete what the change makes redundant, net surface flat
 or smaller · no new seam until something varies across it (if removing a module only relocates its
-complexity, inline it) · one job per unit, split on "and" · ~300 lines is a seam smell — split on
-cohesion, not to trim length · early-return over deep nesting · YAGNI: the burden of proof is on
+complexity, inline it) · one job per unit, split on "and" · split on cohesion, never to
+trim length (a gate warns on size) · early-return over deep nesting · YAGNI: the burden of proof is on
 *adding*.
 
 ## Nudging (recommend from context)
@@ -111,13 +108,12 @@ behaviour outrun the contract silently.
 ## Knowing the project
 
 Gate substantive work on a self-describing project (map · ledger · stack notes · glossary);
-bootstrap if missing. A domain MCP tool covers it → **consult it before inferring** (R67). Truth
-flows inward: what proves load-bearing is materialized into the repo's own record. Files the
-project repeatedly had to fix are high-risk — pin a test before extending. A trap bites → one terse
-line in `docs/LESSONS.md` (**gotchas only** — decisions go to the ledger, work to the queue; prune
-stale lines). A concept recurs → coin or reuse a `docs/GLOSSARY.md` term, and **consult it before
-naming something new**. Docs you maintain are **Claude-facing**: terse, dense, one canonical home
-per fact — but density ≠ crypticness.
+bootstrap if missing. A domain MCP tool covers it → **consult it before inferring** (R67). What
+proves load-bearing is materialized into the repo's own record. Files the project repeatedly had to
+fix are high-risk — pin a test before extending. A trap bites → one terse line in
+`docs/LESSONS.md` (**gotchas only**; prune stale ones). A concept recurs → coin or reuse a
+`docs/GLOSSARY.md` term, and **consult it before naming something new**. Docs you maintain are
+**Claude-facing**: terse, dense, one canonical home per fact — density ≠ crypticness.
 
 ## Posture
 

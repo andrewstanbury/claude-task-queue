@@ -108,10 +108,10 @@ companion_autopilot_on() { companion_mode_on "${1:-}" autopilot; }
 # teardown can't drift). Best-effort; a missing flag is not an error.
 companion_autopilot_clear() { companion_mode_clear "${1:-}" autopilot; }
 
-# Ship-mode (R34): while autopilot is ON, the Stop hook auto-COMMITS accumulated work to a
-# non-default branch (never main, never a push) so completed work is captured as reversible
-# checkpoints for the owner to review + `/companion:ship-it`.
-companion_ship_flag() { companion_mode_flag "${1:-}" ship; }
+# Ship-mode (R34): while autopilot is ON, work is captured as reversible checkpoints on a
+# non-default branch (never main, never a push) for the owner to review + `/companion:ship-it`.
+# NOT automatic — the Stop hook's auto-commit was retired and `bin/ship-checkpoint.sh` owns it,
+# invoked deliberately; a lib comment claiming otherwise is how the R100 passes got misread.
 companion_ship_on() { companion_mode_on "${1:-}" ship; }
 
 # Decisive mode (R59): while autopilot is ON, instead of PARKING every decision, autopilot
@@ -119,7 +119,6 @@ companion_ship_on() { companion_mode_on "${1:-}" ship; }
 # included — overrides R33), records each pick, and keeps going; it still parks (❓) / blocks (⏳)
 # only the irreversible / externally-binding / data-destructive. Opt-in, per-repo, persisted; the
 # safety is the audit trail (every auto-pick is a `tq note`), read back by /companion:review.
-companion_decisive_flag() { companion_mode_flag "${1:-}" decisive; }
 companion_decisive_on() { companion_mode_on "${1:-}" decisive; }
 
 # SWEEP mode (R77) — decisive, but reaching BACKWARDS into the pile that is already parked.
@@ -129,7 +128,6 @@ companion_decisive_on() { companion_mode_on "${1:-}" decisive; }
 # WHICH parks are safe stays judgment (STEERING) — a park may exist precisely because it is
 # irreversible, and those must never be auto-applied; they get reclassified ⏳ so the loop ends.
 # `⏳` blocked and `decompose:` parks (R65) are NEVER eligible, in any mode.
-companion_sweep_flag() { companion_mode_flag "${1:-}" sweep; }
 companion_sweep_on() { companion_mode_on "${1:-}" sweep; }
 
 # PAUSED-FOR-REVIEW marker. `/companion:review` has to ask questions, and the ask-guard blocks
@@ -139,14 +137,12 @@ companion_sweep_on() { companion_mode_on "${1:-}" sweep; }
 # mid-review leaves a recoverable state rather than a silently-disarmed one.
 # An explicit `autopilot off` CLEARS this marker — an owner saying "off" outranks a pending resume.
 companion_autopilot_paused_flag() { companion_mode_flag "${1:-}" autopilot-paused; }
-companion_autopilot_paused()      { [ -n "${1:-}" ] && [ -f "$(companion_autopilot_paused_flag "$1")" ]; }
 
 # BURN-DOWN mode — opt-in, per-repo, OFF by default. When the 7d rate-limit window is forecast to
 # end UNDERSPENT and there is no queued work left, autopilot may generate candidate work rather
 # than idle. Everything it produces lands behind a feature flag on a branch; nothing merges.
 # Deliberately its own flag, not a mode of autopilot: this is the only mode that AUTHORS work, so
 # turning it on must be a separate, explicit act.
-companion_burndown_flag() { companion_mode_flag "${1:-}" burndown; }
 companion_burndown_on() { companion_mode_on "${1:-}" burndown; }
 
 # Where the status line drops its rate-limit snapshot. The window data arrives ONLY on the

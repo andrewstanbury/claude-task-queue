@@ -1,9 +1,10 @@
 {
   "id": "112",
   "subject": "AUDIT/bug (serious, sibling of #111): mutate-gate can leave the WORKING TREE MUTATED and still report 'ok caught' and exit 0. Live 2026-08-16: two 'mv: cannot stat task-store.sh.mutbak' lines went to stderr, the restore silently failed, and lib/task-store.sh was left emitting newline-separated paths against a NUL-expecting reader — companion_open_tasks returned NOTHING, i.e. the entire carried-task resume path was dead in the tree while the gate said green. The mv failure is unchecked and two restore paths (the per-mutation mv and the EXIT trap's find) race for the same .mutbak",
-  "status": "pending",
+  "status": "completed",
   "done_when": "a restore that does not put the file back byte-for-byte FAILS the gate loudly (checksum the target before mutating and verify after restoring); the two restore paths cannot race or the loser is harmless; a test proves a failed restore is reported rather than swallowed",
   "context": "dev/mutate-gate.sh (_mut_restore's find, the per-mutation cp/mv around line 110-147), and #111 (the stale lock) — same root: the gate's own crash-safety is the one thing it never verifies",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "seen": "reproduced the exact 2026-08-16 failure in a scratch repo by deleting the .mutbak before the put-back: before the fix that run printed 'ok caught' and exited 0 with the file left mutated; after it, the run exits 1, prints RESTORE FAILED and names the git checkout to recover. Healthy runs still restore byte-for-byte (checksum-verified)."
 }
