@@ -193,7 +193,9 @@ load helper
   # moved failure mode — and it fired here: the guard went red for the right reason.
   run grep -c 'doc-lint\.sh" frontmatter' "$DEV/command-lint.sh"
   [ "$output" -ge 1 ]
-  run grep -c 'doc-lint\.sh ledger' "$ROOT/../../check.sh"
+  # Moved with the byte-cap section into dev/token-budget.sh 2026-08-16 — the guard FOLLOWS the
+  # call, which is the extraction trap LESSONS records and this very comment predicted.
+  run grep -c 'doc-lint\.sh ledger' "$DEV/token-budget.sh"
   [ "$output" -ge 1 ]
 }
 
@@ -533,7 +535,7 @@ EOS
   # Match the INVOCATION, not the name: grepping for the bare filename also matched the comment
   # ABOVE the call, so stubbing the call out left this green — the mutation gate caught exactly
   # that. Same family as the TODO scanner that fed on prose about TODO markers.
-  run grep -c '\$(dev/command-lint\.sh)' "$ROOT/../../check.sh"
+  run grep -c '\$(dev/command-lint\.sh)' "$DEV/token-budget.sh"
   [ "$output" -ge 1 ]
 }
 
@@ -854,4 +856,35 @@ EOT
   [[ "$output" != *"contract.yaml"* ]]   # the contract is what a rebuild PRESERVES
   [[ "$output" == *"⟳ code.sh"* ]]       # code still is
   [[ "$output" == *"⟳ prose.md"* ]]      # ...and so is prose: the rule is "not DATA", not "not text"
+}
+
+@test "token-budget: an oversized injected core FAILS, and the marker must appear exactly once" {
+  # Extracted from check.sh 2026-08-16 for the R78 reason — inline, the SUITE could not invoke it,
+  # so the gate that decides what every session pays for had no test of its own. It reads
+  # repo-relative paths, so the fixture mirrors the real layout and the test runs from inside it.
+  local d; d="$(_tmpd)"
+  mkdir -p "$d/plugins/companion/commands" "$d/docs/adr" "$d/dev"
+  cp "$DEV/token-budget.sh" "$d/dev/"
+  cp "$DEV/doc-lint.sh" "$DEV/command-lint.sh" "$d/dev/"
+  cp docs/adr/PROVENANCE.md "$d/docs/adr/" 2>/dev/null || printf '| **R1** | x |\n' > "$d/docs/adr/PROVENANCE.md"
+  cp docs/requirements.yaml "$d/docs/" 2>/dev/null || printf -- '- id: R1\n' > "$d/docs/requirements.yaml"
+  printf -- '---\ndescription: short\n---\n\nBody.\n' > "$d/plugins/companion/commands/ok.md"
+
+  # a core comfortably UNDER the cap, with exactly one marker
+  { printf 'tiny core\n'; printf 'injection stops here\n'; printf 'rationale below\n'; } \
+    > "$d/plugins/companion/STEERING.md"
+  run bash -c 'cd "$1" && dev/token-budget.sh' _ "$d"
+  [ "$status" -eq 0 ]
+
+  # an OVERSIZED core must fail — this is the number every session pays
+  { head -c 20000 /dev/zero | tr '\0' 'x'; printf '\ninjection stops here\n'; } \
+    > "$d/plugins/companion/STEERING.md"
+  run bash -c 'cd "$1" && dev/token-budget.sh' _ "$d"
+  [ "$status" -ne 0 ]; [[ "$output" == *"injected core"* ]]
+
+  # the marker must appear EXACTLY once, or the split between injected and on-demand is undefined
+  { printf 'core\ninjection stops here\nmore\ninjection stops here\n'; } \
+    > "$d/plugins/companion/STEERING.md"
+  run bash -c 'cd "$1" && dev/token-budget.sh' _ "$d"
+  [ "$status" -ne 0 ]; [[ "$output" == *"marker count"* ]]
 }

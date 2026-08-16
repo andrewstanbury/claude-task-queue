@@ -17,7 +17,7 @@ dev/doc-lint.sh::s@-gt 1 @-gt 99 @::frontmatter stops rejecting a duplicate key
 dev/doc-lint.sh::s@^        \[.*\]\*)$@        ZZZNEVERMATCH)@::frontmatter stops rejecting a leading YAML indicator (logic, not the message)
 dev/doc-lint.sh::s@measured (R78)"; rc=1@measured (R78)"; rc=0@::ledger stops FAILING on an unevidenced measurement
 dev/command-lint.sh::s@doc-lint.sh" frontmatter@doc-lint.sh" ZZZfrontmatter@::command-lint stops invoking the frontmatter lint
-check.sh::s@doc-lint.sh ledger@doc-lint.sh ZZZledger@::check.sh stops invoking the ledger lint
+dev/token-budget.sh::s@doc-lint.sh ledger@doc-lint.sh ZZZledger@::check.sh stops invoking the ledger lint
 dev/doc-lint.sh::s@{sub(/\\r$/,"")}@{}@::CRLF stops being stripped, re-opening the fail-open frontmatter hole
 dev/doc-lint.sh::s@NR==1{sub(/\^\[^-\]\*/,"")}@NR==1{}@::a BOM stops being stripped
 dev/doc-lint.sh::s@sed -e 's/\[~≈\]@sed -e 's/ZZZ@::the ~ approximation exemption stops working
@@ -84,7 +84,7 @@ plugins/companion/bin/candidates.sh::s@grep -nIE .(TODO|FIXME|XXX)\[: \]. -- .@g
 plugins/companion/bin/burndown-branch.sh::s@grep -qvE .\^.{2} ..companion/.@grep -qv zzzNEVERzzz@::autonomous work starts on top of someone else's uncommitted changes
 dev/portability-lint.sh::s@  \[ -n "$vals" \] || { echo "  FAIL boundary: derived NO threshold constants — the lint would pass vacuously"; return 1; }@  :@::the boundary lint passes vacuously when it derives no constants at all
 check.sh::s@if out="$(dev/portability-lint.sh boundary dev/tests/\*.bats)"; then@if true; then@::check.sh stops invoking the boundary lint — the guard exists but never runs
-check.sh::s@if out="$(dev/command-lint.sh)"; then@if true; then@::check.sh stops invoking the command-contract lint — the guard exists but never runs
+dev/token-budget.sh::s@if out="$(dev/command-lint.sh)"; then@if true; then@::check.sh stops invoking the command-contract lint — the guard exists but never runs
 plugins/companion/lib/resume-report.sh::s@      /^- \[0-9\]\[0-9\]\[0-9\]\[0-9\]-\[0-9\]\[0-9\]-\[0-9\]\[0-9\]/ { f = ($2 >= c) }@      /^-/ { f = 1 }@::the change ledger stops honouring its time window — every entry ever written prints on every call
 plugins/companion/lib/resume-report.sh::s@    \[ -n "$_recent" \] && out=@    [ -z "$_recent" ] \&\& out=@::recent out-of-band changes stop printing, so a cleared context loses them entirely
 plugins/companion/bin/rework.sh::s@-v t="$THRESH" -v self="$_rw_self"@-v t=99999 -v self="$_rw_self"@::a repeatedly-failing component stops being flagged for rebuild, so the fourth patch looks as reasonable as the first

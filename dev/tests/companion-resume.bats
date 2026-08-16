@@ -390,7 +390,9 @@ load helper
   # each raise a one-character edit inside an unrelated change. This makes raising it a two-place,
   # deliberate act: the gate AND this test. It cannot stop a determined author and should not — it
   # only removes "nobody noticed" as an explanation.
-  run grep -E '^core_cap=[0-9]+$' "$ROOT/../../check.sh"
+  # The cap moved into dev/token-budget.sh with the byte-cap section (2026-08-16); the guard
+  # follows the constant, or it silently stops guarding anything.
+  run grep -E '^core_cap=[0-9]+$' "$DEV/token-budget.sh"
   [ "$status" -eq 0 ]
   local cap="${output#core_cap=}"
   [ -n "$cap" ]

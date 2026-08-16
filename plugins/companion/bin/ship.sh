@@ -261,36 +261,11 @@ watch_ci() {
 # Cross-machine handoff (R72): checkpoint the WIP + queue for another machine — NOT a ship.
 # The gate is deliberately not run (a red tree mid-work is normal; the gate fires at `land`),
 # but the secret backstop still is: this pushes.
-handoff() {
-  local cur def branch
-  cur="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-  if [ -z "$cur" ] || [ "$cur" = "HEAD" ]; then die 9 "detached HEAD — check out a branch first"; fi
-  git remote get-url origin >/dev/null 2>&1 || die 8 "no remote — git is the transport (R72); add one first"
-  git add -A
-  # A ship must never SNAPSHOT live mode state (R96·b). Mode flags are files in the repo, so
-  # `git add -A` was recording whatever happened to be set at that instant — a review pause, which
-  # deletes the autopilot flag, got committed as "autopilot off" and silently disarmed it later.
-  # Unstaging leaves any DELIBERATELY committed mode intact while dropping the transient churn.
-  git reset -q -- .companion/modes 2>/dev/null || true
-  git diff --cached --quiet && die 6 "nothing to hand off (clean tree, no changes)"
-  if git diff --cached | grep -qE "$(companion_secret_re)"; then
-    die 9 "staged diff matches a credential shape — unstage the secret before handing off"
-  fi
-  def="$(default_branch)" || def=""
-  if [ -n "$def" ] && [ "$cur" = "$def" ]; then
-    branch="wip/$(date -u +%Y%m%d-%H%M%S)"                 # WIP never lands on default (R34-spirit)
-    git checkout -qb "$branch" || die 9 "cannot create $branch"   # staged changes ride the checkout
-    cur="$branch"
-  fi
-  git commit -q -m "wip: handoff checkpoint (working tree + queue, R72)" || die 9 "commit failed"
-  git push -qu origin "$cur" || die 8 "push failed — checkpoint is safe locally; resolve and push"
-  printf '== ship.sh: handed off %s on %s\n' "$(git rev-parse --short HEAD)" "$cur"
-  printf '== on the other machine: git fetch && git checkout %s && /companion:resume\n' "$cur"
-}
-
 case "${1:-}" in
   preflight) shift; preflight "$@" ;;
   land)      shift; land "$@" ;;
-  handoff)   shift; handoff "$@" ;;
+  # Handoff parks UNFINISHED work for another machine — a different goal from shipping
+  # verified work, and split out 2026-08-16 (see ship-handoff.sh).
+  handoff)   shift; exec "$(dirname "$0")/ship-handoff.sh" handoff "$@" ;;
   *) die 2 "usage: ship.sh preflight [gate-cmd...] | ship.sh land -F <msgfile> [--gate <cmd>] [--prune-all] | ship.sh handoff" ;;
 esac

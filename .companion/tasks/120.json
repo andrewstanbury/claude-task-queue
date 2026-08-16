@@ -1,0 +1,10 @@
+{
+  "id": "120",
+  "subject": "decompose bin/tq (285/300) on a cohesion seam — it is THE task queue and the size warning is pointing at it; extraction must preserve its deliberate standalone-ness (it sources no lib by design)",
+  "status": "completed",
+  "done_when": "tq is meaningfully under the cap, split on cohesion not length; every verb still works incl. add/doing/note/done/cancel/report/stopfields/prune/orphans; standalone invariant intact (still sources no lib/); check.sh green incl. the mutations targeting tq",
+  "context": "plugins/companion/bin/tq (285 lines), existing extractions tq-output.sh + tq-orphans.sh show the house style, docs/adr R110 (the deleted size exemption)",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "extracted prune to tq-prune.sh on the same seam tq-orphans.sh used (store maintenance, not queue mechanics): tq 285->244, standalone invariant intact (still sources nothing from lib/), and all four prune tests pass through the new exec path including the two incident guards — unreadable file means KEEP, symlinked dir is skipped."
+}

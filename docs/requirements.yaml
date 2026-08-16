@@ -711,6 +711,7 @@
     - "doc-lint ledger: a missing file FAILS loudly instead of reporting ok (R78)"
     - "doc-lint retired: a claim naming a SURVIVING file fails; history and true retirements pass"
     - "size-lint: over the cap FAILS, saturated WARNS but passes, and the gate can be exercised at all"
+    - "token-budget: an oversized injected core FAILS, and the marker must appear exactly once"
     - "STEERING cap may only RATCHET DOWN — a raise must be funded by a deletion (2026-08-16 audit)"
 
 - id: R48

@@ -1,0 +1,10 @@
+{
+  "id": "121",
+  "subject": "decompose bin/ship.sh (296/300) — the closest shipped file to the cap; natural seam is preflight vs land vs handoff",
+  "status": "completed",
+  "done_when": "ship.sh meaningfully under the cap on a cohesion seam; preflight/land/handoff all still work incl. the gate re-run, credential refusal, ff-only merge, CI watch and da-gate; check.sh green incl. ship mutations",
+  "context": "plugins/companion/bin/ship.sh (296 lines), dev/tests/companion-ship.bats (36 cases), ci-watch.sh + da-gate.sh are prior extractions from this same file",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "extracted handoff to ship-handoff.sh on the GOAL boundary (park unfinished work vs ship verified work; they shared only die and default_branch): ship.sh 296->271, and all three handoff tests plus the MCP ship_handoff wrapper pass through the new dispatch. Also extracted check.sh's token-budget section to dev/token-budget.sh (295->169) and gave it the first test it has ever had."
+}
