@@ -1,9 +1,16 @@
 {
   "id": "116",
   "subject": "❓ [parked] rev: a completed rebuild can never retire its ⟳ recommendation — the ledger counts historical failure events, so lib/companion.sh and dev/tests/companion-core.bats are still listed today even though both were rebuilt an hour ago (decomposed and split). OPTIONS: A) rec: record a 'rebuilt <path>' event that zeroes prior failures for that path — one new event type, keeps the ledger append-only and auditable, and makes the recommendation self-clearing; B) age the counts so old failures decay — no new concept, but a file that genuinely keeps failing goes quiet too; C) leave it: the owner reads it as history and decides — free, but the list only grows and its top entries are the files you have already fixed. rec: A",
-  "status": "pending",
+  "status": "completed",
   "done_when": "",
   "context": "plugins/companion/bin/rework.sh (append-only event log, THRESH), companion_rework_record in lib/companion.sh",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-16T21:39:22Z",
+      "text": "decided by owner 2026-08-16 ('do your recommendations'): option A — a 'rebuilt <path>' event that zeroes prior failures for that path, keeping the ledger append-only."
+    }
+  ],
+  "seen": "owner reviewed the parked options in conversation and picked A; decomposed into #118 whose done_when carries the acceptance test"
 }

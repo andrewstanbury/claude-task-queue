@@ -95,3 +95,5 @@
 1786912482 ci-red docs/adr/README.md
 1786912482 ci-red docs/requirements.yaml
 1786912482 ci-red plugins/companion/.claude-plugin/plugin.json
+1786916553 rebuilt plugins/companion/lib/companion.sh
+1786916553 rebuilt dev/tests/companion-core.bats

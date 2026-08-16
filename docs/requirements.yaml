@@ -880,6 +880,8 @@
   verified_by:
     - "rework ledger: counts FAILURES not touches, flags a rebuild candidate, and resume prints it (R94)"
     - "rework ledger: never proposes a bounded rebuild of its OWN storage file"
+    - "rework ledger: a 'rebuilt' event retires that path's ⟳ recommendation, and only that path's"
+    - "rework ledger: structured DATA is never a rebuild candidate, but code and prose still are"
     - "portability-lint sedi: a bare 'sed -i' FAILS, the suffixed and temp-file forms pass"
     - "ship.sh land: gate failure aborts BEFORE any commit (exit 4)"
 

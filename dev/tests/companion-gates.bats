@@ -800,3 +800,58 @@ EOT
   run bash "$DEV/portability-lint.sh" sedi "$d/doc.sh"
   [ "$status" -eq 0 ]
 }
+
+@test "rework ledger: a 'rebuilt' event retires that path's ⟳ recommendation, and only that path's" {
+  # #116, owner-decided 2026-08-16. The list counted every failure ever recorded, so it kept
+  # proposing rebuilds for work already done — lib/companion.sh and the test monolith were both
+  # still listed an hour after being decomposed and split. A recommendation nothing can satisfy is
+  # noise, and burn-down rank 5 CONSUMES this list, so the noise can become generated work.
+  local d; d="$(_tmpd)"; git -C "$d" init -q
+  local R="$ROOT/bin/rework.sh" i
+  for i in 1 2 3 4; do
+    REWORK_ROOT="$d" bash "$R" record ci-red "src/a.sh" "src/b.sh" >/dev/null
+  done
+  run env REWORK_ROOT="$d" bash "$R" report
+  [[ "$output" == *"⟳ src/a.sh"* ]] && [[ "$output" == *"⟳ src/b.sh"* ]]
+
+  REWORK_ROOT="$d" bash "$R" record rebuilt "src/a.sh" >/dev/null
+  run env REWORK_ROOT="$d" bash "$R" report
+  [[ "$output" != *"⟳ src/a.sh"* ]]      # retired by the rebuild...
+  [[ "$output" == *"⟳ src/b.sh"* ]]      # ...and nothing else moved
+  [[ "$output" != *"rebuilt"* ]]         # a rebuild is not a rework label
+
+  # A REBUILD THAT DID NOT HOLD says so on its own. These land in the SAME second as the rebuilt
+  # row, which is exactly the case a timestamp-only comparison dropped silently — the ledger is
+  # append-only, so row order is the tiebreak.
+  for i in 1 2 3; do REWORK_ROOT="$d" bash "$R" record ci-red "src/a.sh" >/dev/null; done
+  run env REWORK_ROOT="$d" bash "$R" report
+  [[ "$output" == *"⟳ src/a.sh implicated in 3 failures"* ]]
+
+  # append-only: nothing was deleted from the ledger
+  run grep -c "src/a.sh" "$d/.companion/rework"
+  [ "$output" -eq 8 ]
+}
+
+@test "rework ledger: structured DATA is never a rebuild candidate, but code and prose still are" {
+  # #115, owner-decided 2026-08-16. /companion:redesign does a CONTRACT-PRESERVING rebuild, which is
+  # meaningless for a version manifest and actively wrong for the contract itself — the thing a
+  # rebuild must preserve. Both were being recommended because every ship touches them.
+  # Structural detection, never an extension list (R9): jq settles JSON, and a `key:`/`- ` line
+  # ratio settles YAML. Measured on the real repo: data 50-59%, code and prose 0-8%.
+  local d; d="$(_tmpd)"; git -C "$d" init -q
+  local R="$ROOT/bin/rework.sh" i
+  mkdir -p "$d/cfg"
+  printf '{"name":"x","version":"1.2.3","plugins":[{"a":1}]}\n'      > "$d/cfg/manifest.json"
+  printf -- '- id: R1\n  requirement: a thing\n- id: R2\n  requirement: another\n' > "$d/cfg/contract.yaml"
+  printf '#!/usr/bin/env bash\nf() { echo hi; }\nif true; then f; fi\n'   > "$d/code.sh"
+  printf '# A doc\n\nSome prose about the system, written for a reader.\n' > "$d/prose.md"
+  for i in 1 2 3 4; do
+    REWORK_ROOT="$d" bash "$R" record ci-red cfg/manifest.json cfg/contract.yaml code.sh prose.md >/dev/null
+  done
+  run env REWORK_ROOT="$d" bash "$R" report
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"manifest.json"* ]]   # a version manifest has nothing to redesign
+  [[ "$output" != *"contract.yaml"* ]]   # the contract is what a rebuild PRESERVES
+  [[ "$output" == *"⟳ code.sh"* ]]       # code still is
+  [[ "$output" == *"⟳ prose.md"* ]]      # ...and so is prose: the rule is "not DATA", not "not text"
+}

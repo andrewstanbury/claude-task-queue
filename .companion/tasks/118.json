@@ -1,0 +1,10 @@
+{
+  "id": "118",
+  "subject": "rework ledger: a 'rebuilt <path>' event zeroes that path's prior failures so a completed rebuild retires its own ⟳ recommendation (#116 option A)",
+  "status": "completed",
+  "done_when": "recording 'rebuilt <path>' makes the ⟳ line for that path disappear while later failures still re-accumulate; the ledger stays append-only; report counts by label are unaffected; tests cover retire, re-accumulate, and no-effect-on-others",
+  "context": "plugins/companion/bin/rework.sh (report + THRESH), companion_rework_record in lib/companion.sh (row format: ts label file)",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "drove rework.sh in a scratch repo: two paths over threshold, 'record rebuilt src/a.sh' retires only a.sh, three later ci-reds in the SAME SECOND bring it back at 3 (the case a timestamp-only comparison dropped silently, now tiebroken on append order), 'rebuilt' never appears as a rework label, and grep confirms all 8 a.sh rows are still in the file — append-only."
+}

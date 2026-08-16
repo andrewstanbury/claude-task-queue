@@ -1,0 +1,10 @@
+{
+  "id": "119",
+  "subject": "rework ledger: only files with LOGIC are ⟳ rebuild candidates — a data document is not something /companion:redesign can contract-preservingly rebuild (#115 option A)",
+  "status": "completed",
+  "done_when": "marketplace.json, plugin.json, requirements.yaml and needs.yaml no longer appear as ⟳ candidates on this repo while .sh/.bats/.js still do; detection is structural (parses as a data document), never an extension allowlist; tests cover json, yaml-shaped and code files",
+  "context": "plugins/companion/bin/rework.sh ⟳ report, CLAUDE.md R9 (delegate recognition, detect structure generically), jq is already a hard dependency",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "measured the data-document ratio across ten real files before choosing a threshold (requirements.yaml 59%, needs.yaml 50%, marketplace.json 58% vs STEERING.md 8%, index.js 8%, every shell file 0%) and cut at 35%, mid-gap. On the live repo the ⟳ list lost marketplace.json, plugin.json and requirements.yaml while keeping STEERING.md, tq, board.sh and check.sh; on a fixture, json and yaml are excluded while code and prose remain."
+}
