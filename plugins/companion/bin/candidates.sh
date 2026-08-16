@@ -151,6 +151,13 @@ if [ "$found" -lt "$LIMIT" ]; then
     [ -f "$f" ] || continue
     case "${f##*/}" in _*|README.md|readme.md) continue ;; esac   # indexes are not flows
     grep -q '^\- \[E\]' "$f" 2>/dev/null && continue
+    # ...and a page whose tests are ALL judgment-only is NOT a gap either. The comment above has
+    # always said so; the code only ever checked for [E], so it could not tell "no tests at all"
+    # (an honest gap) from "someone decided these are judgment" (a call already made). Found by
+    # reviewing the FIRST branch burn-down ever generated: it proposed writing a test for
+    # improve-the-design.md, all four of whose tests are `[S] … judgment 👁`. Building it would have
+    # argued with a recorded decision — which is precisely what this rank promises not to do.
+    grep -q '^\- \[S\]' "$f" 2>/dev/null && continue
     emit 4 gap "flow '${f##*/}' documents behaviour with no automated test referenced"
     [ "$found" -lt "$LIMIT" ] || break
   done

@@ -630,6 +630,7 @@
     - "candidates: never invents while a recorded signal remains, and labels it when it does"
     - "candidates: a DECISION park is never offered as buildable work (R82 soft spots)"
     - "candidates: rank 1 requires evidence the OWNER SAW the park — a model-authored one is not buildable"
+    - "candidates: a flow whose tests are ALL judgment-only is not a coverage gap (R82 rank 4)"
     - "burndown-branch: work is containerised — never on main, never pushed, always discardable"
     - "candidates: does not feed on prose ABOUT markers, only real annotations"
     - "candidates: excludes its own PLUGIN TREE, not just its own file — a sibling describing the ranking is still a mirror"

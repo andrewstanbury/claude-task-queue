@@ -2479,6 +2479,29 @@ _bd_setup() {
   [[ "$output" != *"candidates.sh"* ]]  # and never its own source
 }
 
+@test "candidates: a flow whose tests are ALL judgment-only is not a coverage gap (R82 rank 4)" {
+  # Found by REVIEWING the first branch burn-down ever generated. Rank 4's comment has always said
+  # it must not propose tests for lines the project marks judgment-only — "someone decided they
+  # should not be automated, so proposing tests for them argues with a decision already made" — but
+  # the code only grepped for [E], so it could not tell an honest gap from a decision already made.
+  local d tk; d="$(_tmpd)"; tk="$(_tmpd)"; git -C "$d" init -q; mkdir -p "$d/docs/flows"
+  local _c; _c() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" REWORK_ROOT="$d" bash "$ROOT/bin/candidates.sh"; }
+
+  # (1) genuinely no tests at all -> still an honest gap
+  printf '# flow:alpha\nsteps:\n- does a thing\n' > "$d/docs/flows/alpha.md"
+  _c; [[ "$output" == *"alpha.md"* ]]
+
+  # (2) tests exist but are ALL judgment -> a decision already made, NOT a gap
+  printf '# flow:beta\nsteps:\n- does a thing\ntests:\n- [S] beta is judged by eye — judgment\n' \
+    > "$d/docs/flows/beta.md"
+  _c; [[ "$output" != *"beta.md"* ]]
+
+  # (3) a real executable test -> not a gap, as before
+  printf '# flow:gamma\nsteps:\n- does a thing\ntests:\n- [E] gamma round-trips\n' \
+    > "$d/docs/flows/gamma.md"
+  _c; [[ "$output" != *"gamma.md"* ]]
+}
+
 @test "candidates: rank 1 requires evidence the OWNER SAW the park — a model-authored one is not buildable" {
   # THE SELF-DEALING GUARD. Rank 1 claims "the owner deferred THIS work and a recommendation is
   # already written", which is false for a park the model wrote and nobody has looked at. Caught

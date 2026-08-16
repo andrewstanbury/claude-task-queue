@@ -1,0 +1,10 @@
+{
+  "id": "101",
+  "subject": "BUG: candidates rank 4 flags a flow whose tests are ALL judgment-only ([S] … 👁) as 'documents behaviour with no automated test referenced'. Its own comment forbids exactly this ('those are marked precisely because someone decided they should not be automated, so proposing tests for them argues with a decision already made') but the implementation only greps for ^- [E], which cannot tell 'no tests at all' (an honest gap) from 'tests exist and are deliberately judgment-only' (a decision already made). Found by REVIEWING the first branch burn-down ever generated — it proposed writing a test for improve-the-design.md, all four of whose tests are [S] judgment.",
+  "status": "completed",
+  "done_when": "a flow whose test lines are all [S] is NOT emitted as a rank-4 gap; a flow with NO tests: entries at all still IS; a flow with a real [E] still is not; tests cover all three; check.sh green",
+  "context": "plugins/companion/bin/candidates.sh rank 4 (the ^- [E] grep), docs/flows/improve-the-design.md (all [S]), docs/flows/_quality-bar.md",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran candidates.sh on THIS repo before and after: improve-the-design.md was the only rank-4 emission and is gone, with rank 5 now surfacing in its place; on a fixture, a flow with no tests at all is still flagged, one with only [S] lines is not, and one with a real [E] is not."
+}
