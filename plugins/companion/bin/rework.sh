@@ -51,8 +51,20 @@ case "${1:-report}" in
       | sort | uniq -c | sort -rn | sed 's/^/  /'
     # A file implicated in repeated FAILURES is a rebuild candidate — a file merely touched often
     # is just work, which is why this counts events and not commits.
+    #
+    # EXCEPT THIS LEDGER'S OWN STORAGE. `record` writes a row per implicated file, and the ledger
+    # file is itself touched by the work being recorded, so it accumulates counts and crossed the
+    # threshold — the tool then proposed "a bounded rebuild" OF ITS OWN BOOKKEEPING (found by audit
+    # 2026-08-16 at 3 failures). That is the third self-referential defect of the same day, after
+    # candidates rank 3 feeding on its own documentation and rank 1 offering the model's own
+    # unreviewed park: a tool must never propose work sourced from its own record of the work.
+    # Matched on BASENAME, because the ledger is addressed by several paths (repo state, the legacy
+    # home store, and REWORK_ROOT in tests) and a path compare would miss all but one.
+    _rw_self="$(basename "$f")"
     printf '%s\n' "$recent" | awk '$3 != "-" {print $3}' | sort | uniq -c | sort -rn \
-      | awk -v t="$THRESH" '$1 >= t {printf "  ⟳ %s implicated in %d failures — a bounded rebuild (/companion:redesign) beats another patch\n", $2, $1}'
+      | awk -v t="$THRESH" -v self="$_rw_self" '$1 >= t {
+            n=split($2, seg, "/"); if (seg[n] == self) next
+            printf "  ⟳ %s implicated in %d failures — a bounded rebuild (/companion:redesign) beats another patch\n", $2, $1 }'
     ;;
   *) echo "usage: rework.sh [record <label> [file...] | report [days]]" >&2; exit 2 ;;
 esac

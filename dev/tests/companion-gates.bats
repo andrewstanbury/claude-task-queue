@@ -245,8 +245,15 @@ load helper
   run grep -c MARKER_A "$MG/plugins/companion/bin/t.sh"
   [ "$output" -eq 1 ]                                  # healthy run puts the file back
 
-  # sabotage the put-back exactly as reality did: the backup is gone when the mv runs
-  run bash -c 'cd "$1" && sed -i "s@  mv \"\$tgt.mutbak\" \"\$tgt\" 2>/dev/null@  rm -f \"\$tgt.mutbak\"; mv \"\$tgt.mutbak\" \"\$tgt\" 2>/dev/null@" dev/mutate-gate.sh' _ "$MG"
+  # Sabotage the put-back exactly as reality did: the backup is gone when the mv runs.
+  # NO `sed -i` — BSD sed (the macOS lane) requires an argument to -i and reads the script as the
+  # backup suffix, so the edit silently does not apply, the gate restores fine, and this test passes
+  # for the wrong reason. It reddened macOS CI on 3.87.0 doing exactly that. sed-to-a-temp is the
+  # portable form, and it is the FOURTH time this repo has paid for the difference.
+  run bash -c 'cd "$1" && sed "s@  mv \"\$tgt.mutbak\" \"\$tgt\" 2>/dev/null@  rm -f \"\$tgt.mutbak\"; mv \"\$tgt.mutbak\" \"\$tgt\" 2>/dev/null@" dev/mutate-gate.sh > dev/mg.tmp && mv dev/mg.tmp dev/mutate-gate.sh' _ "$MG"
+  [ "$status" -eq 0 ]
+  run grep -c 'rm -f "$tgt.mutbak"; mv' "$MG/dev/mutate-gate.sh"
+  [ "$output" -ge 1 ]                                  # the sabotage really applied
   run bash -c 'cd "$1" && bash dev/mutate-gate.sh' _ "$MG"
   [ "$status" -ne 0 ]                                  # the run FAILS...
   [[ "$output" == *"RESTORE FAILED"* ]]                # ...saying so, in those words
@@ -753,4 +760,43 @@ EOT
   [ -r "$ROOT/bin/tq-output.sh" ]
   run grep -cE '^(usage|report)\(\) \{' "$ROOT/bin/tq-output.sh"
   [ "$output" -eq 2 ]
+}
+
+@test "rework ledger: never proposes a bounded rebuild of its OWN storage file" {
+  # The third self-referential defect found on 2026-08-16, after candidates rank 3 feeding on its
+  # own documentation and rank 1 offering the model's own unreviewed park. `record` writes a row per
+  # implicated file and the ledger is touched by the work being recorded, so it climbs the threshold
+  # on its own bookkeeping and then proposes rebuilding it.
+  local d; d="$(_tmpd)"; git -C "$d" init -q
+  mkdir -p "$d/.companion"
+  # push BOTH the ledger itself and a real source file over the rebuild threshold
+  local i
+  for i in 1 2 3 4 5; do
+    REWORK_ROOT="$d" bash "$ROOT/bin/rework.sh" record ci-red "src/thing.sh" ".companion/rework" >/dev/null
+  done
+  run env REWORK_ROOT="$d" bash "$ROOT/bin/rework.sh" report
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"⟳"* ]]                       # it still recommends SOMETHING...
+  [[ "$output" == *"src/thing.sh"* ]]            # ...namely the real source file
+  [[ "$output" != *"⟳ .companion/rework"* ]]     # ...but never its own record of the work
+}
+
+@test "portability-lint sedi: a bare 'sed -i' FAILS, the suffixed and temp-file forms pass" {
+  # FIFTH BSD-vs-GNU incident here, and the first to be caught by a lint instead of by CI. GNU takes
+  # the next argument as the SCRIPT; BSD takes it as the BACKUP SUFFIX, so the edit silently does
+  # not happen — and a test that depended on it then passes for the wrong reason. That is exactly
+  # how it reddened the macOS lane on 3.87.0.
+  local d; d="$(_tmpd)"
+  printf 'sed -i "s@a@b@" f.sh\n' > "$d/bad.sh"   # sedi-ok: deliberately bad FIXTURE data
+  run bash "$DEV/portability-lint.sh" sedi "$d/bad.sh"
+  [ "$status" -eq 1 ]; [[ "$output" == *"BACKUP SUFFIX"* ]]
+
+  printf 'sed -i.bak "s@a@b@" f.sh\nsed "s@a@b@" f > t && mv t f\n' > "$d/good.sh"
+  run bash "$DEV/portability-lint.sh" sedi "$d/good.sh"
+  [ "$status" -eq 0 ]
+
+  # a comment mentioning it is documentation, not a call
+  printf '# never use sed -i without a suffix\n' > "$d/doc.sh"   # sedi-ok: fixture data
+  run bash "$DEV/portability-lint.sh" sedi "$d/doc.sh"
+  [ "$status" -eq 0 ]
 }

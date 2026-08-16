@@ -12,7 +12,10 @@ Not decisions (the ledger) nor in-flight work (the queue).
   lead byte into the variable name → `set -u` crash on macOS. Always brace: `${B}🛡`.
 - **jq `+` THROWS on a non-string** — `.a + "\n" + .b` emits nothing when `.b` is an array/object
   (NotebookEdit's `new_source`), so the caller reads empty and **fails open**. `| tostring` always.
-- **BSD is not GNU — shipped red CI FOUR times.** `\?`/`\+`/`\|` in `sed`/`grep` are GNU extensions
+- **BSD is not GNU — shipped red CI FIVE times.** Bare **`sed -i` needs a suffix** (`-i.bak`, or
+  `sed … > tmp && mv`): GNU reads the next arg as the SCRIPT, BSD as the BACKUP SUFFIX, so the edit
+  silently does NOT happen and a test relying on it passes for the wrong reason (3.87.0;
+  `portability-lint.sh sedi` catches it). `\?`/`\+`/`\|` in `sed`/`grep` are GNU extensions
   BSD reads as LITERALS; an escaped `^` in a BRE differs too; BSD `wc -c` pads with spaces, so a
   digits-only guard reads garbage and zeroes the value (strip: `wc -c < f | tr -d '[:space:]'`);
   **a `sed` brace ADDRESS needs `;` before `}`** (`1{/^$/d}` errors "extra characters" on BSD sed;
@@ -35,11 +38,9 @@ Not decisions (the ledger) nor in-flight work (the queue).
 - **`--print-output-on-failure`** on the `bats` call is what surfaces a flaky test's `$output` in CI.
 - **Never assert an exact countdown from `date +%s`, nor pin a fixture ON a threshold** — the code
   reads its clock a beat later, so `now+86400` arrives as 86399. Offset it.
-- **An INTERRUPTED `--mutate` leaves enforced core MUTATED in the tree**, and `git status` is the
-  only tell. A killed run left `doc-lint.sh` with BOM-stripping off and `ship.sh` blind to
-  untracked critical paths — two gates failing OPEN, staged by the next `git add -A`. Two
-  concurrent runs do the same to each other. After any interrupted run: `git status`, then
-  `find . -name '*.mutbak'`. The gate now takes a lock and refuses a second run.
+- **An interrupted `--mutate` can leave core MUTATED in the tree** — it once left two gates failing
+  OPEN, ready to be staged. The gate now checksum-verifies every restore and FAILS loudly if it
+  cannot put a file back, and reclaims a dead run's lock; still, after any kill: `git status`.
 - **Measuring "did the suite go RED?" is meaningless if it was ALREADY red** — one pre-existing
   failure makes EVERY mutation report "caught", the most dangerous output this gate has: a clean
   bill of health for coverage it never observed. Require a green baseline before mutating.

@@ -1,0 +1,10 @@
+{
+  "id": "114",
+  "subject": "AUDIT/bug: the rework ledger proposes a 'bounded rebuild' of its OWN storage file (.companion/rework, 3 failures) — the third self-referential defect found today, after candidates rank 3 feeding on its own docs and rank 1 offering the model's own unreviewed park. A tool must never propose work sourced from its own bookkeeping",
+  "status": "completed",
+  "done_when": "the rework ledger never lists its own storage file as a rebuild candidate; a test proves it, using a fixture where the ledger file is over the threshold",
+  "context": "plugins/companion/bin/rework.sh:52-55 (the ⟳ threshold report), companion_rework_file in lib/companion.sh",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran rework.sh report on THIS repo before and after: '.companion/rework' was listed at 3 failures and is now absent while every real source candidate (board.sh, plugin.json, requirements.yaml) still shows; on a fixture that pushes BOTH the ledger and src/thing.sh over the threshold, only src/thing.sh is recommended."
+}

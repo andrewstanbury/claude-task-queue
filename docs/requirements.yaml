@@ -879,6 +879,8 @@
     rebuild, which is how a component gets chased instead of replaced.
   verified_by:
     - "rework ledger: counts FAILURES not touches, flags a rebuild candidate, and resume prints it (R94)"
+    - "rework ledger: never proposes a bounded rebuild of its OWN storage file"
+    - "portability-lint sedi: a bare 'sed -i' FAILS, the suffixed and temp-file forms pass"
     - "ship.sh land: gate failure aborts BEFORE any commit (exit 4)"
 
 - id: R80·b

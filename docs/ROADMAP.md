@@ -30,13 +30,15 @@ These are the *values* the steering doc encodes; they're not code.
   owner's *outcome*.
 - **3 · Subtract as you add** — net surface flat or smaller; reuse before create.
 
-**Token efficiency** is still a value — a well-mapped, small-filed project is cheap for Claude
-to load — but it is **no longer an enforced NFR** (R3, reshaped by the rebuild). The old
-per-hook character-budget apparatus was retired: it defended a cost the read-once-per-session
-steering model doesn't incur, and it drove prose into cryptic anchors. Efficiency now means
-"the steering doc stays lean," not a CI char-count.
+**Token efficiency** is a value AND, for the injected core specifically, an enforced number
+again. The old PER-HOOK character-budget apparatus stayed retired — it defended a cost the
+read-once-per-session model doesn't incur, and it drove prose into cryptic anchors. What replaced
+it is narrower and honest: `check.sh` caps the bytes actually INJECTED each session (`core_cap`),
+because those are paid in every session in every installed repo. That cap rose eight times
+(6144→8730, +42%) until the 2026-08-16 audit found it at five bytes of headroom; it now
+RATCHETS DOWN only — 8500 — so an addition must be funded by a deletion (docs/adr R115).
 
-## Architecture — steering, a portable core, and three hooks (R100/R105, supersedes R24)
+## Architecture — steering, a portable core, and four hooks (R100/R105/R114, supersedes R24)
 
 - **Steering** (`plugins/companion/STEERING.md`) — all the prose: queue discipline, the
   brutal-honest recommendation posture against the ledger, clean-as-you-go, autopilot. Injected
@@ -52,14 +54,15 @@ steering model doesn't incur, and it drove prose into cryptic anchors. Efficienc
   ship-mode's commit logic, still manually invoked (not reinstated); `autopilot.sh`, a persisted
   preference flag — **"don't ask" enforced again** (R100/Pass 6), **"keep going" still not**;
   the status line (`statusline.sh`, untouched).
-- **Three hooks** — `prompt-continue.sh` (UserPromptSubmit, never retired): the case that needs
+- **Four hooks** — `prompt-continue.sh` (UserPromptSubmit, never retired): the case that needs
   session-boundary state a prompt can't see on its own. `session-start.sh` (SessionStart,
   **reinstated** R100/Pass 6): guarantees STEERING + carried tasks reach a session — the owner's
   fix for a model ignoring context it never had. `ask-guard.sh` (PreToolUse[AskUserQuestion],
   **reinstated** R100/Pass 6): denies + auto-parks a question while autopilot is armed.
-  `secret-guard.sh`/`contract-guard.sh` (block-on-write) and `stop-autopilot.sh` (forced
-  continuation, still the biggest R100 loss) stay retired — the owner picked context-delivery and
-  anti-rework back specifically, not full re-enforcement (docs/adr/README.md R104/R105).
+  `stop-autopilot.sh` (Stop) came BACK 2026-08-12 — forced continuation, bounded by every
+  terminator that makes it safe — and since 2026-08-15 also fires the burn-down hand-off on a dry
+  queue (R114). Only `secret-guard.sh`/`contract-guard.sh` (block-on-write) stay retired
+  (docs/adr/README.md R104/R105/R111/R114).
 
 Bash + `jq` for the core, Node for the MCP server, zero build otherwise. The `file →
 responsibility` index is [docs/MAP.md](./MAP.md).

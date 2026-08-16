@@ -1,0 +1,9 @@
+{
+  "id": "115",
+  "subject": "❓ [parked] rev: should the rework ledger propose rebuilds for NON-CODE files? — right now marketplace.json (5), plugin.json (3) and docs/requirements.yaml (3) are all listed as 'a bounded rebuild beats another patch'. Rebuilding a 20-line version manifest is meaningless, and 'rebuild the contract' is actively wrong — the contract is the thing a rebuild must PRESERVE. They accumulate counts because every ship touches them, so they rise purely by being adjacent to work. OPTIONS: A) rec: rank the ⟳ recommendation to files with LOGIC, detected structurally rather than by extension list (a file that parses as a data document is not a rebuild candidate) — keeps R9 genericity, needs a cheap parse per candidate; B) exclude by path/role config the project can set — explicit, but it is our guess about someone else's layout; C) leave it and rely on the reader to ignore obvious nonsense — free, but burn-down rank 5 CONSUMES this list, so nonsense can become generated work (the tier gate currently blocks rank 5, which is the only reason it has not); D) drop the ⟳ recommendation entirely and report raw counts, letting the model judge — smallest surface, loses a prompt the owner asked for. rec: A",
+  "status": "pending",
+  "done_when": "",
+  "context": "plugins/companion/bin/rework.sh:52-55, plugins/companion/bin/candidates.sh rank 5 (consumer), CLAUDE.md R9",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1,0 +1,10 @@
+{
+  "id": "117",
+  "subject": "AUDIT: ROADMAP carries the same stale-claim class as MAP.md did — 'Three hooks' (four now), stop-autopilot.sh 'stays retired' (restored 2026-08-12, extended 2026-08-15), and 'Efficiency now means the steering doc stays lean, NOT a CI char-count' which is flatly contradicted by check.sh's enforced core_cap (now ratcheted to 8500 with a bats case pinning it)",
+  "status": "completed",
+  "done_when": "no false claim remains in ROADMAP: hook count correct, stop-autopilot described as restored, and the token-efficiency paragraph matches the enforced cap that actually exists",
+  "context": "docs/ROADMAP.md:33-37 (the char-count claim), :53-63 (hooks), check.sh core_cap, docs/adr/README.md R115",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "grepped ROADMAP after the edit: 'Three hooks' is gone, the architecture heading and hook list both say four, stop-autopilot is described as restored-and-extended, and the token-efficiency paragraph now matches check.sh's actual enforced core_cap instead of denying one exists."
+}

@@ -81,11 +81,17 @@ else
   echo "  SKIP — shellcheck not installed (CI runs it)"
 fi
 
-# The two platform traps live in dev/portability-lint.sh so the SUITE can exercise them (R78,
-# same reason as doc-lint.sh). Inline here they had declared mutations and no tests, and the
-# mutation gate correctly reported them as HOLES.
-section "Portability lint (SC2015 · GNU-only regex escapes)"
+# The platform traps live in dev/portability-lint.sh so the SUITE can exercise them (R78, same
+# reason as doc-lint.sh). Inline here they had declared mutations and no tests, and the mutation
+# gate correctly reported them as HOLES.
+section "Portability lint (SC2015 · GNU-only regex escapes · bare sed -i)"
 if out="$(dev/portability-lint.sh all "${scripts[@]}")"; then echo "  ok (none unmarked)"
+else printf '%s\n' "$out"; failsec; fi
+# ALSO over dev/ and the TESTS. A bare `sed -i` in a .bats file is what reddened macOS on 3.87.0 —
+# BSD read the script as a backup suffix, the edit silently did not happen, and the test asserted
+# behaviour that therefore never occurred. Scanning only the shipped scripts would have missed it,
+# which is the whole reason this line exists separately from the one above.
+if out="$(dev/portability-lint.sh sedi dev/*.sh dev/tests/*.bats)"; then echo "  ok (no bare sed -i in dev/ or the suite)"   # sedi-ok: this is the lint's own message
 else printf '%s\n' "$out"; failsec; fi
 # Fixture hygiene, scanned over the TESTS: a bare `$(mktemp -d)` leaks, and one session of leaks
 # exhausted this machine's /tmp inode table.

@@ -86,15 +86,39 @@ lint_boundary() {
   return "$rc"
 }
 
+# sedi — `sed -i` with NO suffix. GNU treats the next argument as the SCRIPT; BSD (the macOS lane)
+# treats it as the BACKUP SUFFIX and then reads the real script as a filename. The edit therefore
+# does not happen, silently, and any test that depended on it passes for the wrong reason — which is
+# exactly how it reddened macOS CI on 3.87.0: a test sabotaged a file, the sabotage never applied,
+# the code under test behaved correctly, and the assertion that it should MISbehave failed.
+# `sed -i.bak` (or `sed ... > tmp && mv`) works on both. FIFTH BSD-vs-GNU incident in this repo.
+lint_sedi() {
+  local rc=0 hit
+  while IFS= read -r hit; do
+    echo "  FAIL $hit"
+    echo "       ^ bare 'sed -i' — BSD reads the next arg as a BACKUP SUFFIX. Use 'sed -i.bak' or 'sed … > tmp && mv'"
+    rc=1
+  # -i immediately followed by whitespace is the broken form; -i.bak / -i'' are fine. Comments are
+  # skipped, and a line may opt out with `# sedi-ok` — the same escape the boundary lint uses. That
+  # marker is not a loophole, it is the answer to the mirror problem this repo keeps rediscovering:
+  # a line-based lint cannot tell CODE from DATA, so the lint's own failure message and the fixtures
+  # that feed it a bad example all tripped it on the first run. Marking those is honest; widening
+  # the pattern until they pass would blind it to the real thing.
+  done < <(grep -HnE "sed[[:space:]]+(-[a-zA-Z]*[[:space:]]+)*-i[[:space:]]" "$@" 2>/dev/null \
+           | grep -vE ':[0-9]+:[[:space:]]*#' | grep -vF 'sedi-ok')
+  return "$rc"
+}
+
 mode="${1:-all}"; shift || true
 [ "$#" -gt 0 ] || { echo "usage: portability-lint.sh [sc2015|bre|all] <file...>" >&2; exit 2; }
 rc=0
 case "$mode" in
   sc2015)   lint_sc2015 "$@" || rc=1 ;;
   bre)      lint_bre "$@"    || rc=1 ;;
+  sedi)     lint_sedi "$@"   || rc=1 ;;
   fixtures) lint_fixtures "$@" || rc=1 ;;
   boundary) lint_boundary "$@" || rc=1 ;;
-  all)      lint_sc2015 "$@" || rc=1; lint_bre "$@" || rc=1 ;;
-  *)        echo "usage: portability-lint.sh [sc2015|bre|fixtures|boundary|all] <file...>" >&2; exit 2 ;;
+  all)      lint_sc2015 "$@" || rc=1; lint_bre "$@" || rc=1; lint_sedi "$@" || rc=1 ;;
+  *)        echo "usage: portability-lint.sh [sc2015|bre|sedi|fixtures|boundary|all] <file...>" >&2; exit 2 ;;
 esac
 exit "$rc"
