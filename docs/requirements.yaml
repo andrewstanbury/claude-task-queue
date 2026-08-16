@@ -70,7 +70,9 @@
     owner's original defect report. A nudge the model can skip is not a mode (ADR R36).
 
     PARTIAL RESTORE, deliberately: 135 of the retired file's 183 lines. Ship-mode auto-commit (R34)
-    stays deleted because bin/ship-checkpoint.sh owns it now.
+    stays deleted.
+    That behaviour now belongs to bin/ship-checkpoint.sh, invoked deliberately rather than on every
+    stop — restoring it here would put two owners on one concern.
 
     THE BURN-DOWN HAND-OFF (R82) WAS ALSO OMITTED, AND THAT WAS REVERSED 2026-08-15 (owner-decided).
     The original argument was duplicate ownership: STEERING told the model to call burn_down itself,
@@ -615,10 +617,19 @@
   requirement: >
     burn-down mode
   note: >
-    Mechanically trimmed 2026-08-08 (R100/Pass 4): the Stop-hook wiring that handed a drained queue
-    off to burn-down is retired along with stop-autopilot.sh — no surviving code. burn-down.sh,
-    candidates.sh and burndown-branch.sh keep every one of their own direct tests, untouched;
-    the model now has to check `burn-down.sh should-burn` itself when a queue runs dry.
+    Trimmed 2026-08-08 (R100/Pass 4) when stop-autopilot.sh was retired, then RESTORED 2026-08-15
+    (owner-decided, docs/adr/README.md R114) once the hook came back: a dry queue with burn-down
+    armed calls `should-burn` and, on BURN, refuses the stop and names the next step. The hook makes
+    only that cheap call — candidates.sh git-greps the whole repo, which R81 forbids inside a hook —
+    so ranking stays with the model. Shipped alongside it, and a prerequisite for it: rank 1 now
+    requires evidence the OWNER saw the park, or the restored trigger would let an unattended run
+    build the model's own unreviewed recommendation.
+
+    THE STALE-CLAIM LESSON, recorded because it recurred: between 2026-08-08 and 2026-08-15 this
+    note asserted "no surviving code" about a file that had been back since 2026-08-12, and the
+    2026-08-15 change corrected R26's note while missing this one. A retirement claim is the most
+    perishable sentence a requirement can carry — it is a statement about what does not exist, which
+    nothing fails when it becomes false. Found by audit, not by a gate.
   verified_by:
     - "burn-down: HOLD is the default and every unknown resolves to it"
     - "burn-down: burns ONLY on a forecast underspend, never when on track"
@@ -631,6 +642,7 @@
     - "candidates: a DECISION park is never offered as buildable work (R82 soft spots)"
     - "candidates: rank 1 requires evidence the OWNER SAW the park — a model-authored one is not buildable"
     - "candidates: a flow whose tests are ALL judgment-only is not a coverage gap (R82 rank 4)"
+    - "candidates: a TRACKED vendored tree is suppressed, and the filter is overridable (R9 exception)"
     - "burndown-branch: work is containerised — never on main, never pushed, always discardable"
     - "candidates: does not feed on prose ABOUT markers, only real annotations"
     - "candidates: excludes its own PLUGIN TREE, not just its own file — a sibling describing the ranking is still a mirror"
@@ -695,6 +707,8 @@
     - "doc-lint: folded and literal block scalars are valid YAML, not indicators (R78)"
     - "doc-lint ledger: the ~ exemption works on MULTI-digit numbers (R78)"
     - "doc-lint ledger: a missing file FAILS loudly instead of reporting ok (R78)"
+    - "doc-lint retired: a claim naming a SURVIVING file fails; history and true retirements pass"
+    - "size-lint: over the cap FAILS, saturated WARNS but passes, and the gate can be exercised at all"
 
 - id: R48
   satisfies: [UN-5]
@@ -746,12 +760,14 @@
   requirement: >
     nothing automatically changes the autopilot flag anymore — only explicit `autopilot.sh on/off`
     and `resume.sh`'s disarm-on-pickup do
-  judgment: "REVERSED 2026-08-08, owner-decided (R100/Pass 4): R88's whole subject — what the Stop
-    hook does to the flag when a dry queue is hit — is moot, because stop-autopilot.sh is retired
-    and nothing left touches the flag on a queue-state transition at all. There is no turn-ending
-    event left to have a policy about. What survives (the flag only ever changes on an explicit
-    command) is a structural fact about the remaining code, not a behavior a test can exercise —
-    hence judgment, not a case."
+  judgment: "Reversed 2026-08-08 when stop-autopilot.sh was retired, and the reversal is now itself
+    out of date: the hook returned 2026-08-12, and since 2026-08-15 it DOES act on a queue-state
+    transition (a dry queue with burn-down armed refuses the stop). The requirement nevertheless
+    still HOLDS, and for a sharper reason than 'there is no such event' — there is one, and the hook
+    deliberately declines to touch the flag when it fires: a dry queue leaves autopilot ARMED
+    (owner-asked 2026-08-05, reversing R88's own self-disarm) so work queued later drains without
+    re-arming by hand. So the flag still changes only on an explicit command. Judgment rather than a
+    case because this is an absence of a write across every path, which a test can only sample."
   verified_by: []
 
 - id: R89

@@ -80,9 +80,48 @@ lint_ledger() {
   return "$rc"
 }
 
+# RETIRED — a requirement may not say a SHIPPED FILE is retired while that file exists. Two of the
+# three contradictions found in the 2026-08-16 audit were exactly this, and one of them had been
+# false for four days: a retirement claim is the most perishable sentence a requirement can carry,
+# because it asserts an ABSENCE and nothing fails when the thing comes back.
+#
+# PRESENT TENSE ONLY, and that restriction is the whole design. "stop-autopilot.sh was retired, then
+# restored" is correct history and must not trip; "stop-autopilot.sh is retired" is a claim about
+# now. So the trigger is `is|stays|remains` + `retired|deleted`, never `was|were`.
+#
+# SCOPE, and why it is not pointed at every doc. It runs on requirements.yaml only. Tried against
+# MAP.md during the same audit it flagged SIX filenames on ONE 600-character table row, of which
+# one claim was genuinely stale and the rest were innocent bystanders on the same line. Line
+# granularity is the wrong instrument for prose that packs a paragraph into a table cell, and a
+# guard that cries wolf gets muted — which costs more than the two real defects it would catch.
+# MAP.md's stale claims were fixed by hand in that audit; if they recur, the answer is a different
+# instrument, not this one turned up louder.
+#
+# The rule it enforces is also a WRITING rule: do not name an existing shipped file on a line that
+# asserts something is retired. That reads as pedantry until you notice both real defects took
+# exactly that shape — the retired thing and the surviving file sitting in one sentence, where the
+# reader (and the author) attach the claim to the wrong noun.
+lint_retired() {
+  local f="${1:-}" rc=0 row base
+  if [ ! -f "$f" ]; then echo "  FAIL retired-claim file not found: $f — the check did not run (R78)"; return 1; fi
+  while IFS= read -r row; do
+    case "$row" in *retired*|*deleted*) : ;; *) continue ;; esac
+    printf '%s' "$row" | grep -qE '(is|stays|remains) (retired|deleted)' || continue
+    # every *.sh named on this line
+    for base in $(printf '%s' "$row" | grep -oE '[A-Za-z0-9_-]+\.sh' | sort -u); do
+      if [ -f "plugins/companion/bin/$base" ] || [ -f "plugins/companion/lib/$base" ]; then
+        echo "  FAIL $(basename "$f") claims retirement on a line naming $base, which EXISTS — say what is retired without naming a surviving file, or fix the claim"
+        rc=1
+      fi
+    done
+  done < "$f"
+  return "$rc"
+}
+
 case "${1:-}" in
   fm)          shift; read_fm "${1:-}" ;;
   frontmatter) shift; lint_frontmatter "$@" ;;
   ledger)      shift; lint_ledger "${1:-}" ;;
-  *) echo "usage: doc-lint.sh frontmatter <file>... | ledger <file> | fm <file>" >&2; exit 2 ;;
+  retired)     shift; lint_retired "${1:-}" ;;
+  *) echo "usage: doc-lint.sh frontmatter <file>... | ledger <file> | retired <file> | fm <file>" >&2; exit 2 ;;
 esac

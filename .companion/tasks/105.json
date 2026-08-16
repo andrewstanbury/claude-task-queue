@@ -1,0 +1,10 @@
+{
+  "id": "105",
+  "subject": "AUDIT: check.sh guard — a requirement naming a file as RETIRED must refer to a file that genuinely does not exist. Two of three contradictions found today were stale retirement claims, the most perishable sentence a requirement can carry because nothing fails when it becomes false",
+  "status": "completed",
+  "done_when": "check.sh FAILS when requirements.yaml calls a shipped file retired/deleted while that file exists in plugins/companion/bin or lib; passes on today's tree; a test proves the gate can fail",
+  "context": "docs/requirements.yaml (the 'is retired' claims), check.sh, dev/doc-lint.sh (the cohesive home for document checks)",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran dev/doc-lint.sh retired against the real contract: clean now, and re-injecting the original 'is retired along with stop-autopilot.sh' line makes it FAIL — so the gate catches the exact defect the audit found by hand. Present-tense-only trigger verified against a history-shaped note, which must not trip."
+}

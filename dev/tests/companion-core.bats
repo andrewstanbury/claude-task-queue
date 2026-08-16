@@ -1699,6 +1699,51 @@ _sw_repo() {
   [ "$status" -eq 1 ]
 }
 
+@test "size-lint: over the cap FAILS, saturated WARNS but passes, and the gate can be exercised at all" {
+  # Extracted from check.sh 2026-08-16 for the R78 reason: inline, the suite could not invoke it
+  # without recursing, so the one gate that decides when to decompose had no test of its own.
+  local d; d="$(_tmpd)"
+  printf 'x\n%.0s' $(seq 1 310) > "$d/over.sh"       # 310 lines
+  printf 'x\n%.0s' $(seq 1 285) > "$d/near.sh"       # saturated but legal
+  printf 'x\n%.0s' $(seq 1 100) > "$d/small.sh"
+  run bash "$DEV/size-lint.sh" "$d/over.sh"
+  [ "$status" -eq 1 ]; [[ "$output" == *"FAIL"* ]]; [[ "$output" == *"310 > 300"* ]]
+  # SATURATION IS NOT A FAILURE: blocking otherwise-fine work on "this file is largish" is how a
+  # gate gets switched off, and a disabled gate protects nothing.
+  run bash "$DEV/size-lint.sh" "$d/near.sh"
+  [ "$status" -eq 0 ]; [[ "$output" == *"WARN"* ]]; [[ "$output" == *"285/300"* ]]
+  run bash "$DEV/size-lint.sh" "$d/small.sh"
+  [ "$status" -eq 0 ]; [ -z "$output" ]              # quiet when there is nothing to say
+  # thresholds are tunable, measuring them is not
+  run env CHECK_SIZE_WARN=50 bash "$DEV/size-lint.sh" "$d/small.sh"
+  [ "$status" -eq 0 ]; [[ "$output" == *"WARN"* ]]
+}
+
+@test "doc-lint retired: a claim naming a SURVIVING file fails; history and true retirements pass" {
+  # From the 2026-08-16 audit. A retirement claim asserts an ABSENCE, so nothing fails when the
+  # thing comes back — one of the two found had been false for four days.
+  local d; d="$(_tmpd)"; mkdir -p "$d/plugins/companion/bin" "$d/dev"
+  cp dev/doc-lint.sh "$d/dev/"
+  : > "$d/plugins/companion/bin/alive.sh"          # a file that EXISTS
+  local _r; _r() { run bash -c 'cd "$1" && dev/doc-lint.sh retired "$2"' _ "$d" "$d/req.yaml"; }
+
+  # present-tense claim about a surviving file -> FAIL
+  printf 'note: alive.sh is retired and has no surviving code\n' > "$d/req.yaml"
+  _r; [ "$status" -eq 1 ]; [[ "$output" == *"alive.sh"* ]]
+
+  # HISTORY must not trip it — this is the shape of a correct, corrected note
+  printf 'note: alive.sh was retired 2026-08-08, then RESTORED 2026-08-12\n' > "$d/req.yaml"
+  _r; [ "$status" -eq 0 ]
+
+  # a TRUE retirement (the file really is gone) passes
+  printf 'note: gone.sh is retired and stays retired\n' > "$d/req.yaml"
+  _r; [ "$status" -eq 0 ]
+
+  # and a missing input FAILS loudly rather than reporting ok for a check that never ran
+  run bash -c 'cd "$1" && dev/doc-lint.sh retired "$1/nope.yaml"' _ "$d"
+  [ "$status" -eq 1 ]; [[ "$output" == *"did not run"* ]]
+}
+
 @test "doc-lint ledger: a missing file FAILS loudly instead of reporting ok (R78)" {
   # It exited 0, and check.sh then printed "ok (ledger measurements cite their evidence)" for a
   # check that never ran — a gate reporting green on work it did not do.
@@ -2477,6 +2522,28 @@ _bd_setup() {
   [[ "$output" == *"a.sh"* ]]        # a real annotation in code is still a candidate
   [[ "$output" != *"guide.md"* ]]    # prose about markers is not
   [[ "$output" != *"candidates.sh"* ]]  # and never its own source
+}
+
+@test "candidates: a TRACKED vendored tree is suppressed, and the filter is overridable (R9 exception)" {
+  # Settled by measurement, not argument: with vendored dirs UNTRACKED the filter is redundant
+  # because git grep never sees them; with them COMMITTED it is decisive. This pins the case that
+  # actually justifies keeping an ecosystem-shaped name in generic code.
+  local d tk; d="$(_tmpd)"; tk="$(_tmpd)"; git -C "$d" init -q
+  mkdir -p "$d/src" "$d/node_modules/pkg" "$d/vendor/lib"
+  printf 'x  # TODO: real signal in src\n'          > "$d/src/a.sh"
+  printf 'y  # TODO: someone else code\n'           > "$d/node_modules/pkg/dep.sh"
+  printf 'z  # TODO: also someone else\n'           > "$d/vendor/lib/v.sh"
+  git -C "$d" add -A; git -C "$d" -c user.email=t@t -c user.name=t commit -q -m i   # COMMITTED
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" REWORK_ROOT="$d" bash "$ROOT/bin/candidates.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"src/a.sh"* ]]                 # the project's own note-to-self survives
+  [[ "$output" != *"node_modules"* ]]             # ...and two thirds of the noise is gone
+  [[ "$output" != *"vendor/lib"* ]]
+  # The defaults are a starting point, not our guess about your layout.
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" REWORK_ROOT="$d" \
+    CANDIDATES_VENDOR_RE='(^|/)src/' bash "$ROOT/bin/candidates.sh"
+  [[ "$output" != *"src/a.sh"* ]]                 # override replaces the default set
+  [[ "$output" == *"node_modules"* ]]
 }
 
 @test "candidates: a flow whose tests are ALL judgment-only is not a coverage gap (R82 rank 4)" {

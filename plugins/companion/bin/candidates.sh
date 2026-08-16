@@ -53,6 +53,21 @@ _scanroot="$(cd "$root" 2>/dev/null && pwd -P)" || _scanroot="$root"
 case "$_selfdir/" in
   "$_scanroot"/*) SELFTREE=":!${_selfdir#"$_scanroot"/}" ;;
 esac
+# VENDORED-TREE NOISE, and why this is NOT the R9 violation it looks like (settled by measurement
+# 2026-08-16). R9 forbids hardcoded ecosystem ALLOWLISTS used for RECOGNITION — deciding what a
+# project IS, which the model must do instead. This is the opposite shape: a denylist of directories
+# whose contents are somebody else's code, used to suppress noise in a mechanical ranker that has no
+# model in the loop to delegate to.
+#
+# Measured both ways rather than argued: when vendored dirs are UNTRACKED (the normal case, and this
+# repo's own) the filter is redundant, because `git grep` never sees them. When a project COMMITS
+# them — a real and common choice — it is load-bearing: a fixture with tracked node_modules/ and
+# vendor/ went from 3 candidates to 1, i.e. two thirds of rank 3 would have been other people's
+# TODOs. Redundant in the common case and decisive in the other is exactly when a cheap filter earns
+# its place, so it stays.
+#
+# Overridable so the two defaults are a starting point rather than our guess about your layout.
+VENDOR_RE="${CANDIDATES_VENDOR_RE:-(^|/)(dev/tests|node_modules|vendor)/}"
 LIMIT="${CANDIDATES_LIMIT:-5}"          # bounded: a long list is not more useful than a short one
 found=0
 
@@ -137,7 +152,7 @@ if [ "$found" -lt "$LIMIT" ]; then
   #     stays generic (R9): in a normal install the plugin is not inside the project at all and
   #     this adds nothing, and where it IS vendored in, excluding it is right for that repo too.
   done < <(git -C "$root" grep -nIE '(TODO|FIXME|XXX)[: ]' -- . ':!*.md' ':!*.markdown' ':!*.yaml' ':!*.yml' ${SELFTREE:+"$SELFTREE"} 2>/dev/null \
-           | grep -vE '(^|/)(dev/tests|node_modules|vendor)/' \
+           | grep -vE "$VENDOR_RE" \
            | grep -vF "${SELF##*/}" \
            | sed -e 's/[[:space:]]*$//' | head -"$LIMIT")
 fi

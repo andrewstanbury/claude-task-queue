@@ -1,0 +1,10 @@
+{
+  "id": "102",
+  "subject": "AUDIT/contradiction: R82's note still says the Stop-hook burn-down hand-off 'is retired along with stop-autopilot.sh — no surviving code' and that 'the model now has to check burn-down.sh should-burn itself'. Both false as of 3.85.0, which I shipped hours ago — I corrected R26's note and missed R82's",
+  "status": "completed",
+  "done_when": "R82's note describes the restored hand-off; no requirement note claims stop-autopilot.sh or its burn-down wiring is retired; grep for 'is retired' across requirements.yaml returns only claims that are actually true",
+  "context": "docs/requirements.yaml:615-622 (R82 note), docs/adr/README.md:227, plugins/companion/bin/stop-autopilot.sh",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "grepped requirements.yaml for retirement claims and checked each against the tree: R82's note now describes the restored hand-off, and the only surviving 'retired' claims (secret-guard, contract-guard) are true — both files are genuinely absent"
+}

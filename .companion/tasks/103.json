@@ -1,0 +1,10 @@
+{
+  "id": "103",
+  "subject": "AUDIT/contradiction: R88's judgment says 'stop-autopilot.sh is retired and nothing left touches the flag on a queue-state transition at all'. The hook was restored 2026-08-12 and as of 3.85.0 it DOES act on a queue-state transition (dry queue -> burn-down hand-off). The requirement's substance still holds — the flag genuinely is only changed by explicit commands — so this is a stale justification, not a reversed requirement",
+  "status": "completed",
+  "done_when": "R88's judgment names the restored hook and explains why the requirement still holds despite it; no claim of retirement remains",
+  "context": "docs/requirements.yaml:745-755 (R88), plugins/companion/bin/stop-autopilot.sh (leaves the flag alone on a dry queue)",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "R88's judgment now names the restored hook and gives the sharper reason the requirement still holds: the hook deliberately declines to touch the flag on a dry queue, verified in stop-autopilot.sh's dry-queue branch"
+}

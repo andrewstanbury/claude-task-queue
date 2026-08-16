@@ -1,0 +1,10 @@
+{
+  "id": "104",
+  "subject": "AUDIT/contradiction: CLAUDE.md contradicts ITSELF on hook count — line 4 says 'three hooks', line 15 says 'three re-enforced hooks', line 22 says 'Four hooks' and lists four. This is the ONE auto-loaded doc, so the error is paid for in every session in every repo",
+  "status": "completed",
+  "done_when": "CLAUDE.md states the hook count once, correctly (four), with no contradicting phrasing elsewhere in the file",
+  "context": "CLAUDE.md:4,15,22",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "grepped CLAUDE.md after the edit: 'four' appears in both the intro and the Architecture heading, 'three hooks' appears nowhere, and the Stop hook's description now mentions the burn-down hand-off it actually performs"
+}

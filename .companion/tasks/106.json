@@ -1,0 +1,10 @@
+{
+  "id": "106",
+  "subject": "AUDIT: size gate WARNS above 90% of the 300-line cap so saturation is visible before it blocks work — today four files sit within 4 lines of it and the cheapest way to pass is deleting a comment",
+  "status": "completed",
+  "done_when": "check.sh prints a WARN line (not a failure) for each shipped file over 270 lines, naming it; still FAILS only above 300; a test covers warn-but-pass and fail",
+  "context": "check.sh:106-110 (the size section)",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran the extracted gate on real fixtures (310 lines FAILs, 285 WARNs but exits 0, 100 is silent, threshold overridable) and on the live tree, where it immediately named four saturated files including check.sh itself — extracting it is what took check.sh from 294 back to 284."
+}

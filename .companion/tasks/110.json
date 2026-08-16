@@ -1,0 +1,9 @@
+{
+  "id": "110",
+  "subject": "AUDIT: split dev/tests/companion-core.bats (3790 lines) by subject so failures are locatable — shipped code is held to 300 lines while the suite has no cap at all. after #109",
+  "status": "pending",
+  "done_when": "the suite is split into cohesive files by subject with no test lost or renamed (traceability still closes at the same count), check.sh green, and the split is mechanical enough to review",
+  "context": "dev/tests/companion-core.bats, dev/trace.sh (matches tests by NAME, so renames break traceability), check.sh",
+  "blocks": [],
+  "blockedBy": []
+}

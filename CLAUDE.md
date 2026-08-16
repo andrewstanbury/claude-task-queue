@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 This repo is the source of **`companion`** — a portable task-queue + steering system, shipped as
-a Claude Code plugin: one steering doc, a small MCP server, three hooks (**R100/Pass 6**, landing
+a Claude Code plugin: one steering doc, a small MCP server, four hooks (**R100/Pass 6**, landing
 in bounded passes tracked in `tq` — see [docs/adr/README.md](./docs/adr/README.md) R100/R105).
 
 ## The working agreement lives in one file
@@ -12,7 +12,7 @@ recommendation posture, clean-as-you-go, autopilot. **Injected automatically at 
 again** (R105) — or `/companion:resume` any time mid-session. **On this repo, it governs how you
 work here too.**
 
-## Architecture (R100/R105/R111) — steering, a portable core, three re-enforced hooks
+## Architecture (R100/R105/R111) — steering, a portable core, four re-enforced hooks
 
 - **Steering** (prose the model reads, ignorable-by-nature, advisory) → `STEERING.md`.
 - **The portable core** — `plugins/companion/bin/` + `mcp-server/`: `tq` (**THE task queue**,
@@ -22,7 +22,8 @@ work here too.**
 - **Four hooks** — `prompt-continue.sh` (UserPromptSubmit) · `session-start.sh` (STEERING+tasks
   reach every session) · `ask-guard.sh` (PreToolUse[AskUserQuestion]: denies+parks under autopilot) ·
   `stop-autopilot.sh` (Stop, **restored**: refuses the stop while autopilot is armed and a
-  *startable* task remains — bounded, and a partial restore; details in MAP).
+  *startable* task remains, and on a DRY queue with burn-down armed fires the R82 hand-off — bounded;
+  details in MAP).
   `secret-guard.sh`/`contract-guard.sh` stay retired.
   See [docs/adr/README.md](./docs/adr/README.md) R100/R105/R107/R111.
 - **Commands** — `setup` · `autopilot` · `ship-it` · `handoff` · `resume` · `review` ·

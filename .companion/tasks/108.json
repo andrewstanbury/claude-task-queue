@@ -1,0 +1,10 @@
+{
+  "id": "108",
+  "subject": "AUDIT: decompose lib/companion.sh — it is at exactly 300/300 and three comment-trims today were spent staying under. Split on the store-scan/scoping seam (companion_task_files + companion_open_tasks + the render program), which already serves three callers",
+  "status": "completed",
+  "done_when": "lib/companion.sh is meaningfully under the cap with a cohesive split (state/paths vs task-store scanning); every existing caller still sources what it needs; check.sh green INCLUDING the mutation patterns that target the moved code",
+  "context": "plugins/companion/lib/companion.sh (300 lines), callers: resume-report.sh, candidates.sh, burn-down.sh, board.sh, stop-autopilot.sh, prompt-continue.sh, statusline.sh",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "split companion.sh 300->191 with the store half in lib/task-store.sh (139); verified every one of the nine sourcing scripts still parses, drove board.sh and rework.sh live, and confirmed companion_open_tasks still renders the real queue. Ran the mutation gate over BOTH files: 5/5 caught, 0 holes — which is also how I discovered the gate had left task-store.sh mutated and the queue silently returning nothing (now #112)."
+}

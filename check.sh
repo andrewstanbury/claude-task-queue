@@ -104,12 +104,10 @@ else
 fi
 
 section "File size (<= 300 lines; decompose only when this fires)"
-size_fail=0
-for f in "${scripts[@]}"; do
-  n=$(wc -l < "$f")
-  if [ "$n" -gt 300 ]; then echo "  FAIL $f: $n > 300"; size_fail=1; failsec; fi
-done
-[ "$size_fail" -eq 0 ] && echo "  ok"
+# Lives in dev/size-lint.sh so the SUITE can exercise it (R78, same reason as doc-lint.sh) — and
+# extracting it is what took THIS file back under its own warning threshold.
+if out="$(dev/size-lint.sh)"; then [ -n "$out" ] && printf '%s\n' "$out"; echo "  ok"
+else printf '%s\n' "$out"; failsec; fi
 
 section "Token budget (injected artifacts stay capped — R69)"
 # Every byte here is paid EVERY session in EVERY installed repo; the budget is enforced, not
@@ -222,6 +220,14 @@ if ! out="$(dev/doc-lint.sh ledger docs/adr/PROVENANCE.md)"; then
   printf '%s\n' "$out"; led_fail=1; failsec
 fi
 [ "$led_fail" -eq 0 ] && echo "  ok (ledger measurements cite their evidence)"
+# Retirement claims (2026-08-16 audit): a requirement may not call a SHIPPED FILE retired while that
+# file exists. Two of the three contradictions the audit found were exactly this, and one had been
+# false for four days — an absence claim is the one sentence nothing fails when it stops being true.
+ret_fail=0
+if ! out="$(dev/doc-lint.sh retired docs/requirements.yaml)"; then
+  printf '%s\n' "$out"; ret_fail=1; failsec
+fi
+[ "$ret_fail" -eq 0 ] && echo "  ok (no requirement calls a surviving file retired)"
 
 [ "$tok_fail" -eq 0 ] && echo "  ok (STEERING core ${core_b}B/${core_cap}B; command descriptions ≤140B; arg-taking commands hinted)"
 

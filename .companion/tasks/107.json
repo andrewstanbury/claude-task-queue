@@ -1,0 +1,10 @@
+{
+  "id": "107",
+  "subject": "AUDIT: resolve the R9 tension in candidates.sh — it hardcodes node_modules|vendor, which the generic-rules invariant forbids. Decide by measurement whether the filter is redundant (git grep only sees TRACKED files) and delete it, or keep it as a written-down exception",
+  "status": "completed",
+  "done_when": "candidates.sh either has no hardcoded ecosystem path names, or carries a recorded exception explaining why it is not an R9 violation; behaviour verified unchanged on a fixture with a tracked vendored dir",
+  "context": "plugins/companion/bin/candidates.sh:140, CLAUDE.md R9 invariant",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "measured both cases on real git fixtures: untracked vendored dirs never reach git grep (filter redundant, incl. on this repo which tracks 0 files under node_modules), but COMMITTED ones took rank 3 from 3 candidates to 1 — so the filter is decisive exactly where it matters. Kept, with the allowlist-vs-denylist distinction recorded and CANDIDATES_VENDOR_RE added so the two defaults are overridable."
+}

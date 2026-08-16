@@ -1,0 +1,9 @@
+{
+  "id": "109",
+  "subject": "AUDIT: cut STEERING prose whose job a GUARD now does (ask-guard, stop-autopilot, seen-gate, command-lint, R113 detectors all post-date most of the text), then add a net-zero rule so a future addition must be funded by a deletion. after #108",
+  "status": "pending",
+  "done_when": "the injected core is meaningfully below 8730B with the reduction itemised line by line (what was cut and which guard replaced it); check.sh enforces net-zero (a raise requires a matching deletion); no behaviour a guard does NOT cover is lost",
+  "context": "plugins/companion/STEERING.md (## Working is 3898B of 8572B), check.sh:114-205 (the cap + its raise history), plugins/companion/bin/{ask-guard,stop-autopilot,seen-gate}.sh, dev/command-lint.sh",
+  "blocks": [],
+  "blockedBy": []
+}
