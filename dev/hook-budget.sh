@@ -165,4 +165,23 @@ do
   printf '  %-22s %7sms %7sms %6s.%02sx   %s\n' \
     "$script" "$a" "$b" "$((ratio/100))" "$(printf '%02d' $((ratio%100)))" "$verdict"
 done
+
+# THE DRY-QUEUE BURN-DOWN PATH (R82 hand-off, restored 2026-08-15). Every measurement above runs
+# against a store that HAS tasks, so `stop-autopilot.sh` returns at its startable-work branch and
+# the new hand-off — which shells out to `burn-down.sh` — is never executed. Measuring the hook
+# without exercising its most expensive branch is precisely the "budget that measures nothing"
+# this file was already caught doing once today with a one-file fixture repo. So: an EMPTY store
+# with burn-down armed, which is the only shape that reaches the call.
+if [ -f "$BIN/stop-autopilot.sh" ]; then
+  mkdir -p "$TMP/drystore/$SID"
+  printf '%s' "$RID" > "$TMP/drystore/$SID/.repo"   # stamped for this repo, but with NO task files
+  ( cd "$REPO" && CLAUDE_COMPANION_STATE_DIR="$TMP/state" bash "$BIN/autopilot.sh" burndown on ) >/dev/null 2>&1 || true
+  d="$(ms_of "$BIN/stop-autopilot.sh" "$TMP/in-sa" "$TMP/drystore")"
+  verdict="ok"
+  if [ "$d" -gt "$ABSCAP" ]; then
+    verdict="FAIL >${ABSCAP}ms — the dry-queue burn-down hand-off stalls the session"; rc=1
+  fi
+  printf '  %-22s %7sms %9s %8s   %s\n' "stop-autopilot(dry+🔥)" "$d" "-" "-" "$verdict"
+fi
+
 exit "$rc"

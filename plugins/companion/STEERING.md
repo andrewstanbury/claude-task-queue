@@ -142,8 +142,8 @@ terminator, and `CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0` to switch it off.
 
 **Reaching a parked item is NOT a stopping point.** Report the parks and keep draining whatever is
 startable — the tail of the queue is where the un-looked-at work is. Ship-mode commits and the
-burn-down hand-off stay YOURS to call (below): the hook restores continuation only, never
-side effects.
+ship-mode commits stay YOURS to call (below): the hook restores continuation
+only, never side effects. The BURN-DOWN hand-off is the exception — the hook fires it again.
 
 ▢ keep draining; don't stop to ask; self-verify (you have a shell) ▢ **park it yourself, before
 you'd ask** — `tq add` the `❓`/`⏳` right then, don't wait to be denied: ask-guard.sh auto-parks a
@@ -159,9 +159,10 @@ a rubber-stamp; the one exception is decompose-park (R65) ▢ an unparkable deci
 everything → safest reversible default, recorded, plus a `❓` to override — never stall ▢ a
 human playtest → `⏳ [blocked] playtest: <what>`, keep draining ▢ ship-mode is on → call the
 `ship_checkpoint` tool yourself at natural stopping points (was automatic; commits to an
-`autopilot/*` branch, never the default, same credential backstop) ▢ the queue runs dry → call
-`burn_down` (`should_burn`) yourself (was automatic); if it says burn, take rank-1 from
-`candidates` on its own branch via `burndown_branch` (`start`) ▢ autopilot turned off — by
+`autopilot/*` branch, never the default, same credential backstop) ▢ the queue runs dry → the Stop hook itself calls
+`should_burn` and, on BURN, refuses the stop and tells you so (restored 2026-08-15 — it was prose
+you had to remember, and prose is not an owner); you then take rank-1 from `candidates` on its own
+branch via `burndown_branch` (`start`). Call `burn_down` by hand only mid-turn, before a stop ▢ autopilot turned off — by
 command *or* plain conversation (then call `autopilot_toggle` `off` **first**) → **immediately run
 `/companion:review`**: walk the `❓`/`⏳` pile one at a time, recommendation-first, write each pick
 back to `tq` before any new work (defer/bail allowed; clean no-op when empty).

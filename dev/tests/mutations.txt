@@ -41,7 +41,7 @@ plugins/companion/bin/burn-down.sh::s@companion_burndown_on "$root" ||@false ||@
 plugins/companion/bin/burn-down.sh::s@\[ "$open" -eq 0 \] ||@[ 1 -eq 1 ] ||@::generated work stops yielding to real queued work
 plugins/companion/bin/burn-down.sh::s@\[ "$nb" -lt "$cap" \] ||@[ 1 -eq 1 ] ||@::unreviewed-branch backpressure stops applying
 plugins/companion/bin/burn-down.sh::s@\[ "$projected" -lt "$TARGET" \] ||@[ 1 -eq 1 ] ||@::burn-down fires even when the forecast is ON TARGET
-plugins/companion/bin/candidates.sh::s@grep -F 'rec:'@cat@::a park with NO recommendation becomes a build candidate — guessing for the owner
+plugins/companion/bin/candidates.sh::s@and ((.subject//"")|contains("rec:"))@and true@::a park with NO recommendation becomes a build candidate — guessing for the owner
 plugins/companion/bin/candidates.sh::s@if \[ "$found" -eq 0 \]; then@if true; then@::invention is emitted even when recorded signals exist
 plugins/companion/bin/burndown-branch.sh::s@\[ "$cur" = "burndown/$slug" \] &&@[ 1 -eq 2 ] \&\&@::discard deletes the branch you are standing on
 plugins/companion/bin/candidates.sh::s@-- . ':!\*.md' ':!\*.markdown'@-- .@::the todo signal reads prose about markers again, feeding on documentation
@@ -69,7 +69,7 @@ check.sh::s@dev/trace.sh 2>&1@:@::check.sh stops running the traceability gate
 plugins/companion/bin/prompt-continue.sh::s@STOP — DO NOT START ANY OTHER WORK YET@Note:@::the continue hook stops asserting that unblocking outranks other work
 plugins/companion/lib/resume-report.sh::s@    if \[ -n "$_ver_tree" \] \&\& \[ "$_ver_tree" != "$_ver_running" \]; then@    if false; then@::a stale installed plugin stops being announced — work looks shipped while inert
 plugins/companion/STEERING.md::s@Satisfy the contract; never rewrite it@Satisfy the contract@::the steering core stops stating that the contract must not be rewritten
-plugins/companion/bin/candidates.sh::s@| grep -vF 'decision:' | grep -vF 'decompose:'@| cat@::decision parks are offered as buildable work again, and can starve every other rank
+plugins/companion/bin/candidates.sh::s@((.subject//"")|contains("decision:")) or @false or @::decision parks are offered as buildable work again, and can starve every other rank
 plugins/companion/bin/tq-output.sh::s@map(select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0))@map(select(true))@::the next pointer points at work that cannot start again
 plugins/companion/bin/tq::s@$st\[0\].id@$o[0].id@::the startable pointer reverts to the first OPEN task
 plugins/companion/bin/tq::s@select(waits as $w | ($w | map(. as $x | select($live|index($x))) | length) == 0)\]@select(true)]@::the stopfields pointer forgets dependencies entirely
@@ -122,3 +122,6 @@ plugins/companion/bin/statusline.sh::s@companion_burndown_on "\$ROOT" && AP="\${
 plugins/companion/bin/burn-down.sh::s@    if \[ "\$(( now - r5 ))" -gt "\$FIVE" \]; then@    if false; then@::burn-down stops detecting a frozen payload behind a freshly-rewritten file, so it forecasts from days-old usage and can BURN on data that describes a window which already ended
 plugins/companion/lib/companion.sh::s@printf '%s.0' "@printf '%s\\n' "@::companion_task_files goes back to newline-separated paths, so a store path containing a newline silently renders the ENTIRE backlog as zero tasks on the crash-resume path
 plugins/companion/bin/candidates.sh::s@SELFTREE=":!\${_selfdir#"\$_scanroot"/}"@SELFTREE=""@::candidates.sh stops excluding its own vendored tree, so a sibling that merely DESCRIBES the TODO ranking is offered as buildable work again (the live 2026-08-15 defect)
+plugins/companion/bin/candidates.sh::s@  | select(\[(.notes//\[\])\[\] | (.text//"") | ascii_downcase | startswith("deferred")\] | any)@  | select(true)@::candidates rank 1 stops requiring evidence the owner ever saw the park, so burn-down can build a recommendation the model wrote itself and nobody reviewed
+plugins/companion/bin/stop-autopilot.sh::s@  companion_burndown_on "\$1" || return 0@  return 0@::the restored burn-down hand-off stops firing, so a dry queue silently ends the turn again and the mode only ever runs if the model remembers to call it
+plugins/companion/bin/burndown-branch.sh::s@  case "\$rank" in 3|4) return 0 ;; 6) return 1 ;; esac@  return 0@::the acceptance tier gate stops refusing, so burn-down can auto-author features and large rebuilds on a repo that has never had a single generated branch kept

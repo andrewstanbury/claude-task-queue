@@ -1,0 +1,16 @@
+{
+  "id": "97",
+  "subject": "❓ [parked] decision: Burn-down never fires on its own. How should that be closed? — options: Restore the Stop-hook hand-off (Recommended) (Put the R82 hand-off back into stop-autopilot.sh: when the queue runs dry AND autopilot+burndown are armed, the hook calls should_burn and, on BURN, continues the turn pointing me at rank-1. This is the ONE class the harness can actually enforce (control-flow, R28), which is why it works where prose does not. Risk, stated plainly: it re-creates the duplicate-ownership problem the deletion was meant to solve, so the STEERING prose must be rewritten in the same change or the docs go false again. It also means work gets generated while you sleep without you re-confirming each time — which is the point, but it is real.) · Leave it advisory, fix the prose (Keep the model responsible for calling it, but make STEERING's dry-queue instruction explicit and unmissable, and have `tq report` print 'queue dry — call burn_down' so the reminder rides the thing I already read every turn. Cheap, no new enforcement, no duplicate ownership. The cost: this session is direct evidence that advisory instructions get skipped, so expect it to work sometimes.) · Fix the input first, trigger later (Do nothing about the trigger until the flapping payload is understood — today it swung from fresh to 9-days-stale between calls seconds apart. Automating generation on top of an input that flaps means the decision to spend your tokens depends on which sample it catches. Safest ordering, and it forgoes the feature for now.) · Trigger it manually for now (No code change. When you want a burn, say so and I will run the loop (should_burn → candidates → burndown_branch) and report what it built. Zero risk, zero automation — the feature stays a button you press rather than something that happens overnight.); rec: Restore the Stop-hook hand-off (Recommended)",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-16T02:07:52Z",
+      "text": "decided by owner 2026-08-15 ('do all the things you recommended'): option A — restore the Stop-hook hand-off, and rewrite the prose in the same change so ownership is not duplicated."
+    }
+  ],
+  "seen": "owner reviewed the auto-trigger options in conversation and picked option A (restore the Stop-hook hand-off); recorded as a tq note and decomposed into #99, gated behind #98 because restoring the trigger first would let an unattended run build the model's own unreviewed park"
+}

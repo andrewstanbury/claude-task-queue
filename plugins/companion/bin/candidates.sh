@@ -63,13 +63,46 @@ emit() {  # $1 rank · $2 source · $3 text
   found=$((found+1))
 }
 
-# 1 — PARKED DECISIONS carrying a recommendation. Read through the same store the queue owns.
+# 1 — PARKED DECISIONS THE OWNER HAS ACTUALLY SEEN, carrying a recommendation.
+#
+# THE SELF-DEALING GUARD (owner-decided 2026-08-15). This rank's whole justification is that "the
+# owner deferred THIS work and a recommendation is already written" — chosen, reasoned, not yet
+# done. That sentence is FALSE for a park the MODEL wrote and the owner has never laid eyes on,
+# and the difference is not cosmetic: caught live, rank 1 was a park authored minutes earlier
+# recommending that the model be granted more autonomy. Building it would have been the generator
+# implementing its own unreviewed advice — the same mirror as feeding on its own documentation
+# (see rank 3), one level up and with far more at stake.
+#
+# The evidence is a DEFERRAL NOTE, which `/companion:review` writes when the owner walks the pile
+# and chooses to defer rather than decide (a decided park is closed and leaves this queue by
+# construction, so an OPEN park is either deferred-after-seeing or never-seen). Authorship cannot
+# serve here — `tq` does not record it — and neither can age: a park can sit unseen for weeks.
+#
+# FAILS TO THE SAFE SIDE, deliberately: a store whose parks predate this carries no deferral notes,
+# so rank 1 is simply empty and generation falls through to ranks 2-5, which are owner-authored by
+# construction (a ROADMAP line, a TODO, an untested flow). Losing a tier is the right cost for
+# never auto-building something the owner has not seen.
+_rank1_prog='select(.status=="pending")
+  | select(((.subject//"")|startswith("❓")) and ((.subject//"")|contains("rec:")))
+  | select((((.subject//"")|contains("decision:")) or ((.subject//"")|contains("decompose:")))|not)
+  | select([(.notes//[])[] | (.text//"") | ascii_downcase | startswith("deferred")] | any)
+  | ((.subject//"")|gsub("[\n\r|]";" "))'
+_rank1() {
+  local f g; local -a files=()
+  while IFS= read -r -d '' f; do [ -n "$f" ] && files+=("$f"); done \
+    < <(companion_task_files "$root" 2>/dev/null)
+  [ "${#files[@]}" -gt 0 ] || return 0
+  # Batch, then per-file only if the batch failed — jq aborts at the first unparseable file, and one
+  # torn write must not silently empty the highest-signal rank (the lesson companion_open_tasks
+  # already paid for).
+  jq -r "$_rank1_prog" "${files[@]}" 2>/dev/null && return 0
+  for g in "${files[@]}"; do [ -f "$g" ] && jq -r "$_rank1_prog" "$g" 2>/dev/null; done
+  return 0
+}
 while IFS= read -r line; do
   [ -n "$line" ] || continue
   emit 1 parked "${line###* }"
-done < <(companion_open_tasks "$root" 2>/dev/null \
-         | sed -n 's/^  ◻ *//p' | grep '^❓' | grep -F 'rec:' \
-         | grep -vF 'decision:' | grep -vF 'decompose:' | head -"$LIMIT")
+done < <(_rank1 | head -"$LIMIT")
 
 # 2 — ROADMAP intent. Generic: any ROADMAP-ish markdown, unchecked task-list items only.
 if [ "$found" -lt "$LIMIT" ]; then

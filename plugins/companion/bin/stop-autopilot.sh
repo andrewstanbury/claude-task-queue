@@ -17,9 +17,14 @@
 #   · SHIP-MODE AUTO-COMMIT (R34) stays deleted. `bin/ship-checkpoint.sh` owns it now, invoked
 #     deliberately rather than on every stop. Restoring it here would put two owners on one concern
 #     and silently re-automate a commit path the owner made manual on purpose.
-#   · THE BURN-DOWN HAND-OFF (R82) stays deleted. STEERING now tells the model to call `burn_down`
-#     itself when the queue runs dry; re-automating it here would make that prose false and, again,
-#     duplicate ownership. The dry-queue path below therefore just ends the turn.
+#   · THE BURN-DOWN HAND-OFF (R82) was ALSO omitted here — and that omission was REVERSED
+#     2026-08-15 (owner-decided). The argument for leaving it out was duplicate ownership: STEERING
+#     told the model to call `burn_down` itself when the queue ran dry, so automating it here would
+#     make that prose false. What the argument missed is that prose is not an owner — it is a
+#     request, and the owner reasonably believed the feature was automatic while nothing ever fired
+#     it. Ownership is not duplicated now because the STEERING sentence was rewritten in the SAME
+#     change: the hook owns WHETHER to continue, the model owns WHAT to build (R28, and R81 — the
+#     hook must not run the repo-wide `git grep` that ranking costs). See the dry-queue path below.
 # What came back is exactly the guarantee that was asked for — do not stop while startable work
 # remains — plus every terminator that bounds it. Restoring the continuation WITHOUT its bounds
 # would have been the one genuinely dangerous version of this change.
@@ -35,6 +40,24 @@ done
 # shellcheck source=../lib/companion.sh
 . "$(cd "$(dirname "$SELF")/../lib" && pwd)/companion.sh"
 
+# THE BURN-DOWN HAND-OFF (R82) — see the header note. Defined once and called from BOTH dry-queue
+# exits: the store-has-no-files bail below AND the nothing-startable branch further down. Placing it
+# in only the second was a real bug caught by its own test — a brand-new session with burn-down
+# armed and no tasks ever created is the most ordinary idle case there is, and it left through the
+# first bail without ever consulting the mode.
+#
+# It makes only the CHEAP call (should-burn: a snapshot read plus a branch count, measured at 23ms).
+# Ranking is the model's job — candidates.sh git-greps the whole repo, which R81 forbids in a hook.
+burn_handoff() {  # returns only when it did NOT fire; exits 0 having blocked when it did
+  companion_burndown_on "$1" || return 0
+  local _bd; _bd="$(cd "$(dirname "$SELF")" && pwd)/burn-down.sh"
+  [ -r "$_bd" ] || return 0
+  BURNDOWN_ROOT="$1" bash "$_bd" should-burn >/dev/null 2>&1 || return 0
+  jq -cn '{decision:"block", reason:
+    "\u2708\ufe0f\ud83d\udd25 Autopilot: the queue is DRY and burn-down says BURN — there is forecast spare capacity in the 7d window and room under the unreviewed-branch cap. DO NOT stop. Run `candidates.sh` (or the `candidates` MCP tool), take RANK 1, and start it on its own branch via `burndown-branch.sh start` (or the `burndown_branch` tool with action \"start\"). Nothing merges and nothing pushes: the branch is for the owner to review, and the mode stops itself once enough branches are waiting. If `candidates` comes back EMPTY, there is genuinely nothing recorded to build — say so in one line and stop rather than inventing work."}'
+  exit 0
+}
+
 in="$(cat 2>/dev/null || true)"
 cwd="$(printf '%s' "$in" | jq -r '.cwd // empty' 2>/dev/null || true)"; [ -n "$cwd" ] || cwd="$PWD"
 sid="$(printf '%s' "$in" | jq -r '.session_id // empty' 2>/dev/null || true)"
@@ -42,7 +65,8 @@ root="$(companion_root "$cwd")"
 companion_autopilot_on "$root" || allow
 
 dir="$(companion_session_dir "$root" "$sid")"
-files=("$dir"/*.json); [ -e "${files[0]}" ] || allow
+files=("$dir"/*.json)
+if [ ! -e "${files[0]}" ]; then burn_handoff "$root"; allow; fi   # no store yet is still a dry queue
 # open = pending/in_progress and NOT deferred (❓/⏳); done = completed (progress signal).
 # Split on US (0x1f), NOT tab: tab is IFS whitespace, so a run of them collapses and every field
 # after an EMPTY one shifts left (LESSONS). The FIELDS and the sweep rules that produce them are
@@ -84,6 +108,23 @@ if [ "$OPEN" -eq 0 ] || [ "$STARTABLE" -eq 0 ]; then
   # alone, so work queued later drains without the owner re-arming by hand. R88 disarmed to stop a
   # stale hook nagging; that nagging came from BLOCKING, not from staying armed, so allowing while
   # armed keeps the fix and drops the side effect.
+  #
+  # THE BURN-DOWN HAND-OFF (R82) — RESTORED 2026-08-15, owner-decided, reversing the deliberate
+  # omission recorded at the top of this file. The reasoning for deleting it (one concern, one
+  # owner) was sound, but the result was a feature the owner believed was automatic that only ran
+  # if the model REMEMBERED to call it — and the same session that asked for this proved how that
+  # class of instruction fares: 0 of 89 tasks carried the breadcrumbs STEERING has demanded since
+  # R47. Continuing a turn is control-flow, the one thing a hook can actually guarantee (R28), so
+  # the guarantee lives here and the prose at the top has been corrected rather than left false.
+  #
+  # WHAT THIS HOOK DOES NOT DO, and why (R81): it does not rank candidates. `candidates.sh` runs a
+  # `git grep` over the whole repo — unbounded in repo size, on a hook that fires at every stop of
+  # an autopiloted run. So the hook makes only the CHEAP decision (should-burn: one snapshot read
+  # plus a branch count) and hands the expensive lookup to the model, which is the R28 split done
+  # properly: the hook decides whether to continue, the model does the work.
+  #
+  # Reached ONLY on a dry queue with burn-down armed, so an ordinary drain never pays for it at all.
+  burn_handoff "$root"
   rm -f "$cfile" 2>/dev/null
   allow
 fi

@@ -1,0 +1,10 @@
+{
+  "id": "100",
+  "subject": "gate burn-down TIER PROMOTION on acceptance rate (#96 option A): burndown-branch.sh keeps a merged/abandoned ledger; the candidate tier ceiling rises only as the owner's merge rate demonstrates the generated work is wanted, and falls when branches rot",
+  "status": "completed",
+  "done_when": "a ledger records each burndown/* branch outcome (merged|abandoned|pending); the max candidate RANK burn-down may build is derived from that rate rather than from utilization; low/no acceptance pins it to the safe tiers; tests cover promote, demote and the no-history default; check.sh green",
+  "context": "plugins/companion/bin/burndown-branch.sh, plugins/companion/bin/candidates.sh (the 6-rank ladder), plugins/companion/bin/burn-down.sh, docs/requirements.yaml R82",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "drove burndown-branch.sh start/discard in a scratch git repo across the whole ladder: with no history rank 4 builds while ranks 2 and 5 are refused (exit 12) and rank 6 is refused permanently (exit 13); after two judged outcomes at 50% the feature tier opens and a dark-theme branch is really created; discarding it drops the ceiling back to debt with no new input. Gate ordered AFTER the dirty-tree guard so safety refusals still surface as themselves."
+}

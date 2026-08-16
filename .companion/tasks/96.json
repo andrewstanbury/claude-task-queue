@@ -1,9 +1,16 @@
 {
   "id": "96",
   "subject": "❓ [parked] rev: gate burn-down's TIER PROMOTION on demonstrated acceptance, not on token utilization — owner asked 2026-08-15 for the ladder to climb automatically from tech-debt paydown up to auto-crafted features behind a flag. MY READ: the debt tier is the safe end and largely already works (R82 ranks 1-5); the feature tier is not gated by complexity but by VERIFIABILITY — 'did I break anything' is machine-answerable, 'was this feature worth building' is answerable by nothing, so a flag makes it safe to ship, not worth building. And a utilization clock measures spending, never value: the binding constraint is the owner's REVIEW throughput, which does not grow with the token budget, so climbing converts a token surplus into a review backlog (the existing 3-branch cap is exactly this insight, already encoded). OPTIONS: (A) rec: keep the utilization forecast as the trigger for WHETHER to burn, but gate WHICH TIER on a measured acceptance rate — fraction of burndown/* branches actually merged; high acceptance promotes, rot demotes. Self-correcting on value, uses evidence the owner already produces by reviewing, and needs a merged/abandoned ledger burndown-branch.sh could keep. (B) climb on the utilization clock as asked — simplest, matches the request literally, and optimizes for spending by construction (burn-down's own header warns against exactly this). (C) hold the ladder at the debt tier permanently and never auto-author features — safest, forgoes the thing the owner actually asked for. CAVEAT ON MY OWN ADVICE: I am the thing that would do the generating, so discount my enthusiasm and weigh only the caution. PREREQUISITE either way: the generate-work path produced 3 real defects in one session (stale-input trust, self-referential ranker, glyph-blind work count) while green on 230+ tests — it is the least-mature subsystem and should earn trust before gaining autonomy.",
-  "status": "pending",
+  "status": "completed",
   "done_when": "",
   "context": "plugins/companion/bin/burn-down.sh (should-burn, branch cap), plugins/companion/bin/candidates.sh (the 6-rank ladder), plugins/companion/bin/burndown-branch.sh (would need a merged/abandoned ledger), docs/adr/README.md R82",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-16T02:07:52Z",
+      "text": "decided by owner 2026-08-15 ('do all the things you recommended'): option A — gate TIER on measured acceptance rate, keep the utilization forecast as the whether-to-burn trigger."
+    }
+  ],
+  "seen": "owner reviewed the parked payload in conversation and picked option A; recorded as a tq note and decomposed into #100, whose done_when carries the acceptance-ledger acceptance test"
 }

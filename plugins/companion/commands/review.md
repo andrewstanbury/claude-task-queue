@@ -99,7 +99,11 @@ pile that needs deciding — to *re-surface carried-over tasks from an earlier s
    - **⏳ Done** → `tq add` the now-doable task (or `tq done <id>` if it's finished) and `done`/`cancel`
      the placeholder. **Still blocked** → leave it (optionally `tq note` the latest status). **Drop** →
      `tq cancel <id>`.
-   - **Defer** → leave the item as-is (optionally `tq note <id> "deferred <what you're waiting on>"`).
+   - **Defer** → leave the item as-is and **always** `tq note <id> "deferred <what you're waiting on>"`.
+     Not optional: that note is the ONLY record that the owner has actually SEEN this park, and
+     `candidates.sh` rank 1 now requires it before burn-down may build a park unattended. Skip it and
+     a park the owner genuinely deferred is treated as never-reviewed (safe, but it loses the tier);
+     the note is what separates "chosen and set aside" from "the model wrote this and nobody looked".
 
 4. **Close the loop.** Recap the picks in a short table (item → decision → what's now queued), then
    confirm the queue state with `tq report`. If a decision would touch a locked requirement, offer

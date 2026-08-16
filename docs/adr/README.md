@@ -649,3 +649,56 @@ change there has to decompose it first, and that debt is mine, recorded rather t
 discovered.
 
 | 2026-08-15, owner picked detection over discipline; the unmeasured hook budget was the real catch.
+
+## R114 — DECISION 🔓 (burn-down climbs on ACCEPTANCE, and actually fires)
+
+**The ask.** Owner, 2026-08-15: *"I want this thing to pay down tech debt when I am not using my
+tokens automatically if I'm behind schedule in using 100% of my tokens, then move up to the next
+level of complexity until features are being crafted automatically behind a feature flag."*
+
+**Three separate defects sat between that and reality, and only one was the feature.**
+
+**1. Nothing ever fired it.** R82's hand-off had been deliberately deleted from `stop-autopilot.sh`
+on a duplicate-ownership argument: STEERING told the model to call `burn_down` when the queue ran
+dry, so automating it would make that prose false. The argument is sound about ownership and wrong
+about outcomes — **prose is not an owner, it is a request.** The owner reasonably believed the
+feature was automatic while nothing fired it for weeks, and the same session measured what happens
+to that class of instruction: **0 of 89 tasks carried the breadcrumbs STEERING has demanded since
+R47.** Restored, with the STEERING sentence rewritten in the same change so nothing goes false, and
+split per R28/R81: **the hook owns WHETHER to continue** (one `should-burn` call, measured at 23ms),
+**the model owns WHAT to build** — `candidates.sh` git-greps the whole repo and must never run in a
+hook. Its own behavioural test then caught a placement bug: an empty store bailed one branch
+*earlier*, so a brand-new session — the most ordinary idle case there is — never reached it.
+
+**2. Rank 1 was self-dealing, and this is the one that mattered.** Rank 1's justification is *"the
+owner deferred THIS work and a recommendation is already written."* That sentence is false for a
+park the MODEL wrote and nobody has read. Caught live: rank 1 at that moment was a park authored
+minutes earlier **recommending that the model be granted more autonomy.** Restoring the trigger
+first would have let an unattended run build the generator's own unreviewed advice — the same mirror
+as feeding on its own documentation (fixed hours earlier), one level up and with real stakes. Rank 1
+now requires a deferral note, which `/companion:review` writes when the owner walks the pile, and
+that note stopped being optional. It **fails to the safe side**: a store with no such notes empties
+rank 1 rather than guessing, and generation falls through to ranks the owner authored.
+
+**3. The proposed trigger was the wrong instrument.** Utilization answers *whether there is spare
+capacity* and never *what may be built*: it measures spending, and burn-down's own header already
+warned against optimising for it. The binding constraint is the **owner's review throughput**, which
+does not grow when the token budget does — a ladder climbing on a spending clock converts a token
+surplus into a review backlog, which is what the existing 3-branch cap already encodes. So the
+trigger stays the forecast and **the TIER is gated on demonstrated acceptance**: the share of
+generated branches actually kept. Debt paydown (TODOs, untested flows) is always allowed — it is
+verifiable against the suite that already exists, which is what makes it safe unattended. Features
+(parked-with-rec, ROADMAP) need ≥2 judged outcomes at ≥50%; large rebuilds need ≥4 at ≥75%; invented
+work is **never** automatic at any rate. It self-corrects downward too, which a clock cannot.
+
+**Stated honestly:** the ledger is approximate — `created` and `abandoned` are recorded, MERGED is
+*inferred* as created − abandoned − still-present, because a merged branch is routinely pruned and
+would otherwise be invisible. A hand-deleted branch therefore reads as accepted, biasing
+permissive, so the thresholds sit where a couple of stray deletions cannot promote a tier alone.
+
+**The declined option, recorded because it was the literal request:** climb on the utilization clock
+as asked. Rejected for the reason above, with the caveat surfaced to the owner that *I am the party
+that would gain autonomy from saying yes* — so the caution, not the enthusiasm, is the part worth
+weighting.
+
+| 2026-08-15, owner picked acceptance-gating and the restored trigger; the self-dealing rank was the real find.

@@ -1,0 +1,16 @@
+{
+  "id": "98",
+  "subject": "BLOCKER/prereq: candidates rank-1 is SELF-DEALING — it treats any ❓ park carrying rec: as 'the owner deferred this work and a recommendation is already written', which is FALSE for a park the model wrote itself and the owner has never seen. Live proof: rank-1 right now is #96, authored by me 30 minutes ago, recommending that I be given more autonomy. Restoring the auto-trigger (#97) before fixing this lets an unattended run build the model's own unreviewed advice.",
+  "status": "completed",
+  "done_when": "rank 1 counts ONLY parks the owner has demonstrably seen (a recorded decision/review touch), never a park authored this session and never reviewed; a model-authored unreviewed park is excluded with a test proving it; check.sh green",
+  "context": "plugins/companion/bin/candidates.sh rank 1, plugins/companion/bin/tq (notes as the review-evidence trail), docs/adr/README.md R82",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-16T02:08:06Z",
+      "text": "start: the fix must key on EVIDENCE THE OWNER SAW IT, not on authorship (which tq does not record) and not on age (a park can sit unreviewed for weeks). The review flow already writes 'decided:' notes via /companion:review, so a park the owner has actually walked has a decision note; one the model just wrote does not."
+    }
+  ],
+  "seen": "ran candidates.sh on THIS repo: rank 1 no longer offers my own unreviewed #96 and falls through to owner-authored ranks 4/5; on a fixture, a park carrying a deferral note still ranks 1 while an identical never-seen park is excluded, and stripping the note empties rank 1 rather than guessing. Two pre-existing rank-1 tests correctly went red and their fixtures now carry the note; two mutations retargeted onto the new jq shape."
+}

@@ -277,7 +277,7 @@ await client.close();
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q -b main
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
 
-  _mcp_call "$repo" '[{"name":"burndown_branch","arguments":{"action":"start","candidate":"9|todo|mcp parity candidate"}}]'
+  _mcp_call "$repo" '[{"name":"burndown_branch","arguments":{"action":"start","candidate":"4|gap|mcp parity candidate"}}]'
   [ "$status" -eq 0 ]
   # awk, not sed -n '/pat/{n;p}': BSD sed (macOS CI) requires a trailing ';' before '}' that GNU
   # sed does not — the exact "BSD is not GNU" trap this repo's LESSONS.md already tracks.
@@ -2383,12 +2383,12 @@ _bd_setup() {
 
   # A parked decision carrying a recommendation outranks EVERYTHING — the owner already reasoned it.
   mkdir -p "$tk/sP"; _stamp_root "$tk/sP" "$d"
-  jq -n '{id:"1",subject:"❓ [parked] pick a cache backend — options: A) sqlite B) files; rec: sqlite",status:"pending"}' \
+  jq -n '{id:"1",subject:"❓ [parked] pick a cache backend — options: A) sqlite B) files; rec: sqlite",status:"pending",notes:[{ts:"t",text:"deferred by the owner at review"}]}' \
     > "$tk/sP/1.json"
   _cand; [[ "$output" == 1\|parked\|* ]]; [[ "$output" == *"rec: sqlite"* ]]
   # A park WITHOUT a recommendation is not a candidate: nothing has been decided, so building
   # against it would be guessing on the owner's behalf.
-  jq -n '{id:"1",subject:"❓ [parked] pick a cache backend",status:"pending"}' > "$tk/sP/1.json"
+  jq -n '{id:"1",subject:"❓ [parked] pick a cache backend",status:"pending",notes:[{ts:"t",text:"deferred by the owner at review"}]}' > "$tk/sP/1.json"
   _cand; [[ "$output" != 1\|parked\|* ]]
 }
 
@@ -2398,7 +2398,7 @@ _bd_setup() {
   git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
   _bb() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" "$@"; }
 
-  _bb start "2|roadmap|add a dark theme"
+  _bb start "4|gap|add a dark theme"
   [ "$status" -eq 0 ]; [ "$output" = "add-a-dark-theme" ]
   [ "$(git -C "$d" rev-parse --abbrev-ref HEAD)" = "burndown/add-a-dark-theme" ]
   # main is untouched: one commit, exactly as before.
@@ -2411,7 +2411,7 @@ _bd_setup() {
   # state does not exist, which is no longer true.
   [ -z "$(git -C "$d" status --porcelain | grep -vE '^.{2} \.companion/')" ]
   _bb show add-a-dark-theme
-  [[ "$output" == *"must default to OFF"* ]]; [[ "$output" == *"roadmap"* ]]
+  [[ "$output" == *"must default to OFF"* ]]; [[ "$output" == *"gap"* ]]   # the source rides the manifest
   [[ "$output" == *"Deleting is the DEFAULT expectation"* ]]
   _bb list; [[ "$output" == *"burndown/add-a-dark-theme"* ]]; [[ "$output" == *"add a dark theme"* ]]
 
@@ -2443,14 +2443,14 @@ _bd_setup() {
   printf '# R\n- [ ] add a dark theme\n' > "$d/ROADMAP.md"
   _cd2() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" REWORK_ROOT="$d" bash "$ROOT/bin/candidates.sh"; }
 
-  jq -n '{id:"1",subject:"❓ [parked] decision: which cache backend? — options: A) x B) y; rec: A",status:"pending"}' > "$tk/sD/1.json"
+  jq -n '{id:"1",subject:"❓ [parked] decision: which cache backend? — options: A) x B) y; rec: A",status:"pending",notes:[{ts:"t",text:"deferred by the owner at review"}]}' > "$tk/sD/1.json"
   _cd2
   [[ "$output" != *"which cache backend"* ]]      # a decision is the owner's to ANSWER, not work
   [[ "$output" == *"dark theme"* ]]               # ...and rank 2 is reachable behind it
 
   # A park describing WORK still ranks 1 — the exclusion must be narrow, or the strongest signal
   # in the repo is lost with it.
-  jq -n '{id:"2",subject:"❓ [parked] add retry backoff — options: A) simple B) jitter; rec: B",status:"pending"}' > "$tk/sD/2.json"
+  jq -n '{id:"2",subject:"❓ [parked] add retry backoff — options: A) simple B) jitter; rec: B",status:"pending",notes:[{ts:"t",text:"deferred by the owner at review"}]}' > "$tk/sD/2.json"
   _cd2; [[ "$output" == 1\|parked\|*"retry backoff"* ]]
 
   # SATURATION: many auto-parks must not fill the list and starve every other signal.
@@ -2477,6 +2477,33 @@ _bd_setup() {
   [[ "$output" == *"a.sh"* ]]        # a real annotation in code is still a candidate
   [[ "$output" != *"guide.md"* ]]    # prose about markers is not
   [[ "$output" != *"candidates.sh"* ]]  # and never its own source
+}
+
+@test "candidates: rank 1 requires evidence the OWNER SAW the park — a model-authored one is not buildable" {
+  # THE SELF-DEALING GUARD. Rank 1 claims "the owner deferred THIS work and a recommendation is
+  # already written", which is false for a park the model wrote and nobody has looked at. Caught
+  # live 2026-08-15: rank 1 was a park authored minutes earlier recommending the model be given
+  # more autonomy — the generator would have built its own unreviewed advice.
+  local d tk; d="$(_tmpd)"; tk="$(_tmpd)"; git -C "$d" init -q
+  mkdir -p "$d/.companion/tasks"
+  # seen-and-deferred: carries the note /companion:review writes when the owner defers
+  jq -n '{id:"1",subject:"❓ [parked] rev: pick a cache — options: A) sqlite B) files; rec: A",
+          status:"pending",notes:[{ts:"t",text:"deferred pending the storage decision"}]}' \
+    > "$d/.companion/tasks/1.json"
+  # model-authored, never reviewed: same shape, no deferral note
+  jq -n '{id:"2",subject:"❓ [parked] rev: never seen by anyone — rec: B",status:"pending"}' \
+    > "$d/.companion/tasks/2.json"
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="" REWORK_ROOT="$d" \
+    bash "$ROOT/bin/candidates.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pick a cache"* ]]      # deferred by the owner -> still the highest signal
+  [[ "$output" != *"never seen by anyone"* ]]
+  # and it fails to the SAFE side: strip the evidence and rank 1 empties rather than guessing
+  jq -n '{id:"1",subject:"❓ [parked] rev: pick a cache — rec: A",status:"pending"}' \
+    > "$d/.companion/tasks/1.json"
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="" REWORK_ROOT="$d" \
+    bash "$ROOT/bin/candidates.sh"
+  [[ "$output" != *"1|parked"* ]]
 }
 
 @test "candidates: excludes its own PLUGIN TREE, not just its own file — a sibling describing the ranking is still a mirror" {
@@ -2608,6 +2635,42 @@ _bd_setup() {
   [[ "$output" == *"resumes autopilot if it was on"* ]]
 }
 
+@test "burn-down: the buildable TIER is earned by acceptance, not granted by spare capacity (R82)" {
+  # The owner asked for the ladder to climb toward auto-authored features when tokens are going
+  # unspent. Utilization is a fine answer to WHETHER there is spare capacity and a terrible one to
+  # WHAT may be built: it measures spending, never value, and the real constraint is the owner's
+  # review throughput, which does not grow with the token budget. So the tier is gated on the share
+  # of generated branches actually KEPT — self-correcting in both directions.
+  local d st; d="$(_tmpd)"; st="$(_tmpd)"
+  git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  local _bb; _bb() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" "$@"; }
+
+  # NO HISTORY -> debt paydown only. Verifiable against the suite that already exists, which is what
+  # makes it safe unattended.
+  _bb start "4|gap|add a golden test for checkout"; [ "$status" -eq 0 ]
+  git -C "$d" checkout -q main
+  _bb start "2|roadmap|add a dark theme"; [ "$status" -eq 12 ]   # a FEATURE is not yet earned
+  [[ "$output" == *"earned tier"* ]]
+  _bb start "5|rework|rebuild the parser"; [ "$status" -eq 12 ]  # nor a large rebuild
+
+  # INVENTED work is never automatic at ANY rate — nothing recorded asked for it.
+  _bb start "6|invent|something nobody asked for"; [ "$status" -eq 13 ]
+  [[ "$output" == *"never built unattended"* ]]
+
+  # Two judged outcomes at 50% (one kept, one discarded) -> the feature tier opens.
+  _bb start "4|gap|a second debt item"; [ "$status" -eq 0 ]
+  git -C "$d" checkout -q main
+  _bb discard add-a-golden-test-for-checkout; [ "$status" -eq 0 ]
+  git -C "$d" branch -D burndown/a-second-debt-item >/dev/null 2>&1   # merged then pruned = kept
+  _bb start "2|roadmap|add a dark theme"; [ "$status" -eq 0 ]
+  git -C "$d" checkout -q main
+
+  # ...and it FALLS BACK. Discard enough and the ceiling drops to debt again, with no new judgement
+  # from anyone — which is the half a utilization clock can never do.
+  _bb discard add-a-dark-theme; [ "$status" -eq 0 ]
+  _bb start "2|roadmap|another feature"; [ "$status" -eq 12 ]
+}
+
 @test "burn-down: a branch can NEVER exist without a manifest, even with the mode ARMED (R82)" {
   # THE GAP THAT HID THIS: every earlier test used a state dir where the burn-down flag was never
   # set — so the suite only ever exercised the one state the feature cannot really run in. The ON
@@ -2616,7 +2679,7 @@ _bd_setup() {
   local d st; d="$(_tmpd)"; st="$(_tmpd)"
   git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
   ( cd "$d" && CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/autopilot.sh" burndown on ) >/dev/null
-  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" start "1|parked|add retry backoff"
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" start "4|gap|add retry backoff"
   [ "$status" -eq 0 ]
   run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" show add-retry-backoff
   [ "$status" -eq 0 ]; [[ "$output" == *"must default to OFF"* ]]
@@ -2630,7 +2693,7 @@ _bd_setup() {
   # anything — the fault has to be injected where the code actually writes, or this guard silently
   # stops being exercised while still reading green.
   mkdir -p "$d2/.companion"; chmod 555 "$d2/.companion"
-  run env BURNDOWN_ROOT="$d2" CLAUDE_COMPANION_STATE_DIR="$st2" bash "$ROOT/bin/burndown-branch.sh" start "1|parked|thing"
+  run env BURNDOWN_ROOT="$d2" CLAUDE_COMPANION_STATE_DIR="$st2" bash "$ROOT/bin/burndown-branch.sh" start "4|gap|thing"
   chmod 755 "$d2/.companion"
   [ "$status" -eq 7 ]
   [ "$(git -C "$d2" branch --list 'burndown/*' | wc -l)" -eq 0 ]
@@ -3572,7 +3635,40 @@ EOT
   [ -z "$output" ]
 }
 
-@test "stop-autopilot: the kill switch and its bounds all yield, and ship-mode/burn-down stay dead (R26/R81)" {
+@test "stop-autopilot: a DRY queue with burn-down armed and a BURN verdict refuses the stop (R82 hand-off restored)" {
+  # The gap this closes: burn-down was documented as automatic but nothing ever fired it — the
+  # dry-queue path just ended the turn and STEERING asked the model to remember. Continuing a turn
+  # is control-flow, which is the one thing a hook can actually guarantee (R28).
+  local SA="$ROOT/bin/stop-autopilot.sh" repo
+  repo="$(_tmpd)"; git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  local _stop; _stop() { run bash -c 'printf "{\"cwd\":\"$1\",\"session_id\":\"sBD\"}" | "$2"' _ "$repo" "$SA"; }
+
+  # DRY queue, burn-down OFF -> the turn ends, exactly as before. Proves the new branch is opt-in.
+  _stop; [ -z "$output" ]
+
+  # Arm burn-down, but give it NO usable snapshot: should-burn HOLDs, so the turn must still end.
+  # Hold is the safe direction and every unknown resolves to it.
+  ( cd "$repo" && "$AP" burndown on ) >/dev/null
+  _stop; [ -z "$output" ]
+
+  # Now a snapshot that genuinely forecasts underspend, seeded twice so the R90 two-sample rule is
+  # satisfied — the same thing the status line does by repainting.
+  local n; n="$(date +%s)"
+  printf '%s %s %s %s %s\n' "$(( n - 30 ))" 10 "$(( n + 7200 ))" 5 "$(( n + 172800 ))" \
+    > "$CLAUDE_COMPANION_STATE_DIR/ratelimit"
+  ( cd "$repo" && BURNDOWN_ROOT="$repo" bash "$ROOT/bin/burn-down.sh" should-burn ) >/dev/null 2>&1 || true
+  printf '%s %s %s %s %s\n' "$n" 10 "$(( n + 7200 ))" 5 "$(( n + 172800 ))" \
+    > "$CLAUDE_COMPANION_STATE_DIR/ratelimit"
+  _stop
+  [[ "$output" == *'"decision":"block"'* ]]     # the stop is REFUSED — the hand-off fired
+  [[ "$output" == *"burn-down says BURN"* ]]
+  [[ "$output" == *"candidates"* ]]             # ...and it names what to do next
+  [[ "$output" == *"burndown-branch"* ]]
+}
+
+@test "stop-autopilot: the kill switch and its bounds all yield; ship-mode stays dead, burn-down hands off (R26/R81/R82)" {
   local SA="$ROOT/bin/stop-autopilot.sh" repo
   repo="$(_tmpd)"; git -C "$repo" init -q
   ( cd "$repo" && "$AP" on ) >/dev/null
@@ -3597,8 +3693,20 @@ EOT
   # re-automates itself.
   run grep -cE "git commit|git add -A" "$SA"
   [ "$output" -eq 0 ]                                  # ship-mode belongs to ship-checkpoint.sh
-  run grep -cE "burn-down\.sh|candidates\.sh" "$SA"
-  [ "$output" -eq 0 ]                                  # burn-down is the model's call now
+  # BURN-DOWN IS THE EXCEPTION, reversed 2026-08-15 by owner decision: the hook now makes the CHEAP
+  # call (should-burn) and hands the expensive ranking to the model. It must NOT rank candidates
+  # itself — `candidates.sh` git-greps the whole repo, which is unbounded in repo size on a hook
+  # that fires at every stop (R81). So: burn-down.sh yes, candidates.sh no.
+  # Assert on INVOCATION, not mention: the hook names candidates.sh in the instruction it hands
+  # back to the model, which is the whole point of the hand-off — what must not happen is the hook
+  # RUNNING it.
+  run grep -c "should-burn" "$SA"
+  [ "$output" -ge 1 ]                                  # the CHEAP verdict is wired again
+  # ...but the repo-wide scan stays OUT of the hook. Assert on execution shapes, not on the name:
+  # the hook names candidates.sh in the instruction it hands back to the model, which is the point
+  # of the hand-off. Running it is what R81 forbids (git grep is unbounded in repo size).
+  run grep -cE '[$][(][^)]*candidates[.]sh|(bash|exec) [^|]*candidates[.]sh' "$SA"
+  [ "$output" -eq 0 ]
   # ...and it must still READ the selection from tq rather than re-deriving it: the recorded drift
   # bug had this hook offering a task blocked on an unanswered park four turns running.
   run grep -c "stopfields" "$SA"

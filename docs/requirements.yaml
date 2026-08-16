@@ -70,10 +70,22 @@
     owner's original defect report. A nudge the model can skip is not a mode (ADR R36).
 
     PARTIAL RESTORE, deliberately: 135 of the retired file's 183 lines. Ship-mode auto-commit (R34)
-    stays deleted because bin/ship-checkpoint.sh owns it now, and the burn-down hand-off (R82) stays
-    deleted because STEERING tells the model to call burn_down itself — restoring either would put
-    two owners on one concern and silently re-automate a path made manual on purpose. What returned
-    is the continuation guarantee plus EVERY terminator that bounds it: the no-progress stall cap
+    stays deleted because bin/ship-checkpoint.sh owns it now.
+
+    THE BURN-DOWN HAND-OFF (R82) WAS ALSO OMITTED, AND THAT WAS REVERSED 2026-08-15 (owner-decided).
+    The original argument was duplicate ownership: STEERING told the model to call burn_down itself,
+    so automating it here would make that prose false. What the argument missed is that prose is not
+    an owner — it is a request. The owner reasonably believed the feature was automatic while
+    nothing ever fired it, and the same session proved how that class of instruction fares (0 of 89
+    tasks carried the breadcrumbs STEERING has demanded since R47). Ownership is not duplicated now
+    because the STEERING sentence was rewritten in the SAME change, and the split follows R28/R81:
+    the hook owns WHETHER to continue (one cheap should-burn call, measured at 23ms on an empty
+    store), the model owns WHAT to build — candidates.sh git-greps the whole repo and must never run
+    inside a hook. A prerequisite shipped with it: candidates rank 1 now requires evidence the owner
+    SAW the park, or the restored trigger would let an unattended run build the model's own
+    unreviewed recommendation.
+
+    What returned is the continuation guarantee plus EVERY terminator that bounds it: the no-progress stall cap
     (CLAUDE_COMPANION_AUTOPILOT_MAX, 8), the R81 wall-clock and total-turn run bounds, the R77 sweep
     terminator, and the CLAUDE_COMPANION_AUTOPILOT_CONTINUE=0 kill switch. Restoring the
     continuation WITHOUT its bounds would have been the one genuinely dangerous version.
@@ -85,7 +97,8 @@
     - "ask-guard: autopilot ON denies AND auto-parks the question with its real options + a recommendation (R84)"
     - "ask-guard: autopilot OFF silently allows — no denial, no park"
     - "stop-autopilot: armed + a startable task BLOCKS the stop; a drained queue allows it (R26 restored)"
-    - "stop-autopilot: the kill switch and its bounds all yield, and ship-mode/burn-down stay dead (R26/R81)"
+    - "stop-autopilot: a DRY queue with burn-down armed and a BURN verdict refuses the stop (R82 hand-off restored)"
+    - "stop-autopilot: the kill switch and its bounds all yield; ship-mode stays dead, burn-down hands off (R26/R81/R82)"
 
 - id: R29
   satisfies: [UN-2]
@@ -616,9 +629,11 @@
     - "burn-down: refuses when the 5h window has no room to actually work"
     - "candidates: never invents while a recorded signal remains, and labels it when it does"
     - "candidates: a DECISION park is never offered as buildable work (R82 soft spots)"
+    - "candidates: rank 1 requires evidence the OWNER SAW the park — a model-authored one is not buildable"
     - "burndown-branch: work is containerised — never on main, never pushed, always discardable"
     - "candidates: does not feed on prose ABOUT markers, only real annotations"
     - "candidates: excludes its own PLUGIN TREE, not just its own file — a sibling describing the ranking is still a mirror"
+    - "burn-down: the buildable TIER is earned by acceptance, not granted by spare capacity (R82)"
     - "burn-down: a branch can NEVER exist without a manifest, even with the mode ARMED (R82)"
     - "burn-down: parks and blocked items are NOT buildable work and must not block it (R82)"
     - "burndown-branch: a slug cannot escape the manifest dir (R82)"
