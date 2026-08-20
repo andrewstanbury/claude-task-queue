@@ -1,0 +1,10 @@
+{
+  "id": "123",
+  "subject": "SCHEDULED RUNS: prioritise HARDENING over features, with features capped per cycle — owner-decided direction 2026-08-20. Verification is machine-answerable and reduces risk on code already depended on; a generated feature adds review debt denominated in owner time, which does not grow with the token budget",
+  "status": "completed",
+  "done_when": "the work-selection surface ranks hardening candidates (coverage gaps, untested flows, repeat-failure components) above feature-shaped ones, and refuses to open more than N feature branches per window (N configurable, small default); tests cover the ordering and the cap",
+  "context": "plugins/companion/bin/candidates.sh (the 6-rank ladder), plugins/companion/bin/burndown-branch.sh (tier gate already gates features behind acceptance)",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran candidates.sh on a fixture with a TODO, an untested flow and a ROADMAP item: hardening now leads and the roadmap line is demoted but still offered. Drove burndown-branch.sh through the cap on a real git repo — features 1 and 2 open, the 3rd is refused with exit 14, hardening still builds while features are capped, and discarding one both freed a slot AND dropped acceptance below the feature tier, i.e. both gates compounding honestly."
+}

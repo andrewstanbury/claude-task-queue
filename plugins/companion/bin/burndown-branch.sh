@@ -131,7 +131,17 @@ tier_allows() {  # $1 rank -> 0 when permitted
 }
 
 cmd_start() {
-  local spec="${1:-}" rank source text slug branch def
+  local spec="" why="" rank source text slug branch def
+  # --why carries the ROI RATIONALE (owner-decided 2026-08-20): which of the project's ordered core
+  # values this serves, what it is estimated to cost, and what it was chosen OVER. Optional at the
+  # CLI so existing callers keep working, but its ABSENCE is recorded loudly in the manifest rather
+  # than silently — a priority nobody can read back is indistinguishable from one nobody made.
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --why) why="${2:-}"; shift 2 || shift ;;
+      *) [ -n "$spec" ] || spec="$1"; shift ;;
+    esac
+  done
   [ -n "$spec" ] || die "start needs a candidate: '<rank>|<source>|<text>'"
   rank="${spec%%|*}"; spec="${spec#*|}"; source="${spec%%|*}"; text="${spec#*|}"
   [ -n "$text" ] || die "candidate has no text"
@@ -162,6 +172,30 @@ cmd_start() {
   # top. Ordering it first made a dirty tree read as a tier problem, which sends the reader to fix
   # the wrong thing (caught by the containerisation test, which asserts the dirty refusal).
   [ "$rank" != 6 ] || die "rank 6 is INVENTED work — nothing recorded asked for it, so it is never built unattended at any acceptance rate. Record the intent first (a ROADMAP line, a TODO, a parked decision) and it becomes buildable as the tier it actually is." 13
+  # FEATURE CAP (owner-decided 2026-08-20). Hardening is verifiable without the owner and reduces
+  # risk on code they already depend on; a generated FEATURE costs review attention, which does not
+  # grow when the token budget does. So feature-shaped work gets a much tighter ceiling than the
+  # general branch cap: at most FEATURE_MAX outstanding at once.
+  #
+  # "Feature-shaped" is `roadmap` and `invent` — deliberately NOT `parked`, because an owner-deferred
+  # park carrying `rec:` is their OWN recorded choice and capping it would be the loop overruling
+  # them, and not `todo`/`gap`/`rework`, which are hardening by construction.
+  #
+  # Counted from the MANIFESTS of branches still awaiting review, so it is self-clearing exactly
+  # like the general cap: review or discard one and room appears. No new state to keep in sync.
+  case "$source" in
+    roadmap|invent)
+      _fmax="${BURNDOWN_FEATURE_MAX:-2}"
+      case "$_fmax" in ''|*[!0-9]*) _fmax=2 ;; esac
+      _fn=0
+      for _b in $(git -C "$root" branch --list 'burndown/*' --format='%(refname:short)' 2>/dev/null); do
+        _m="$MANIFEST_DIR/${_b#burndown/}.md"
+        [ -f "$_m" ] || continue
+        # shellcheck disable=SC2016  # backticks are LITERAL here — they are markdown in the manifest
+        grep -qE '^\- \*\*Source signal:\*\* `(roadmap|invent)`' "$_m" 2>/dev/null && _fn=$((_fn+1))
+      done
+      [ "$_fn" -lt "$_fmax" ] || die "$_fn feature-shaped branch(es) already awaiting review (max $_fmax) — features are capped far below hardening on purpose: reviewing them costs YOUR time, which does not scale with the token budget. Review or discard one first; hardening candidates are still buildable." 14 ;;
+  esac
   tier_allows "$rank" || die "rank $rank is above this repo's earned tier — burn-down may build debt paydown (TODOs, untested flows) until generated branches are demonstrably kept. Merge or discard the existing burndown/* branches and the ceiling moves on its own; \`burndown-branch.sh list\` shows what is waiting." 12
   ledger_record created "$slug"
 
@@ -177,6 +211,9 @@ at it later and either keep it or delete it — those are the only two expected 
 
 - **Source signal:** \`$source\` (rank $rank)
 - **Because:** $text
+
+## Why this, now
+$( [ -n "$why" ] && printf '%s' "$why" || printf '%s' "**NO RATIONALE WAS RECORDED.** This branch was opened without stating which core value it serves, what it was estimated to cost, or what it was chosen over. Treat that as a reason for extra scepticism when reviewing it, not as an oversight to forgive: the loop is supposed to write this down BEFORE building so you can correct its priorities rather than only its output." )
 - **Feature flag:** \`BURNDOWN_$(printf '%s' "$slug" | tr 'a-z-' 'A-Z_')\` — **must default to OFF**,
   implemented in whatever idiom this project already uses for flags.
 - **Branch:** \`$branch\`
@@ -236,7 +273,7 @@ cmd_discard() {
 }
 
 case "${1:-list}" in
-  start)   shift; cmd_start "${1:-}" ;;
+  start)   shift; cmd_start "$@" ;;
   list)    cmd_list ;;
   show)    shift; [ -n "${1:-}" ] || die "show needs a slug"
            valid_slug "${1:-}" || die "refusing a slug that is not [a-z0-9-]: '$1'" 8

@@ -50,6 +50,25 @@ SAMPLETOL="${BURNDOWN_SAMPLE_TOLERANCE:-5}"     # max points two readings may di
 HEADROOM5="${BURNDOWN_MIN_5H_HEADROOM:-15}"     # refuse when the 5h window is nearly spent
 FIVE="${BURNDOWN_FIVE_HOUR:-18000}"             # the 5h window, from the field's own name — the staleness yardstick
 
+# THE SCHEDULE IS THE TRIGGER (owner-decided 2026-08-20). A scheduled/headless run has no status
+# line, so no rate-limit snapshot exists and the forecast can only ever say "no snapshot yet" —
+# burn-down would HOLD forever in exactly the substrate chosen to run it. That is not a reason to
+# fake a forecast: the forecast answers "is there idle capacity nobody has claimed?", and a cron
+# entry ANSWERS THAT IN ADVANCE. Scheduling a run IS the decision to spend.
+#
+# So --scheduled bypasses the FORECAST and nothing else. Every safety gate still applies, and they
+# are the ones that actually bound the damage: burn-down must be armed, REAL QUEUED WORK still
+# outranks generated work, the unreviewed-branch cap still stops generation outrunning review, and
+# downstream burndown-branch.sh still refuses a dirty tree, still never merges and never pushes.
+# The time-based cap lift is deliberately NOT granted here — without a snapshot we cannot know how
+# much of the window has elapsed, so the cap stays at its conservative base.
+SCHEDULED=0
+_bd_args=()
+for _a in "$@"; do
+  case "$_a" in --scheduled) SCHEDULED=1 ;; *) _bd_args+=("$_a") ;; esac
+done
+set -- ${_bd_args[@]+"${_bd_args[@]}"}
+
 root="$(companion_root "${BURNDOWN_ROOT:-$PWD}")"
 now="$(date +%s 2>/dev/null || echo 0)"
 case "$now" in ''|*[!0-9]*) now=0 ;; esac
@@ -74,6 +93,7 @@ evaluate() {
   companion_burndown_on "$root" || { say "burn-down is OFF for this repo (turn it on deliberately)"; return; }
 
   local snap ts u5 r5 u7 r7 age left elapsed projected open nb
+if [ "$SCHEDULED" -eq 0 ]; then
   snap="$(companion_rl_snapshot)"
   [ -f "$snap" ] || { say "no rate-limit snapshot yet — the status line writes it; is it wired?"; return; }
   # Field order is the snapshot's contract; dropping any field would silently shift u7/r7 by one,
@@ -190,6 +210,11 @@ evaluate() {
   #   · one long-lived ⏳ (which R83 explicitly expects to sit for weeks) disabled the mode forever.
   # -e alternation, NOT a [❓⏳] bracket: a bracket expression over multibyte characters is
   # not portable — BSD grep (the macOS CI lane) can match bytes rather than characters.
+else
+  elapsed=0   # unknown without a snapshot: keep the branch cap at its conservative base
+  detail="scheduled run — the schedule is the trigger, so no forecast was consulted; every safety gate still applied"
+fi
+
   # BOTH markers: R113 gave in_progress its own glyph (▸) so a crashed session's mid-flight task is
   # distinguishable on resume — and this count, which had only ever seen ◻, silently stopped seeing
   # the task actually being WORKED ON. That inverted the rule one line above: work in flight is the
@@ -202,6 +227,7 @@ evaluate() {
   case "$open" in ''|*[!0-9]*) open=0 ;; esac
   [ "$open" -eq 0 ] || { say "$open task(s) still queued — real work outranks generated work"; return; }
 
+if [ "$SCHEDULED" -eq 0 ]; then
   # Record this reading for the NEXT run, then require the PREVIOUS one to corroborate it. Writing
   # happens unconditionally so a HOLD still seeds the comparison — otherwise the mode could never
   # accumulate the second sample it now requires. Best-effort: an unwritable state dir degrades to
@@ -212,6 +238,8 @@ evaluate() {
   [ "$(( now - prev_ts ))" -le "$FRESH" ] || { say "previous reading is $(( now - prev_ts ))s old (max ${FRESH}s) — too stale to corroborate"; return; }
   sdiff=$(( used_i - prev_u7 )); [ "$sdiff" -ge 0 ] || sdiff=$(( 0 - sdiff ))
   [ "$sdiff" -le "$SAMPLETOL" ] || { say "the last two readings disagree by ${sdiff} points (max ${SAMPLETOL}) — that is the rollover transient, not headroom"; return; }
+
+fi
 
   # The cap lifts only inside the final stretch, and only there — outside it, three unreviewed
   # branches still means stop, because generating past what you are reviewing is waste by
@@ -227,7 +255,12 @@ evaluate() {
   nb="$(unreviewed)"
   [ "$nb" -lt "$cap" ] || { say "$nb unreviewed burndown/* branch(es) (max $cap) — review or delete before more is made"; return; }
 
-  verdict="BURN"; say "forecast underspend with an empty queue and $nb/$cap branches awaiting review"
+  verdict="BURN"
+  if [ "$SCHEDULED" -eq 1 ]; then
+    say "SCHEDULED run with an empty queue and $nb/$cap branches awaiting review — the schedule is the trigger, no forecast consulted"
+  else
+    say "forecast underspend with an empty queue and $nb/$cap branches awaiting review"
+  fi
 }
 
 evaluate
@@ -242,5 +275,5 @@ case "${1:-status}" in
     printf 'hold: %s\n' "$reason" >&2
     exit 1 ;;
   *)
-    printf 'usage: burn-down.sh [status|should-burn]\n' >&2; exit 2 ;;
+    printf 'usage: burn-down.sh [status|should-burn] [--scheduled]\n' >&2; exit 2 ;;
 esac

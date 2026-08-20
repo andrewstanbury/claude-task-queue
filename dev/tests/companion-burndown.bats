@@ -967,3 +967,115 @@ load helper
   run grep -c "stopfields" "$SA"
   [ "$output" -ge 1 ]
 }
+
+@test "burn-down --scheduled: the SCHEDULE is the trigger, and it bypasses ONLY the forecast (R116)" {
+  # A scheduled/headless run has no status line, so no rate-limit snapshot exists and the forecast
+  # can only ever say "no snapshot yet" — burn-down would HOLD forever in exactly the substrate
+  # chosen to run it. The forecast answers "is there idle capacity nobody claimed?"; a cron entry
+  # answers that in advance. What must NOT be bypassed is everything that bounds the damage.
+  _bd_setup
+  local _s; _s() { run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+      BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" "$@"; }
+  rm -f "$BD_STATE/ratelimit"
+
+  # unscheduled with no snapshot behaves EXACTLY as before — the bypass is opt-in
+  _s status; [[ "$output" == HOLD:* ]]; [[ "$output" == *"no rate-limit snapshot"* ]]
+
+  # scheduled proceeds, and SAYS which path it took rather than implying a forecast happened
+  _s status --scheduled
+  [[ "$output" == BURN:* ]]; [[ "$output" == *"SCHEDULED"* ]]; [[ "$output" == *"no forecast consulted"* ]]
+  _s should-burn --scheduled; [ "$status" -eq 0 ]
+
+  # ARMING is not bypassable — the mode that authors work stays a deliberate act
+  ( cd "$BD_REPO" && CLAUDE_COMPANION_STATE_DIR="$BD_STATE" bash "$ROOT/bin/autopilot.sh" burndown off ) >/dev/null
+  _s status --scheduled; [[ "$output" == HOLD:* ]]; [[ "$output" == *"OFF for this repo"* ]]
+  ( cd "$BD_REPO" && CLAUDE_COMPANION_STATE_DIR="$BD_STATE" bash "$ROOT/bin/autopilot.sh" burndown on ) >/dev/null
+
+  # REAL QUEUED WORK still outranks generated work
+  mkdir -p "$BD_TASKS/sSch"; _stamp_root "$BD_TASKS/sSch" "$BD_REPO"
+  jq -n '{id:"1",subject:"something the owner asked for",status:"pending"}' > "$BD_TASKS/sSch/1.json"
+  _s status --scheduled; [[ "$output" == HOLD:* ]]; [[ "$output" == *"still queued"* ]]
+  rm -rf "$BD_TASKS/sSch"
+
+  # and the unreviewed-branch cap still stops generation outrunning review. No time-based lift is
+  # granted without a snapshot: we cannot know how much of the window elapsed, so the cap stays low.
+  local i
+  for i in 1 2 3; do
+    git -C "$BD_REPO" checkout -q -b "burndown/s$i" main
+    git -C "$BD_REPO" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "s$i"
+    git -C "$BD_REPO" checkout -q main
+  done
+  _s status --scheduled; [[ "$output" == HOLD:* ]]; [[ "$output" == *"unreviewed"* ]]
+  _s should-burn --scheduled; [ "$status" -eq 1 ]
+}
+
+@test "burn-down: HARDENING outranks features, and feature-shaped work is capped far below it (R116)" {
+  # Owner-decided direction 2026-08-20, and it follows the project's OWN ordered values — keep it
+  # self-describing · contain blast radius · verify and stay aligned · subtract as you add. Shipping
+  # features is not among them. The asymmetry: hardening is verifiable without the owner ("did the
+  # suite go red"), a feature costs review attention that does not scale with the token budget.
+  local d tk; d="$(_tmpd)"; tk="$(_tmpd)"; git -C "$d" init -q -b main
+  mkdir -p "$d/docs/flows"
+  printf '# R\n- [ ] add a dark theme\n'            > "$d/ROADMAP.md"
+  printf 'x  # TODO: cache this\n'                  > "$d/a.sh"
+  printf '# flow:x\nsteps:\n- does a thing\n'       > "$d/docs/flows/untested.md"
+  git -C "$d" add -A; git -C "$d" -c user.email=t@t -c user.name=t commit -qm i
+
+  # ORDERING: the two hardening signals come before the roadmap feature
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="$tk" REWORK_ROOT="$d" bash "$ROOT/bin/candidates.sh"
+  [ "$status" -eq 0 ]
+  local first; first="$(printf '%s\n' "$output" | head -1)"
+  [[ "$first" == 3\|todo\|* ]] || [[ "$first" == 4\|gap\|* ]]
+  # the roadmap line is still OFFERED — demoted, not dropped
+  [[ "$output" == *"2|roadmap|add a dark theme"* ]]
+  # ...and it appears AFTER both hardening ranks
+  local rn hn
+  rn="$(printf '%s\n' "$output" | grep -n '^2|roadmap' | cut -d: -f1)"
+  hn="$(printf '%s\n' "$output" | grep -n '^[34]|' | tail -1 | cut -d: -f1)"
+  [ "$rn" -gt "$hn" ]
+
+  # THE FEATURE CAP. Earn the feature tier first (2 judged outcomes at >=50%).
+  local BB="$ROOT/bin/burndown-branch.sh"
+  ( cd "$d" && bash "$BB" start "4|gap|first debt item" >/dev/null 2>&1; git checkout -q main
+    bash "$BB" start "4|gap|second debt item" >/dev/null 2>&1; git checkout -q main
+    bash "$BB" discard first-debt-item >/dev/null 2>&1
+    git branch -D burndown/second-debt-item >/dev/null 2>&1 )   # merged+pruned = kept
+
+  run bash -c 'cd "$1" && bash "$2" start "2|roadmap|dark theme" && git checkout -q main' _ "$d" "$BB"
+  [ "$status" -eq 0 ]
+  run bash -c 'cd "$1" && bash "$2" start "2|roadmap|export to csv" && git checkout -q main' _ "$d" "$BB"
+  [ "$status" -eq 0 ]
+  run bash -c 'cd "$1" && bash "$2" start "2|roadmap|a third feature"' _ "$d" "$BB"
+  [ "$status" -eq 14 ]; [[ "$output" == *"feature-shaped"* ]]
+
+  # ...while HARDENING is still buildable with features capped — that is the whole point
+  run bash -c 'cd "$1" && bash "$2" start "4|gap|another coverage gap" && git checkout -q main' _ "$d" "$BB"
+  [ "$status" -eq 0 ]
+}
+
+@test "burn-down: a branch records WHY it was chosen, and says so loudly when it does not (R116)" {
+  # Owner-decided 2026-08-20: rank by recorded judgment against the project's ordered core values,
+  # not by a numeric formula whose inputs would be invented. The rationale must be WRITTEN DOWN
+  # before building, so the owner can correct the loop's PRIORITIES and not merely its output.
+  # Structural, not advisory: the manifest cannot exist without either a rationale or a bold
+  # admission that none was given — the same rule that already forbids a branch with no stated
+  # reason at all.
+  local d; d="$(_tmpd)"; git -C "$d" init -q -b main
+  git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  local BB="$ROOT/bin/burndown-branch.sh"
+
+  run bash -c 'cd "$1" && bash "$2" start "4|gap|add a golden test for checkout" --why "Serves core value 2 (verify + stay aligned): widest blast radius, no automated net. Cost ~1 test file. Chosen over a cosmetic TODO." && git checkout -q main' _ "$d" "$BB"
+  [ "$status" -eq 0 ]
+  run cat "$d/.companion/burndown-manifests/add-a-golden-test-for-checkout.md"
+  [[ "$output" == *"Why this, now"* ]]
+  [[ "$output" == *"core value 2"* ]]
+  [[ "$output" == *"Chosen over"* ]]
+  [[ "$output" != *"NO RATIONALE"* ]]
+
+  # ABSENCE IS LOUD. A priority nobody can read back is indistinguishable from one nobody made.
+  run bash -c 'cd "$1" && bash "$2" start "4|gap|second thing" && git checkout -q main' _ "$d" "$BB"
+  [ "$status" -eq 0 ]
+  run cat "$d/.companion/burndown-manifests/second-thing.md"
+  [[ "$output" == *"NO RATIONALE WAS RECORDED"* ]]
+  [[ "$output" == *"extra scepticism"* ]]
+}

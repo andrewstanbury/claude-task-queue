@@ -119,16 +119,6 @@ while IFS= read -r line; do
   emit 1 parked "${line###* }"
 done < <(_rank1 | head -"$LIMIT")
 
-# 2 — ROADMAP intent. Generic: any ROADMAP-ish markdown, unchecked task-list items only.
-if [ "$found" -lt "$LIMIT" ]; then
-  while IFS= read -r line; do
-    [ -n "$line" ] || continue
-    emit 2 roadmap "$line"
-  done < <(find "$root" -maxdepth 2 -iname 'ROADMAP*.md' -type f 2>/dev/null \
-           | head -3 | xargs -r grep -h '^[[:space:]]*[-*] \[ \]' 2>/dev/null \
-           | sed -e 's/^[[:space:]]*[-*] \[ \][[:space:]]*//' | head -"$LIMIT")
-fi
-
 # 3 — TODO markers in TRACKED source only (never vendored or generated trees, which is why this
 # asks git rather than walking the filesystem).
 if [ "$found" -lt "$LIMIT" ]; then
@@ -193,6 +183,28 @@ if [ "$found" -lt "$LIMIT" ]; then
   done < <("$(dirname "$0")/rework.sh" report 2>/dev/null \
              | sed -n 's/^  ⟳ \([^ ]*\) implicated.*/\1/p')
 fi
+
+# 2 (ORDERED LAST OF THE RECORDED SIGNALS, 2026-08-20) — ROADMAP intent, moved BELOW the three
+# hardening ranks above. Not a preference: read this project's OWN values, in their own order —
+# keep it self-describing · contain blast radius · verify and stay aligned · subtract as you add.
+# Shipping features is not among them. A ROADMAP line is still a real recorded signal and still
+# gets built; it simply stops OUTRANKING a coverage gap or a repeatedly-failing component when an
+# UNATTENDED loop is doing the choosing.
+#
+# The asymmetry that decides it: a generated feature costs the owner REVIEW ATTENTION, which does
+# not grow when the token budget does, and "is this worth having" is answerable by nobody but them.
+# Hardening is verifiable without them — "did the suite go red" needs no judgement — and it reduces
+# risk on code they already depend on. Rank 1 deliberately stays FIRST: an owner-deferred park
+# carrying `rec:` is their own recorded choice, not the loop guessing on their behalf.
+if [ "$found" -lt "$LIMIT" ]; then
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    emit 2 roadmap "$line"
+  done < <(find "$root" -maxdepth 2 -iname 'ROADMAP*.md' -type f 2>/dev/null \
+           | head -3 | xargs -r grep -h '^[[:space:]]*[-*] \[ \]' 2>/dev/null \
+           | sed -e 's/^[[:space:]]*[-*] \[ \][[:space:]]*//' | head -"$LIMIT")
+fi
+
 
 # 6 — NOTHING RECORDED REMAINS. Say so explicitly rather than inventing quietly. A caller that
 # treats rank 6 like ranks 1-5 has defeated the entire design, so it is labelled, not disguised.

@@ -1,0 +1,10 @@
+{
+  "id": "122",
+  "subject": "SCHEDULED RUNS: burn-down needs a path where THE SCHEDULE IS THE TRIGGER — a cloud/headless run has no status line, so no rate-limit snapshot, so the forecast HOLDs forever ('no rate-limit snapshot yet'). Verified: tasks/modes/rework/outcomes all ride git, the snapshot does not. Bypass the FORECAST only; every safety gate stays",
+  "status": "completed",
+  "done_when": "an explicit scheduled invocation proceeds without a snapshot and says so in its reason; the tier ceiling, unreviewed-branch cap, dirty-tree refusal and never-merge/never-push guarantees all still apply and are covered by tests; an UNSCHEDULED run with no snapshot still HOLDs exactly as today",
+  "context": "plugins/companion/bin/burn-down.sh (snapshot read + should-burn), companion_rl_snapshot in lib/companion.sh, plugins/companion/bin/burndown-branch.sh (tier gate + cap)",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "drove the real burn-down through all five states in a scratch repo with NO snapshot: unscheduled still HOLDs on 'no rate-limit snapshot'; --scheduled BURNs and names the path taken; mode OFF still refuses; a real queued task still outranks it; and 3 unreviewed branches still cap it (no time lift granted without a snapshot). Mutation verified RED."
+}

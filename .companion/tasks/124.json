@@ -1,0 +1,10 @@
+{
+  "id": "124",
+  "subject": "SCHEDULED RUNS: the loop must RECORD its ROI reasoning — value, cost and why, weighed against the project's ordered core values (self-describing > blast radius > verify+align > subtract as you add) and the 8 needs — as a tq note BEFORE building, so priorities are auditable and correctable rather than silent",
+  "status": "completed",
+  "done_when": "every autonomously-started piece of work carries a recorded rationale naming which core value it serves and what it cost-estimates; a reviewer can read back why THIS was chosen over the alternatives; documented where the loop will actually read it",
+  "context": "docs/ROADMAP.md prioritized criteria (the ordered values), docs/needs.yaml (8 needs), plugins/companion/bin/candidates.sh, plugins/companion/STEERING.md autopilot block",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "drove burndown-branch.sh start with and without --why on a real repo: the manifest carries the rationale verbatim under 'Why this, now' when given, and prints a bold NO RATIONALE WAS RECORDED block when not. Found and fixed a real bug doing it — the dispatcher passed only $1, so --why never reached cmd_start and every manifest silently claimed no rationale. Hand-off message now demands it."
+}

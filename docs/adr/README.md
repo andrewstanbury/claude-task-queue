@@ -746,3 +746,70 @@ exact behaviour this entry exists to name, so the reasoning moved here and `chec
 five-line pointer. The rule caught its own author within a minute of existing.
 
 | 2026-08-16, owner-decided from a 4-option menu; the cap's first-ever downward move.
+
+## R116 — DECISION 🔓 (unattended weeks: the schedule is the trigger, hardening is the work)
+
+**The ask.** Owner, 2026-08-20: *"How do we make it so this plugin automatically burns tokens when
+I'm behind schedule… leave Claude CLI open for a week… come back to clean code, clean architecture,
+and some features developed autonomously with a feature flag… a weighted ROI of what tasks make
+sense to prioritize based on the core values of the project."*
+
+**THE PREMISE FAILED FIRST, AND IT WAS NOT THE RANKING.** Every hook this plugin ships is
+*reactive* — `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `Stop` all fire in response to a
+session that is already running. **Nothing in the plugin can start one.** And an unattended run is
+bounded to 6 hours by design (owner-ratified, R81). A week is 168 hours, so "leave it open" buys
+**3.6% of the week, once**, and then nothing restarts it. The missing piece was never ROI ranking or
+feature flags — both are policy, and the policy layer was already good. It was **substrate**.
+
+**Owner picked Claude Code's own scheduled runs** over an external cron (my recommendation) or
+staying session-bound. That choice has one hard consequence, verified rather than assumed: the task
+queue, mode flags, rework ledger and acceptance ledger **all ride git**, but the rate-limit snapshot
+is written by the status line and is **machine-local**. A cloud run has no status line, so
+`burn-down` could only ever answer *"no rate-limit snapshot yet"* — it would HOLD forever in
+precisely the substrate chosen to run it.
+
+**The resolution is the insight, not a workaround: A SCHEDULE IS A TRIGGER.** The forecast exists to
+answer *"is there idle capacity nobody has claimed?"* A cron entry answers that **in advance** —
+scheduling a run IS the decision to spend. So `--scheduled` bypasses the FORECAST and nothing else.
+Verified explicitly, because a bypass is exactly where safety quietly leaks: burn-down must still be
+ARMED · real queued work still outranks generated work · the unreviewed-branch cap still binds (and
+gets **no** time-based lift, since without a snapshot the elapsed window is unknowable) · downstream
+`burndown-branch.sh` still refuses a dirty tree, still never merges, still never pushes.
+
+**100% OF THE WEEKLY BUDGET IS UNREACHABLE, and burn-down already said so.** Live at the time of
+asking: *"7d 8% used… tracking to 23%… needs 140%/window sustained — UNREACHABLE: over 3x your
+sustained rate, and the 5h window caps throughput."* The 5-hour window is a throughput ceiling; you
+cannot spend a week's budget while awake for part of it. The underspend was real (8% at 34%
+elapsed); the **target** was the wrong instrument, not the observation.
+
+**WHAT THE IDLE BUDGET BUILDS — the owner took the different direction I recommended.** Hardening
+ranks above features, and feature-shaped work is separately capped at 2 outstanding.
+
+The argument is an asymmetry, not a taste: hardening is verifiable *without* the owner ("did the
+suite go red" needs no judgement) and reduces risk on code already depended on. A generated feature
+costs **review attention, which does not grow when the token budget does**, and "is this worth
+having" is answerable by nobody else. The evidence was close to hand — the sessions preceding this
+produced ~10 defects in a day, four self-referential bugs found only by audit, and a verification
+gate silently corrupting the working tree while reporting success. The binding constraint here is
+verification, not ideas.
+
+It also follows the project's own values, read in their own order: *self-describing · contain blast
+radius · verify and stay aligned · subtract as you add.* **Shipping features is not among them.** So
+`roadmap` was demoted below `todo`/`gap`/`rework` — demoted, not dropped. Rank 1 deliberately stays
+first: an owner-deferred park carrying `rec:` is their own recorded choice, not the loop guessing.
+
+**RANKING IS RECORDED JUDGMENT, NOT A FORMULA.** The owner chose this over a numeric
+`(value × confidence) / cost` score, and the reason is worth keeping: every input to that formula
+would have been invented. "Value 7, cost 3" launders a guess as arithmetic and is then trusted more
+*because* it has numbers in it. Instead `burndown-branch.sh start` takes `--why`, and the manifest
+gains a **Why this, now** section naming the core value served, the estimated cost, and what it was
+chosen OVER. Absence is **loud**: a manifest with no rationale says so in bold and tells the reviewer
+to be more sceptical. A priority nobody can read back is indistinguishable from one nobody made.
+
+**What this still does NOT do, stated plainly.** It does not schedule anything by itself — the
+routine is set up outside the plugin, and if it is never created, none of this runs. It cannot ask a
+question mid-run, so a parked decision stalls that cycle until the owner returns. And one week of
+evidence is not a track record: the acceptance ledger exists precisely so the tier ceiling moves on
+measured merges rather than on anyone's optimism.
+
+| 2026-08-20, owner picked scheduled runs + hardening-first + recorded judgment; the substrate gap was the real finding.
