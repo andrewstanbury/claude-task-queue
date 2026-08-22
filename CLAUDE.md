@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 This repo is the source of **`companion`** — a portable task-queue + steering system, shipped as
-a Claude Code plugin: one steering doc, a small MCP server, six hooks (**R100/Pass 6**, landing
+a Claude Code plugin: one steering doc, a small MCP server, seven hooks (**R100/Pass 6**, landing
 in bounded passes tracked in `tq` — see [docs/adr/README.md](./docs/adr/README.md) R100/R105).
 
 ## The working agreement lives in one file
@@ -12,16 +12,17 @@ recommendation posture, clean-as-you-go, autopilot. **Injected automatically at 
 again** (R105) — or `/companion:resume` any time mid-session. **On this repo, it governs how you
 work here too.**
 
-## Architecture (R100/R105/R111) — steering, a portable core, six re-enforced hooks
+## Architecture (R100/R105/R111) — steering, a portable core, seven re-enforced hooks
 
 - **Steering** (prose the model reads, ignorable-by-nature, advisory) → `STEERING.md`.
 - **The portable core** — `plugins/companion/bin/` + `mcp-server/`: `tq` (**THE task queue**,
   R8/R10; also an MCP server, `companion-tq`, for any MCP-capable client) · advisory
   `check-secrets.sh` (was an enforced block) · `resume.sh` (on-demand triage pull) ·
   `ship-checkpoint.sh` (ship-mode's commit logic, manual) · `statusline.sh` · `autopilot.sh`.
-- **Six hooks** — `prompt-continue.sh` · `session-start.sh` · `ask-guard.sh` ·
+- **Seven hooks** — `prompt-continue.sh` · `session-start.sh` · `ask-guard.sh` ·
   `stop-autopilot.sh` · `contract-guard.sh` (refuses contract REVERSALS; additions pass, R86) ·
-  `secret-guard.sh` (refuses a real credential; the one gate that fails CLOSED).
+  `secret-guard.sh` (refuses a real credential; the one gate that fails CLOSED) ·
+  `ask-close.sh` (PostToolUse: closes a question's park once ANSWERED; a missed one survives).
   Per-hook responsibilities and their bounds live in **[docs/MAP.md](./docs/MAP.md)** — read it
   before touching one. 
 - **Commands** — `setup` · `autopilot` · `ship-it` · `handoff` · `resume` · `review` ·

@@ -658,6 +658,7 @@
     - "review_pile: classifies the owner's pile by HOW it must be asked, and is silent when clear"
     - "command-lint portability floor: a command with no portable footing FAILS; a reasoned cli-only marker passes"
     - "ask-guard: a BATCHED ask parks EVERY question, and dedup is per-question (R109·b)"
+    - "ask-close: an ANSWERED question's park closes; a missed or dismissed one SURVIVES (R116)"
     - "contract-guard: blocks contract REVERSALS and needs authoring, allows additions (R86, CLI-only)"
     - "secret-guard: BLOCKS a real credential, and fails CLOSED on the payload shapes that once let one through"
     - "secret-guard: its credential regex is the SAME one the rest of the plugin uses (no re-implementation)"

@@ -1,9 +1,10 @@
 {
   "id": "133",
   "subject": "MISSED ASKS: capture every AskUserQuestion as a ❓ park on PreToolUse and CLOSE it on PostToolUse when an answer returns — today the park only happens under autopilot, so a question missed with autopilot OFF vanishes entirely and the work behind it is silently dropped",
-  "status": "pending",
+  "status": "completed",
   "done_when": "asking parks the full payload immediately regardless of autopilot; answering closes that park in the same turn; a dismissed/missed/abandoned question SURVIVES as ❓ and is surfaced at session start and by review; no stale parks accumulate for answered questions; hook is best-effort (R68) and bounded (R81); tests cover ask->answer (closes), ask->no-answer (survives), and the autopilot path unchanged",
   "context": "plugins/companion/bin/ask-guard.sh (PreToolUse today, parks only under autopilot), plugins/companion/hooks/hooks.json (needs a PostToolUse matcher), UNVERIFIED: the PostToolUse payload shape for a DISMISSED vs answered question needs one live confirmation",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "seen": "drove the pair end to end on a scratch repo with autopilot OFF: the question is ALLOWED through (silent) and parked anyway; a PostToolUse with NO response leaves both parks pending; an empty {} response also leaves them; a real answer cancels both and writes a note saying why. Both mutations verified RED. STATED LIMIT: the live PostToolUse payload shape for a DISMISSED vs answered question is still unverified from here, which is why it closes only on POSITIVE evidence — 'cannot tell' reads as 'leave it parked'."
 }

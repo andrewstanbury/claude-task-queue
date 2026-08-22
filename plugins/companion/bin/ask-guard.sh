@@ -20,7 +20,14 @@ done
 in="$(cat 2>/dev/null || true)"
 cwd="$(printf '%s' "$in" | jq -r '.cwd // empty' 2>/dev/null || true)"; [ -n "$cwd" ] || cwd="$PWD"
 root="$(companion_root "$cwd")"
-companion_autopilot_on "$root" || exit 0
+# PARK ALWAYS, DENY ONLY WHEN ARMED (owner-asked 2026-08-22). This used to exit here when autopilot
+# was off, which meant the capture guarantee existed only in the one state the owner is least likely
+# to be watching from. With autopilot OFF a question they scroll past, dismiss, or miss while typing
+# elsewhere simply evaporated — no record, no queue item, and the work behind it silently dropped.
+# Now the payload is parked either way; ask-close.sh (PostToolUse) removes the park when an answer
+# comes back, so an ANSWERED question leaves nothing behind and a MISSED one survives to be reviewed.
+armed=0
+companion_autopilot_on "$root" && armed=1
 
 # Same denial either way (asking = stopping), but the GUIDANCE differs by mode (R59). Default:
 # park every decision. Decisive: auto-pick your recommended option for REVERSIBLE decisions
@@ -107,5 +114,9 @@ fi
 if [ -n "$parked_id" ]; then
   reason="ALREADY PARKED FOR YOU as ${parked_id} — EVERY question you just asked has been written to the queue with its own options and recommendation, so nothing is lost and you do not need to re-park it. Do NOT re-ask and do NOT re-add it. Keep going with the rest of the work; /companion:review will walk it (it asks the whole pile at once and resumes autopilot afterwards, R83). NOTE: the auto-park deliberately omits the \`rev:\` marker, so it is treated as IRREVERSIBLE and will never be swept — if this choice is in fact reversible and safe for sweep mode to apply, re-add it yourself with \`rev:\`. ${reason}"
 fi
+
+# Autopilot OFF: the question is ALLOWED through — the owner is present and should see it. The park
+# still exists, and is closed the moment an answer returns. Silence here is the allow.
+[ "$armed" -eq 1 ] || exit 0
 
 jq -cn --arg r "$reason" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'

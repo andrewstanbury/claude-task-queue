@@ -119,6 +119,12 @@ jq -nc --arg c "$REPO" --arg s "$SID" '{cwd:$c,session_id:$s}' > "$TMP/in-sa"
 # secret-guard.sh fires on EVERY Write/Edit/NotebookEdit — the highest-frequency hook path in the
 # plugin — so it is measured on content that reaches BOTH regex passes (no anchored hit, so the
 # generic heuristic also runs), not on a payload that exits early.
+# ask-close.sh fires only on an AskUserQuestion result, so it is rare — but it SCANS THE SESSION
+# STORE looking for the park to close, which is the one thing R81 cares about: cost that grows with
+# the store. Measured with an answered payload so it takes the scanning branch, not an early exit.
+jq -nc --arg c "$REPO" --arg s "$SID" '{cwd:$c,session_id:$s,
+  tool_input:{questions:[{question:"pick a cache",options:[{label:"sqlite"},{label:"files"}]}]},
+  tool_response:{"pick a cache":"sqlite"}}' > "$TMP/in-ac"
 jq -nc --arg f "$REPO/f0" '{tool_name:"Write",tool_input:{file_path:$f,
   content:"function x() { return 1 } // a line of ordinary code with password_hint = \"the dog\""}}' > "$TMP/in-sg"
 jq -nc --arg f "$REPO/docs/requirements.yaml" '{tool_name:"Edit",tool_input:{file_path:$f,
@@ -156,7 +162,8 @@ for spec in \
   "ask-guard.sh:in-ag" \
   "stop-autopilot.sh:in-sa" \
   "contract-guard.sh:in-cg" \
-  "secret-guard.sh:in-sg"
+  "secret-guard.sh:in-sg" \
+  "ask-close.sh:in-ac"
 do
   script="${spec%%:*}"; inf="${spec##*:}"
   [ -f "$BIN/$script" ] || continue

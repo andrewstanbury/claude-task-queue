@@ -38,7 +38,7 @@ because those are paid in every session in every installed repo. That cap rose e
 (6144→8730, +42%) until the 2026-08-16 audit found it at five bytes of headroom; it now
 RATCHETS DOWN only — 8500 — so an addition must be funded by a deletion (docs/adr R115).
 
-## Architecture — steering, a portable core, and six hooks (R100/R105/R114/R116, supersedes R24)
+## Architecture — steering, a portable core, and seven hooks (R100/R105/R114/R116, supersedes R24)
 
 - **Steering** (`plugins/companion/STEERING.md`) — all the prose: queue discipline, the
   brutal-honest recommendation posture against the ledger, clean-as-you-go, autopilot. Injected
@@ -54,7 +54,7 @@ RATCHETS DOWN only — 8500 — so an addition must be funded by a deletion (doc
   ship-mode's commit logic, still manually invoked (not reinstated); `autopilot.sh`, a persisted
   preference flag — **"don't ask" enforced again** (R100/Pass 6), **"keep going" still not**;
   the status line (`statusline.sh`, untouched).
-- **Six hooks** — `prompt-continue.sh` (UserPromptSubmit, never retired): the case that needs
+- **Seven hooks** — `prompt-continue.sh` (UserPromptSubmit, never retired): the case that needs
   session-boundary state a prompt can't see on its own. `session-start.sh` (SessionStart,
   **reinstated** R100/Pass 6): guarantees STEERING + carried tasks reach a session — the owner's
   fix for a model ignoring context it never had. `ask-guard.sh` (PreToolUse[AskUserQuestion],

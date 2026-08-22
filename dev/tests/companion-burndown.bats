@@ -1116,3 +1116,41 @@ load helper
   run grep -l "brand new" "$CLAUDE_COMPANION_TASKS_DIR/sAG"/*.json
   [ "$status" -eq 0 ]
 }
+
+@test "ask-close: an ANSWERED question's park closes; a missed or dismissed one SURVIVES (R116)" {
+  # Owner-asked 2026-08-22: "I often am working on another prompt and miss the recommendations."
+  # ask-guard now parks EVERY question, not only the ones autopilot denies — otherwise the capture
+  # existed only in the state the owner is least likely to be watching from. That fix creates a
+  # second risk (stale parks for answered questions), and a pile of stale parks trains you to ignore
+  # the pile, which is the same as having no pile. This closes that loop.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  local AC="$ROOT/bin/ask-close.sh"
+  local qs='"questions":[{"question":"pick a cache","options":[{"label":"sqlite"},{"label":"files"}]},{"question":"pick a theme","options":[{"label":"dark"},{"label":"light"}]}]'
+  local payload='{"cwd":"'"$repo"'","session_id":"sC","tool_input":{'"$qs"'}}'
+
+  # AUTOPILOT OFF: the question is ALLOWED through (silent) but parked anyway
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$payload" "$AG"
+  [ "$status" -eq 0 ]; [ -z "$output" ]                       # silence = allowed, owner still sees it
+  [ "$(ls "$CLAUDE_COMPANION_TASKS_DIR/sC"/*.json | wc -l)" -eq 2 ]
+
+  # NO tool_response — dismissed, missed, or the terminal closed. The parks MUST survive: this is
+  # the entire point, and "cannot tell" must read as "leave it parked".
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$payload" "$AC"
+  [ "$status" -eq 0 ]
+  [ "$(jq -rs '[.[]|select(.status=="pending")]|length' "$CLAUDE_COMPANION_TASKS_DIR/sC"/*.json)" -eq 2 ]
+
+  # an ANSWER closes them, so an answered question leaves nothing behind
+  local answered='{"cwd":"'"$repo"'","session_id":"sC","tool_input":{'"$qs"'},"tool_response":{"pick a cache":"sqlite","pick a theme":"dark"}}'
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$answered" "$AC"
+  [ "$(jq -rs '[.[]|select(.status=="pending")]|length' "$CLAUDE_COMPANION_TASKS_DIR/sC"/*.json)" -eq 0 ]
+  # ...and it says WHY it closed, so the audit trail survives the closing
+  run grep -l "park closed by ask-close" "$CLAUDE_COMPANION_TASKS_DIR/sC"/*.json
+  [ "$status" -eq 0 ]
+
+  # an empty response object is not evidence of an answer either
+  local repo2; repo2="$(_tmpd)"; git -C "$repo2" init -q
+  local p2='{"cwd":"'"$repo2"'","session_id":"sD","tool_input":{'"$qs"'}}'
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$p2" "$AG"
+  run bash -c 'printf "%s" "$1" | "$2"' _ '{"cwd":"'"$repo2"'","session_id":"sD","tool_input":{'"$qs"'},"tool_response":{}}' "$AC"
+  [ "$(jq -rs '[.[]|select(.status=="pending")]|length' "$CLAUDE_COMPANION_TASKS_DIR/sD"/*.json)" -eq 2 ]
+}
