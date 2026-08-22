@@ -806,7 +806,7 @@ load helper
   _ag_ask "$repo" "on1"
   [ "$status" -eq 0 ]
   [[ "$output" == deny\|* ]]
-  [[ "$output" == *"ALREADY PARKED FOR YOU as task #"* ]]
+  [[ "$output" == *"ALREADY PARKED FOR YOU as #"* ]]   # a batch parks several, so ids are listed
   run env CLAUDE_COMPANION_SESSION_ID=on1 "$TQ" list
   [[ "$output" == *"❓ [parked] decision: pick A or B"* ]]
   [[ "$output" == *"A (faster)"* ]] && [[ "$output" == *"B (safer)"* ]]
@@ -1078,4 +1078,41 @@ load helper
   run cat "$d/.companion/burndown-manifests/second-thing.md"
   [[ "$output" == *"NO RATIONALE WAS RECORDED"* ]]
   [[ "$output" == *"extra scepticism"* ]]
+}
+
+@test "ask-guard: a BATCHED ask parks EVERY question, and dedup is per-question (R109·b)" {
+  # Hit live 2026-08-22. The park was built from questions[0] and then ANNOUNCED the loss
+  # ("[+2 more question(s) in the same ask]"), which is worse than silence in one specific way: it
+  # reads like the payload was handled. It was not — the other questions' options and
+  # recommendations were gone and had to be rebuilt from the transcript by hand.
+  # Not an edge case: review.md BATCHES up to 4 questions per call, and batching is the RECOMMENDED
+  # shape precisely so the owner is interrupted once instead of four times.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  ( cd "$repo" && "$AP" on ) >/dev/null
+  local q3='{"cwd":"'"$repo"'","session_id":"sAG","tool_input":{"questions":[
+    {"question":"First: pick a cache","options":[{"label":"sqlite","description":"one file"},{"label":"files"}]},
+    {"question":"Second: pick a theme","options":[{"label":"dark"},{"label":"light"}]},
+    {"question":"Third: pick a port","options":[{"label":"8080"},{"label":"3000"}]}]}}'
+
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$q3" "$AG"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"deny"'* ]]
+  [ "$(ls "$CLAUDE_COMPANION_TASKS_DIR/sAG"/*.json 2>/dev/null | wc -l)" -eq 3 ]
+  run grep -l "pick a theme" "$CLAUDE_COMPANION_TASKS_DIR/sAG"/*.json
+  [ "$status" -eq 0 ]                                   # the SECOND question survived
+  run grep -l "pick a port" "$CLAUDE_COMPANION_TASKS_DIR/sAG"/*.json
+  [ "$status" -eq 0 ]                                   # and the third
+
+  # a retry of the same batch must not stack duplicates
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$q3" "$AG"
+  [ "$(ls "$CLAUDE_COMPANION_TASKS_DIR/sAG"/*.json | wc -l)" -eq 3 ]
+
+  # ...but dedup is PER QUESTION: a batch mixing an old question with a new one captures the new one
+  local qmix='{"cwd":"'"$repo"'","session_id":"sAG","tool_input":{"questions":[
+    {"question":"First: pick a cache","options":[{"label":"sqlite","description":"one file"},{"label":"files"}]},
+    {"question":"FOURTH: brand new","options":[{"label":"yes"},{"label":"no"}]}]}}'
+  run bash -c 'printf "%s" "$1" | "$2"' _ "$qmix" "$AG"
+  [ "$(ls "$CLAUDE_COMPANION_TASKS_DIR/sAG"/*.json | wc -l)" -eq 4 ]
+  run grep -l "brand new" "$CLAUDE_COMPANION_TASKS_DIR/sAG"/*.json
+  [ "$status" -eq 0 ]
 }

@@ -1,9 +1,10 @@
 {
   "id": "130",
   "subject": "RESTORE contract-guard as a Claude-CLI-only BLOCK — refuses an edit that rewrites docs/requirements.yaml outside the contract flow. Retired in R100 for portability; the gap is covered by prose (R86) that I personally skipped twice this session",
-  "status": "pending",
+  "status": "completed",
   "done_when": "a PreToolUse hook blocks a requirements.yaml edit that is not part of a recorded contract change, is best-effort (never breaks the triggering action, R68), is bounded (R81) and measured by hook-budget; CLI-only and documented as such; tests + mutation",
   "context": "the retired plugins/companion/bin/contract-guard.sh in git history, plugins/companion/hooks/hooks.json, docs/adr R100/Pass 3",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "seen": "drove the real hook through eight payloads: adding a requirement passes, removing one is denied, removing a verified_by test is denied, RENAMING a test (same count) passes, a whole-file Write is denied, any needs.yaml edit is denied, an unrelated file is ignored, and a per-repo contract=off disables it. Measured by hook-budget at 34ms and 0.91x across an 8x store — it reads only the payload. Fixed a real bug found by running it: grep -c PRINTS 0 and exits 1, so my '|| printf 0' emitted '0\\n0' and every comparison errored."
 }

@@ -113,6 +113,16 @@ jq -nc --arg c "$REPO" --arg s "$SID" \
 # The Stop hook, like ask-guard, only does real work while autopilot is ARMED (it exits at
 # `companion_autopilot_on` otherwise). The same arming below covers both.
 jq -nc --arg c "$REPO" --arg s "$SID" '{cwd:$c,session_id:$s}' > "$TMP/in-sa"
+# contract-guard.sh (restored 2026-08-22) fires on EVERY Write/Edit, which is the highest-frequency
+# hook path there is — so it is measured with a payload that reaches its most expensive branch: a
+# real requirements.yaml path plus both sides of an edit, i.e. past the cheap path filter.
+# secret-guard.sh fires on EVERY Write/Edit/NotebookEdit — the highest-frequency hook path in the
+# plugin — so it is measured on content that reaches BOTH regex passes (no anchored hit, so the
+# generic heuristic also runs), not on a payload that exits early.
+jq -nc --arg f "$REPO/f0" '{tool_name:"Write",tool_input:{file_path:$f,
+  content:"function x() { return 1 } // a line of ordinary code with password_hint = \"the dog\""}}' > "$TMP/in-sg"
+jq -nc --arg f "$REPO/docs/requirements.yaml" '{tool_name:"Edit",tool_input:{file_path:$f,
+  old_string:"- id: R1\n  requirement: a\n    - \"t\"\n",new_string:"- id: R1\n  requirement: a\n"}}' > "$TMP/in-cg"
 # ask-guard.sh only does real work while autopilot is ARMED for the repo (its dedup grep + `tq
 # add` path) — off, it exits in one `companion_autopilot_on` check regardless of store size, which
 # would measure nothing. Arm it here, in the SAME state dir ms_of() uses below, so the benchmark
@@ -144,7 +154,9 @@ for spec in \
   "statusline.sh:in-sl" \
   "session-start.sh:in-ss" \
   "ask-guard.sh:in-ag" \
-  "stop-autopilot.sh:in-sa"
+  "stop-autopilot.sh:in-sa" \
+  "contract-guard.sh:in-cg" \
+  "secret-guard.sh:in-sg"
 do
   script="${spec%%:*}"; inf="${spec##*:}"
   [ -f "$BIN/$script" ] || continue

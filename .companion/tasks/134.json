@@ -1,9 +1,10 @@
 {
   "id": "134",
   "subject": "PORTABILITY follow-up: advise/docs/cover carry JUDGMENT, not extractable logic — record that finding in the ADR so #128 is not re-attempted. advise = critique, docs = deciding what is load-bearing, cover's ranking = criticality (judgment) x coverage gap (already computable via candidates rank 4). The portable half of all three is the INPUTS, which are already MCP tools: board, candidates, rework, tq_*",
-  "status": "pending",
+  "status": "completed",
   "done_when": "the ADR records which command logic is extractable and which is judgment, with the reason, so the portability sweep stops at the real boundary instead of inventing thin wrappers",
   "context": "docs/adr/README.md R100, plugins/companion/commands/{advise,docs,cover}.md, plugins/companion/bin/candidates.sh rank 4",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "seen": "recorded R116·d naming exactly which command logic was extractable (review's pile classification, now bin/review-pile.sh + the review_pile MCP tool) and which is judgment (advise = critique, docs = what is load-bearing, cover's criticality axis), with the portable half of all three identified as their already-portable INPUTS. Verified check.sh green after."
 }

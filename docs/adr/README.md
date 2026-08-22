@@ -841,3 +841,72 @@ a project's flag idiom (R9), and pretending to check it would be ceremony. What 
 branch and the non-merge; the flag rides on the same honour system the burn-down manifest uses.
 
 | 2026-08-20, owner-decided from a 3-option menu; the asymmetry was the finding.
+
+### R116·c — restoring the two blocks, and what the portability line actually is
+
+**Owner-decided 2026-08-22**, after being shown that blocking cannot be portable: MCP ships no
+interception primitive (SEP-1763 is a working-group draft), and Cursor's `stop` hook is
+observational-only. So `contract-guard` and `secret-guard` come back as **Claude-Code-only**, on top
+of the portable core rather than instead of it.
+
+**contract-guard is narrower than the one that was retired**, deliberately. It refuses REVERSALS —
+removing a requirement entry or a `verified_by` reference, a whole-file `Write` to the contract,
+authoring a need — and lets ADDITIONS through, because `dev/trace.sh` already fails a requirement
+that names no test. It guards the one direction no other gate can see. It **fails open**: a missed
+contract edit is recoverable and visible in the diff, while a false block costs the ability to edit
+the contract at all, which is how a guard gets switched off for good.
+
+**secret-guard is the one gate that fails CLOSED**, and the inversion is the point: a committed key
+is irreversible, a false block costs one retry.
+
+**THE MUTATION GATE CAUGHT BOTH OF ITS TESTS BEING INSUFFICIENT**, and that is the entry worth
+keeping. The tests were written FIRST, against the two defects on record, and they passed — then
+both declared mutations survived. Why:
+
+- The "array carrying a key is blocked" case passed **for the wrong reason**. Without `tostring`,
+  jq emits nothing, `rec` is empty, and the fail-closed branch denies anyway. The test could not
+  tell "scanned and refused" from "refused because unreadable". What `tostring` actually buys is
+  that a **clean** array is ALLOWED — and nothing tested that.
+- Fail-closed itself had no test at all: every payload in the suite was readable.
+
+A third finding was mine, not the tests': the first mutation targeted the wrong `tostring` — the
+one on `file_path`, which is already a string, so it changed nothing.
+
+**The general lesson, and it is uncomfortable:** tests-first is not the same as tests-sufficient.
+Writing them against the recorded defects felt rigorous and still left both holes, because a test
+that asserts a REFUSAL cannot distinguish the reasons for refusing. Where a guard has two paths to
+the same visible outcome, the test must pin the path, not the outcome — usually by asserting the
+ALLOW case that only the correct path produces.
+
+| 2026-08-22, owner-decided; the mutation gate's finding is the durable half.
+
+### R116·d — which command logic is portable, and which is judgment (closes the sweep)
+
+Recorded so the portability sweep stops at the real boundary instead of being re-attempted, and so
+nobody writes thin wrappers that look like progress.
+
+**Extractable, and extracted:** `/companion:review`'s pile classification → `bin/review-pile.sh` +
+the `review_pile` MCP tool. Which items need the owner, and HOW each must be asked (blocked = an
+owner action, never a menu · decompose = questions, so interview · options-rec = sweep-eligible ·
+options = a full menu is owed) is pure logic, and any MCP client can now drive a review while the
+arrow-key menu stays native.
+
+**NOT extractable, and why:**
+
+- **`advise`** is critique. The "logic" is judgment about what is wrong and what it would cost.
+- **`docs`** is deciding what is load-bearing enough to record. Same shape.
+- **`cover`** ranks by *criticality × coverage gap*. Criticality — "blast radius if this silently
+  broke" — is judgment. The computable half already exists: `candidates.sh` rank 4 reports flows
+  with no `[E]` test.
+
+**The portable half of all three is their INPUTS**, and those are already MCP tools: `board`,
+`candidates`, `rework`, `tq_*`. A client that can read those can do the same reasoning; what it
+cannot import is the reasoning itself, which is the model's job by design (R9: delegate recognition
+to the model, detect structure generically).
+
+**The floor that keeps this honest** is `dev/command-lint.sh`'s portability check: every command
+must name an MCP tool or a `bin/` script, or carry `<!-- cli-only: <reason> -->`. It proves a
+portable mechanism is NAMED, not that the work goes through it — a floor, not a proof, and it says
+so in its own comment.
+
+| 2026-08-22 — the sweep's real boundary, recorded so it is not walked twice.

@@ -330,12 +330,12 @@ load helper
   [ "$status" -eq 0 ]
 }
 
-@test "the contract bound is stated where it is armed — advisory only now, no guard left (R86)" {
-  # contract-guard.sh is retired (R100/Pass 3) — nothing left can refuse a contract edit. What
-  # survives is the bound STATED where it matters: the STEERING core (governs every session) and
-  # the arming message (visible the moment the owner turns autopilot on). Whether the model
-  # actually honors it is judgment now, not a mechanism (R28) — this pins the statement, not
-  # enforcement of it, which is the honest ceiling of what's left to test.
+@test "the contract bound is STATED where it is armed, as well as guarded (R86)" {
+  # The bound lives in two places on purpose. This pins the STATEMENT — the STEERING core (governs
+  # every session) and the arming message (seen the moment autopilot goes on). contract-guard.sh
+  # (restored 2026-08-22) pins the REVERSALS, and is tested separately. Statement without a guard
+  # was skippable prose; a guard without the statement would refuse an edit while never having said
+  # why. Neither replaces the other, so both are asserted.
   local core; core="$(awk '/injection stops here/{exit} {print}' "$ROOT/STEERING.md")"
   [[ "$core" == *"never rewrite it"* ]]
   [[ "$core" == *"Authoring a **need** is never yours"* ]]

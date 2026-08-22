@@ -954,3 +954,48 @@ EOT
   printf -- '---\ndescription: does a thing\n---\n\nCall the `board` tool.\n' > "$d/plugins/companion/commands/a.md"
   _cl; [ "$status" -eq 1 ]; [[ "$output" == *"vacuously"* ]]
 }
+
+@test "contract-guard: blocks contract REVERSALS and needs authoring, allows additions (R86, CLI-only)" {
+  # Restored 2026-08-22 by owner decision. R86 ("satisfy the contract, never rewrite it") has been
+  # prose since R100/Pass 3 retired this guard for portability — and prose is skippable: I skipped it
+  # twice in one session on this very repo. Claude-Code-only by nature: MCP ships no interception
+  # primitive, so this guarantee has no portable home (R100).
+  local G="$ROOT/bin/contract-guard.sh" d; d="$(_tmpd)"; mkdir -p "$d/docs"; git -C "$d" init -q
+  _cg() { run bash -c 'printf "%s" "$1" | "$2"' _ "$1" "$G"; }
+  local req="$d/docs/requirements.yaml" needs="$d/docs/needs.yaml"
+
+  # THE ASYMMETRY: adding is ordinary and already gated by trace.sh (a requirement naming no test
+  # fails there). Removing is a reversal, and reversals are the owner's.
+  _cg '{"tool_name":"Edit","tool_input":{"file_path":"'"$req"'","old_string":"- id: R1\n","new_string":"- id: R1\n- id: R2\n"}}'
+  [ "$status" -eq 0 ]; [[ "$output" != *deny* ]]
+
+  _cg '{"tool_name":"Edit","tool_input":{"file_path":"'"$req"'","old_string":"- id: R1\n- id: R2\n","new_string":"- id: R1\n"}}'
+  [[ "$output" == *deny* ]]; [[ "$output" == *"REMOVES 1 requirement"* ]]
+
+  # a requirement whose test reference is dropped still CLAIMS to be guaranteed while nothing checks
+  _cg '{"tool_name":"Edit","tool_input":{"file_path":"'"$req"'","old_string":"    - \"a\"\n    - \"b\"\n","new_string":"    - \"a\"\n"}}'
+  [[ "$output" == *deny* ]]; [[ "$output" == *"verified_by"* ]]
+
+  # ...but RENAMING one (same count) is the legitimate "the test moved" case and must pass
+  _cg '{"tool_name":"Edit","tool_input":{"file_path":"'"$req"'","old_string":"    - \"old name\"\n","new_string":"    - \"new name\"\n"}}'
+  [[ "$output" != *deny* ]]
+
+  # a whole-file Write is never a considered edit
+  _cg '{"tool_name":"Write","tool_input":{"file_path":"'"$req"'","content":"- id: R1\n"}}'
+  [[ "$output" == *deny* ]]
+
+  # authoring a NEED is never the model's — needs define what "useful" means
+  _cg '{"tool_name":"Edit","tool_input":{"file_path":"'"$needs"'","old_string":"a","new_string":"b"}}'
+  [[ "$output" == *deny* ]]; [[ "$output" == *"never yours to write"* ]]
+
+  # anything else is none of its business
+  _cg '{"tool_name":"Edit","tool_input":{"file_path":"'"$d"'/src.sh","old_string":"- id: R1\n- id: R2\n","new_string":"- id: R1\n"}}'
+  [[ "$output" != *deny* ]]
+
+  # and a per-repo `contract=off` disables it (R50)
+  local enc; enc="$(printf '%s' "$(git -C "$d" rev-parse --show-toplevel)" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  mkdir -p "$CLAUDE_COMPANION_STATE_DIR/features"
+  printf 'contract=off\n' > "$CLAUDE_COMPANION_STATE_DIR/features/$enc"
+  _cg '{"tool_name":"Edit","tool_input":{"file_path":"'"$req"'","old_string":"- id: R1\n- id: R2\n","new_string":"- id: R1\n"}}'
+  [[ "$output" != *deny* ]]
+}

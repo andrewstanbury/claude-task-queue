@@ -110,3 +110,67 @@ load helper
   [ "$status" -eq 0 ]
   [ -z "$output" ]
 }
+
+@test "secret-guard: BLOCKS a real credential, and fails CLOSED on the payload shapes that once let one through" {
+  # Restored 2026-08-22 (CLI-only: MCP ships no interception primitive, R100). Its history is the
+  # reason this test exists and was written FIRST: the guard once FAILED OPEN on non-string content
+  # — jq's `+` THROWS on an array, jq emitted nothing, and the gate exited 0 with a real AWS key in
+  # a NotebookEdit `new_source: [...]`. It also FALSE-BLOCKED an empty edit by scanning the file
+  # PATH as content. Restoring the code without restoring these cases would re-ship both holes.
+  local G="$ROOT/bin/secret-guard.sh"
+  _sg() { run bash -c 'printf "%s" "$1" | "$2"' _ "$1" "$G"; }
+  local KEY='AKIAIOSFODNN7EXAMPLE'
+
+  # the thing it exists for
+  _sg '{"tool_name":"Write","tool_input":{"file_path":"/r/a.env","content":"AWS='"$KEY"'"}}'
+  [[ "$output" == *deny* ]]; [[ "$output" == *credential* ]]
+
+  # ARRAY content (NotebookEdit new_source) — the exact shape that failed OPEN
+  _sg '{"tool_name":"NotebookEdit","tool_input":{"file_path":"/r/n.ipynb","new_source":["x = 1","AWS='"$KEY"'"]}}'
+  [[ "$output" == *deny* ]]
+
+  # object / number / null content must not crash it into allowing
+  _sg '{"tool_name":"Write","tool_input":{"file_path":"/r/a","content":{"k":"'"$KEY"'"}}}'
+  [[ "$output" == *deny* ]]
+  _sg '{"tool_name":"Write","tool_input":{"file_path":"/r/a","content":12345}}'
+  [[ "$output" != *deny* ]]
+  _sg '{"tool_name":"Write","tool_input":{"file_path":"/r/a","content":null}}'
+  [[ "$output" != *deny* ]]
+
+  # EMPTY content must never block — and must not scan the PATH, which once blocked an edit merely
+  # because a directory in its path looked like a key
+  _sg '{"tool_name":"Edit","tool_input":{"file_path":"/tmp/'"$KEY"'/a.txt","new_string":""}}'
+  [[ "$output" != *deny* ]]
+
+  # a clean write is none of its business
+  _sg '{"tool_name":"Write","tool_input":{"file_path":"/r/a","content":"just some code"}}'
+  [[ "$output" != *deny* ]]
+
+  # A CLEAN ARRAY MUST BE ALLOWED. This is what `tostring` actually buys, and the mutation gate
+  # caught that nothing tested it: without tostring, jq emits NOTHING on an array, `rec` is empty,
+  # and the fail-closed branch denies — so the "array with a key is blocked" case above passes for
+  # the WRONG REASON and a blanket refusal of every notebook edit would look like success.
+  _sg '{"tool_name":"NotebookEdit","tool_input":{"file_path":"/r/n.ipynb","new_source":["x = 1","y = 2"]}}'
+  [[ "$output" != *deny* ]]
+
+  # AN UNREADABLE PAYLOAD MUST BE REFUSED. The one gate that fails CLOSED — a write it cannot
+  # inspect must never be certified clean. Also untested until the mutation gate said so.
+  _sg 'not json at all'
+  [[ "$output" == *deny* ]]; [[ "$output" == *"could not read"* ]]
+
+  # the generic name=value heuristic WARNS but must never block (it breaks legitimate writes)
+  _sg '{"tool_name":"Write","tool_input":{"file_path":"/r/a","content":"password = \"correcthorsebattery\""}}'
+  [[ "$output" != *deny* ]]
+}
+
+@test "secret-guard: its credential regex is the SAME one the rest of the plugin uses (no re-implementation)" {
+  # The guard is deliberately self-contained — a broken dependency must never make a credential gate
+  # fail open — but a second COPY of the pattern is how the copies drift apart. So the copy is
+  # allowed and the drift is what gets tested, the same shape as the da-gate's "evaluated by the
+  # REAL gate, not a re-implementation" case.
+  local inline lib
+  inline="$(grep -oE "^anchored='[^']*'" "$ROOT/bin/secret-guard.sh" | sed "s/^anchored='//; s/'$//")"
+  lib="$(bash -c '. "$1"; companion_secret_re' _ "$ROOT/lib/companion.sh")"
+  [ -n "$inline" ]; [ -n "$lib" ]
+  [ "$inline" = "$lib" ]
+}

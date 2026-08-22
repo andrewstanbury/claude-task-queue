@@ -45,13 +45,20 @@ fi
 # breaks the session because its convenience feature broke is worse than one that just denies.
 parked_id=""
 sid="$(printf '%s' "$in" | jq -r '.session_id // empty' 2>/dev/null || true)"
-subject="$(printf '%s' "$in" | jq -r '
-  (.tool_input.questions // []) | if length == 0 then empty else
-  ("❓ [parked] decision: " + (.[0].question // "a decision"))
-  + " — options: " + ([ .[0].options[]? | (.label // "") + (if (.description//"")!="" then " (" + .description + ")" else "" end) ] | join(" · "))
-  + "; rec: " + ((.[0].options[0].label // "the first option"))
-  + (if length > 1 then " [+" + ((length-1)|tostring) + " more question(s) in the same ask]" else "" end)
-  end' 2>/dev/null | tr -d '\n\r' || true)"
+# EVERY question, not just the first. This built its subject from `.[0]` and then ANNOUNCED the
+# loss — "[+2 more question(s) in the same ask]" — which is worse than silence in one specific way:
+# it reads like the payload was handled. It was not; questions 2..N were gone, and their options and
+# recommendations had to be reconstructed from the transcript by hand (hit live 2026-08-22).
+# This is not an edge case: review.md BATCHES up to 4 questions per call, and batching is the
+# recommended shape precisely so the owner is interrupted once instead of four times.
+# One line per question — `@tsv` on a single field escapes the newlines a question or description
+# may contain, so a multi-line payload cannot forge a row boundary.
+subjects="$(printf '%s' "$in" | jq -r '
+  (.tool_input.questions // [])[]
+  | [ ("❓ [parked] decision: " + (.question // "a decision"))
+      + " — options: " + ([ .options[]? | (.label // "") + (if (.description//"")!="" then " (" + .description + ")" else "" end) ] | join(" · "))
+      + "; rec: " + ((.options[0].label // "the first option")) ]
+  | @tsv' 2>/dev/null || true)"
 # NO SILENT TRUNCATION (R109·b). This used to cut every option description to 80 chars and the whole
 # payload to 900 bytes, with no marker. Measured on a real 4-option park: every COST clause — the
 # byte-budget raise, the per-project setup, the staleness risk — landed mid-word, and what reached
@@ -60,10 +67,7 @@ subject="$(printf '%s' "$in" | jq -r '
 # re-attached by hand. `tq list` is non-truncating by design, so the queue can hold the whole thing.
 # A ceiling still exists (a runaway payload should not become the store), but it is generous and,
 # when it bites, it SAYS SO — a reader must never mistake a cut for the end of the sentence.
-if [ "${#subject}" -gt 6000 ]; then
-  subject="${subject:0:6000} …[TRUNCATED — the full options were longer; re-ask or read the transcript]"
-fi
-if [ -n "$subject" ] && [ -n "$sid" ]; then
+if [ -n "$subjects" ] && [ -n "$sid" ]; then
   # Do not stack duplicates: a retried question would otherwise park itself again on every attempt.
   # DEDUP BY RAW GREP, not `tq list`. `list` renders every task through jq, which put an O(store)
   # jq pass on a hook that fires on every question — measured 2825ms against a 400-task store,
@@ -75,11 +79,25 @@ if [ -n "$subject" ] && [ -n "$sid" ]; then
   # cd-ing into the payload's repo — tq never ran, no task was written, and the model was still told
   # its question had been parked. A silent no-op behind a success message is the worst outcome here.
   _tq="$(cd "$(dirname "$SELF")" 2>/dev/null && pwd)/tq"
-  _dup=0; grep -qsF "${subject:0:120}" "$_store"/*.json 2>/dev/null && _dup=1
-  if [ "$_dup" -eq 0 ] && [ -x "$_tq" ]; then
-    parked_id="$( ( cd "$root" 2>/dev/null && CLAUDE_COMPANION_SESSION_ID="$sid" "$_tq" add "$subject" 2>/dev/null ) \
-                 | sed -n 's/^added #\([0-9][0-9]*\).*/\1/p' | head -1 || true)"
-  fi
+  _dup=0; _ids=""
+  while IFS= read -r subject; do
+    [ -n "$subject" ] || continue
+    # `@tsv` escaped any embedded newline as a literal \n; restore it so the queue reads naturally.
+    subject="$(printf '%b' "$subject")"
+    if [ "${#subject}" -gt 6000 ]; then
+      subject="${subject:0:6000} …[TRUNCATED — the full options were longer; re-ask or read the transcript]"
+    fi
+    # Dedup PER QUESTION, not per ask: a retried batch must not re-park the ones already recorded,
+    # but must still capture any that are new.
+    if grep -qsF "${subject:0:120}" "$_store"/*.json 2>/dev/null; then _dup=1; continue; fi
+    [ -x "$_tq" ] || continue
+    _one="$( ( cd "$root" 2>/dev/null && CLAUDE_COMPANION_SESSION_ID="$sid" "$_tq" add "$subject" 2>/dev/null ) \
+             | sed -n 's/^added #\([0-9][0-9]*\).*/\1/p' | head -1 || true)"
+    [ -n "$_one" ] && _ids="${_ids:+$_ids, }#$_one"
+  done <<EOF
+$subjects
+EOF
+  parked_id="$_ids"
 fi
 if [ -z "$parked_id" ] && [ "${_dup:-0}" -eq 1 ]; then
   # ALREADY in the queue from an earlier denial. Saying nothing sent the model off to park it a
@@ -87,7 +105,7 @@ if [ -z "$parked_id" ] && [ "${_dup:-0}" -eq 1 ]; then
   reason="ALREADY PARKED — this exact question is already on the queue as a ❓ from an earlier attempt. Do NOT re-ask and do NOT add it again. Move on to other work; /companion:review will walk it. ${reason}"
 fi
 if [ -n "$parked_id" ]; then
-  reason="ALREADY PARKED FOR YOU as task #${parked_id} — the question you just asked has been written to the queue with its options and your recommendation, so nothing is lost and you do not need to re-park it. Do NOT re-ask and do NOT re-add it. Keep going with the rest of the work; /companion:review will walk it (it asks the whole pile at once and resumes autopilot afterwards, R83). NOTE: the auto-park deliberately omits the \`rev:\` marker, so it is treated as IRREVERSIBLE and will never be swept — if this choice is in fact reversible and safe for sweep mode to apply, re-add it yourself with \`rev:\`. ${reason}"
+  reason="ALREADY PARKED FOR YOU as ${parked_id} — EVERY question you just asked has been written to the queue with its own options and recommendation, so nothing is lost and you do not need to re-park it. Do NOT re-ask and do NOT re-add it. Keep going with the rest of the work; /companion:review will walk it (it asks the whole pile at once and resumes autopilot afterwards, R83). NOTE: the auto-park deliberately omits the \`rev:\` marker, so it is treated as IRREVERSIBLE and will never be swept — if this choice is in fact reversible and safe for sweep mode to apply, re-add it yourself with \`rev:\`. ${reason}"
 fi
 
 jq -cn --arg r "$reason" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'

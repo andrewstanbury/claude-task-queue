@@ -1,0 +1,10 @@
+{
+  "id": "137",
+  "subject": "BUG: ask-guard parks only the FIRST question of a multi-question AskUserQuestion — questions 2-4 are silently DROPPED. Hit live 2026-08-22: a 2-question ask was parked as #135 carrying only the status-bar question; the NFR question vanished and I had to re-park it by hand. This defeats the capture guarantee the owner asked for precisely because a batched ask is the RECOMMENDED shape (review.md batches up to 4 per call)",
+  "status": "completed",
+  "done_when": "a multi-question AskUserQuestion parks EVERY question with its own options and recommendation, not just the first; a test drives a 3-question payload through the hook and asserts three parks",
+  "context": "plugins/companion/bin/ask-guard.sh (the park path), plugins/companion/commands/review.md (batches up to 4 questions per call, so this is the normal shape not an edge case)",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "drove a 3-question payload through the real ask-guard: all three parked with their own options, the denial names every id. Retried the same batch: no duplicates. Retried a batch mixing one old and one NEW question: only the new one was added (4 total), so dedup is per-question not per-ask. Both mutations verified RED. Corrected my own task description while fixing it — the loss was ANNOUNCED, not silent, which is worse in one specific way: it read like the payload had been handled."
+}

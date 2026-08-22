@@ -1,9 +1,10 @@
 {
   "id": "131",
   "subject": "RESTORE secret-guard as a Claude-CLI-only BLOCK on Write/Edit/NotebookEdit — strongest protection for the highest-consequence mistake. NOTE its recorded history: it failed OPEN on non-string content (arrays) and false-blocked empty edits, so restoring it means restoring those cases as tests FIRST",
-  "status": "pending",
+  "status": "completed",
   "done_when": "the hook blocks a credential shape in edit content, fails CLOSED on unreadable/non-string payloads, never false-blocks an empty edit, is bounded and measured; the R81 hook budget still passes; tests cover arrays/objects/numbers/null/empty; mutation-verified",
   "context": "git history for plugins/companion/bin/secret-guard.sh, companion_secret_re in lib/companion.sh, bin/check-secrets.sh (today's advisory version), adr R81 evidence on its measured cost",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "seen": "wrote the failure-case tests FIRST, restored the guard, then the MUTATION GATE proved both my tests were insufficient — two HOLES. Fixed by adding the cases they were missing: a CLEAN array must be ALLOWED (that is what tostring buys; without it jq emits nothing and fail-closed denies, so the 'array with a key is blocked' test passed for the wrong reason), and an UNREADABLE payload must be DENIED (fail-closed was untested). Also found my own mutation was targeting the wrong tostring — file_path's, already a string. Measured 11ms flat on the highest-frequency hook path; regex pinned byte-identical to companion_secret_re."
 }

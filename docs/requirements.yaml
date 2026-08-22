@@ -243,13 +243,23 @@
     an advisory scanner correctly classifies anchored-vs-generic-vs-placeholder credential shapes,
     regardless of which tool the content came from
   note: >
-    REVERSED 2026-08-08, owner-decided (R100/Pass 3). "Covers every content-writing tool" doesn't
-    parse anymore: secret-guard.sh's PreToolUse hook is retired, so nothing dispatches Write/Edit/
-    NotebookEdit calls to a scanner at all — check-secrets.sh / the MCP check_for_secrets tool just
-    scan whatever text they're handed. Tool-coverage is moot BY DESIGN, not by extra code: there's
-    no tool_input shape left to bypass, because nothing reads tool_input anymore. The classification
-    logic itself (anchored=BLOCK, generic-non-placeholder=WARN, everything else clean) is unchanged
-    and still tested; the guarantee that it FIRES on every write is gone.
+    Reversed 2026-08-08 (R100/Pass 3) when the PreToolUse hook was retired for portability, and
+    reversed BACK 2026-08-22 by owner decision. Between those dates the classification logic was
+    still tested but nothing dispatched a write to it — the guarantee that it FIRES was gone, and
+    only the on-demand scanner (check-secrets.sh / the check_for_secrets MCP tool) remained.
+
+    Both surfaces now exist and they are deliberately different: the SCANNER is portable and
+    on-demand (any MCP client), the GUARD is Claude-Code-only and automatic, because MCP ships no
+    interception primitive (R100). The guard is self-contained on purpose — a broken dependency must
+    never make a credential gate fail open — so it carries a COPY of the pattern, and a test asserts
+    the copy is byte-identical to companion_secret_re rather than trusting it.
+
+    It is also the ONE gate in the plugin that fails CLOSED: an unreadable payload is refused. Every
+    other guard here allows on doubt, because a false block costs more than a missed check; here
+    that is inverted, since a committed key is irreversible and a false block costs one retry.
+    Restored with its two measured defects covered by tests written FIRST: it once failed OPEN on
+    non-string content (jq's + throws on an array, and NotebookEdit hands one), and once
+    false-blocked an empty edit by scanning the file path as content.
   verified_by:
     - "check-secrets: BLOCKs a real AWS key (exit 2) — advisory only, R100/Pass 3"
     - "check-secrets: a generic name=value literal WARNS but does not block (exit 0) — R32"
@@ -647,6 +657,10 @@
     - "board: names the work in flight by CLASS, and stays quiet on a clean tree (R116·b)"
     - "review_pile: classifies the owner's pile by HOW it must be asked, and is silent when clear"
     - "command-lint portability floor: a command with no portable footing FAILS; a reasoned cli-only marker passes"
+    - "ask-guard: a BATCHED ask parks EVERY question, and dedup is per-question (R109·b)"
+    - "contract-guard: blocks contract REVERSALS and needs authoring, allows additions (R86, CLI-only)"
+    - "secret-guard: BLOCKS a real credential, and fails CLOSED on the payload shapes that once let one through"
+    - "secret-guard: its credential regex is the SAME one the rest of the plugin uses (no re-implementation)"
     - "burn-down: an IN-PROGRESS task outranks generated work too — work in flight is the realest work"
     - "burn-down: unreviewed branches apply backpressure — the loop is self-limiting"
     - "burn-down: refuses when the 5h window has no room to actually work"
@@ -739,16 +753,25 @@
   affirmed: 2026-08-08
   affirmations: 1
   requirement: >
-    while autopilot is on, the model is asked to do work that SATISFIES the recorded contract but
-    not change it — STATED in STEERING, not enforced by any guard
+    the model does work that SATISFIES the recorded contract and does not change it — STATED in
+    STEERING and at arming, and REVERSALS are refused by a guard
   note: >
-    REVERSED 2026-08-08, owner-decided (R100/Pass 3): contract-guard.sh is retired and has no
-    advisory replacement CODE — the only thing that still says this rule is the STEERING prose that
-    already existed alongside the hook ("Satisfy the contract; never rewrite it"). Ironically, this
-    exact edit was DENIED by the still-live (cached) contract-guard.sh while being written, proving
-    the old mechanism worked right up until it was turned off (autopilot paused) to let this land.
+    Reversed 2026-08-08 (R100/Pass 3) when the guard was retired for portability, and reversed BACK
+    2026-08-22 by owner decision. The 2026-08-08 note recorded that only prose remained; that turned
+    out to be the whole problem, and the evidence is first-hand — the model skipped R86 twice in a
+    single session on this repo while the rule sat first in the steering core.
+
+    The restored guard is deliberately NARROWER than the retired one. It refuses REVERSALS only:
+    removing a requirement entry or a verified_by test reference, a whole-file Write to the
+    contract, or authoring a need. ADDITIONS pass untouched, because dev/trace.sh already fails a
+    requirement that names no test — so the guard covers the direction no other gate can see.
+    It also fails OPEN, the opposite of the credential gate's doctrine: a missed contract edit is
+    recoverable and shows in the diff, while a false block costs the ability to edit the contract at
+    all, which is how a guard gets switched off. Claude-Code-only by construction (R100: MCP ships
+    no interception primitive), per-repo `contract=off` (R50), measured at 34ms and flat in store
+    size.
   verified_by:
-    - "the contract bound is stated where it is armed — advisory only now, no guard left (R86)"
+    - "the contract bound is STATED where it is armed, as well as guarded (R86)"
 
 - id: R87
   satisfies: [UN-1]
