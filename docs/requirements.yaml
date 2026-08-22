@@ -646,6 +646,7 @@
     - "ship.sh land: --merge-feature overrides, and ordinary work is untouched by the gate"
     - "board: names the work in flight by CLASS, and stays quiet on a clean tree (R116·b)"
     - "review_pile: classifies the owner's pile by HOW it must be asked, and is silent when clear"
+    - "command-lint portability floor: a command with no portable footing FAILS; a reasoned cli-only marker passes"
     - "burn-down: an IN-PROGRESS task outranks generated work too — work in flight is the realest work"
     - "burn-down: unreviewed branches apply backpressure — the loop is self-limiting"
     - "burn-down: refuses when the 5h window has no room to actually work"

@@ -2,6 +2,11 @@
 description: "(no args) — wire the companion status line into your settings.json; once per machine, not once ever"
 ---
 
+<!-- cli-only: wires the companion status line into Claude Code's own settings.json. There is no
+     status line, and no settings.json, in another MCP client — this command has nothing portable to
+     stand on by construction, which is different from a capability that merely has not been moved
+     yet. See dev/command-lint.sh's portability floor. -->
+
 Wire the companion's status line into the user's Claude Code settings so it renders in the
 CLI. The status line shows, grouped: ⠋ beacon · │ 🛡️ secret gate · ✈️ autopilot (⚡ decisive, 🧹 sweep) · 📦 ship-mode │
 (active features) · │ 📋 open · ❓ parked · ⏳ blocked │ (the queue) · │ ↻2h ▰▰▱▱▱ 23% ↻6d ▰▰▰▱▱ 41%▴ │

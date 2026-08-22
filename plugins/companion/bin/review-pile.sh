@@ -34,6 +34,7 @@ while IFS= read -r -d '' f; do [ -n "$f" ] && files+=("$f"); done < <(companion_
 
 # One jq over the scoped set — same batch-then-fallback shape the renderer uses, because jq aborts
 # at the first unparseable file and one torn write must not empty the owner's decision pile.
+# shellcheck disable=SC2016  # $s is a jq variable, not a shell one — single quotes are required
 PROG='select(.status=="pending" or .status=="in_progress")
   | ((.subject//"") | sub("^\\s+";"")) as $s
   | select(($s|startswith("❓")) or ($s|startswith("⏳")))

@@ -1,9 +1,10 @@
 {
   "id": "129",
   "subject": "PORTABILITY GATE: check.sh fails when decision logic leaks into a slash command — the split is policy today and this session is repeated evidence that documented-but-unenforced rules get skipped. after #128",
-  "status": "pending",
+  "status": "completed",
   "done_when": "check.sh FAILS when a command file carries a step no MCP tool or bin/ script implements; passes on today's tree; /companion:setup and other genuinely CLI-only commands are exempt by an explicit, named marker; a test proves the gate can fail",
   "context": "check.sh, dev/command-lint.sh (already checks doc-vs-code for autopilot), plugins/companion/commands/",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "seen": "ran the floor against six fixture shapes: names an MCP tool = pass, names a bin/ script = pass, names neither = FAIL saying the capability is reachable only from Claude Code, a reasoned cli-only marker = pass, a BARE cli-only marker = FAIL, and an empty tool list = FAIL rather than passing vacuously. On the real tree it caught exactly one command (setup), which is genuinely native and now carries the marker with its reason. Also removed 9 vestigial tok_fail assignments it surfaced."
 }

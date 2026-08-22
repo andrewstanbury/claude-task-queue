@@ -558,6 +558,10 @@ NOGH
 _fc_repo() {  # a repo with a flow page, implementation, and a gate
   FCR="$(_tmpd)"; mkdir -p "$FCR/docs/flows" "$FCR/src"
   git -C "$FCR" init -q -b main
+  # PERSIST the identity in the repo config, not just on the base commit: `ship.sh` runs its OWN
+  # `git commit`, and CI has no global identity — `-c` on one command does not carry to the next.
+  # This is the trap LESSONS already records, and it turned CI red on 3.91.0.
+  git -C "$FCR" config user.email t@t; git -C "$FCR" config user.name t
   echo x > "$FCR/src/a.sh"
   { echo '# flow:f'; echo 'steps:'; echo '- a'; } > "$FCR/docs/flows/f.md"
   echo 'check() { :; }' > "$FCR/check.sh"; chmod +x "$FCR/check.sh"

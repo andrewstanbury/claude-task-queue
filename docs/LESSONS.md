@@ -12,10 +12,8 @@ Not decisions (the ledger) nor in-flight work (the queue).
   lead byte into the variable name → `set -u` crash on macOS. Always brace: `${B}🛡`.
 - **jq `+` THROWS on a non-string** — `.a + "\n" + .b` emits nothing when `.b` is an array/object
   (NotebookEdit's `new_source`), so the caller reads empty and **fails open**. `| tostring` always.
-- **BSD is not GNU — shipped red CI FIVE times.** Bare **`sed -i` needs a suffix** (`-i.bak`, or
-  `sed … > tmp && mv`): GNU reads the next arg as the SCRIPT, BSD as the BACKUP SUFFIX, so the edit
-  silently does NOT happen and a test relying on it passes for the wrong reason (3.87.0;
-  `portability-lint.sh sedi` catches it). `\?`/`\+`/`\|` in `sed`/`grep` are GNU extensions
+- **BSD is not GNU — shipped red CI FIVE times.** Bare `sed -i` needs a suffix (`-i.bak`) — now
+  linted, see `portability-lint.sh sedi`. `\?`/`\+`/`\|` in `sed`/`grep` are GNU extensions
   BSD reads as LITERALS; an escaped `^` in a BRE differs too; BSD `wc -c` pads with spaces, so a
   digits-only guard reads garbage and zeroes the value (strip: `wc -c < f | tr -d '[:space:]'`);
   **a `sed` brace ADDRESS needs `;` before `}`** (`1{/^$/d}` errors "extra characters" on BSD sed;
@@ -32,9 +30,10 @@ Not decisions (the ledger) nor in-flight work (the queue).
   rested on its optional field being LAST). `@tsv` escapes `\n\r\t`; `join` does not.
 
 ## Tests (bats)
-- **git identity:** `git commit` in a test needs `-c user.email=t@t -c user.name=t` — CI's bare
-  runner has none and fails 128. **Same for a hook that commits** (ship-mode): fall back to
-  `git -c user.name=… commit`, or it silently captures nothing on an unconfigured machine.
+- **git identity:** `git commit` in a test needs one, and `-c user.email=…` on ONE command does not
+  carry to the next — `ship.sh` runs its own commit, so the fixture must `git config` it into the
+  repo. CI has no global identity; your machine does, so this passes locally and reddens CI (3.91.0).
+  REPRODUCE IT LOCALLY: `GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null bats dev/tests`.
 - **`--print-output-on-failure`** on the `bats` call is what surfaces a flaky test's `$output` in CI.
 - **Never assert an exact countdown from `date +%s`, nor pin a fixture ON a threshold** — the code
   reads its clock a beat later, so `now+86400` arrives as 86399. Offset it.

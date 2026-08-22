@@ -78,22 +78,25 @@ load helper
   # These checks lived inline in check.sh, where the suite could not reach them, so their declared
   # mutations had nothing that could redden. Extraction (2026-08-03, size guard) is what makes them
   # testable; this is the test that makes the extraction worth anything.
-  local d; d="$(_tmpd)"; mkdir -p "$d/plugins/companion/commands" "$d/dev"
+  local d; d="$(_tmpd)"; mkdir -p "$d/plugins/companion/commands" "$d/plugins/companion/mcp-server" "$d/dev"
   cp dev/doc-lint.sh dev/command-lint.sh "$d/dev/"
+  # the portability floor derives tool names from the MCP server and refuses to pass VACUOUSLY when
+  # it can derive none, so the fixture has to look like a repo — not only like the check under test
+  printf '  "board",\n' > "$d/plugins/companion/mcp-server/index.js"
   _cl() { run bash -c 'cd "$1" && dev/command-lint.sh' _ "$d"; }
 
   # a well-formed command passes
-  printf -- '---\ndescription: Do the thing\n---\n\nBody with no arguments.\n' \
+  printf -- '---\ndescription: Do the thing\n---\n\nBody calls `board`.\n' \
     > "$d/plugins/companion/commands/ok.md"
   _cl; [ "$status" -eq 0 ]
 
   # an over-long description is per-session injection and must FAIL
-  printf -- '---\ndescription: %s\n---\n\nBody.\n' "$(printf 'x%.0s' $(seq 1 200))" \
+  printf -- '---\ndescription: %s\n---\n\nBody calls `board`.\n' "$(printf 'x%.0s' $(seq 1 200))" \
     > "$d/plugins/companion/commands/ok.md"
   _cl; [ "$status" -ne 0 ]; [[ "$output" == *"> 140B"* ]]
 
   # a body reading $ARGUMENTS with no argument-hint leaves the parameter invisible where it is typed
-  printf -- '---\ndescription: Do the thing\n---\n\nUse $ARGUMENTS here.\n' \
+  printf -- '---\ndescription: Do the thing\n---\n\nUse $ARGUMENTS with `board`.\n' \
     > "$d/plugins/companion/commands/ok.md"
   _cl; [ "$status" -ne 0 ]; [[ "$output" == *"argument-hint"* ]]
 }
@@ -102,8 +105,9 @@ load helper
   # The live 2026-08-15 miss: `burndown on|off|status` was implemented and the description, the
   # argument-hint and the body ALL omitted it — so every doc-vs-doc check agreed, and agreed about
   # nothing. Three consistent documents are not evidence when the mode is absent from all three.
-  local d; d="$(_tmpd)"; mkdir -p "$d/plugins/companion/commands" "$d/plugins/companion/bin" "$d/dev"
+  local d; d="$(_tmpd)"; mkdir -p "$d/plugins/companion/commands" "$d/plugins/companion/bin" "$d/plugins/companion/mcp-server" "$d/dev"
   cp dev/doc-lint.sh dev/command-lint.sh "$d/dev/"
+  printf '  "board",\n' > "$d/plugins/companion/mcp-server/index.js"
   _cl() { run bash -c 'cd "$1" && dev/command-lint.sh' _ "$d"; }
   # a stand-in autopilot.sh whose top-level case implements one shared action and two modes
   printf '%s\n' '#!/usr/bin/env bash' 'case "${1:-}" in' \
@@ -111,12 +115,12 @@ load helper
     > "$d/plugins/companion/bin/autopilot.sh"
 
   # documents BOTH modes -> clean
-  printf -- '---\ndescription: on|off|status · ship/burndown on|off\n---\n\nModes: ship, burndown.\n' \
+  printf -- '---\ndescription: on|off|status · ship/burndown on|off\n---\n\nModes: ship, burndown via `board`.\n' \
     > "$d/plugins/companion/commands/autopilot.md"
   _cl; [ "$status" -eq 0 ]
 
   # drops one mode from every document at once -> exactly the drift that shipped, now caught
-  printf -- '---\ndescription: on|off|status · ship on|off\n---\n\nModes: ship.\n' \
+  printf -- '---\ndescription: on|off|status · ship on|off\n---\n\nModes: ship via `board`.\n' \
     > "$d/plugins/companion/commands/autopilot.md"
   _cl; [ "$status" -ne 0 ]
   [[ "$output" == *"burndown"* ]]
@@ -863,12 +867,13 @@ EOT
   # so the gate that decides what every session pays for had no test of its own. It reads
   # repo-relative paths, so the fixture mirrors the real layout and the test runs from inside it.
   local d; d="$(_tmpd)"
-  mkdir -p "$d/plugins/companion/commands" "$d/docs/adr" "$d/dev"
+  mkdir -p "$d/plugins/companion/commands" "$d/plugins/companion/mcp-server" "$d/docs/adr" "$d/dev"
+  printf '  "board",\n' > "$d/plugins/companion/mcp-server/index.js"   # token-budget calls command-lint
   cp "$DEV/token-budget.sh" "$d/dev/"
   cp "$DEV/doc-lint.sh" "$DEV/command-lint.sh" "$d/dev/"
   cp docs/adr/PROVENANCE.md "$d/docs/adr/" 2>/dev/null || printf '| **R1** | x |\n' > "$d/docs/adr/PROVENANCE.md"
   cp docs/requirements.yaml "$d/docs/" 2>/dev/null || printf -- '- id: R1\n' > "$d/docs/requirements.yaml"
-  printf -- '---\ndescription: short\n---\n\nBody.\n' > "$d/plugins/companion/commands/ok.md"
+  printf -- '---\ndescription: short\n---\n\nBody calls `board`.\n' > "$d/plugins/companion/commands/ok.md"
 
   # a core comfortably UNDER the cap, with exactly one marker
   { printf 'tiny core\n'; printf 'injection stops here\n'; printf 'rationale below\n'; } \
@@ -912,4 +917,40 @@ EOT
 
   _fc x ""
   [ "$output" = ordinary ]                      # nothing changed
+}
+
+@test "command-lint portability floor: a command with no portable footing FAILS; a reasoned cli-only marker passes" {
+  # The plugin's thesis is portable CAPABILITY + native PRESENTATION. A command naming no MCP tool
+  # and no bin/ script is a capability reachable only from Claude Code — the drift that thesis loses
+  # to. Stated ceiling: this checks that a portable mechanism is NAMED, not that it is the right one
+  # or that the real work goes through it. A floor, not a proof.
+  local d; d="$(_tmpd)"; mkdir -p "$d/plugins/companion/commands" "$d/plugins/companion/mcp-server" "$d/dev"
+  cp "$DEV/command-lint.sh" "$DEV/doc-lint.sh" "$d/dev/"
+  printf '  "tq_add",\n  "board",\n' > "$d/plugins/companion/mcp-server/index.js"
+  local _cl; _cl() { run bash -c 'cd "$1" && dev/command-lint.sh' _ "$d"; }
+
+  # names an MCP tool -> fine
+  printf -- '---\ndescription: does a thing\n---\n\nCall the `board` tool.\n' > "$d/plugins/companion/commands/a.md"
+  _cl; [ "$status" -eq 0 ]
+
+  # names a bin/ script -> also fine
+  printf -- '---\ndescription: does a thing\n---\n\nRun `candidates.sh`.\n' > "$d/plugins/companion/commands/a.md"
+  _cl; [ "$status" -eq 0 ]
+
+  # names NEITHER -> the capability exists only as Claude-Code prose
+  printf -- '---\ndescription: does a thing\n---\n\nThink hard and write it down.\n' > "$d/plugins/companion/commands/a.md"
+  _cl; [ "$status" -eq 1 ]; [[ "$output" == *"reachable only from Claude Code"* ]]
+
+  # an exemption WITH a reason is honoured
+  printf -- '---\ndescription: does a thing\n---\n<!-- cli-only: wires a Claude Code settings file -->\n\nThink hard.\n' > "$d/plugins/companion/commands/a.md"
+  _cl; [ "$status" -eq 0 ]
+
+  # ...but a bare marker is refused: "cli-only" with no argument is how a real leak gets waved through
+  printf -- '---\ndescription: does a thing\n---\n<!-- cli-only: -->\n\nThink hard.\n' > "$d/plugins/companion/commands/a.md"
+  _cl; [ "$status" -eq 1 ]; [[ "$output" == *"NO reason"* ]]
+
+  # and it refuses to pass VACUOUSLY when it can derive no tool names at all
+  printf '\n' > "$d/plugins/companion/mcp-server/index.js"
+  printf -- '---\ndescription: does a thing\n---\n\nCall the `board` tool.\n' > "$d/plugins/companion/commands/a.md"
+  _cl; [ "$status" -eq 1 ]; [[ "$output" == *"vacuously"* ]]
 }

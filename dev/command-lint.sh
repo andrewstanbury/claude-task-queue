@@ -49,26 +49,26 @@ for f in plugins/companion/commands/*.md; do
   # Frontmatter lint lives in dev/doc-lint.sh so the SUITE can exercise it (R78) — check.sh runs
   # bats, so anything inline here is untestable by construction and was a named gap.
   if ! out="$("$PWD/dev/doc-lint.sh" frontmatter "$f")"; then
-    printf '%s\n' "$out"; tok_fail=1; failsec
+    printf '%s\n' "$out"; failsec
   fi
 
   db="$(printf '%s' "$d" | wc -c | tr -d '[:space:]')"
-  if [ "${db:-0}" -gt 140 ]; then echo "  FAIL $(basename "$f") description: ${db}B > 140B (per-session command-list injection)"; tok_fail=1; failsec; fi
+  if [ "${db:-0}" -gt 140 ]; then echo "  FAIL $(basename "$f") description: ${db}B > 140B (per-session command-list injection)"; failsec; fi
 
   # A body that reads $ARGUMENTS must declare a hint; a hint must not promise params the body ignores.
   takes_args=0
   # shellcheck disable=SC2016  # the literal string "$ARGUMENTS" is the target; expansion is wrong here
   grep -qF '$ARGUMENTS' "$f" && takes_args=1
   if [ "$takes_args" = 1 ] && [ -z "${hint// /}" ]; then
-    echo "  FAIL $(basename "$f") reads \$ARGUMENTS but has no non-empty frontmatter argument-hint: (R75 — params must be visible in the / menu)"; tok_fail=1; failsec
+    echo "  FAIL $(basename "$f") reads \$ARGUMENTS but has no non-empty frontmatter argument-hint: (R75 — params must be visible in the / menu)"; failsec
   fi
   if [ "$takes_args" = 0 ] && [ -n "${hint// /}" ]; then
-    echo "  FAIL $(basename "$f") declares argument-hint: but the body never reads \$ARGUMENTS (R75 — the / menu would promise params the command ignores)"; tok_fail=1; failsec
+    echo "  FAIL $(basename "$f") declares argument-hint: but the body never reads \$ARGUMENTS (R75 — the / menu would promise params the command ignores)"; failsec
   fi
   # The hint renders with `truncate-end`, so the tail — usually the second parameter — is what
   # silently disappears. 80 chars is generous.
   if [ "${#hint}" -gt 80 ]; then
-    echo "  FAIL $(basename "$f") argument-hint: ${#hint} chars > 80 (truncates in the / input box — name the params, don't document them)"; tok_fail=1; failsec
+    echo "  FAIL $(basename "$f") argument-hint: ${#hint} chars > 80 (truncates in the / input box — name the params, don't document them)"; failsec
   fi
 
   # description <-> argument-hint AGREEMENT, BOTH directions (R75 amended). The description is what
@@ -76,10 +76,10 @@ for f in plugins/companion/commands/*.md; do
   # places now state one fact, so neither may name a parameter the other doesn't.
   hp="$(cmd_params "$hint")"; dp="$(cmd_params "$d")"
   if [ -n "${hint// /}" ] && [ -z "$hp" ]; then
-    echo "  FAIL $(basename "$f") argument-hint names no parameter in [brackets] — the agreement check cannot see it (R75)"; tok_fail=1; failsec
+    echo "  FAIL $(basename "$f") argument-hint names no parameter in [brackets] — the agreement check cannot see it (R75)"; failsec
   fi
   if [ -z "${hint// /}" ] && [ -n "$dp" ]; then
-    echo "  FAIL $(basename "$f") description promises $(echo "$dp" | tr '\n' ' ')but there is no argument-hint (R75 — agree, or say '(no args)')"; tok_fail=1; failsec
+    echo "  FAIL $(basename "$f") description promises $(echo "$dp" | tr '\n' ' ')but there is no argument-hint (R75 — agree, or say '(no args)')"; failsec
   fi
   if [ -n "$hp" ]; then
     while IFS= read -r p; do
@@ -93,14 +93,14 @@ for f in plugins/companion/commands/*.md; do
       else
         case "$d" in *"$p"*) continue ;; esac
       fi
-      echo "  FAIL $(basename "$f") argument-hint names \`$p\` but the description does not (R75 — the / menu and the autocomplete must agree)"; tok_fail=1; failsec
+      echo "  FAIL $(basename "$f") argument-hint names \`$p\` but the description does not (R75 — the / menu and the autocomplete must agree)"; failsec
     done <<EOF
 $hp
 EOF
     while IFS= read -r p; do
       [ -n "$p" ] || continue
       case "$(printf '\n%s\n' "$hp")" in *"$(printf '\n%s\n' "$p")"*) continue ;; esac
-      echo "  FAIL $(basename "$f") description names \`$p\` but the argument-hint does not (R75 — agreement is both ways)"; tok_fail=1; failsec
+      echo "  FAIL $(basename "$f") description names \`$p\` but the argument-hint does not (R75 — agreement is both ways)"; failsec
     done <<EOF
 $dp
 EOF
@@ -133,6 +133,48 @@ if [ -f "$_ap_sh" ] && [ -f "$_ap_md" ]; then
   done <<EOF
 $(sed -n 's/^  \([a-z][a-z]*\)).*/\1/p' "$_ap_sh" 2>/dev/null)
 EOF
+fi
+
+# ---- PORTABILITY FLOOR: every command must have somewhere portable to stand (R100, #129) ----
+# The plugin's thesis is that CAPABILITY is portable (MCP tools + bin/ scripts, reachable from
+# Cursor or any MCP client) while PRESENTATION is native (slash commands, arrow-key menus, the
+# status line). A command whose steps name no portable mechanism at all is a capability that exists
+# ONLY as Claude-Code prose — exactly the drift this thesis loses to, and the kind of rule this
+# session has repeatedly shown gets skipped when it lives only in a document.
+#
+# WHAT THIS CAN AND CANNOT PROVE, stated plainly because a gate oversold is worse than none. It
+# checks that a command NAMES at least one MCP tool or bin/ script. It cannot check that the tool
+# named is the RIGHT one, or that the command's real work goes through it — that is semantics, and
+# a lint that pretended otherwise would be theatre. This is a FLOOR: no command can silently exist
+# with zero portable footing, and a genuinely native one has to SAY SO.
+#
+# The exemption is deliberate and must carry a reason: `<!-- cli-only: … -->`. /companion:setup
+# earns it — it wires the status line into Claude Code's own settings.json, which has no meaning in
+# another client. An exemption with no reason is refused, because "cli-only" with no argument is
+# how a real leak gets waved through.
+_cmd_tools="$(grep -oE '^  "[a-z_]+",' plugins/companion/mcp-server/index.js 2>/dev/null | tr -d ' ",')"
+if [ -n "$_cmd_tools" ]; then
+  for f in plugins/companion/commands/*.md; do
+    [ -f "$f" ] || continue
+    _base="$(basename "$f")"
+    if grep -qE '<!--[[:space:]]*cli-only:[[:space:]]*[^[:space:]>-]' "$f"; then continue; fi
+    if grep -qE '<!--[[:space:]]*cli-only:?[[:space:]]*-->' "$f"; then
+      echo "  FAIL $_base carries a cli-only marker with NO reason — say why it cannot be portable"
+      cmd_fail=1; continue
+    fi
+    _hit=0
+    for _t in $_cmd_tools; do
+      grep -qF "\`$_t\`" "$f" && { _hit=1; break; }
+    done
+    [ "$_hit" -eq 1 ] || grep -qE '`[a-z][a-z-]*\.sh`|`bin/' "$f" && _hit=1
+    if [ "$_hit" -ne 1 ]; then
+      echo "  FAIL $_base names no MCP tool and no bin/ script — its capability is reachable only from Claude Code. Route it through a portable mechanism, or mark it <!-- cli-only: <reason> -->"
+      cmd_fail=1
+    fi
+  done
+else
+  echo "  FAIL portability floor: derived NO MCP tool names — the check would pass vacuously"
+  cmd_fail=1
 fi
 
 [ "$cmd_fail" -eq 0 ] || exit 1

@@ -1,9 +1,10 @@
 {
   "id": "128",
   "subject": "PORTABILITY: move command LOGIC into MCP tools, leaving each slash command a thin presentation layer — review/advise/docs/cover are prose+logic today, so a non-Claude client cannot reach the capability at all",
-  "status": "in_progress",
+  "status": "completed",
   "done_when": "for each of review/advise/docs/cover, the decision logic is reachable as an MCP tool and the command file only renders/asks; a Cursor-shaped client can drive the capability end to end; behaviour in Claude CLI is unchanged",
   "context": "plugins/companion/commands/*.md, plugins/companion/mcp-server/index.js (22 tools today), adr R100 (portability thesis)",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "seen": "extracted review's pile classification to bin/review-pile.sh + a review_pile MCP tool (22 tools now), and rewrote review.md step 1 to call it instead of re-deriving from tq_list. Verified all four classes plus the precedence case (a decompose park carrying rec: stays decompose) and that plain-open and completed items are excluded. HONEST SCOPE CORRECTION recorded below: advise and docs carry judgment, not extractable logic, and cover's computable half already exists as candidates rank 4 — so only review had a real gap."
 }
