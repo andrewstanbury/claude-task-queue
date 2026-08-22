@@ -1,0 +1,9 @@
+{
+  "id": "128",
+  "subject": "PORTABILITY: move command LOGIC into MCP tools, leaving each slash command a thin presentation layer — review/advise/docs/cover are prose+logic today, so a non-Claude client cannot reach the capability at all",
+  "status": "in_progress",
+  "done_when": "for each of review/advise/docs/cover, the decision logic is reachable as an MCP tool and the command file only renders/asks; a Cursor-shaped client can drive the capability end to end; behaviour in Claude CLI is unchanged",
+  "context": "plugins/companion/commands/*.md, plugins/companion/mcp-server/index.js (22 tools today), adr R100 (portability thesis)",
+  "blocks": [],
+  "blockedBy": []
+}

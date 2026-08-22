@@ -105,3 +105,29 @@ if [ -n "$cand" ]; then
     printf '  %s. [%s] %s\n' "$rank" "$src" "$txt"
   done <<< "$cand"
 fi
+
+# WORK IN FLIGHT, BY CLASS (R116·b). The state lanes above answer "what is queued"; this answers
+# "what SHAPE is the change you are building right now" — and specifically whether ship will demand
+# a branch for it. Feature-class means a docs/flows page moved alongside implementation, i.e. what
+# the user can DO changed (R58), so it lands from a branch and merges on the owner's say-so.
+#
+# Shown HERE rather than on the status line, deliberately (owner-decided 2026-08-20): the status
+# line answers "what needs me NOW" in one always-visible line already carrying ten segments; class
+# is a property of a CHANGE, not of a task, and belongs where there is room to explain it.
+#
+# Read-only and quiet when there is nothing to say — same rule as every other section here.
+_bd_changed="$( { git -C "$root" -c core.quotepath=false diff --name-only --no-renames HEAD 2>/dev/null
+                  git -C "$root" -c core.quotepath=false ls-files --others --exclude-standard 2>/dev/null; } \
+                | sort -u )"
+if [ -n "$_bd_changed" ]; then
+  echo
+  if companion_is_feature_class "$_bd_changed"; then
+    echo "── work in flight: FEATURE-CLASS ──"
+    echo "  a docs/flows page moved with implementation, so this changes what the user can DO."
+    echo "  ship will refuse the default branch: build it on a branch, behind a flag defaulting OFF,"
+    echo "  and it merges on your say-so (override: ship.sh land --merge-feature, before --gate)."
+  else
+    printf '  work in flight: ordinary (%s changed path(s)) — ships straight through\n' \
+      "$(printf '%s\n' "$_bd_changed" | grep -c .)"
+  fi
+fi

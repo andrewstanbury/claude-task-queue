@@ -1,0 +1,10 @@
+{
+  "id": "127",
+  "subject": "BOARD shows work TYPE — the statusbar stays state-only (▸◻❓⏳) because it answers 'what needs me now'; the board answers 'what shape is the work' and already has room and a legend",
+  "status": "completed",
+  "done_when": "board.sh renders a feature-class breakdown alongside its existing state lanes, read-only, and stays quiet when there is nothing to say; a test covers it",
+  "context": "plugins/companion/bin/board.sh (existing typed lanes + legend), the feature-class helper",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "ran board.sh against a scratch repo through three states: clean tree says nothing, a code-only edit reports 'ordinary', and adding a flow-page change alongside it flips to FEATURE-CLASS and states what ship will do about it. Verified on this repo too (23 paths, ordinary)."
+}

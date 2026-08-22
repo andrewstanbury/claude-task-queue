@@ -1,0 +1,9 @@
+{
+  "id": "131",
+  "subject": "RESTORE secret-guard as a Claude-CLI-only BLOCK on Write/Edit/NotebookEdit — strongest protection for the highest-consequence mistake. NOTE its recorded history: it failed OPEN on non-string content (arrays) and false-blocked empty edits, so restoring it means restoring those cases as tests FIRST",
+  "status": "pending",
+  "done_when": "the hook blocks a credential shape in edit content, fails CLOSED on unreadable/non-string payloads, never false-blocks an empty edit, is bounded and measured; the R81 hook budget still passes; tests cover arrays/objects/numbers/null/empty; mutation-verified",
+  "context": "git history for plugins/companion/bin/secret-guard.sh, companion_secret_re in lib/companion.sh, bin/check-secrets.sh (today's advisory version), adr R81 evidence on its measured cost",
+  "blocks": [],
+  "blockedBy": []
+}

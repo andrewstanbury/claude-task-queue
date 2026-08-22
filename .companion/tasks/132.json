@@ -1,0 +1,9 @@
+{
+  "id": "132",
+  "subject": "⏳ [blocked] CURSOR-HOOK ADAPTER for blocking (beforeShellExecution/beforeMCPExecution) — I CANNOT VERIFY THIS. There is no Cursor on this machine, so I would be writing and shipping an adapter I can never run, against a hook API I cannot test. That is the one thing this repo has never knowingly done. Needs either a Cursor install to test against, or an explicit decision to ship it untested and marked experimental",
+  "status": "pending",
+  "done_when": "owner decides: provide a Cursor environment to verify against, OR explicitly accept an unverified experimental adapter with that caveat recorded in the ADR and the README",
+  "context": "adr R100 (declined this as per-host adapters, knowing it lands advisory-only), Cursor hooks are a Cursor mechanism not an MCP one, and its stop hook cannot deny so forced continuation is unreachable there regardless",
+  "blocks": [],
+  "blockedBy": []
+}

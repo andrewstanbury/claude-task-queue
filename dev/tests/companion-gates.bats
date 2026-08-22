@@ -888,3 +888,28 @@ EOT
   run bash -c 'cd "$1" && dev/token-budget.sh' _ "$d"
   [ "$status" -ne 0 ]; [[ "$output" == *"marker count"* ]]
 }
+
+@test "feature-class: a flow page CHANGED ALONGSIDE code is user-visible; the other shapes are not (R116)" {
+  # Owner-decided 2026-08-20: one bit derived from the contract, NOT a hand-set task level. A level
+  # would be a second classification beside needs->requirements->tests, unverifiable, and most likely
+  # used to justify a LOWER bar. This uses a signal the repo already maintains (R58) and cannot rot,
+  # because it IS the contract. Generic by construction: "implementation" is any changed path
+  # outside docs/ and .companion/, never a language or extension list (R9).
+  _fc() { run bash -c '. "$1"; companion_is_feature_class "$2" && echo FEATURE || echo ordinary' \
+            _ "$ROOT/lib/companion.sh" "$2"; }
+
+  _fc x "$(printf 'docs/flows/checkout.md\nplugins/companion/bin/tq\n')"
+  [ "$output" = FEATURE ]                       # behaviour documented AND implemented
+
+  _fc x "$(printf 'docs/flows/checkout.md\n')"
+  [ "$output" = ordinary ]                      # a typo in a flow page is not a release
+
+  _fc x "$(printf 'plugins/companion/bin/tq\n')"
+  [ "$output" = ordinary ]                      # a fix that alters no documented behaviour
+
+  _fc x "$(printf 'docs/flows/checkout.md\n.companion/tasks/1.json\n')"
+  [ "$output" = ordinary ]                      # queue churn is not implementation
+
+  _fc x ""
+  [ "$output" = ordinary ]                      # nothing changed
+}

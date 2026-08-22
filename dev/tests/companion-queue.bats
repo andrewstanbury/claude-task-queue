@@ -566,3 +566,58 @@ load helper
   [[ "$output" == *"after #<id>"* ]]
   [[ "$output" == *"silently ignored"* ]]
 }
+
+@test "board: names the work in flight by CLASS, and stays quiet on a clean tree (R116·b)" {
+  # The state lanes answer "what is queued"; this answers "what SHAPE is the change you are building
+  # right now" — specifically whether ship will demand a branch for it. Deliberately on the BOARD and
+  # not the status line: class is a property of a CHANGE, not of a task, and the bar already carries
+  # ten segments answering "what needs me now".
+  local d; d="$(_tmpd)"; git -C "$d" init -q -b main
+  mkdir -p "$d/docs/flows" "$d/src"
+  echo x > "$d/src/a.sh"; { echo '# flow:f'; echo 'steps:'; echo '- a'; } > "$d/docs/flows/f.md"
+  git -C "$d" add -A; git -C "$d" -c user.email=t@t -c user.name=t commit -qm base
+  local _b; _b() { run bash -c 'cd "$1" && "$2"' _ "$d" "$BOARD"; }
+
+  _b; [[ "$output" != *"work in flight"* ]]        # clean tree -> nothing to say
+
+  echo y >> "$d/src/a.sh"
+  _b; [[ "$output" == *"work in flight: ordinary"* ]]
+  [[ "$output" != *"FEATURE-CLASS"* ]]
+
+  echo '- b' >> "$d/docs/flows/f.md"               # now a flow page moved WITH implementation
+  _b
+  [[ "$output" == *"FEATURE-CLASS"* ]]
+  [[ "$output" == *"merges on your say-so"* ]]     # it says what will happen at ship, not just a label
+}
+
+@test "review_pile: classifies the owner's pile by HOW it must be asked, and is silent when clear" {
+  # Extracted from commands/review.md so a non-Claude client can drive a review at all (R100).
+  # The class is not cosmetic — it decides the interaction: a ⏳ is an owner ACTION and must never be
+  # offered as a recommendation to accept; a decompose-park carries QUESTIONS, so a menu would be
+  # premature; a park with no rec: is owed a full menu, because batch-accepting it is a rubber stamp.
+  local d; d="$(_tmpd)"; git -C "$d" init -q; mkdir -p "$d/.companion/tasks"
+  local RP="$ROOT/bin/review-pile.sh"
+  _rp() { run env REVIEW_ROOT="$d" CLAUDE_COMPANION_TASKS_DIR="" bash "$RP"; }
+
+  _rp; [ "$status" -eq 0 ]; [ -z "$output" ]        # clear pile -> silent, a clean no-op
+
+  jq -n '{id:"1",subject:"⏳ [blocked] owner deploys it",status:"pending"}'                    > "$d/.companion/tasks/1.json"
+  jq -n '{id:"2",subject:"❓ [parked] decompose: big thing — need: which store?",status:"pending"}' > "$d/.companion/tasks/2.json"
+  jq -n '{id:"3",subject:"❓ [parked] rev: pick a cache — options: A) x B) y; rec: A",status:"pending"}' > "$d/.companion/tasks/3.json"
+  jq -n '{id:"4",subject:"❓ [parked] pick a colour",status:"pending"}'                        > "$d/.companion/tasks/4.json"
+  jq -n '{id:"5",subject:"plain open work",status:"pending"}'                                 > "$d/.companion/tasks/5.json"
+  jq -n '{id:"6",subject:"❓ [parked] already handled",status:"completed"}'                     > "$d/.companion/tasks/6.json"
+
+  _rp; [ "$status" -eq 0 ]
+  [[ "$output" == *"blocked"$'\t'"1"* ]]
+  [[ "$output" == *"decompose"$'\t'"2"* ]]
+  [[ "$output" == *"options-rec"$'\t'"3"* ]]
+  [[ "$output" == *"options"$'\t'"4"* ]]
+  [[ "$output" != *"plain open work"* ]]           # doing, not deciding — a menu here is noise
+  [[ "$output" != *"already handled"* ]]           # finished items are not the owner's problem
+  [ "$(printf '%s\n' "$output" | grep -c .)" -eq 4 ]
+
+  # a decompose park that ALSO carries rec: is still decompose — questions outrank a stray pick
+  jq -n '{id:"7",subject:"❓ [parked] decompose: x — need: y; rec: z",status:"pending"}' > "$d/.companion/tasks/7.json"
+  _rp; [[ "$output" == *"decompose"$'\t'"7"* ]]
+}

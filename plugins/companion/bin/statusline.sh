@@ -70,13 +70,19 @@ store="$(companion_session_dir "$(companion_root "${CWD:-$PWD}")" "$SID")"
 if [ -n "${SID:-}" ] && [ -d "$store" ]; then
   files=("$store"/*.json)
   if [ -e "${files[0]}" ]; then
+    # FOUR LANES, counted independently so they cannot double-count each other. `📋 N` used to lump
+    # in-progress in with plain-open, which hid the one state that answers "what is being worked on
+    # RIGHT NOW" — and NDOING was already being computed and then thrown away except to animate the
+    # beacon. Same glyph vocabulary as `tq report` and `board.sh` (▸ ◻ ❓ ⏳), so the three surfaces
+    # describe the queue in one language rather than three.
     read -r NOPEN NPARK NBLOCK NDOING < <(jq -rs '
       [ .[] | select(.status=="pending" or .status=="in_progress") ] as $o
-      | ($o | map((.subject//"") | sub("^\\s+";""))) as $s
-      | [ ($s | map(select((startswith("❓") or startswith("⏳")) | not)) | length),
-          ($s | map(select(startswith("❓"))) | length),
-          ($s | map(select(startswith("⏳"))) | length),
-          ($o | map(select(.status=="in_progress")) | length) ] | @tsv' "${files[@]}" 2>/dev/null)
+      | ($o | map(. + {_s: ((.subject//"") | sub("^\\s+";""))})) as $t
+      | ($t | map(select((._s|startswith("❓")) or (._s|startswith("⏳")) | not))) as $plain
+      | [ ($plain | map(select(.status=="pending"))     | length),
+          ($t | map(select(._s|startswith("❓")))       | length),
+          ($t | map(select(._s|startswith("⏳")))       | length),
+          ($plain | map(select(.status=="in_progress")) | length) ] | @tsv' "${files[@]}" 2>/dev/null)
   fi
 fi
 case "$NOPEN"  in ''|*[!0-9]*) NOPEN=0;;  esac
@@ -194,10 +200,16 @@ FEAT="${SHIELD}${AP}${SHIP}"          # each item carries its own leading space;
 # (🛡✗ only when the gate is off, ✈️/📦 only when armed, ↑↓ only when diverged). `📋 0` used to render
 # permanently, which is the always-on zero that rule exists to prevent; a drained queue now renders
 # no section at all, and the section reappearing IS the signal that there is work.
+# 📋 is the SECTION marker; the lanes after it are the same glyphs tq report and board.sh use, so
+# one vocabulary describes the queue everywhere. Each lane appears only when it has a count, and the
+# whole section still vanishes when the queue is drained (a permanent `📋 0` is the always-on zero
+# this rule exists to prevent). ▸ leads because it is the only lane that is happening right now.
 TASKS=""
-[ "$NOPEN"  -gt 0 ] && TASKS="${C}${B}📋 $NOPEN${X}"
-[ "$NPARK"  -gt 0 ] && TASKS="${TASKS:+$TASKS }${Y}${B}❓ $NPARK${X}"
-[ "$NBLOCK" -gt 0 ] && TASKS="${TASKS:+$TASKS }${Y}${B}⏳ $NBLOCK${X}"
+[ "$NDOING" -gt 0 ] && TASKS="${C}${B}▸$NDOING${X}"
+[ "$NOPEN"  -gt 0 ] && TASKS="${TASKS:+$TASKS }${C}${B}◻$NOPEN${X}"
+[ "$NPARK"  -gt 0 ] && TASKS="${TASKS:+$TASKS }${Y}${B}❓$NPARK${X}"
+[ "$NBLOCK" -gt 0 ] && TASKS="${TASKS:+$TASKS }${Y}${B}⏳$NBLOCK${X}"
+[ -n "$TASKS" ] && TASKS="${C}${B}📋${X} $TASKS"
 out="${BCOL}${B}${BEACON}${X}"
 [ -n "${VERSION:-}" ] && out="$out ${D}v$VERSION${X}"
 [ -n "$FEAT" ] && out="$out $DIVC$FEAT"   # features section only when something's active

@@ -22,12 +22,16 @@ pile that needs deciding — to *re-surface carried-over tasks from an earlier s
    can put it back; it is a clean no-op when autopilot was already off. Never use `off` here —
    that is the owner's word, and it deliberately cancels any pending resume.
 
-1. **Gather the pile — parked + blocked only.** Call the **`tq_list`** MCP tool (**not
-   `tq_report`** — the report truncates each subject to ~72 chars, and a parked item carries its options
-   *in* the subject) and take only the tasks whose subject starts with **❓ (parked decision)** or
-   **⏳ (owner-blocked action)**. **Ignore plain `📋 open` tasks** — they need doing, not deciding;
-   presenting a menu for "implement X" is noise. If nothing is parked or blocked, say so in one line
-   and stop — this is a clean no-op, not a reason to manufacture questions.
+1. **Gather the pile — call the `review_pile` MCP tool** (or `bin/review-pile.sh`). It returns one
+   TSV row per item needing you: `<class>\t<id>\t<subject>`, already filtered to ❓/⏳ and already
+   classified. **That classification is the logic half of this command and it lives outside Claude
+   Code on purpose** (R100 portability) — so any MCP client can drive a review, while the arrow-key
+   presentation below stays native. Do NOT re-derive the pile from `tq_list`; a second filter is how
+   the two drift.
+   The classes tell you HOW to ask: `blocked` = an owner ACTION (never a menu to accept) ·
+   `decompose` = questions, so interview (R65) · `options-rec` = a real pick exists, sweep-eligible ·
+   `options` = a full menu is owed. Empty output → say so in one line and stop; that is a clean
+   no-op, not a reason to manufacture questions.
 
 2. **Ask the whole pile UP FRONT, recommendation-first.** Do not drip-feed one question per turn:
    batch them into as few `AskUserQuestion` calls as the tool allows (**up to 4 questions per

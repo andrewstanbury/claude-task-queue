@@ -1,0 +1,10 @@
+{
+  "id": "126",
+  "subject": "FEATURE-CLASS ships from a branch and merges on the OWNER's say-so — today autonomous features get branch+flag+never-merge while owner-asked features land straight on main, so the safety applies only to work the owner did NOT ask for",
+  "status": "completed",
+  "done_when": "ship.sh land refuses to land feature-class work directly on the default branch; from a feature branch it commits and PUSHES but does not auto-merge, telling the owner to review and merge; an explicit override exists and is auditable; ordinary work still ships straight through unchanged; tests cover refuse, push-no-merge, override, and ordinary passthrough",
+  "context": "plugins/companion/bin/ship.sh land (the ff-merge block), dev/tests/companion-ship.bats, adr R116",
+  "blocks": [],
+  "blockedBy": [],
+  "seen": "drove ship.sh land on four real git repos: feature-class on the default branch refuses with exit 15 and leaves ZERO commits; from a branch it commits and stops with main still at 1 commit and HEAD still on the branch; --merge-feature lands it (and I found the trap that it must precede --gate, which slurps trailing args, now named in the refusal text); flow-page-only and code-only both ship normally."
+}

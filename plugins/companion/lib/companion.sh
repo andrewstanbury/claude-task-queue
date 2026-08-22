@@ -185,3 +185,33 @@ while [ -L "$_COMPANION_SELF" ]; do
 done
 # shellcheck source=./task-store.sh
 . "$(cd "$(dirname "$_COMPANION_SELF")" && pwd)/task-store.sh"
+
+# companion_is_feature_class <newline-separated changed paths> -> 0 when the change is USER-VISIBLE.
+#
+# ONE BIT, DERIVED FROM THE CONTRACT (owner-decided 2026-08-20, adr R116). The alternative on the
+# table was a task-level taxonomy — feature / NFR / spec / chore — set by hand on each task. That was
+# declined for a specific reason: this repo already carries needs -> requirements -> tests, and a
+# second classification is a second thing to keep in sync. Every drift defect found in the
+# 2026-08-16 audit had that shape. A hand-set level also cannot be verified, and its likeliest use is
+# to justify a LOWER bar ("just a chore") — erosion the uniform rule prevents today.
+#
+# So the class comes from a signal the project ALREADY maintains: a `docs/flows/<flow>.md` page
+# documents what the user can DO (R58), so touching one alongside implementation means behaviour
+# changed. It cannot rot, because it IS the contract.
+#
+# GENERIC, no extension allowlist (R9). "Implementation" is simply a changed path OUTSIDE the docs
+# tree and outside the plugin's own state dir — the flow page describes the behaviour, anything else
+# that moved with it is the thing doing it. Naming languages here would be the exact violation this
+# file polices elsewhere.
+#
+# Deliberately NOT feature-class: a docs-only edit (a typo in a flow page is not a release), a
+# code-only change (a fix that alters no documented behaviour), and queue/mode churn under
+# `.companion/`. False positives cost the owner a branch; false negatives ship behaviour with no
+# review gate, so where it is uncertain this errs toward calling it a feature.
+companion_is_feature_class() {
+  local changed="${1:-}"
+  [ -n "$changed" ] || return 1
+  printf '%s\n' "$changed" | grep -qE '^docs/flows/[^/]+\.md$' || return 1
+  printf '%s\n' "$changed" | grep -qvE '^(docs/|\.companion/)' || return 1
+  return 0
+}

@@ -88,7 +88,7 @@ preflight() {
 }
 
 land() {
-  local msgfile="" prune_all=0 gate_cmd=() gate cur def had_remote=0 da="" core="" changed="" _grc=0
+  local msgfile="" prune_all=0 merge_feature=0 _fclass=0 gate_cmd=() gate cur def had_remote=0 da="" core="" changed="" _grc=0
   while [ "$#" -gt 0 ]; do
     case "$1" in
       -F) shift; msgfile="${1:-}"; shift || true ;;
@@ -103,6 +103,9 @@ land() {
       # asymmetry. It must therefore come LAST (after -F / --prune-all).
       --gate) shift; while [ "$#" -gt 0 ]; do gate_cmd+=("$1"); shift; done ;;
       --prune-all) prune_all=1; shift ;;
+      # Explicit, auditable override for the feature-class gate below. Deliberately a separate flag
+      # from --da: that one attests a review HAPPENED, this one says "merge it anyway".
+      --merge-feature) merge_feature=1; shift ;;
       *) die 2 "unknown argument: $1" ;;
     esac
   done
@@ -125,6 +128,17 @@ land() {
                 git -c core.quotepath=false ls-files --others --exclude-standard 2>/dev/null
                 git -c core.quotepath=false log --name-only --pretty=format: "$def..HEAD" 2>/dev/null; } \
               | sort -u )"
+
+  # FEATURE-CLASS GATE — reasoning in docs/adr/README.md R116. Class comes from the contract (a
+  # docs/flows page moved WITH implementation = what the user can DO changed, R58), never a hand-set
+  # level. Refused HERE, before staging or committing, so a refusal never leaves a commit to unpick.
+  # Ordinary work still ships straight through.
+  if companion_is_feature_class "$changed" && [ "$merge_feature" -eq 0 ]; then
+    _fclass=1
+    if [ "$cur" = "$def" ]; then
+      die 15 "FEATURE-CLASS change (a docs/flows page moved with implementation) cannot land directly on '$def'. Branch first: git checkout -b <name>, then ship — it will push and wait for your merge. Behind a flag defaulting OFF, in whatever idiom this project uses. Override deliberately with --merge-feature — BEFORE --gate, which slurps everything after it."
+    fi
+  fi
 
   # A devil's-advocate pass is REQUIRED for paths this repo declares critical (R78) — prose said to
   # run one and prose is skippable; the defects that reached `land` here were invisible to a green
@@ -197,6 +211,19 @@ land() {
     else
       printf '== ship.sh: no remote — nothing pushed\n'
     fi
+  elif [ "$_fclass" -eq 1 ]; then
+    # Feature-class from a branch: the work is committed and gets PUSHED so it is safe and
+    # reviewable — but the merge is the owner's act, not ours. This is the same shape burn-down's
+    # generated branches already have; it now applies to work the owner asked for too.
+    if [ "$had_remote" -eq 1 ]; then
+      git push -u origin "$cur" || die 8 "push failed — the commit is safe locally; resolve and push"
+      printf '== ship.sh: pushed %s — FEATURE-CLASS, so it does NOT auto-merge\n' "$cur"
+    else
+      printf '== ship.sh: no remote — %s is committed locally and does NOT auto-merge\n' "$cur"
+    fi
+    printf '== review it, then merge on your say-so: git checkout %s && git merge --ff-only %s\n' "$def" "$cur"
+    printf '== or re-run with --merge-feature to land it now.\n'
+    exit 0
   else
     git checkout -q "$def" || die 9 "cannot check out $def"
     if ! git merge --ff-only -q "$cur"; then

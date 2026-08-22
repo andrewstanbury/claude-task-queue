@@ -52,7 +52,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
   [[ "$output" == *"opus-4-8"* ]]      # model, claude- prefix + date stripped
   [[ "$output" == *"⇡45.2k"* ]]        # up tokens
   [[ "$output" == *"⇣1.3k"* ]]         # down tokens
-  [[ "$output" == *"📋 2"* ]]            # 2 open (completed excluded)
+  [[ "$output" == *"▸1"* ]] && [[ "$output" == *"◻1"* ]]   # 2 open, now split by TYPE (completed excluded)
   [[ "$output" == *"⎇"* ]]             # branch
 }
 
@@ -72,9 +72,14 @@ _feature_off() {  # $1=feature  $2=repo-dir
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sSplit",cwd:$c}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"📋 2"* ]]            # 2 plain-open (parked/blocked excluded)
-  [[ "$output" == *"❓ 1"* ]]            # 1 parked
-  [[ "$output" == *"⏳ 1"* ]]            # 1 blocked
+  # LANES BY TYPE, not one lumped count: ▸ in-progress · ◻ open · ❓ parked · ⏳ blocked, the same
+  # glyphs tq report and board.sh use. `📋 2` used to hide the in-progress task inside the open
+  # count — the one state that says what is being worked on RIGHT NOW.
+  [[ "$output" == *"📋"* ]]              # the section marker survives
+  [[ "$output" == *"▸1"* ]]             # 1 in progress, no longer lumped in
+  [[ "$output" == *"◻1"* ]]             # 1 plain-open (parked/blocked/in-progress excluded)
+  [[ "$output" == *"❓1"* ]]             # 1 parked
+  [[ "$output" == *"⏳1"* ]]             # 1 blocked
   [[ "$output" == *"↑1"* ]]            # 1 commit ahead of upstream
   [[ "$output" != *"↓"* ]]             # not behind
 }
@@ -115,7 +120,7 @@ _feature_off() {  # $1=feature  $2=repo-dir
   local p; p="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus 4.8"},session_id:"sSpace",cwd:$c}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"📋 1"* ]]             # session id parsed whole → store found → 1 open task
+  [[ "$output" == *"◻1"* ]]              # session id parsed whole → store found → 1 open task
   [[ "$output" == *"Opus 4.8"* ]]       # model name kept whole
   [[ "$output" == *"⎇"* ]]              # cwd parsed whole → git branch resolves
 }
@@ -486,7 +491,7 @@ ird"; mkdir -p "$weird"
   # one open task and it comes straight back
   jq -n '{id:"2",subject:"real work",status:"pending"}' > "$CLAUDE_COMPANION_TASKS_DIR/sDrained/2.json"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$p" "$SL"
-  [[ "$output" == *"📋 1"* ]]
+  [[ "$output" == *"◻1"* ]]
 }
 
 @test "status line: the git segment is CACHED for its TTL, and a hit skips git entirely (R81)" {

@@ -247,6 +247,20 @@ server.tool(
 );
 
 server.tool(
+  "review_pile",
+  "The items that need the OWNER, classified so a caller knows HOW to ask. One TSV row per item: " +
+    "<class>\\t<id>\\t<subject>. Classes: `blocked` (\u23f3 an owner ACTION in the world \u2014 not a " +
+    "recommendation to accept, never sweep it) \u00b7 `decompose` (\u2753 carrying decompose: \u2014 it holds " +
+    "QUESTIONS not options, so interview, do not offer a menu) \u00b7 `options-rec` (\u2753 with a real " +
+    "rec:, eligible for a batch accept) \u00b7 `options` (\u2753 with no rec: \u2014 a full menu is owed, a " +
+    "batch accept would be a rubber stamp). Empty output means the pile is clear, which is a " +
+    "clean no-op and the common case \u2014 never manufacture questions from it. This is the LOGIC " +
+    "half of /companion:review; the arrow-key presentation stays in the Claude Code command.",
+  {},
+  async () => runBin("review-pile.sh", []),
+);
+
+server.tool(
   "candidates",
   "What burn-down is allowed to build, ranked highest-signal first: a parked decision carrying " +
     "rec: > an unchecked ROADMAP item > a TODO/FIXME in tracked source > a contract flow with no " +

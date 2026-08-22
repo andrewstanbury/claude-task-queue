@@ -97,3 +97,4 @@
 1786912482 ci-red plugins/companion/.claude-plugin/plugin.json
 1786916553 rebuilt plugins/companion/lib/companion.sh
 1786916553 rebuilt dev/tests/companion-core.bats
+1787415538 owner-had-to-ask plugins/companion/STEERING.md

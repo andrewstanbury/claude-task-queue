@@ -813,3 +813,31 @@ evidence is not a track record: the acceptance ledger exists precisely so the ti
 measured merges rather than on anyone's optimism.
 
 | 2026-08-20, owner picked scheduled runs + hardening-first + recorded judgment; the substrate gap was the real finding.
+
+### R116·b — feature-class ships from a branch, whoever asked for it
+
+**The asymmetry ran the wrong way.** Work burn-down generated *autonomously* got a branch, a flag
+and never-merge. A feature the **owner asked for** landed straight on the default branch like a typo
+fix. So the safety applied only to work they had *not* asked for — and not to the larger, riskier
+changes they had.
+
+**The class is one bit, taken from the contract:** a `docs/flows/*.md` page changed **alongside
+implementation** means what the user can DO changed (R58). The alternative on the table was a
+hand-set task level — feature / NFR / spec / chore. Declined, because this repo already carries
+needs → requirements → tests, and a second classification is a second thing to keep in sync; every
+drift defect the 2026-08-16 audit found had exactly that shape. A hand-set level is also
+unverifiable, and its likeliest real use is to justify a **lower** bar ("just a chore").
+
+**Generic by construction (R9):** "implementation" is any changed path outside `docs/` and
+`.companion/`. Naming languages or extensions would be the violation this repo polices elsewhere.
+
+**Behaviour.** On the default branch → refuse, *before staging or committing*, so a refusal never
+leaves a commit to unpick. From a branch → commit and **push**, then stop: the merge is the owner's
+act. `--merge-feature` overrides deliberately and auditably. Ordinary work — fixes, refactors, docs,
+tests — is untouched, which is roughly nine changes in ten.
+
+**Stated limit.** The flag ("defaults OFF") is *asked for* and not verified: this plugin cannot know
+a project's flag idiom (R9), and pretending to check it would be ceremony. What is enforced is the
+branch and the non-merge; the flag rides on the same honour system the burn-down manifest uses.
+
+| 2026-08-20, owner-decided from a 3-option menu; the asymmetry was the finding.

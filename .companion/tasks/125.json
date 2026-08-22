@@ -1,0 +1,16 @@
+{
+  "id": "125",
+  "subject": "FEATURE-CLASS: detect it from the contract, not a new taxonomy — a change touching docs/flows/*.md AND shipped code is user-visible by definition (R58). One bit, already maintained, cannot rot into a second classification",
+  "status": "completed",
+  "done_when": "a helper reports feature-class for a flow-page+code change and NOT for docs-only edits, code-only changes, or flow-page typo fixes with no code; used by ship; tests cover all four shapes",
+  "context": "plugins/companion/bin/ship.sh (already computes $changed), docs/flows/*.md, CLAUDE.md R9/R58",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-22T15:59:26Z",
+      "text": "detector BUILT in lib/companion.sh (companion_is_feature_class) and verified by hand on all four shapes: flow+code = feature-class; flow-only, code-only and flow+queue = ordinary. Generic, no extension allowlist. REMAINING: bats tests + wire into ship.sh (#126)."
+    }
+  ],
+  "seen": "exercised companion_is_feature_class directly against all five shapes: flow+code = FEATURE; flow-only, code-only, flow+queue-churn and empty = ordinary. No extension list anywhere — 'implementation' is any changed path outside docs/ and .companion/."
+}

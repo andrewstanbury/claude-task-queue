@@ -554,3 +554,58 @@ NOGH
   git show HEAD --stat --format= | grep -q '.companion/modes' && false || true
   git cat-file -e HEAD:.companion/modes/autopilot 2>/dev/null
 }
+
+_fc_repo() {  # a repo with a flow page, implementation, and a gate
+  FCR="$(_tmpd)"; mkdir -p "$FCR/docs/flows" "$FCR/src"
+  git -C "$FCR" init -q -b main
+  echo x > "$FCR/src/a.sh"
+  { echo '# flow:f'; echo 'steps:'; echo '- a'; } > "$FCR/docs/flows/f.md"
+  echo 'check() { :; }' > "$FCR/check.sh"; chmod +x "$FCR/check.sh"
+  git -C "$FCR" add -A
+  git -C "$FCR" -c user.email=t@t -c user.name=t commit -qm base
+  FCM="$(_tmpd)/m.txt"; echo msg > "$FCM"
+}
+
+@test "ship.sh land: FEATURE-CLASS work will not land on the default branch, and refuses BEFORE committing" {
+  # The asymmetry this closes: autonomously-generated features already got a branch + flag +
+  # never-merge, while a feature the OWNER asked for landed straight on main like a typo fix.
+  # Refusing before staging matters — a refusal that leaves a commit behind is a mess to unpick.
+  _fc_repo
+  echo '- b' >> "$FCR/docs/flows/f.md"; echo y >> "$FCR/src/a.sh"
+  local before; before="$(git -C "$FCR" rev-list --count HEAD)"
+  run bash -c 'cd "$1" && "$2" land -F "$3" --gate ./check.sh' _ "$FCR" "$SHIP" "$FCM"
+  [ "$status" -eq 15 ]
+  [[ "$output" == *"FEATURE-CLASS"* ]]; [[ "$output" == *"Branch first"* ]]
+  [ "$(git -C "$FCR" rev-list --count HEAD)" -eq "$before" ]   # nothing committed
+}
+
+@test "ship.sh land: FEATURE-CLASS from a branch commits but does NOT auto-merge" {
+  _fc_repo
+  git -C "$FCR" checkout -qb feat/x
+  echo '- b' >> "$FCR/docs/flows/f.md"; echo y >> "$FCR/src/a.sh"
+  run bash -c 'cd "$1" && "$2" land -F "$3" --gate ./check.sh' _ "$FCR" "$SHIP" "$FCM"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"does NOT auto-merge"* ]]
+  [[ "$output" == *"merge on your say-so"* ]]
+  [ "$(git -C "$FCR" rev-list --count main)" -eq 1 ]              # default branch untouched
+  [ "$(git -C "$FCR" rev-parse --abbrev-ref HEAD)" = "feat/x" ]   # left on the branch
+}
+
+@test "ship.sh land: --merge-feature overrides, and ordinary work is untouched by the gate" {
+  # The override must come BEFORE --gate, which deliberately slurps everything after it.
+  _fc_repo
+  echo '- b' >> "$FCR/docs/flows/f.md"; echo y >> "$FCR/src/a.sh"
+  run bash -c 'cd "$1" && "$2" land -F "$3" --merge-feature --gate ./check.sh' _ "$FCR" "$SHIP" "$FCM"
+  [ "$status" -eq 0 ]; [[ "$output" == *"shipped"* ]]
+
+  # a FLOW-PAGE-ONLY edit is not a release, and code-only is not a documented behaviour change
+  _fc_repo
+  echo '- b' >> "$FCR/docs/flows/f.md"
+  run bash -c 'cd "$1" && "$2" land -F "$3" --gate ./check.sh' _ "$FCR" "$SHIP" "$FCM"
+  [ "$status" -eq 0 ]; [[ "$output" == *"shipped"* ]]
+
+  _fc_repo
+  echo y >> "$FCR/src/a.sh"
+  run bash -c 'cd "$1" && "$2" land -F "$3" --gate ./check.sh' _ "$FCR" "$SHIP" "$FCM"
+  [ "$status" -eq 0 ]; [[ "$output" == *"shipped"* ]]
+}
