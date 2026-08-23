@@ -32,6 +32,7 @@ setup() {
   SS="$ROOT/bin/session-start.sh"; AG="$ROOT/bin/ask-guard.sh"   # R100/Pass 6 reinstated
   BOARD="$ROOT/bin/board.sh"
   DRIFT="$ROOT/bin/contract-drift.sh"   # R58 living contract (drift backstop)
+  QB="$ROOT/bin/quality-bar.sh"         # R118 quality attributes name HOW they are checked
   export CLAUDE_COMPANION_TASKS_DIR="$(_tmpd)"   # the companion's OWN store, not ~/.claude/tasks
   export CLAUDE_COMPANION_STATE_DIR="$(_tmpd)"   # autopilot flags live here
   export CLAUDE_COMPANION_SESSION_ID="s1"

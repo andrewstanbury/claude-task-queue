@@ -1449,3 +1449,47 @@
     - "board: ⚑ finished-and-waiting section lists branches, and points at the WHY (R117)"
     - "board: the ⚑ section is silent when nothing is waiting (same rule as every section)"
     - "tq orphans: state kinds are DERIVED from source, so dead state cannot hide (R96)"
+
+- id: R118
+  satisfies: [UN-5]
+  affirmed: 2026-08-23
+  affirmations: 0
+  requirement: >
+    every stated quality attribute names HOW it will be checked — elicited at install, reported at
+    the ship boundary
+
+    THE GAP, and it was elicitation, not mechanism. docs/flows/_quality-bar.md was already the home
+    for quality attributes, requirements.yaml already pairs behaviour with verifying tests, and
+    trace.sh already gates both directions. Nothing ever ASKED — so a repo can run for months with
+    an empty bar, or with attributes that sound rigorous and name no check, and the first thing to
+    surface it is a publish. That is the "find out way too late and rebuild" case the owner named.
+
+    IT CHECKS THAT THE PAIRING EXISTS, NOT THAT IT IS TRUE — a floor, not a proof, the same honesty
+    command-lint.sh states about its own portability check. `→ validated by: reviewed at ship —
+    "<question>"` is a FIRST-CLASS answer. Most quality attributes are judgment ("native-first",
+    "prevention > detection" are not mechanically decidable), and a tool demanding a mechanical gate
+    for each would manufacture fake ones, which read as coverage and are worse than an honest human
+    check.
+
+    ADVISORY BY DEFAULT, and NO BAR MEANS SILENT. A hard refusal would fire in every project that
+    installs the plugin and has not yet been asked, turning a quality feature into a broken ship on
+    day one (R68). A file that exists is a repo that opted in, and there the findings are loud and
+    specific at the ship boundary. `--strict` is the opt-in for a project that wants the ship to
+    stop.
+
+    REACHED BY THE THING THAT RUNS AT SHIP, not only by someone who remembers to invoke it:
+    contract-drift.sh calls it, ABOVE its clean-tree early exit — whether the bar names its checks
+    has nothing to do with whether the tree is dirty, and below that exit the report appeared only
+    when something happened to be uncommitted. It rides there rather than growing ship.sh past its
+    300-line cap, or duplicating the gate machinery into a new preflight file.
+
+    DOGFOODED: this repo's own bar had seven attributes and ZERO named validations. Pairing them
+    revealed that three carry a mechanical gate (N1, N4, N5), N2 is half-mechanical, and N3/N6/N7
+    are judgment only — not a defect to fix by inventing gates, but the thing worth knowing before a
+    publish, and invisible until the pairing was written down.
+  verified_by:
+    - "quality-bar: a repo with NO bar is SILENT — a stranger's project is never nagged (R118/R68)"
+    - "quality-bar: an attribute naming no validation is reported; a paired one is silent (R118)"
+    - "quality-bar: a bar that states NO attributes at all is its own finding (R118)"
+    - "quality-bar: --strict is the opt-in that gives a project teeth (R118)"
+    - "quality-bar: the finding reaches the SHIP boundary via the drift backstop (R118/R58)"

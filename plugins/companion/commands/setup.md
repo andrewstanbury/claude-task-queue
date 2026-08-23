@@ -1,5 +1,5 @@
 ---
-description: "(no args) — wire the companion status line into your settings.json; once per machine, not once ever"
+description: "(no args) — wire the status line into settings.json (once per machine), then elicit the quality attributes that must not be found late"
 ---
 
 <!-- cli-only: wires the companion status line into Claude Code's own settings.json. There is no
@@ -37,6 +37,44 @@ Do this:
    line renders perfectly either way, so nothing else would ever surface it.
 5. Write it back (valid JSON, preserving other keys). Confirm in one line that it's wired and
    will appear on the next render.
+
+6. **ELICIT THE QUALITY BAR (R118) — the half nothing ever asked for.** This project already had
+   the strong machinery: `docs/flows/_quality-bar.md` is where quality attributes live,
+   `requirements.yaml` pairs every behaviour with the tests that verify it, and `dev/trace.sh` gates
+   both directions. What nothing did was **ask** — so a repo runs for months with an empty bar and
+   nothing notices until a publish is what surfaces it. That is the "find out way too late,
+   redesign the whole thing" case this step exists to prevent.
+
+   Run **`bin/quality-bar.sh check`** first. **Silent → the bar is already paired; say so in one
+   line and stop.** Do not re-interview someone who has answered.
+
+   Otherwise ask — **recommendation-first, batched, `AskUserQuestion`** — for *the attributes that
+   would force a redesign if discovered late*. Seed the menu from what the repo evidently is
+   (R9: recognize it, don't consult an allowlist) — a web UI raises **accessibility**, anything
+   holding user records raises **security** and **data handling**, anything with a hot path raises
+   **performance**. Offer 3-4 concrete candidates plus "none of these". **Ask for at most 4-5
+   total**: a long bar is filler, and filler is what makes the check ignorable.
+
+   **For each one accepted, ask the second question — and it is the point of the whole step:
+   HOW will this be checked?** An attribute with no validation is a standard nobody can fail.
+   Record each as one line under `floor`:
+
+   > `- <ID> <the standard> → validated by: <the gate, test, or review question>`
+
+   **`reviewed at ship — "<the question>"` is a first-class answer, not a placeholder.** Most
+   quality attributes are judgment — "native-first", "prevention over detection" — and a tool that
+   demanded a mechanical gate for each would manufacture fake ones, which read as coverage and are
+   worse than an honest human check. Say this when you ask, so the owner does not feel pushed into
+   inventing a script.
+
+   **Existing project?** Say plainly that they are answering for choices the codebase has already
+   made implicitly, and that the useful output is the *gap* — the attribute that matters and has no
+   check today. Offer to record it with `→ validated by: NOTHING YET — <what would be needed>`,
+   which is honest and is exactly what a pre-publish review should surface.
+
+   From then on the ship boundary reports any attribute naming no validation (via
+   `contract-drift.sh`, advisory). A project that wants the ship to actually stop runs
+   `quality-bar.sh check --strict`.
 
 **Once *per machine*, not once ever.** `settings.json` is machine-local and the stored path is
 absolute, so a repo carried to another machine (`/companion:resume`) has **no** status line until

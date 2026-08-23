@@ -23,6 +23,21 @@ set -uo pipefail
 command -v git >/dev/null 2>&1 || exit 0
 git rev-parse --show-toplevel >/dev/null 2>&1 || exit 0
 
+# THE QUALITY-BAR PAIRING (R118), the OTHER half of "the quality-attribute contract" this file's
+# header already claims to protect. Drift below asks whether the contract moved with the code; this
+# asks whether the standards it states say HOW they are checked at all — an attribute that names no
+# validation is a standard nobody can fail, which is the "find out way too late" case that motivated
+# the feature. Same moment, same advisory posture, so it rides here rather than growing ship.sh past
+# its 300-line cap or duplicating the gate machinery into a new preflight file.
+#
+# ABOVE the clean-tree early exit, deliberately. Whether the bar names its checks has nothing to do
+# with whether the working tree is dirty, and putting it below meant the ship boundary reported it
+# only when something happened to be uncommitted — true at a real ship, silently absent otherwise.
+# Silent in a repo with no bar: not opted in, and inventing one is not this tool's call.
+# `if` rather than `A && B || true`: SC2015 has broken this repo's CI before.
+_qb="$(dirname "$0")/quality-bar.sh"
+if [ -x "$_qb" ]; then "$_qb" check || true; fi
+
 ref="${1:-HEAD}"
 docs="${CONTRACT_DRIFT_DOCS:-docs/flows docs/INVARIANTS.md}"
 
@@ -54,4 +69,5 @@ if [ -n "$behaviour" ] && [ "$contract_touched" -eq 0 ]; then
   printf 'contract-drift: behaviour changed but no contract doc (%s) did — confirm the UX/quality-attribute contract still holds, or update it:\n' "$docs"
   printf '%s' "$behaviour"
 fi
+
 exit 0

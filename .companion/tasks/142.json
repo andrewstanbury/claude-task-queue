@@ -1,0 +1,9 @@
+{
+  "id": "142",
+  "subject": "dev/doc-lint.sh 'retired' is never invoked by check.sh — a lint that exists and is never run. It reports 8 pre-existing findings in MAP.md (lines claiming retirement while naming a file that still exists, e.g. ask-guard.sh, secret-guard.sh, session-start.sh — all RESTORED since those lines were written). Same class as the unmeasured budget: a gate nobody runs is not a gate",
+  "status": "pending",
+  "done_when": "the 8 MAP.md claims are corrected to match what actually survives, and check.sh invokes doc-lint retired so a ninth cannot appear unnoticed",
+  "context": "",
+  "blocks": [],
+  "blockedBy": []
+}

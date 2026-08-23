@@ -291,6 +291,83 @@ load helper
   [ "$status" -eq 0 ]; [ -z "$output" ]
 }
 
+# ---- the quality bar names HOW it is checked (R118) ----
+
+# Writes a bar with $2 attribute lines; every line is PAIRED unless $3 says otherwise.
+_bar() {  # $1=repo $2=n $3=paired|unpaired
+  local repo="$1" n="$2" mode="$3" i
+  mkdir -p "$repo/docs/flows"
+  { printf '# quality-bar\n\nfloor (a redesign must meet ALL):\n'
+    i=1; while [ "$i" -le "$n" ]; do
+      if [ "$mode" = paired ]; then
+        printf -- '- N%s some standard → validated by: dev/some-gate.sh\n' "$i"
+      else
+        printf -- '- N%s some standard\n' "$i"
+      fi
+      i=$((i + 1))
+    done
+    printf '\nconflicts: none\n'
+  } > "$repo/docs/flows/_quality-bar.md"
+}
+
+@test "quality-bar: a repo with NO bar is SILENT — a stranger's project is never nagged (R118/R68)" {
+  # The single most important case. A hard finding here would fire in every project that installs
+  # the plugin and has not been asked yet, turning a quality feature into noise on day one — and a
+  # check that cries wolf immediately is one that gets disabled before it ever earns its keep.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  run bash -c 'cd "$1" && "$2" check' _ "$repo" "$QB"
+  [ "$status" -eq 0 ]; [ -z "$output" ]
+}
+
+@test "quality-bar: an attribute naming no validation is reported; a paired one is silent (R118)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  _bar "$repo" 3 unpaired
+  run bash -c 'cd "$1" && "$2" check' _ "$repo" "$QB"
+  [ "$status" -eq 0 ]                       # advisory by default — it informs, it does not block
+  [[ "$output" == *"name no way to check it"* ]]
+  [[ "$output" == *"N1"* ]] && [[ "$output" == *"N3"* ]]
+  # "reviewed at ship" must be offered as a REAL answer. Most quality attributes are judgment, and
+  # a tool that implies each needs a script manufactures fake gates, which read as coverage.
+  [[ "$output" == *"reviewed at ship"* ]]
+  _bar "$repo" 3 paired
+  run bash -c 'cd "$1" && "$2" check' _ "$repo" "$QB"
+  [ "$status" -eq 0 ]; [ -z "$output" ]
+}
+
+@test "quality-bar: a bar that states NO attributes at all is its own finding (R118)" {
+  # Distinct from unpaired, and the actual "find out way too late" case: nobody ever said what
+  # would force a redesign. Reported differently because the remedy differs — be interviewed,
+  # rather than pair up what is already written.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  _bar "$repo" 0 paired
+  run bash -c 'cd "$1" && "$2" check' _ "$repo" "$QB"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"names NO attributes"* ]]
+}
+
+@test "quality-bar: --strict is the opt-in that gives a project teeth (R118)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q
+  _bar "$repo" 2 unpaired
+  run bash -c 'cd "$1" && "$2" check --strict' _ "$repo" "$QB"
+  [ "$status" -eq 1 ]                       # a ship calling this would stop
+  _bar "$repo" 2 paired
+  run bash -c 'cd "$1" && "$2" check --strict' _ "$repo" "$QB"
+  [ "$status" -eq 0 ]                       # ...and only for a real finding
+}
+
+@test "quality-bar: the finding reaches the SHIP boundary via the drift backstop (R118/R58)" {
+  # Elicitation without enforcement is option D, which the owner explicitly did not pick. This is
+  # the "enforce at publish" half: the check must be reached by the thing that runs at ship, not
+  # only by someone who remembers to invoke it.
+  local repo; repo="$(_tmpd)"
+  git -C "$repo" init -q; git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
+  _bar "$repo" 2 unpaired
+  git -C "$repo" add -A; git -C "$repo" commit -qm init
+  run bash -c 'cd "$1" && "$2"' _ "$repo" "$DRIFT"
+  [ "$status" -eq 0 ]                       # advisory: the backstop never fails a ship
+  [[ "$output" == *"name no way to check it"* ]]
+}
+
 @test "ship-mode never commits to the default branch, even from detached HEAD (R45)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q; git -C "$repo" branch -m main 2>/dev/null || true
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
