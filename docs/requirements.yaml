@@ -733,7 +733,7 @@
     - "doc-lint frontmatter: accepts shapes the HOST accepts (no false positives) (R78)"
     - "doc-lint frontmatter: rejects shapes the HOST throws on (R75/R78)"
     - "doc-lint ledger: a hard measurement needs evidence; a rhetorical figure does not (R78)"
-    - "check.sh actually INVOKES doc-lint for both subcommands (R78 wiring guard)"
+    - "check.sh actually INVOKES doc-lint for all three subcommands (R78 wiring guard)"
     - "doc-lint: CRLF and BOM do not silently disable the frontmatter lint (R78)"
     - "doc-lint: folded and literal block scalars are valid YAML, not indicators (R78)"
     - "doc-lint ledger: the ~ exemption works on MULTI-digit numbers (R78)"

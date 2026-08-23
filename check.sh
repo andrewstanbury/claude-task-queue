@@ -137,6 +137,15 @@ section "Mutation patterns still apply (no stale/orphaned declarations)"
 if out="$(dev/mutate-gate.sh --validate 2>&1)"; then printf '%s\n' "$out"
 else printf '%s\n' "$out"; failsec; fi
 
+# A doc that claims something is RETIRED while the file is still shipping (R118 follow-up). This
+# lint already existed and check.sh never called it — so MAP.md went on saying secret-guard.sh
+# "stays retired" for three weeks after it was restored, and nothing said otherwise. A lint nobody
+# runs is not a lint; it is a file that makes the repo look better tested than it is. Same class as
+# the CI ceiling nothing measured and the hook budget that varied the wrong axis.
+section "Retirement claims match reality (a doc cannot bury a live file)"
+if out="$(dev/doc-lint.sh retired docs/MAP.md 2>&1)"; then echo "  ok (no doc buries a surviving file)"
+else printf '%s\n' "$out"; failsec; fi
+
 # The V: needs <- requirements <- tests, checked in BOTH directions. The uncomfortable one is
 # test->requirement: an orphan test is a claim about the system that no requirement will own. On
 # its first run it found 99 unclaimed tests and a misclassified requirement (R53 was filed as a

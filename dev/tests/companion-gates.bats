@@ -187,7 +187,7 @@ load helper
   [ -z "$output" ]
 }
 
-@test "check.sh actually INVOKES doc-lint for both subcommands (R78 wiring guard)" {
+@test "check.sh actually INVOKES doc-lint for all three subcommands (R78 wiring guard)" {
   # Extracting the logic made it testable but created a new untested failure mode: the CALL. With
   # both invocations stubbed out the whole suite stayed green while the gate silently checked
   # nothing. bats cannot run check.sh (check.sh runs bats), so this is a structural guard — the
@@ -200,6 +200,12 @@ load helper
   # Moved with the byte-cap section into dev/token-budget.sh 2026-08-16 — the guard FOLLOWS the
   # call, which is the extraction trap LESSONS records and this very comment predicted.
   run grep -c 'doc-lint\.sh ledger' "$DEV/token-budget.sh"
+  [ "$output" -ge 1 ]
+  # THIRD subcommand, wired 2026-08-23. `retired` shipped with no caller at all — so MAP.md went on
+  # saying secret-guard.sh "stays retired" for three weeks AFTER it was restored, and the lint that
+  # would have caught it sat in the repo unrun. That is worse than a missing lint: it makes the
+  # gate look more complete than it is. This guard is what stops it drifting back to uncalled.
+  run grep -c 'doc-lint\.sh retired' "$BATS_TEST_DIRNAME/../../check.sh"
   [ "$output" -ge 1 ]
 }
 
