@@ -1,0 +1,15 @@
+{
+  "id": "138",
+  "subject": "R74's CI watch has silently degraded to a guaranteed no-op: SHIP_CI_TIMEOUT=1800s but this repo's CI now runs 30-33min, so EVERY land exits 12 (shipped but unwatched). Second occurrence of the same mechanism (300s->1800s on 2026-08-01)",
+  "status": "completed",
+  "done_when": "a land on current CI concludes inside the ceiling; the ceiling is documented as a give-up threshold set by owner patience, NOT tuned to observed duration",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-23T00:38:56Z",
+      "text": "measured, not guessed: 139 mutations / 6 shards = 24 on the slowest x ~85s on CI = ~2040s against an 1800s ceiling. Raised to 5400s and reframed as a give-up threshold set by owner patience — the asymmetry is that too-high costs waiting only when CI hangs, too-low costs the guarantee on every ship"
+    }
+  ]
+}

@@ -23,9 +23,13 @@ mfile="dev/tests/mutations.txt"
 # so every `--mutate <file>` silently ran the whole 31-mutation set — ~35 minutes instead of ~2,
 # which is what made every local filtered run look like a hang. CI never noticed: it passes no
 # filter, so the bug was invisible to the one place that runs this gate on every push.
-# --shard N/M: run every Mth declared mutation, offset N. 65 mutations x a ~50s suite is ~55
-# minutes serially, and on GitHub a long job ALSO blocks `gh run view --log-failed` for the whole
-# run — so a red check lane could not be read until this one finished, which cost real time today.
+# --shard N/M: run every Mth declared mutation, offset N. Measured 2026-08-22: 144 mutations x
+# ~85s on CI is ~3.4 HOURS serially, and on GitHub a long job ALSO blocks `gh run view --log-failed`
+# for the whole run — so a red check lane could not be read until this one finished, which cost real
+# time. CI matrixes 10 shards (was 6, raised 2026-08-22 when the slowest shard hit 33 min).
+# These numbers go stale by simply being written down, which is why the ONE that matters — whether
+# the slowest shard still fits inside R74's watch ceiling — is computed on every run instead of
+# recorded here. See ci_wallclock_warn below.
 # Each mutation is independent by construction, so this parallelises cleanly.
 do_validate=0
 if [ "${1:-}" = "--validate" ]; then do_validate=1; shift; fi
@@ -106,6 +110,51 @@ if [ "$expect" -lt 2 ]; then
   echo "  FAIL cannot enumerate the suite (bats --count gave '${expect}') — a gate that cannot"
   echo "       count its own tests cannot certify anything about them"; exit 2
 fi
+# THE CI WALL-CLOCK PROJECTION — R81 ("an unmeasured budget is not a budget") applied to CI.
+# `ci-watch.sh` abandons a run after SHIP_CI_TIMEOUT and reports SHIPPED-but-UNWATCHED, so once the
+# mutation set outgrows that ceiling, R74's enforced watch degrades into a no-op that still READS
+# like a guarantee. That has now happened twice — 300s outgrown 2026-08-01, 1800s outgrown
+# 2026-08-22 — for one reason: the mutation count only ever grows, the ceiling is a constant, and
+# NOTHING compared them. The ship said so eventually, which is far too late to be useful.
+# Both operands are read from their real homes, never restated here: restating either is precisely
+# how the pair silently diverges. Best-effort — a fixture tree has neither file, and a projection
+# is never grounds to fail a gate about mutation coverage.
+sec_per_mut="${MUTGATE_SEC_PER_MUT:-85}"   # measured on CI 2026-08-22: slowest shard 1980s / 24 mutations
+ci_wallclock_warn() {
+  local n="$1" wf f shards ceiling per projected pct
+  # Glob, not `ls | head` (SC2012): the loop stops at the first READABLE match, so an unreadable
+  # or non-existent one falls through to the skip instead of being picked and then discarded.
+  wf=""
+  for f in .github/workflows/*.yml; do [ -r "$f" ] && { wf="$f"; break; }; done
+  [ -n "$wf" ] || return 0
+  # `.*` not `[^ ]*` between --shard and the /N: the workflow writes `--shard ${{ matrix.shard }}/N`
+  # and that expression CONTAINS SPACES, so a no-space class silently matches nothing and the whole
+  # check turns itself off — the exact failure mode this function exists to prevent, one level down.
+  shards="$(sed -n 's|.*--shard .*/\([0-9][0-9]*\).*|\1|p' "$wf" | head -1)"
+  ceiling="$(sed -n 's|.*SHIP_CI_TIMEOUT:-\([0-9][0-9]*\).*|\1|p' \
+    plugins/companion/bin/ci-watch.sh 2>/dev/null | head -1)"
+  # Validate SEPARATELY. Concatenating them to test once lets a valid operand mask an empty one
+  # ("" + "5400" is all-digits and passes), which is how the first draft of this reached a bare
+  # `[ "" -ge 1 ]` and an "integer expected" error instead of a clean skip.
+  case "${shards:-x}" in *[!0-9]*) return 0 ;; esac
+  case "${ceiling:-x}" in *[!0-9]*) return 0 ;; esac
+  [ "$shards" -ge 1 ] && [ "$ceiling" -ge 1 ] || return 0
+  per=$(( (n + shards - 1) / shards ))            # ceil: the SLOWEST shard sets the wall-clock
+  projected=$(( per * sec_per_mut ))
+  pct=$(( projected * 100 / ceiling ))
+  if [ "$pct" -ge 100 ]; then
+    echo "  FAIL CI wall-clock ~${projected}s ($per mutations x ${sec_per_mut}s on the slowest of"
+    echo "       $shards shards) EXCEEDS the ${ceiling}s watch ceiling — every land will exit 12"
+    echo "       (shipped but UNWATCHED) and R74 stops meaning anything. Add shards, or raise"
+    echo "       SHIP_CI_TIMEOUT in plugins/companion/bin/ci-watch.sh."
+    return 1
+  elif [ "$pct" -ge 60 ]; then
+    echo "  WARN CI wall-clock ~${projected}s is ${pct}% of the ${ceiling}s watch ceiling"
+    echo "       ($n mutations / $shards shards) — add shards before it crosses, not after"
+  fi
+  return 0
+}
+
 # --validate: check that every declared mutation APPLIES to its target, without running the suite.
 # Seconds instead of ~10 minutes, so it belongs in the default gate. Stale patterns have been this
 # repo's most repeated defect — seven orphaned by extractions, three more by sed-delimiter
@@ -132,7 +181,12 @@ if [ "$do_validate" = 1 ]; then
     fi
     rm -f "$tgt.bak"; mv "$tgt.mutbak" "$tgt"
   done < "$mfile"
-  [ "$vbad" -eq 0 ] && echo "  ok ($vn declared mutations all still apply)"
+  if [ "$vbad" -eq 0 ]; then
+    echo "  ok ($vn declared mutations all still apply)"
+    # A projection at/over 100% is not a forecast, it is a CURRENT defect: the watch cannot
+    # outlast the run, so R74 is already dead. Fail on it — that is the whole point of measuring.
+    ci_wallclock_warn "$vn" || vbad=1
+  fi
   exit "$vbad"
 fi
 

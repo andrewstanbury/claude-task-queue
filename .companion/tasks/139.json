@@ -1,0 +1,9 @@
+{
+  "id": "139",
+  "subject": "Nothing measures the projected CI wall-clock, so the watch ceiling and the mutation count drift apart unnoticed until a ship reports UNWATCHED. R81 says an unmeasured budget is not a budget — this one is unmeasured",
+  "status": "completed",
+  "done_when": "check.sh warns when projected shard wall-clock approaches the watch ceiling, so the two constants can never silently diverge again",
+  "context": "",
+  "blocks": [],
+  "blockedBy": []
+}

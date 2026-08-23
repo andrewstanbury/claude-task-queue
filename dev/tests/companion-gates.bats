@@ -502,6 +502,82 @@ EOS
   [ "$status" -eq 2 ]
 }
 
+# ── the CI wall-clock projection (R81 applied to CI: R74's watch ceiling vs the mutation set) ──
+_mgproj() {  # $1=shards $2=ceiling-seconds $3=seconds-per-mutation $4=mutation-count
+  local d="$BATS_TEST_TMPDIR/mgproj_$1_$2_$3_$4" i
+  mkdir -p "$d/dev/tests" "$d/plugins/companion/bin" "$d/.github/workflows" "$d/shim"
+  cp "$DEV/mutate-gate.sh" "$d/dev/"
+  for i in $(seq 1 "$4"); do printf 'V%s=1\n' "$i" >> "$d/plugins/companion/target.sh"; done
+  for i in $(seq 1 "$4"); do
+    printf 'plugins/companion/target.sh::s@V%s=1@V%s=2@::mutation %s\n' "$i" "$i" "$i"
+  done > "$d/dev/tests/mutations.txt"
+  # Written EXACTLY as the real workflow writes it. `${{ matrix.shard }}` CONTAINS SPACES, and the
+  # first draft of the projection matched with a no-space class — so it parsed nothing, skipped
+  # itself, and reported success. A fixture with a simplified `--shard N/M` would have passed that
+  # bug straight through, which is the whole reason this line is verbatim.
+  printf '        run: ./check.sh --mutate --shard ${{ matrix.shard }}/%s\n' "$1" \
+    > "$d/.github/workflows/ci.yml"
+  printf 'timeout="${SHIP_CI_TIMEOUT:-%s}"\n' "$2" > "$d/plugins/companion/bin/ci-watch.sh"
+  printf '%s\n' "$(_shim 'echo "1..3"; echo "ok 1 a"; echo "ok 2 b"; echo "ok 3 c"; exit 0')" \
+    > "$d/shim/bats"
+  chmod +x "$d/shim/bats"
+  ( cd "$d" && PATH="$d/shim:$PATH" MUTGATE_SEC_PER_MUT="$3" ./dev/mutate-gate.sh --validate 2>&1 )
+}
+
+@test "mutation gate: projected CI wall-clock well under the watch ceiling says nothing (R74/R81)" {
+  # 10 mutations / 5 shards = 2 on the slowest x 100s = 200s against a 1000s ceiling = 20%.
+  # Silence is the correct output here: a gate that comments on every healthy run trains the
+  # reader to skip its output, which is how the 60% warning below would get missed.
+  run _mgproj 5 1000 100 10
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"all still apply"* ]]
+  [[ "$output" != *"CI wall-clock"* ]]
+}
+
+@test "mutation gate: projected CI wall-clock nearing the watch ceiling WARNS (R74/R81)" {
+  # 2 x 100s = 200s against 300s = 66%. Warn BEFORE it bites: the fix (add shards) takes a minute,
+  # whereas discovering it after the fact costs a ship that reports UNWATCHED and a manual watch.
+  run _mgproj 5 300 100 10
+  [ "$status" -eq 0 ]                              # a forecast must not fail the gate
+  [[ "$output" == *"WARN CI wall-clock"* ]]
+  [[ "$output" == *"66% of the 300s"* ]]
+}
+
+@test "mutation gate: projected CI wall-clock OVER the watch ceiling FAILS (R74/R81)" {
+  # 9 mutations / 5 shards is deliberately NOT divisible: ceil = 2 on the slowest shard (200s,
+  # 133%, fails) while a floor would give 1 (100s, 66%, merely warns). The SLOWEST shard sets the
+  # wall-clock, so rounding down here would under-report the very thing being measured.
+  # 2 x 100s = 200s against 150s = 133%. Not a forecast — the watch already cannot outlast the run,
+  # so every land exits 12 and R74's guarantee is dead while still reading like a guarantee. This
+  # is the case that went unnoticed TWICE (300s outgrown 2026-08-01, 1800s outgrown 2026-08-22),
+  # both times discovered by a ship rather than by the gate.
+  run _mgproj 5 150 100 9
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"FAIL CI wall-clock"* ]]
+  [[ "$output" == *"EXCEEDS the 150s watch ceiling"* ]]
+  [[ "$output" == *"Add shards"* ]]                # the message names the remedy, not just the fact
+}
+
+@test "mutation gate: an unreadable operand SKIPS the projection, never fails on it (R74/R81)" {
+  # The projection is a courtesy on top of mutation validation. A fixture tree, a fork that renamed
+  # the workflow, a checkout without .github — none of those are mutation-coverage defects, and
+  # failing them here would make the real gate unrunnable outside this repo's exact layout.
+  local d="$BATS_TEST_TMPDIR/mgproj_5_150_100_9"
+  run _mgproj 5 150 100 9                           # build the fixture (and prove it DOES fail)
+  [ "$status" -eq 1 ]
+  rm -f "$d/plugins/companion/bin/ci-watch.sh"      # now remove the ceiling's only source
+  run bash -c 'cd "$1" && PATH="$1/shim:$PATH" MUTGATE_SEC_PER_MUT=100 ./dev/mutate-gate.sh --validate 2>&1' _ "$d"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"all still apply"* ]]
+  [[ "$output" != *"CI wall-clock"* ]]
+  # And SILENTLY. Asserting only the clean exit could not tell a real skip from a guard that fell
+  # through to `[ "" -ge 1 ]` — bash returns 2 there, the `||` still yields 0, and the only trace is
+  # an "integer expected" line on stderr. That is exactly how this assertion's first draft scored a
+  # broken guard as passing: same outcome, different reason. Pin the reason, not just the outcome.
+  [[ "$output" != *"integer expected"* ]]
+  [[ "$output" != *"integer expression"* ]]
+}
+
 @test "mutation gate: an UNPARSEABLE suite is refused up front, not scored (R78)" {
   # bats answers a suite it cannot parse with a perfectly well-formed `1..1 / not ok
   # bats-gather-tests` — zero tests run. Demanding "a ^not ok" therefore does NOT distinguish it,

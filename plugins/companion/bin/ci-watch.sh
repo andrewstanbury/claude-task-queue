@@ -25,12 +25,21 @@ case "${SHIP_CI_WATCH:-1}" in 0) printf '== ship.sh: CI watch off (SHIP_CI_WATCH
 command -v gh >/dev/null 2>&1 || {
   printf '== ship.sh: gh not found — CI UNWATCHED (a local PASS is not a CI PASS)\n'; exit 0; }
 
-# 300s -> 1800s (2026-08-01). The default was shorter than this repo's own CI: the mutate job runs
-# ~21-24 min, so EVERY land exited 12 ("shipped but unwatched") and the watch had to be repeated by
-# hand — a guarantee that never once fired is worse than no guarantee, because it reads as one.
+# 300s -> 1800s (2026-08-01) -> 5400s (2026-08-22). TWICE now this ceiling has been outgrown by the
+# CI it bounds, both times with the same result: EVERY land exits 12 ("shipped but unwatched"), so
+# R74's enforced watch degrades into a no-op that still reads like a guarantee. The mechanism is
+# not bad luck. This is a GIVE-UP THRESHOLD, and both previous values were set by measuring what CI
+# cost that week (~21-24 min -> 1800s; 30-33 min would suggest ~2400s) — tuning a ceiling to a
+# number that only ever grows, with a margin thin enough for one ordinary month of new tests to
+# eat. Set it by how long the OWNER is willing to wait for an answer instead: the costs are
+# asymmetric. Too high is paid only when CI genuinely hangs, and costs waiting. Too low is paid on
+# every single ship, and costs the guarantee itself, silently. 5400s clears today's 33 min by 2.7x
+# and survives the mutation set DOUBLING.
 # Raising a CEILING costs nothing when CI is fast: the watch returns the moment the run concludes,
 # so this only changes behaviour for runs that would otherwise have been abandoned.
-appear="${SHIP_CI_APPEAR:-90}"; poll="${SHIP_CI_POLL:-10}"; timeout="${SHIP_CI_TIMEOUT:-1800}"
+# The drift itself is now MEASURED, not left to the next surprise — `mutate-gate.sh --validate`
+# projects the CI wall-clock against THIS number (read from this line) on every ./check.sh.
+appear="${SHIP_CI_APPEAR:-90}"; poll="${SHIP_CI_POLL:-10}"; timeout="${SHIP_CI_TIMEOUT:-5400}"
 printf '== ship.sh: watching CI for %s (opt out: SHIP_CI_WATCH=0) …\n' "$short"
 
 # 1) wait for a run to register against this commit

@@ -910,3 +910,48 @@ portable mechanism is NAMED, not that the work goes through it — a floor, not 
 so in its own comment.
 
 | 2026-08-22 — the sweep's real boundary, recorded so it is not walked twice.
+
+### R116·e — a ceiling tuned to today's measurement is a bug with a delay on it
+
+`ci-watch.sh` gives up on a CI run after `SHIP_CI_TIMEOUT` and reports **SHIPPED but UNWATCHED**
+(exit 12). That ceiling has now been outgrown **twice** — 300s on 2026-08-01, 1800s on 2026-08-22 —
+and both times the symptom was identical: **every** land exits 12, so R74's *enforced* watch
+degrades into a no-op that still reads like a guarantee. The second occurrence is what caught the
+attention; the mechanism is what matters.
+
+**Both values were set by measuring what CI cost that week** (~21-24 min → 1800s), with a margin
+thin enough for one ordinary month of new tests to eat. That is the bug. A give-up threshold is not
+an estimate of anything, and the costs around it are **asymmetric**: too high is paid only when CI
+genuinely hangs, and costs waiting; **too low is paid on every single ship, and costs the guarantee
+itself, silently.** So it is now set by how long the *owner* is willing to wait — 5400s, which
+clears today's 33 min by 2.7× and survives the mutation set doubling.
+
+**Raising the number is the smaller half.** The durable fix is that the gap is now **measured**,
+which is R81's own rule ("an unmeasured budget is not a budget") applied to CI rather than to hooks:
+`mutate-gate.sh --validate` projects the slowest shard's wall-clock and **fails** the gate when it
+can no longer fit inside the ceiling, warning from 60%. It runs in the default `./check.sh`, costs
+no suite run, and would have caught this occurrence three weeks early. Both operands are **read from
+their real homes** — the workflow for the shard count, `ci-watch.sh` for the ceiling — because
+restating either is exactly how the pair silently diverged in the first place.
+
+**Two defects in the projection itself, both found by its own mutations, both worth naming:**
+
+- The first draft matched the shard count with `--shard [^ ]*/N`. The workflow writes
+  `--shard ${{ matrix.shard }}/N`, and **that expression contains spaces** — so the pattern matched
+  nothing, the check turned itself off, and it reported success. A check that silently measures
+  nothing is the *same failure one level down* from the one it was written to prevent. The fixture
+  now writes that line verbatim rather than a simplified form.
+- Validating the two operands with one concatenated test (`"${shards}${ceiling}"`) let a **valid
+  operand mask an empty one** — `"" + "5400"` is all digits — reaching a bare `[ "" -ge 1 ]`.
+
+The empty-operand mutation **survived** the first test pass, and for the R116·c reason exactly:
+the test asserted a clean *exit*, which the broken guard still produces — it only differs by an
+`integer expected` line on stderr. Pinning the *reason* rather than the outcome caught it. That is
+now twice in two days that "tests written first against a known defect" left a hole of this precise
+shape.
+
+**Also, and separately:** CI mutation shards 6 → 10. Purely wall-clock (33 min → ~21), not
+correctness — the ceiling fix already removed the pressure. Free on a public repo, trivially
+reversible, and the shard partition is gated by a test that is not pinned to any particular count.
+
+| 2026-08-22 — found by a ship reporting UNWATCHED, i.e. by the system telling on itself.

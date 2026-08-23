@@ -118,7 +118,7 @@ proposal, the commit message, the history curation.
    - **After the push, land ENFORCES a CI watch (R74)** — a green local gate is *not* a green CI
      (gitleaks/shellcheck skip locally when absent; a shellcheck build can miss a lint CI catches).
      Land blocks until the run concludes, so **give this Bash call a long timeout** (the watch is
-     bounded by `SHIP_CI_TIMEOUT`, default 1800s — long enough for a slow mutation job; give the Bash call a matching timeout). **exit 10 = SHIPPED but CI RED** → the commit is
+     bounded by `SHIP_CI_TIMEOUT`, default 5400s — a GIVE-UP threshold, deliberately far above what CI costs today, because too-low is paid on every ship and costs the guarantee silently. **That exceeds the max timeout of a single Bash call, so run the ship in the BACKGROUND and read its output when it finishes** — a foreground call will be cut off mid-watch and tell you nothing). **exit 10 = SHIPPED but CI RED** → the commit is
      already on the default, so **fix forward** (read `gh run view <id> --log-failed`, fix, land the
      fix), don't try to un-ship. `gh` absent / no run / timeout → land says so and exits 0 (unwatched,
      not failed). Opt out only when you must with `SHIP_CI_WATCH=0`.

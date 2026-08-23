@@ -1,0 +1,9 @@
+{
+  "id": "140",
+  "subject": "Stale measured numbers in the mutation-gate docs: mutate-gate.sh and MAP.md both say '65 mutations x a ~50s suite is ~55 min'; it is now 139 mutations and 33 min across 6 shards",
+  "status": "completed",
+  "done_when": "both numbers match a fresh measurement, and MAP.md's shard count matches the workflow",
+  "context": "",
+  "blocks": [],
+  "blockedBy": []
+}

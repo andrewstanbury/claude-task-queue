@@ -140,3 +140,8 @@ plugins/companion/bin/secret-guard.sh::s@new_source // "") | tostring)@new_sourc
 plugins/companion/bin/secret-guard.sh::s@if \[ -z "\$rec" \]; then@if false; then@::secret-guard stops failing CLOSED on an unreadable payload, so a write it could not inspect is certified as clean
 plugins/companion/bin/ask-close.sh::s@case "\${answered:-}" in ''|'{}'|'\[\]'|null|'""') exit 0 ;; esac@:@::ask-close stops requiring POSITIVE evidence of an answer, so a question the owner DISMISSED or never saw has its park closed and the decision is lost — the exact failure the pair exists to prevent
 plugins/companion/bin/ask-guard.sh::s@armed=0@armed=0; exit 0@::questions stop being parked when autopilot is OFF, so a recommendation the owner scrolls past vanishes again with no record
+dev/mutate-gate.sh::s@--shard \.\*/@--shard [^ ]*/@::the CI wall-clock projection stops spanning the SPACES in `${{ matrix.shard }}`, so it parses no shard count, skips itself, and reports success — a check that silently measures nothing
+dev/mutate-gate.sh::s@per=\$(( (n + shards - 1) / shards ))@per=$(( n / shards ))@::the projection rounds the slowest shard DOWN, under-reporting the wall-clock it exists to bound
+dev/mutate-gate.sh::s@if \[ "\$pct" -ge 100 \]; then@if false; then@::a projection that already EXCEEDS the watch ceiling stops failing the gate, so R74's watch is dead while still reading like a guarantee
+dev/mutate-gate.sh::s@elif \[ "\$pct" -ge 60 \]; then@elif false; then@::the early warning is removed, so the ceiling is only ever discovered AFTER a ship reports UNWATCHED
+dev/mutate-gate.sh::s@\${ceiling:-x}@${ceiling:-}@::an EMPTY ceiling stops being caught by its own guard and reaches a bare integer test, turning a clean skip into an error

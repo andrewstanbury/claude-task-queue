@@ -493,6 +493,10 @@
     - "ship.sh land: CI RED after a successful push exits 10 — SHIPPED, fix-forward not un-shipped (R74)"
     - "ship.sh land: SHIP_CI_WATCH=0 opts out of the watch (R74)"
     - "ship.sh land: a run still in flight at timeout exits 12 — SHIPPED but UNWATCHED (R74)"
+    - "mutation gate: projected CI wall-clock well under the watch ceiling says nothing (R74/R81)"
+    - "mutation gate: projected CI wall-clock nearing the watch ceiling WARNS (R74/R81)"
+    - "mutation gate: projected CI wall-clock OVER the watch ceiling FAILS (R74/R81)"
+    - "mutation gate: an unreadable operand SKIPS the projection, never fails on it (R74/R81)"
 
 - id: R75
   satisfies: [UN-2]
