@@ -24,9 +24,14 @@ set -uo pipefail
   plug="$(cd "$(dirname "$0")/.." && pwd)"   # same bin/, so ../ is still the plugin root
   sd="${CLAUDE_COMPANION_STATE_DIR:-$HOME/.claude/companion}"
   [ -d "$sd" ] || { echo "tq orphans: no state dir at $sd"; exit 0; }
-  known="$( { grep -rhoE "printf '%s/[a-z-]+" "$plug/lib" "$plug/bin" 2>/dev/null | sed "s|.*/||"
-              grep -rhoE 'companion_state_dir\)/[a-z-]+' "$plug/lib" "$plug/bin" 2>/dev/null | sed 's|.*/||'
-              grep -rhoE 'companion_mode_[a-z]+ "[^"]*" [a-z-]+' "$plug/lib" "$plug/bin" 2>/dev/null | awk '{print $NF}'
+  # [a-z0-9-] — DIGITS INCLUDED, and that is not cosmetic. The class was [a-z-], so a kind whose
+  # name contains a digit derived TRUNCATED at the digit: `slcache2` yielded "slcache", the real
+  # directory matched nothing known, and it was reported as an orphan — which `--orphans` deletes
+  # with `rm -rf`. A latent data-loss path that stayed invisible for as long as no state kind had a
+  # digit in its name, and surfaced the moment one did (R117 renamed the status-line cache).
+  known="$( { grep -rhoE "printf '%s/[a-z0-9-]+" "$plug/lib" "$plug/bin" 2>/dev/null | sed "s|.*/||"
+              grep -rhoE 'companion_state_dir\)/[a-z0-9-]+' "$plug/lib" "$plug/bin" 2>/dev/null | sed 's|.*/||'
+              grep -rhoE 'companion_mode_[a-z]+ "[^"]*" [a-z0-9-]+' "$plug/lib" "$plug/bin" 2>/dev/null | awk '{print $NF}'
               printf 'tasks\n'
             } | sort -u )"
   [ -n "$known" ] || { echo "tq orphans: derived NO known kinds — refusing to call anything an orphan" >&2; exit 1; }

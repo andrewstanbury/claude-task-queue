@@ -154,7 +154,8 @@ load helper
   # kinds are derived from the shipped source rather than listed, because a list is a second thing
   # to update whenever a kind is added.
   local sd; sd="$(_tmpd)"
-  mkdir -p "$sd/autopilot" "$sd/tasks" "$sd/slcache" "$sd/somethingdead" "$sd/intent-abc"
+  mkdir -p "$sd/autopilot" "$sd/tasks" "$sd/slcache2" "$sd/somethingdead" "$sd/intent-abc"
+  mkdir -p "$sd/slcache"   # the RETIRED status-line cache dir (R117 renamed it to slcache2)
   : > "$sd/ratelimit"
   _orph() { run env CLAUDE_COMPANION_STATE_DIR="$sd" CLAUDE_COMPANION_SESSION_ID=o "$TQ" orphans "$@"; }
 
@@ -165,7 +166,11 @@ load helper
   [[ "$output" != *"orphan: autopilot"* ]]  # ...but a real mode kind is NOT flagged
   [[ "$output" != *"orphan: tasks"* ]]
   [[ "$output" != *"orphan: ratelimit"* ]]
-  [[ "$output" != *"orphan: slcache"* ]]
+  [[ "$output" != *"orphan: slcache2"* ]]
+  # ...and the RETIRED name IS flagged, which is the payoff of deriving kinds from source rather
+  # than listing them: renaming the cache dir made every user's stale copy self-cleaning, with no
+  # migration code and nothing to remember. A hand-maintained list would still call it known.
+  [[ "$output" == *"slcache"* ]]
 
   # report is the default — nothing is removed without asking
   [ -d "$sd/somethingdead" ]
@@ -412,6 +417,33 @@ load helper
   # Both completed tasks are listed BY ID, not folded into a bare "✔2" count.
   [[ "$output" == *"✔ #3  first finished thing"* ]]
   [[ "$output" == *"✔ #4  second finished thing"* ]]
+}
+
+@test "board: ⚑ finished-and-waiting section lists branches, and points at the WHY (R117)" {
+  # The lanes above are work that needs doing or deciding. This is work already DONE, sitting on a
+  # branch nobody has looked at — the state that used to render identically to "nothing happening".
+  local repo; repo="$(_tmpd)"
+  git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  git -C "$repo" checkout -q -b burndown/tidy-logs
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m w
+  git -C "$repo" checkout -q main
+  run env BOARD_ROOT="$repo" "$BOARD"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"⚑ finished — waiting on YOU"* ]]
+  [[ "$output" == *"burndown/tidy-logs"* ]]
+  # The manifest lives OUTSIDE the branch (it would vanish on checkout of the default), so the
+  # board must point at the command that reads it rather than pretending the reason is on screen.
+  [[ "$output" == *"burndown-branch.sh show tidy-logs"* ]]
+}
+
+@test "board: the ⚑ section is silent when nothing is waiting (same rule as every section)" {
+  local repo; repo="$(_tmpd)"
+  git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  run env BOARD_ROOT="$repo" "$BOARD"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"waiting on YOU"* ]]
 }
 
 @test "board: an open task waiting on a live after #N shows the wait, not just silence" {

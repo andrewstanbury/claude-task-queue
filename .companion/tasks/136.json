@@ -1,9 +1,15 @@
 {
   "id": "136",
   "subject": "❓ [parked] NFRs paired with validation — where should the requirement BITE? The mechanism already exists and is stronger than most projects have: docs/flows/_quality-bar.md is the quality-attribute home, requirements.yaml pairs every behaviour with the tests that verify it, and dev/trace.sh gates BOTH directions. The gap is ELICITATION — nothing ever ASKS for the quality attributes when the plugin lands in a project, so a repo can run for months with an empty bar and nothing notices, which is exactly the 'find out way too late' scenario. OPTIONS: A) rec: elicit at INSTALL, enforce at PUBLISH — ask for the attributes that would force a redesign if found late (accessibility, security, performance, data handling), record each in _quality-bar.md PAIRED with how it will be validated, and make ship/publish refuse-or-warn when the bar is empty or an attribute names no validation. Matches the stated goal exactly: does not gate everyday work, bites where the pain actually lands. Cost: the install interview interrupts day one, and for an EXISTING project it means answering for choices the codebase already made implicitly. B) gate every build on a complete bar — impossible to forget, but contradicts 'the goal isn't to gate everything' and trains filler entries to get moving. C) ALSO add per-step input/output contracts — most rigorous, catches interface drift, but flow pages already carry steps+tests so it is a SECOND formalism beside a working one, and every second classification in this repo's history drifted; heavy ceremony per step. D) elicit only, never enforce — zero friction, but this session is repeated evidence that recorded-but-unenforced intent gets skipped. rec: A",
-  "status": "pending",
+  "status": "completed",
   "done_when": "",
   "context": "docs/flows/_quality-bar.md (exists, N-numbered floor), docs/requirements.yaml + dev/trace.sh (pairing already enforced both ways), plugins/companion/commands/setup.md (the install path where elicitation would live), plugins/companion/bin/ship.sh (the publish moment)",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-23T18:02:56Z",
+      "text": "decided: option A — elicit at INSTALL, enforce at PUBLISH. Ask for the attributes that would force a redesign if found late, record each in _quality-bar.md PAIRED with its validation, and make ship refuse-or-warn on an empty bar or an attribute naming no validation."
+    }
+  ]
 }

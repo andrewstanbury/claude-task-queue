@@ -145,3 +145,10 @@ dev/mutate-gate.sh::s@per=\$(( (n + shards - 1) / shards ))@per=$(( n / shards )
 dev/mutate-gate.sh::s@if \[ "\$pct" -ge 100 \]; then@if false; then@::a projection that already EXCEEDS the watch ceiling stops failing the gate, so R74's watch is dead while still reading like a guarantee
 dev/mutate-gate.sh::s@elif \[ "\$pct" -ge 60 \]; then@elif false; then@::the early warning is removed, so the ceiling is only ever discovered AFTER a ship reports UNWATCHED
 dev/mutate-gate.sh::s@\${ceiling:-x}@${ceiling:-}@::an EMPTY ceiling stops being caught by its own guard and reaches a bare integer test, turning a clean skip into an error
+plugins/companion/bin/awaiting-review.sh::s@\*) \[ -n "\$up" \] && printf@*) printf@::a branch with NO upstream is counted as awaiting review, so the ⚑ lane fires during ordinary mid-thought work and stops being read
+plugins/companion/bin/awaiting-review.sh::s@burndown/\*) printf 'burndown@burndown/nope) printf 'burndown@::an unmerged burndown/* branch stops counting unless it happens to be pushed, so work burn-down authored unattended FOR review goes unreviewed
+plugins/companion/bin/statusline.sh::s@AWAITING_ROOT="\$ROOT" @@::the ⚑ lane falls back to the status line's own process cwd, reporting ANOTHER repo's branches while sitting in this one
+plugins/companion/bin/statusline.sh::s@slcache2/@slcache/@::a stale pre-R117 cache line is read with the new field list, shifting the branch into the review slot and blanking the branch for a whole TTL
+plugins/companion/bin/statusline.sh::s@\[ "\$REVIEW" -gt 0 \]@[ "$REVIEW" -ge 0 ]@::⚑0 renders permanently, the always-on zero R34 exists to prevent
+plugins/companion/bin/board.sh::s@if \[ -n "\$_ar_rows" \]; then@if true; then@::the board prints an empty "waiting on YOU" heading with nothing under it
+plugins/companion/bin/tq-orphans.sh::s@companion_state_dir\\)/\[a-z0-9-\]+@companion_state_dir\\)/[a-z-]+@::a state kind whose name contains a DIGIT derives truncated, so the live directory reads as an orphan and `tq orphans --orphans` rm -rf's state the shipped code is actively using

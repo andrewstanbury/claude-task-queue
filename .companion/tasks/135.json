@@ -1,9 +1,15 @@
 {
   "id": "135",
   "subject": "❓ [parked] decision: Status bar: you asked for backlog TYPES, which reverses our decision from 30 minutes ago. What should actually change? — options: Add one lane: awaiting YOUR review (Recommended) (Keep the four state lanes and add a fifth for work that is finished and waiting on you — pushed feature branches and burndown/* branches. This is a real gap I created today: the feature-class gate pushes a branch and stops, and that state is invisible to tq, the board AND the bar, so 'done, waiting on you' currently looks identical to 'nothing happening'. It belongs on the bar for the same reason ❓ and ⏳ do — it is work blocked on YOU. Cost: one more glyph, and it reads git branches rather than the task store, so it needs care to stay cheap on the status line's hot path.) · Add type lanes as originally asked (Put feature / NFR / spec / chore counts on the bar alongside the state lanes. What you asked for, always visible. The costs are the ones that made us decide otherwise and have not changed: the same task appears in a state lane AND a type lane so the numbers stop summing to anything, the line grows past ten segments and truncates on narrow terminals, and it duplicates what the board renders with room to explain.) · Separate bars per backlog type (Model it as genuinely separate queues — a feature backlog, an NFR backlog, a chore backlog — each with its own state counts. Closest to your 'multiple backlogs' framing and the clearest conceptually. It is also the largest change here: tq has ONE id space and one store by design, so this means a real data-model change, and every consumer (board, burn-down, stop hook, resume) has to learn about queues.); rec: Add one lane: awaiting YOUR review (Recommended) [+1 more question(s) in the same ask]",
-  "status": "pending",
+  "status": "completed",
   "done_when": "",
   "context": "",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-23T17:24:26Z",
+      "text": "decided: owner said 'do whatever you recommended' — built the recommended option, ONE new lane (⚑ awaiting YOUR review), not type lanes. Fed by bin/awaiting-review.sh, shared by the status line, the board and any MCP client. Cost measured: 1.27x over 8x branches, sublinear."
+    }
+  ]
 }

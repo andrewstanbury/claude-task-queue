@@ -1,0 +1,9 @@
+{
+  "id": "141",
+  "subject": "NFR elicitation + publish-time enforcement (R118): bin/quality-bar.sh reads docs/flows/_quality-bar.md and reports empty-bar / attribute-names-no-validation; ship warns on it; /companion:setup elicits the attributes paired with how each will be validated",
+  "status": "pending",
+  "done_when": "a bar with an unvalidated attribute is reported by the checker and surfaced at ship; an empty bar is reported; a fully-paired bar is silent; setup.md asks for attributes AND their validation",
+  "context": "",
+  "blocks": [],
+  "blockedBy": []
+}

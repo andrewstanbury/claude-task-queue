@@ -1004,3 +1004,34 @@ not the ability to decide.
 
 | 2026-08-22, owner directive. Composes **R40** (right-sizing, same step), **R9** (why no gate),
 **R69** (why `ship-it.md` and not STEERING).
+
+### R116·g — the Cursor hook adapter is dropped, not deferred
+
+Owner-decided 2026-08-23, from a 4-option menu, recommendation taken. `#132` proposed a Cursor
+adapter (`beforeShellExecution` / `beforeMCPExecution`) so the two blocking guards would work
+outside Claude Code. It sat blocked because there is no Cursor on this machine, and writing an
+adapter against a hook API that can never be executed here is the one thing this repo has not
+knowingly done.
+
+**Dropped rather than left waiting, for three reasons that compound:**
+
+- **R100 already declined per-host adapters** as a design decision. Leaving `#132` open was quietly
+  re-litigating a settled question by letting it sit in a lane nobody closes.
+- **The main value is unreachable there anyway.** Cursor's stop hook is observational — it cannot
+  deny — so forced continuation cannot be ported no matter how good the adapter is. What remains is
+  real but partial: `secret-guard` and `contract-guard` blocking.
+- **A permanently-blocked item is worse than an absent one.** It trains the owner to skim past the
+  ⏳ lane, which is precisely the indicator decay the ⚑ lane (R117) was just built to avoid. An
+  indicator that is always non-zero for a reason nobody can act on stops being read.
+
+**Cheap to reverse, which is what makes dropping honest rather than giving up:** this entry is the
+whole design, so re-opening costs an ADR read and a `tq add`. The trigger to re-open is concrete —
+a Cursor environment to verify against, nothing less.
+
+**Also recorded: `#132` was mis-filed as `⏳ blocked`** (manual work only the owner can do) when it
+was really a decision the model could act on once answered. The review surfaced that and presented
+it as a decision, per `/companion:review`'s own rule. Worth noting because the mis-filing is what
+kept it sitting: a decision parked in the blocked lane never gets asked.
+
+| 2026-08-23, owner-decided. Composes **R100** (the original decline), **R117** (indicator decay),
+**R38/R65** (the review's re-filing rule).

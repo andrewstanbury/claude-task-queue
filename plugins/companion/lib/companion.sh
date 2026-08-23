@@ -164,6 +164,24 @@ companion_feature_file()  { printf '%s/features/%s' "$(companion_state_dir)" "$(
 # 0 (true) only when the feature is *explicitly* turned off for this repo — fail-safe: any read
 # error leaves the feature at its default (on), never silently disables an enforced gate.
 companion_feature_off()   { [ -n "${2:-}" ] && grep -qs "^${1:-}=off\$" "$(companion_feature_file "$2")"; }
+# THE default branch, in one place (R117). There were three copies before this — ship.sh,
+# ship-handoff.sh (byte-identical) and burndown-branch.sh (NOT: it returns "main" unconditionally
+# without verifying the ref exists, so on a `master` repo with no origin/HEAD it answers a branch
+# that is not there while ship.sh answers correctly). A fourth copy was about to be written for
+# awaiting-review.sh, which is what surfaced the drift. Carries ship.sh's semantics because they
+# are the stricter ones: a candidate only wins if the ref actually EXISTS, and no candidate means
+# failure (return 1), never a confident guess.
+companion_default_branch() {  # $1 root (default $PWD)
+  local d r="${1:-$PWD}"
+  for d in \
+    "$(git -C "$r" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@')" \
+    "$(git -C "$r" config --get init.defaultBranch 2>/dev/null)" main master; do
+    [ -n "$d" ] && git -C "$r" rev-parse --verify -q "refs/heads/$d" >/dev/null 2>&1 &&
+      { printf '%s' "$d"; return 0; }
+  done
+  return 1
+}
+
 
 # The high-confidence, vendor-anchored credential shapes (~zero false positive). Ship-mode greps
 # a staged diff against this before committing, so it never bakes a real key into a checkpoint.

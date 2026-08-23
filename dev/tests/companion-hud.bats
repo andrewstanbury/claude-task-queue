@@ -505,7 +505,7 @@ ird"; mkdir -p "$weird"
   [ "$status" -eq 0 ]
   [[ "$output" == *"⎇"* ]]
   local enc cf; enc="$(printf '%s' "$repo" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
-  cf="$CLAUDE_COMPANION_STATE_DIR/slcache/$enc"
+  cf="$CLAUDE_COMPANION_STATE_DIR/slcache2/$enc"
   [ -f "$cf" ]
   # dirty the tree; a WARM run must still show the cached (clean) count — staleness is the deal
   : > "$repo/newfile"
@@ -523,7 +523,7 @@ ird"; mkdir -p "$weird"
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   local p enc cf; p="$(jq -nc --arg c "$repo" '{model:{display_name:"Opus"},session_id:"s1",cwd:$c}')"
   enc="$(printf '%s' "$repo" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
-  cf="$CLAUDE_COMPANION_STATE_DIR/slcache/$enc"; mkdir -p "$CLAUDE_COMPANION_STATE_DIR/slcache"
+  cf="$CLAUDE_COMPANION_STATE_DIR/slcache2/$enc"; mkdir -p "$CLAUDE_COMPANION_STATE_DIR/slcache2"
   for junk in "garbage" "" "abc def ghi jkl mno" "99999999999 0 0 0 fake-branch"; do
     printf '%s\n' "$junk" > "$cf"
     run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_COMPANION_SL_CACHE_TTL=60 "$2"' _ "$p" "$SL"
@@ -541,4 +541,112 @@ ird"; mkdir -p "$weird"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Opus"* ]]
   [[ "$output" == *"⎇"* ]]
+}
+
+# ── ⚑ finished work waiting on the OWNER (R117) ────────────────────────────────────────────────
+_ar() { "$ROOT/bin/awaiting-review.sh" "$@"; }
+
+# A repo with a default branch, an unmerged burndown branch, an unmerged PUSHED branch (via a real
+# local "remote", so `%(upstream)` is genuinely set rather than faked), and an unmerged UNpushed one.
+_ar_repo() {
+  local repo="$1" rem="$2"
+  git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  git -C "$rem" init -q --bare
+  git -C "$repo" remote add origin "$rem"
+  git -C "$repo" push -q origin main 2>/dev/null
+  local b
+  for b in burndown/tidy-x feature/pushed feature/local; do
+    git -C "$repo" checkout -q -b "$b"
+    git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "$b"
+  done
+  git -C "$repo" push -q -u origin feature/pushed 2>/dev/null
+  git -C "$repo" checkout -q main
+}
+
+@test "awaiting-review: counts burndown/* and PUSHED branches, never unpushed ones (R117)" {
+  local repo rem; repo="$(_tmpd)"; rem="$(_tmpd)"
+  _ar_repo "$repo" "$rem"
+  run env AWAITING_ROOT="$repo" bash -c '"$1" list' _ "$ROOT/bin/awaiting-review.sh"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"burndown/tidy-x"* ]]     # authored unattended FOR review — always counts
+  [[ "$output" == *"feature/pushed"* ]]      # pushed = handed over
+  # The discrimination that makes the lane usable: an unpushed local branch is somebody mid-thought.
+  # Without this the lane would be non-zero during ordinary work, which is how an indicator dies.
+  [[ "$output" != *"feature/local"* ]]
+  [[ "$output" != *$'\n'"main"* ]]           # the default branch is shipped work, never "waiting"
+  run env AWAITING_ROOT="$repo" bash -c '"$1" count' _ "$ROOT/bin/awaiting-review.sh"
+  [ "$output" = "2" ]
+}
+
+@test "awaiting-review: burndown/* counts even with NO upstream (R117/R82)" {
+  # The two rules differ on purpose and the difference is the whole design, so pin it directly:
+  # burn-down authors a branch unattended for the owner to judge — that contract holds whether or
+  # not it was ever pushed. Asserting only the mixed case above would let both rules collapse into
+  # "has an upstream" and still pass.
+  local repo; repo="$(_tmpd)"
+  git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  git -C "$repo" checkout -q -b burndown/no-remote
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m w
+  git -C "$repo" checkout -q main
+  run env AWAITING_ROOT="$repo" bash -c '"$1" count' _ "$ROOT/bin/awaiting-review.sh"
+  [ "$output" = "1" ]
+}
+
+@test "awaiting-review: a clean repo counts 0, and a non-repo never errors (R68)" {
+  local repo; repo="$(_tmpd)"
+  git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  run env AWAITING_ROOT="$repo" bash -c '"$1" count' _ "$ROOT/bin/awaiting-review.sh"
+  [ "$status" -eq 0 ]; [ "$output" = "0" ]
+  # Best-effort: this feeds a status line, and a display helper that dies takes the prompt with it.
+  local bare; bare="$(_tmpd)"
+  run env AWAITING_ROOT="$bare" bash -c '"$1" count' _ "$ROOT/bin/awaiting-review.sh"
+  [ "$status" -eq 0 ]; [ "$output" = "0" ]
+}
+
+@test "status line: ⚑ lane shows finished work waiting on YOU, with an EMPTY queue (R117)" {
+  local repo rem; repo="$(_tmpd)"; rem="$(_tmpd)"
+  _ar_repo "$repo" "$rem"
+  # No tasks at all — this is exactly the state that used to render as "nothing happening" while
+  # two finished branches sat waiting, which is the gap the lane exists to close.
+  local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"claude-opus-4-8"},session_id:"sNone",cwd:$c,context_window:{total_input_tokens:1,total_output_tokens:1}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"⚑2"* ]]
+  [[ "$output" == *"📋"* ]]            # the section marker returns even though no TASK exists
+  [[ "$output" != *"◻"* ]]             # ...and it is not faking an open-task count to do it
+}
+
+@test "status line: the ⚑ lane is absent when nothing waits (R34 show-only-when-relevant)" {
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sQ",cwd:$c,context_window:{total_input_tokens:1,total_output_tokens:1}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"⚑"* ]]
+}
+
+@test "status line: a STALE v1 cache line can never be read as v2 and blank the branch (R117)" {
+  # The cache line gained a field, so a v1 line read with the new field list shifts by one and the
+  # BRANCH lands in the review slot. The per-field numeric validation catches MOST of those — a
+  # branch called "main" is not a number, so the line fails validation and misses cleanly — which
+  # is why the first version of this test passed with the fix REMOVED, i.e. for the wrong reason.
+  # The case that actually survives validation is a branch whose name is all digits: it passes as
+  # a review count, `cbranch` comes back empty, and the status line renders a cache HIT with NO
+  # branch for a whole TTL. That is the case pinned here, and it is why the path moved to slcache2
+  # rather than relying on validation alone.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  local enc; enc="$(printf '%s' "$repo" | sed -e 's:%:%25:g' -e 's:/:%2F:g')"
+  mkdir -p "$CLAUDE_COMPANION_STATE_DIR/slcache"
+  printf '%s 0 0 0 %s\n' "$(date +%s)" "2024" \
+    > "$CLAUDE_COMPANION_STATE_DIR/slcache/$enc"
+  local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sC",cwd:$c,context_window:{total_input_tokens:1,total_output_tokens:1}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 CLAUDE_COMPANION_SL_CACHE_TTL=60 "$2"' _ "$payload" "$SL"
+  [ "$status" -eq 0 ]
+  # The branch must still render. Under the bug the v1 line is a HIT with an empty branch, so the
+  # assertion that fails is the presence of the real one — not the absence of the poison.
+  [[ "$output" == *"main"* ]]
 }

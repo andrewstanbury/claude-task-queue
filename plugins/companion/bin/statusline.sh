@@ -113,15 +113,18 @@ if [ "${CLAUDE_COMPANION_SECSCAN:-1}" = "0" ] || companion_feature_off secret "$
 # and branch may lag up to the TTL. Set CLAUDE_COMPANION_SL_CACHE_TTL=0 to always read live git
 # (the bats setup does this, so the render tests measure real state, not a cache).
 # Cache-miss is the safe direction: any unreadable/garbled/undated line falls through to live git.
-BRANCH=""; DIRTY=0; AB=""; AHEAD=0; BEHIND=0
+BRANCH=""; DIRTY=0; AB=""; AHEAD=0; BEHIND=0; REVIEW=0
 ttl="${CLAUDE_COMPANION_SL_CACHE_TTL:-10}"
 case "$ttl" in ''|*[!0-9]*) ttl=10 ;; esac
-cf="$(companion_state_dir)/slcache/$(companion_enc "$CWD")"
+# slcache -> slcache2 (R117). The line gained a field, and `read` would have shifted a stale
+# v1 line by one — silently blanking the BRANCH for a whole TTL rather than missing cleanly. A new
+# path is cheaper and safer than a version marker inside the line: old files are simply never read.
+cf="$(companion_state_dir)/slcache2/$(companion_enc "$CWD")"
 hit=0
 if [ "$ttl" -gt 0 ] && [ "$NOW" -gt 0 ] && [ -f "$cf" ]; then
   # One line: <ts> <dirty> <ahead> <behind> <branch…>. Branch is LAST because it can contain
   # spaces (a slash-y or oddly-named ref) — everything before it is fixed-width-by-position.
-  IFS=' ' read -r cts cdirty cahead cbehind cbranch < "$cf" 2>/dev/null || true
+  IFS=' ' read -r cts cdirty cahead cbehind creview cbranch < "$cf" 2>/dev/null || true
   # Every numeric field must be present AND numeric. Concatenating them first let a TRUNCATED
   # line (just "<ts>", a torn write) pass the digit check with the rest empty — a cache "hit" that
   # silently blanked branch, dirty count and ahead/behind for the whole TTL.
@@ -129,10 +132,12 @@ if [ "$ttl" -gt 0 ] && [ "$NOW" -gt 0 ] && [ -f "$cf" ]; then
   case "${cdirty:-x}" in *[!0-9]*) cdirty="" ;; esac
   case "${cahead:-x}" in *[!0-9]*) cahead="" ;; esac
   case "${cbehind:-x}" in *[!0-9]*) cbehind="" ;; esac
-  case "${cts}:${cdirty}:${cahead}:${cbehind}" in
+  case "${creview:-x}" in *[!0-9]*) creview="" ;; esac
+  case "${cts}:${cdirty}:${cahead}:${cbehind}:${creview}" in
     *::*|:*|*:) : ;;
     *) if [ "$((NOW - cts))" -lt "$ttl" ] && [ "$((NOW - cts))" -ge 0 ]; then
-         BRANCH="${cbranch:-}"; DIRTY="$cdirty"; AHEAD="$cahead"; BEHIND="$cbehind"; hit=1
+         BRANCH="${cbranch:-}"; DIRTY="$cdirty"; AHEAD="$cahead"; BEHIND="$cbehind"
+         REVIEW="$creview"; hit=1
        fi ;;
   esac
 fi
@@ -144,15 +149,26 @@ if [ "$hit" -eq 0 ]; then
     ?*) DIRTY=$((DIRTY+1));;
   esac done < <(git -C "$CWD" status --porcelain=v2 --branch 2>/dev/null)
   if [ -n "$AB" ]; then a="${AB%% *}"; AHEAD="${a#+}"; b="${AB##* }"; BEHIND="${b#-}"; fi
+  # Finished work waiting on the owner (R117). Behind the same TTL as `git status` above, so the
+  # extra `--no-merged` walk happens once per cache window and never once per paint. Best-effort
+  # (R68): a missing or failing helper leaves the lane at 0 rather than taking the prompt down.
+  # AWAITING_ROOT is NOT optional here. Without it the helper falls back to the STATUS LINE's own
+  # process cwd, which is wherever Claude Code happened to be launched — so the bar reported another
+  # repo's branches while sitting in this one. Caught by the lane's own tests, and it is the same
+  # cross-project bleed the task store is explicitly filtered to prevent.
+  REVIEW="$(AWAITING_ROOT="$ROOT" "$PLUGIN_DIR/bin/awaiting-review.sh" count 2>/dev/null || printf 0)"
+  case "$REVIEW" in ''|*[!0-9]*) REVIEW=0 ;; esac
   # Best-effort write (R68): a read-only or missing state dir must never break the status line.
   if [ "$ttl" -gt 0 ] && [ "$NOW" -gt 0 ]; then
     { mkdir -p "${cf%/*}" 2>/dev/null &&
-      printf '%s %s %s %s %s\n' "$NOW" "${DIRTY:-0}" "${AHEAD:-0}" "${BEHIND:-0}" "$BRANCH" \
+      printf '%s %s %s %s %s %s\n' "$NOW" "${DIRTY:-0}" "${AHEAD:-0}" "${BEHIND:-0}" \
+        "${REVIEW:-0}" "$BRANCH" \
         > "$cf.$$" 2>/dev/null && mv -f "$cf.$$" "$cf" 2>/dev/null; } || rm -f "$cf.$$" 2>/dev/null || true
   fi
 fi
 case "$AHEAD"  in ''|*[!0-9]*) AHEAD=0;;  esac
 case "$BEHIND" in ''|*[!0-9]*) BEHIND=0;; esac
+case "$REVIEW" in ''|*[!0-9]*) REVIEW=0;; esac
 
 # ✈️ autopilot when it's armed for this repo (an attention state) — also tints the beacon yellow.
 # ⚡ appended when DECISIVE mode is also on (R59): autopilot auto-decides reversible choices rather
@@ -209,6 +225,12 @@ TASKS=""
 [ "$NOPEN"  -gt 0 ] && TASKS="${TASKS:+$TASKS }${C}${B}◻$NOPEN${X}"
 [ "$NPARK"  -gt 0 ] && TASKS="${TASKS:+$TASKS }${Y}${B}❓$NPARK${X}"
 [ "$NBLOCK" -gt 0 ] && TASKS="${TASKS:+$TASKS }${Y}${B}⏳$NBLOCK${X}"
+# ⚑ FINISHED work waiting on YOU (R117) — a burndown/* branch, or a feature-class change ship.sh
+# pushed and declined to merge. Last because it is the end of the lifecycle, not the least urgent.
+# GREEN, alone among the lanes: ❓/⏳ are yellow because they are stalled, and this is the opposite
+# — it is done. Reads BRANCHES, not the task store, so it is the one lane that can be non-zero
+# while the queue is empty, which is precisely the state that used to render as "nothing happening".
+[ "$REVIEW" -gt 0 ] && TASKS="${TASKS:+$TASKS }${G}${B}⚑$REVIEW${X}"
 [ -n "$TASKS" ] && TASKS="${C}${B}📋${X} $TASKS"
 out="${BCOL}${B}${BEACON}${X}"
 [ -n "${VERSION:-}" ] && out="$out ${D}v$VERSION${X}"

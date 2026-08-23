@@ -1406,3 +1406,46 @@
     - "resume: a store path containing a NEWLINE still returns the whole backlog"
     - "resume: an UNSTAMPED store dir holding open work is reported as UNREACHABLE"
     - "resume: UNREACHABLE never reports another repo's dir — a stamp is a stamp even if that repo is not here"
+
+- id: R117
+  satisfies: [UN-2]
+  affirmed: 2026-08-23
+  affirmations: 0
+  requirement: >
+    finished work that is waiting on the OWNER is visible — a ⚑ lane on the status line and a
+    section on the board, both fed by one shared reader
+
+    WHAT COUNTS, and why the two rules differ. A `burndown/*` branch unmerged into the default
+    ALWAYS counts: burn-down (R82) authors it unattended precisely so the owner can judge it, and
+    that contract holds whether or not it was ever pushed. Any OTHER non-default unmerged branch
+    counts only when it has an upstream — pushed means handed over, whereas an unpushed local
+    branch is somebody mid-thought, and counting those would make the lane non-zero during ordinary
+    work, which is how an indicator stops being read.
+
+    THE GAP. `tq` tracks work that needs DOING and ❓/⏳ track decisions that need ANSWERING;
+    nothing tracked work already DONE and sitting unreviewed. A feature-class change that ship
+    pushes and deliberately declines to merge (R116·b), and an overnight burn-down branch, both
+    rendered exactly like "nothing is happening" — the most expensive silence available, because
+    the work is already paid for.
+
+    ONE READER, THREE SURFACES. bin/awaiting-review.sh is the only implementation; the status line,
+    the board and any MCP client call it rather than each re-deriving "unmerged and handed over".
+    Written that way because the same file surfaced `default_branch` living in three copies that
+    had ALREADY drifted (burndown-branch.sh answered "main" without verifying the ref exists, where
+    ship.sh answered correctly) — now companion_default_branch in the shared lib.
+
+    COST, measured not asserted (R81). The lane is the first thing on the status line whose cost
+    tracks BRANCH COUNT rather than store size, so dev/hook-budget.sh gained that axis: the 8x-store
+    harness would have reported it free while it grew where nobody was looking. Measured at 8x
+    branches: 97ms -> 124ms, 1.27x — sublinear, against a 1500ms stall cap. On the live path it is
+    behind the same TTL cache as `git status`, so it costs once per cache window, never per paint.
+  verified_by:
+    - "awaiting-review: counts burndown/* and PUSHED branches, never unpushed ones (R117)"
+    - "awaiting-review: burndown/* counts even with NO upstream (R117/R82)"
+    - "awaiting-review: a clean repo counts 0, and a non-repo never errors (R68)"
+    - "status line: ⚑ lane shows finished work waiting on YOU, with an EMPTY queue (R117)"
+    - "status line: the ⚑ lane is absent when nothing waits (R34 show-only-when-relevant)"
+    - "status line: a STALE v1 cache line can never be read as v2 and blank the branch (R117)"
+    - "board: ⚑ finished-and-waiting section lists branches, and points at the WHY (R117)"
+    - "board: the ⚑ section is silent when nothing is waiting (same rule as every section)"
+    - "tq orphans: state kinds are DERIVED from source, so dead state cannot hide (R96)"

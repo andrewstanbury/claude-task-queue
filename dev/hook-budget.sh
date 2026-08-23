@@ -203,4 +203,47 @@ if [ -f "$BIN/stop-autopilot.sh" ]; then
   printf '  %-22s %7sms %9s %8s   %s\n' "stop-autopilot(dry+🔥)" "$d" "-" "-" "$verdict"
 fi
 
+# THE ⚑ AWAITING-REVIEW LANE (R117) — measured against BRANCH COUNT, which nothing else here varies.
+# Every measurement above scales the STORE. The ⚑ lane is the first thing on the status line whose
+# cost tracks the number of BRANCHES instead, via a `git branch --no-merged` walk — so the existing
+# 8x-store harness would have reported it as free while it grew on an axis nobody was watching.
+# That is the same "budget that measures nothing" this file was caught doing twice before, which is
+# why the axis is added here rather than argued about in a comment.
+# Worst case on purpose: TTL=0, so every paint pays. The shipped default caches for 10s.
+if [ -f "$BIN/statusline.sh" ] && [ -f "$BIN/awaiting-review.sh" ]; then
+  _brepo() {  # $1=dir $2=how many unmerged branches
+    local d="$1" n="$2" i
+    git -C "$d" init -q -b main 2>/dev/null
+    git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init 2>/dev/null
+    i=0; while [ "$i" -lt "$n" ]; do
+      # burndown/* counts WITHOUT an upstream, so the fixture needs no remote — and it exercises
+      # the counted path rather than the cheap `continue`, which is the point of measuring at all.
+      git -C "$d" checkout -q -b "burndown/b$i" 2>/dev/null
+      git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m "b$i" 2>/dev/null
+      i=$((i + 1))
+    done
+    git -C "$d" checkout -q main 2>/dev/null
+  }
+  mkdir -p "$TMP/br-s" "$TMP/br-m"
+  _brepo "$TMP/br-s" 4
+  _brepo "$TMP/br-m" $((4 * MULT))
+  for w in s m; do
+    jq -nc --arg c "$TMP/br-$w" '{model:{display_name:"m"},session_id:"budget",cwd:$c,
+      context_window:{total_input_tokens:1,total_output_tokens:1}}' > "$TMP/in-br-$w"
+  done
+  export CLAUDE_COMPANION_SL_CACHE_TTL=0
+  a="$(ms_of "$BIN/statusline.sh" "$TMP/in-br-s" "$TMP/small")"
+  b="$(ms_of "$BIN/statusline.sh" "$TMP/in-br-m" "$TMP/small")"
+  base="$a"; [ "$base" -lt 1 ] && base=1
+  ratio=$(( b * 100 / base ))
+  verdict="ok"
+  if [ "$b" -gt "$ABSCAP" ]; then
+    verdict="FAIL >${ABSCAP}ms on ${MULT}x branches — the ⚑ lane stalls the status line"; rc=1
+  elif [ "$a" -ge "$NOISE_MS" ] && [ "$ratio" -gt $((MAXRATIO * 100)) ]; then
+    verdict="FAIL pathological scaling (>${MAXRATIO}x over ${MULT}x branches)"; rc=1
+  fi
+  printf '  %-22s %7sms %7sms %6s.%02sx   %s\n' \
+    "statusline(${MULT}x branches)" "$a" "$b" "$((ratio/100))" "$(printf '%02d' $((ratio%100)))" "$verdict"
+fi
+
 exit "$rc"
