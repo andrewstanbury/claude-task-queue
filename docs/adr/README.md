@@ -959,7 +959,14 @@ UP because the slowest shard sets wall-clock — then multiplied it by a constan
 AVERAGE. It predicted 1275s; the median shard came in at 1276s and the **slowest at 1458s**, so the
 guard was systematically optimistic by 14%. Worst-case rounding paired with an average-case
 constant is the thin margin this entry is *about*, reproduced inside the fix for it. Now calibrated
-on the slowest shard (97s measured, 100s carried).
+on the slowest shard (100s carried).
+
+**And the second run showed why "measured" was the wrong word for it.** Two consecutive runs of the
+same matrix put the slowest shard at **97s and 85s** per mutation — 14% apart, on identical work,
+because GitHub's runners differ run to run. 85s *was* a single sample, and taking it as the
+measurement is what made the first version optimistic. The constant is a **bound over variance**,
+not a measurement, and recalibrating it means taking the worst of several runs rather than the
+latest one. The comment says so now, because the next person to touch it will be me.
 
 Worth keeping as the general point: **a safety margin that is wrong in the optimistic direction is
 not a smaller margin, it is a broken one** — it reports headroom that does not exist, which is the

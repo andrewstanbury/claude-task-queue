@@ -124,7 +124,11 @@ fi
 # the only quantity this projection claims to bound. The first value (85s) came from an average and
 # under-predicted the real slowest shard by 14%: worst-case rounding above (ceil) paired with an
 # average-case constant, which quietly re-introduced the thin margin this whole check exists to stop.
-# Measured 2026-08-22 across 10 shards: slowest 1458s / 15 mutations = 97s; 100s carries the margin.
+# It is a BOUND OVER VARIANCE, not a measurement. Two consecutive real runs put the slowest shard at
+# 97s and 85s per mutation — the same commit-shaped work on the same matrix, 14% apart, because
+# GitHub's runners differ run to run. So a single sample cannot calibrate this: 85s WAS a single
+# sample, and it is what made the first version optimistic. 100s covers both observed runs with
+# margin, and the next recalibration should take the worst of several runs, never the latest one.
 sec_per_mut="${MUTGATE_SEC_PER_MUT:-100}"
 ci_wallclock_warn() {
   local n="$1" wf f shards ceiling per projected pct
