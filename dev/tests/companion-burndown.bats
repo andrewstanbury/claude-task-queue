@@ -1218,3 +1218,45 @@ load helper
   [[ "$output" == *"WROTE"* ]]
   [ "$(cat "$sd/burndown-lastsample")" = "1700 51" ]
 }
+
+@test "burn-down: the FIRST branch bootstraps the ladder, and exactly one (R121)" {
+  # MEASURED LIVE, and it is what made burn-down inert on a healthy repo. Ranks 1/2/5 all require a
+  # MERGE RATE; the merge rate comes from branches the owner has judged; a branch can only be judged
+  # if it was built. With no TODOs and no untested flows there is no rank 3/4 work either — so a
+  # WELL-MAINTAINED repo could never build a first branch, never earn a merge, and never climb.
+  # Burn-down returned BURN and then refused its only candidate, holding an empty ledger it had no
+  # way to fill. Owner-decided from a 4-option menu 2026-08-23.
+  local d st; d="$(_tmpd)"; st="$(_tmpd)"
+  git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  local _bb; _bb() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" "$@"; }
+
+  # Nothing judged, nothing present: rank 5 — normally needing 4 judged at 75% — is permitted ONCE.
+  _bb start "5|rework|rebuild the flaky gate suite"; [ "$status" -eq 0 ]
+  git -C "$d" checkout -q main
+
+  # SELF-LIMITING, and this is the whole safety argument: the exception requires that no burndown
+  # branch is PRESENT, so creating one closes it. There can never be two unjudged bootstrap
+  # branches piling up unreviewed — the ceiling reopens only once the owner has judged this one.
+  _bb start "5|rework|and another rebuild"; [ "$status" -eq 12 ]
+  [[ "$output" == *"earned tier"* ]]
+  _bb start "2|roadmap|add a dark theme"; [ "$status" -eq 12 ]
+
+  # Judge it — discard counts as judgement just as merge does — and the normal maths resumes:
+  # one judged, zero merged, 0% kept, so the feature tier stays shut. The bootstrap grants a first
+  # BRANCH, never a first pass mark.
+  _bb discard rebuild-the-flaky-gate-suite; [ "$status" -eq 0 ]
+  _bb start "2|roadmap|add a dark theme"; [ "$status" -eq 12 ]
+}
+
+@test "burn-down: bootstrap NEVER reaches rank 6 — a first act of autonomy is not invention (R121)" {
+  # The line that keeps the exception honest. Rank 6 means "nothing recorded remains, invent
+  # something"; it is refused before the bootstrap is even considered. Widening the first branch to
+  # cover invented work would turn "let it start" into "let it make things up", which is a
+  # different decision entirely and not the one that was taken.
+  local d st; d="$(_tmpd)"; st="$(_tmpd)"
+  git -C "$d" init -q -b main; git -C "$d" -c user.email=t@t -c user.name=t commit -q --allow-empty -m base
+  run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" bash "$ROOT/bin/burndown-branch.sh" \
+      start "6|invent|something nobody asked for"
+  [ "$status" -eq 13 ]
+  [[ "$output" == *"never built unattended"* ]]
+}

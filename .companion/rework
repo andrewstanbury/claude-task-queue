@@ -131,3 +131,4 @@
 1787417543 gate-fail plugins/companion/.claude-plugin/plugin.json
 1787417543 gate-fail plugins/companion/bin/review-pile.sh
 1787417543 gate-fail plugins/companion/commands/setup.md
+1787525368 ci-red .companion/tasks/147.json

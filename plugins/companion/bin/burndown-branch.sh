@@ -121,6 +121,21 @@ tier_allows() {  # $1 rank -> 0 when permitted
   case "$present" in ''|*[!0-9]*) present=0 ;; esac
   merged=$(( created - abandoned - present )); [ "$merged" -lt 0 ] && merged=0
   judged=$(( merged + abandoned ))
+  # THE BOOTSTRAP BRANCH (R121, owner-decided 2026-08-23). Without this the ladder cannot start:
+  # ranks 1/2/5 all require a MERGE RATE, the merge rate is computed from branches the owner has
+  # judged, and a branch can only be judged if it was built. On a repo with no TODOs and no untested
+  # flows there is no rank 3/4 work either — so a WELL-MAINTAINED repo left it permanently inert,
+  # which is precisely when the spare capacity exists. Measured live: burn-down returned BURN and
+  # then refused its only candidate, with an empty ledger it had no way to fill.
+  #
+  # SELF-LIMITING BY CONSTRUCTION, which is why it needs no counter of its own: it requires that
+  # NOTHING has been judged AND no burndown branch is currently present, so the moment this creates
+  # one, `present` is 1 and the exception stops applying. There can never be two unjudged bootstrap
+  # branches. Judge that one — merge or discard — and the normal earned-tier maths takes over.
+  #
+  # RANK 6 IS STILL REFUSED, above, and deliberately: 6 means "nothing recorded remains, invent
+  # something". A first act of autonomy should be work the repo ASKED for, not work it made up.
+  if [ "$judged" -eq 0 ] && [ "$present" -eq 0 ]; then return 0; fi
   [ "$judged" -gt 0 ] || return 1                      # no history -> debt only
   pct=$(( merged * 100 / judged ))
   case "$rank" in

@@ -1,9 +1,15 @@
 {
   "id": "147",
   "subject": "❓ [parked] rev: BURN-DOWN BOOTSTRAP DEADLOCK — it says BURN and is then forbidden from building anything. The tier gate allows rank 3|4 (debt paydown) always, and rank 5 (rework/rebuild) only at judged>=4 with >=75% merged. The acceptance ledger is EMPTY (zero branches ever judged), and candidates.sh currently offers ONLY rank 5 because the repo has no TODOs and no untested flows. So it may build only what does not exist, and is barred from the only thing that does — and it can never earn its first merge because it can never build a first branch. options: A) BOOTSTRAP EXCEPTION — allow ONE branch at any rank when the ledger is empty and no lower-rank candidate exists, so there is something to judge and the ladder can start; bounded by the existing per-day and feature caps, and the first branch is exactly the kind of thing you would review anyway (cost: the first autonomous branch is a test-file rebuild, i.e. it starts at the deep end rather than with something trivial) B) WIDEN rank 3|4 detection so debt paydown finds work in a clean repo (cost: manufactures busywork; a repo with no TODOs genuinely has no rank-4 debt, so this invents candidates to satisfy a gate) C) SEED the ledger from already-merged burndown-like work (cost: there is none — the ledger would be fiction, and it is the one record that gates autonomy) D) leave it — burn-down stays inert on a clean repo until debt appears naturally (cost: exactly the behaviour you are asking about; on a well-maintained repo it never runs, which is when you have the most spare tokens); rec: A — the ladder's premise is 'earn trust by having branches kept', and that premise needs a first branch to judge. One bootstrap branch is the minimum that makes the mechanism able to start at all, and every other cap still applies",
-  "status": "pending",
+  "status": "completed",
   "done_when": "owner decides how burn-down earns its first branch",
   "context": "",
   "blocks": [],
-  "blockedBy": []
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-23T23:34:15Z",
+      "text": "decided: A — bootstrap exception. Owner picked from a 4-option menu."
+    }
+  ]
 }

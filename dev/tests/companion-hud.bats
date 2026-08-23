@@ -676,6 +676,27 @@ _ar_repo() {
   [[ "$output" != *"."* ]]
 }
 
+@test "status line: a STALE payload is not recorded as burn-down evidence either (R120)" {
+  # The third hole CI found. The fresh path was tested and the stale path was not, so dropping the
+  # freshness gate changed nothing observable — while in reality it would put the stale window's
+  # number straight into the history burn-down corroborates against, invisibly, because the sample
+  # file would still look perfectly well-formed.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  local live5=1787523000 live7=1787641200 old5=1786060800 old7=1786464000
+  mkdir -p "$CLAUDE_COMPANION_STATE_DIR"
+  # a LIVE reading is already stored — this is the state every real machine is in
+  printf '%s 69 %s 31 %s\n' "$(date +%s)" "$live5" "$live7" > "$CLAUDE_COMPANION_STATE_DIR/ratelimit"
+  local payload; payload="$(jq -nc --arg c "$repo" --arg r5 "$old5" --arg r7 "$old7" \
+    '{model:{display_name:"m"},session_id:"sStale",cwd:$c,
+      context_window:{total_input_tokens:1,total_output_tokens:1},
+      rate_limits:{five_hour:{used_percentage:30,resets_at:$r5},
+                   seven_day:{used_percentage:38,resets_at:$r7}}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [ "$status" -eq 0 ]
+  [ ! -f "$CLAUDE_COMPANION_STATE_DIR/burndown-lastsample" ]   # the stale 38 never becomes evidence
+}
+
 @test "status line: a payload with NO rate_limits records nothing, and does not error (R119/R68)" {
   # The field only exists on Claude.ai Pro/Max and only after the first API response, so "absent"
   # is the normal case on an API key and on the very first render. Recording an empty or zero
@@ -709,6 +730,21 @@ _ar_repo() {
   run _w 1010 30 "$old5" 38 "$old7"
   [ "$status" -ne 0 ]                                   # refused...
   [ "$(cat "$sd/ratelimit")" = "1000 69 $live5 31 $live7" ]   # ...and the live reading survives
+
+  # EACH GUARD, PINNED ALONE. The case above cannot tell them apart: a stale window carries BOTH
+  # windows older, so either check alone refuses it and removing one is invisible — CI proved that
+  # by surviving both mutations while this file stayed green. Redundant guards mask each other, and
+  # a test that passes for either reason measures neither.
+  # r5 OLDER while r7 is EQUAL — the common real shape: a window that has not yet seen the 5h
+  # rollover repainting alongside one that has.
+  run _w 1020 30 "$old5" 31 "$live7"
+  [ "$status" -ne 0 ]
+  [ "$(cat "$sd/ratelimit")" = "1000 69 $live5 31 $live7" ]
+  # r7 OLDER while r5 is EQUAL — rarer, since the 7d window rolls seldom, but it is the only case
+  # that exercises the r7 check on its own.
+  run _w 1030 69 "$live5" 38 "$old7"
+  [ "$status" -ne 0 ]
+  [ "$(cat "$sd/ratelimit")" = "1000 69 $live5 31 $live7" ]
 }
 
 @test "rl snapshot: equal resets still update, and a real ROLLOVER is not a regression (R120)" {

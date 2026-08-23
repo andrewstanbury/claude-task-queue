@@ -1571,3 +1571,33 @@
     - "rl snapshot: a payload with OLDER window resets is refused — stale window cannot clobber (R120)"
     - "rl snapshot: equal resets still update, and a real ROLLOVER is not a regression (R120)"
     - "rl snapshot: an unreadable or empty stored reading vetoes nothing (R120/R68)"
+    - "status line: a STALE payload is not recorded as burn-down evidence either (R120)"
+
+- id: R121
+  satisfies: [UN-1]
+  affirmed: 2026-08-23
+  affirmations: 0
+  requirement: >
+    burn-down may build ONE bootstrap branch when nothing has ever been judged and no generated
+    branch is present
+
+    THE DEADLOCK, measured live. The buildable tier is earned by acceptance: ranks 1/2/5 require a
+    merge RATE, the rate is computed over branches the owner has judged, and a branch can only be
+    judged if it was built. Ranks 3/4 (TODOs, untested contract pages) are always permitted — but a
+    well-maintained repo HAS none. So burn-down returned BURN, found its only candidate was rank 5,
+    refused it against an empty ledger, and had no way to ever fill that ledger. It could build only
+    what did not exist and was barred from the only thing that did. A healthy repo left the mode
+    permanently inert, which is exactly when the spare capacity exists.
+
+    SELF-LIMITING BY CONSTRUCTION, which is why it needs no counter: the exception requires that
+    nothing has been judged AND no burndown branch is present, so creating one closes it. Two
+    unjudged bootstrap branches can never pile up. Judging that branch — merge or discard, both
+    count — hands control back to the ordinary earned-tier maths, and a discard leaves the tier shut
+    at 0% kept. The bootstrap grants a first BRANCH, never a first pass mark.
+
+    RANK 6 IS STILL REFUSED, before the exception is considered. 6 means "nothing recorded remains,
+    invent something". A first act of autonomy should be work the repo asked for, not work it made
+    up; widening the bootstrap to cover invention would be a different decision from the one taken.
+  verified_by:
+    - "burn-down: the FIRST branch bootstraps the ladder, and exactly one (R121)"
+    - "burn-down: bootstrap NEVER reaches rank 6 — a first act of autonomy is not invention (R121)"
