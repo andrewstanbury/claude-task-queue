@@ -47,6 +47,7 @@ UNREACH="${BURNDOWN_UNREACHABLE_FACTOR:-3}"
 # needs two DISTINCT readings that agree. Disagreement HOLDs, which is the safe direction
 # everywhere else in this mode. The honest cost: a legitimate burn can be delayed by one cycle.
 SAMPLETOL="${BURNDOWN_SAMPLE_TOLERANCE:-5}"     # max points two readings may differ and still count
+SAMPLE_MIN="${BURNDOWN_SAMPLE_MIN_GAP:-120}"    # min seconds BETWEEN the two readings — closer is one sample twice
 HEADROOM5="${BURNDOWN_MIN_5H_HEADROOM:-15}"     # refuse when the 5h window is nearly spent
 FIVE="${BURNDOWN_FIVE_HOUR:-18000}"             # the 5h window, from the field's own name — the staleness yardstick
 
@@ -157,18 +158,19 @@ if [ "$SCHEDULED" -eq 0 ]; then
   # what argues FOR generating work, so flooring makes the trigger slightly harder to fire.
   used_i="${u7%%.*}"
 
-  # Record this reading IMMEDIATELY, before any verdict can return. It first sat lower down, after
-  # the on-track hold — so every high reading held early and never seeded the comparison, leaving
-  # the history blank exactly when usage was high and a later low sample looked like a huge drop.
-  # A sample is evidence regardless of what this run decides.
-  prevf="$(companion_state_dir)/burndown-lastsample"
+  # READ the sample history; do NOT write it (R119). This used to record its own reading on every
+  # evaluation, which looked prudent and created two defects at once:
+  #   · SELF-STARVATION — sampling happened only when evaluating happened, and evaluating happens
+  #     only when the queue runs dry. Unattended, the first check after a gap found no recent
+  #     partner, held, and nothing ever took a second reading. It could never start.
+  #   · THEATRE — two evaluations 30 seconds apart satisfied the guard, which is not independent
+  #     evidence: at a rollover both samples sit on the same side of it. So it simultaneously
+  #     blocked the honest single-call path and was trivially bypassed by calling twice.
+  # The status line now records on a cadence of its own (companion_rl_sample_record), which is a
+  # clock this file does not control — the only kind that can corroborate anything.
+  prevf="$(companion_rl_sample)"
   prev_ts=""; prev_u7=""
   [ -f "$prevf" ] && read -r prev_ts prev_u7 < "$prevf" 2>/dev/null
-  if mkdir -p "${prevf%/*}" 2>/dev/null; then
-    if printf '%s %s\n' "$ts" "$used_i" > "$prevf.tmp$$" 2>/dev/null; then
-      mv -f "$prevf.tmp$$" "$prevf" 2>/dev/null || true
-    fi
-  fi
   projected=$(( used_i * WINDOW / elapsed ))
 
   # REQUIRED RATE (owner-decided 2026-08-02). `projected` answers "where do I land if nothing
@@ -232,10 +234,15 @@ if [ "$SCHEDULED" -eq 0 ]; then
   # happens unconditionally so a HOLD still seeds the comparison — otherwise the mode could never
   # accumulate the second sample it now requires. Best-effort: an unwritable state dir degrades to
   # "no previous sample", which HOLDs (R7/R68).
-  case "${prev_ts:-}" in ''|*[!0-9]*) say "only one rate-limit reading so far — a single sample was measured swinging 21 points at a 5h rollover, so one is not evidence"; return ;; esac
+  case "${prev_ts:-}" in ''|*[!0-9]*) say "no earlier rate-limit reading yet — the STATUS LINE records these on a cadence (R119); if it is not wired, run /companion:setup, otherwise give it ${SAMPLE_MIN}s"; return ;; esac
   case "${prev_u7:-}" in ''|*[!0-9]*) say "previous reading unusable — holding rather than acting on one sample"; return ;; esac
   [ "$prev_ts" != "$ts" ] || { say "the snapshot has not refreshed since the last check — same sample, not a second opinion"; return; }
   [ "$(( now - prev_ts ))" -le "$FRESH" ] || { say "previous reading is $(( now - prev_ts ))s old (max ${FRESH}s) — too stale to corroborate"; return; }
+  # ...and NOT TOO CLOSE. Two readings seconds apart are one reading written twice: at a 5h
+  # rollover both land on the same side of it, so they agree perfectly and prove nothing. This is
+  # the half that made the old guard theatre, and it is what stops a caller manufacturing consent
+  # by simply running twice.
+  [ "$(( now - prev_ts ))" -ge "$SAMPLE_MIN" ] || { say "the two readings are only $(( now - prev_ts ))s apart (min ${SAMPLE_MIN}s) — that is one sample written twice, not corroboration"; return; }
   sdiff=$(( used_i - prev_u7 )); [ "$sdiff" -ge 0 ] || sdiff=$(( 0 - sdiff ))
   [ "$sdiff" -le "$SAMPLETOL" ] || { say "the last two readings disagree by ${sdiff} points (max ${SAMPLETOL}) — that is the rollover transient, not headroom"; return; }
 

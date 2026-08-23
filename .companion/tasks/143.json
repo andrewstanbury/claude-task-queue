@@ -1,0 +1,9 @@
+{
+  "id": "143",
+  "subject": "BURN-DOWN CAN NEVER CORROBORATE UNATTENDED (R119): burn-down requires two rate-limit readings <=1h apart, but ONLY burn-down.sh writes a reading — so sampling happens only when evaluation happens, and evaluation happens only when the queue runs dry. Leave the CLI open a week and the first check after any gap says 'too stale to corroborate' and there is no second check. This is why 20% usage on the last day produced no work",
+  "status": "completed",
+  "done_when": "the status line records a reading on a cadence independent of burn-down evaluation, so a genuine previous sample always exists; verified by a test that a single evaluation after a long gap can BURN",
+  "context": "",
+  "blocks": [],
+  "blockedBy": []
+}

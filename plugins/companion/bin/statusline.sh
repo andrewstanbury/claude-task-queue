@@ -225,12 +225,17 @@ TASKS=""
 [ "$NOPEN"  -gt 0 ] && TASKS="${TASKS:+$TASKS }${C}${B}◻$NOPEN${X}"
 [ "$NPARK"  -gt 0 ] && TASKS="${TASKS:+$TASKS }${Y}${B}❓$NPARK${X}"
 [ "$NBLOCK" -gt 0 ] && TASKS="${TASKS:+$TASKS }${Y}${B}⏳$NBLOCK${X}"
-# ⚑ FINISHED work waiting on YOU (R117) — a burndown/* branch, or a feature-class change ship.sh
+# 🚩 FINISHED work waiting on YOU (R117) — a burndown/* branch, or a feature-class change ship.sh
 # pushed and declined to merge. Last because it is the end of the lifecycle, not the least urgent.
+# EMOJI, not a geometric glyph (owner-reported 2026-08-23: it rendered as a box). The first version
+# used ⚑ U+2691, which lives in Miscellaneous Symbols and has patchy monospace coverage — and a lane
+# whose entire purpose is being SEEN is the worst possible place to depend on the reader's font.
+# 🚩 is font-independent (terminals fall back to a colour emoji font) and consistent with ❓ ⏳ 🛡️
+# ✈️ 📦 🔥 🧹, which were already emoji. Costs one column of width; worth it.
 # GREEN, alone among the lanes: ❓/⏳ are yellow because they are stalled, and this is the opposite
 # — it is done. Reads BRANCHES, not the task store, so it is the one lane that can be non-zero
 # while the queue is empty, which is precisely the state that used to render as "nothing happening".
-[ "$REVIEW" -gt 0 ] && TASKS="${TASKS:+$TASKS }${G}${B}⚑$REVIEW${X}"
+[ "$REVIEW" -gt 0 ] && TASKS="${TASKS:+$TASKS }${G}${B}🚩$REVIEW${X}"
 [ -n "$TASKS" ] && TASKS="${C}${B}📋${X} $TASKS"
 out="${BCOL}${B}${BEACON}${X}"
 [ -n "${VERSION:-}" ] && out="$out ${D}v$VERSION${X}"
@@ -247,13 +252,29 @@ if [ -n "${RL7:-}" ] || [ -n "${RL5:-}" ]; then
   _rlsnap="$(companion_rl_snapshot)"
   # `if`, not a && chain ending in `|| true` — SC2015: the final arm also fires when an EARLIER
   # link fails, so the chain does not mean what it reads like. CI's shellcheck catches it.
-  if mkdir -p "${_rlsnap%/*}" 2>/dev/null; then
-    if printf '%s %s %s %s %s\n' "$NOW" "${RL5:-}" "${RL5R:-}" "${RL7:-}" "${RL7R:-}" \
-         > "$_rlsnap.tmp$$" 2>/dev/null; then
-      mv -f "$_rlsnap.tmp$$" "$_rlsnap" 2>/dev/null || true
-    fi
+  # Through companion_rl_snapshot_write, which REFUSES a payload whose windows reset earlier than
+  # the stored ones (R120). This file is shared by every open window, and an idle one repaints with
+  # its last payload forever — measured live clobbering the live reading with resets 17 days old,
+  # ten times a minute. That, not anything in burn-down, is why burn-down never fired.
+  _rlfresh=0
+  companion_rl_snapshot_write "$NOW" "${RL5:-}" "${RL5R:-}" "${RL7:-}" "${RL7R:-}" && _rlfresh=1
+  # AND record a cadenced READING for burn-down (R119). Distinct from the snapshot above: the
+  # snapshot is "what the windows say right now" and is overwritten every repaint; this is a
+  # sparse HISTORY, written at most once per interval, so burn-down always has a genuine earlier
+  # sample to corroborate against. burn-down used to write this itself, which meant it only ever
+  # sampled when it evaluated — and it evaluates only when the queue is dry, so an unattended
+  # session could never accumulate a second reading and held forever. That is exactly the "20% used
+  # on the last day and nothing happened" the owner hit.
+  # O(1) and best-effort: one stat, and a write only every SAMPLE_EVERY seconds.
+  _rl7i="${RL7:-}"; _rl7i="${_rl7i%%.*}"
+  case "${_rl7i:-x}" in *[!0-9]*) _rl7i="" ;; esac
+  # Gated on _rlfresh: a payload too stale to update the snapshot is too stale to be EVIDENCE.
+  # Recording a sample from it would put the stale window's number into the very history burn-down
+  # corroborates against — the same defect, one layer down, and invisible because the sample file
+  # would look perfectly well-formed.
+  if [ "$_rlfresh" -eq 1 ] && [ -n "$_rl7i" ] && [ "${NOW:-0}" -gt 0 ]; then
+    companion_rl_sample_record "$NOW" "$_rl7i" "${CLAUDE_COMPANION_RL_SAMPLE_EVERY:-600}" || true
   fi
-  rm -f "$_rlsnap.tmp$$" 2>/dev/null || true
 fi
 [ -n "$RL" ] && out="$out $DIVC$RL"
 out="$out${DIV}${C}${MODEL}${X}"

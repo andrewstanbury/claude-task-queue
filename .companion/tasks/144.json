@@ -1,0 +1,15 @@
+{
+  "id": "144",
+  "subject": "The corroboration guard is theatre as written (R119b): two evaluations 30s apart satisfy it, which is NOT independent evidence — at a 5h rollover both samples sit on the same side of it. So it blocks the honest single-call path while being trivially bypassable by calling twice",
+  "status": "completed",
+  "done_when": "two samples must be at least a minimum interval apart to count as corroboration; a test proves two rapid readings are refused",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-23T20:33:19Z",
+      "text": "fixed with #143 — same root cause: burn-down writing its own samples both starved it AND made the guard bypassable. It now READS only, and requires BURNDOWN_SAMPLE_MIN_GAP (120s) between the two readings."
+    }
+  ]
+}

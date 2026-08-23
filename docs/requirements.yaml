@@ -841,7 +841,7 @@
     sample is recorded before any verdict can return — recording it after the on-track hold left
     the history blank exactly when usage was high, which is when it matters.
   verified_by:
-    - "burn-down: a BURN needs TWO agreeing readings — one sample is not evidence (R90)"
+    - "burn-down: a BURN needs TWO agreeing readings, SEPARATED IN TIME (R90/R119)"
 
 - id: R91
   satisfies: [UN-6]
@@ -1412,7 +1412,7 @@
   affirmed: 2026-08-23
   affirmations: 0
   requirement: >
-    finished work that is waiting on the OWNER is visible — a ⚑ lane on the status line and a
+    finished work that is waiting on the OWNER is visible — a 🚩 lane on the status line and a
     section on the board, both fed by one shared reader
 
     WHAT COUNTS, and why the two rules differ. A `burndown/*` branch unmerged into the default
@@ -1443,11 +1443,11 @@
     - "awaiting-review: counts burndown/* and PUSHED branches, never unpushed ones (R117)"
     - "awaiting-review: burndown/* counts even with NO upstream (R117/R82)"
     - "awaiting-review: a clean repo counts 0, and a non-repo never errors (R68)"
-    - "status line: ⚑ lane shows finished work waiting on YOU, with an EMPTY queue (R117)"
-    - "status line: the ⚑ lane is absent when nothing waits (R34 show-only-when-relevant)"
+    - "status line: 🚩 lane shows finished work waiting on YOU, with an EMPTY queue (R117)"
+    - "status line: the 🚩 lane is absent when nothing waits (R34 show-only-when-relevant)"
     - "status line: a STALE v1 cache line can never be read as v2 and blank the branch (R117)"
-    - "board: ⚑ finished-and-waiting section lists branches, and points at the WHY (R117)"
-    - "board: the ⚑ section is silent when nothing is waiting (same rule as every section)"
+    - "board: 🚩 finished-and-waiting section lists branches, and points at the WHY (R117)"
+    - "board: the 🚩 section is silent when nothing is waiting (same rule as every section)"
     - "tq orphans: state kinds are DERIVED from source, so dead state cannot hide (R96)"
 
 - id: R118
@@ -1493,3 +1493,81 @@
     - "quality-bar: a bar that states NO attributes at all is its own finding (R118)"
     - "quality-bar: --strict is the opt-in that gives a project teeth (R118)"
     - "quality-bar: the finding reaches the SHIP boundary via the drift backstop (R118/R58)"
+
+- id: R119
+  satisfies: [UN-1]
+  affirmed: 2026-08-23
+  affirmations: 0
+  requirement: >
+    the rate-limit readings burn-down corroborates against are recorded by the STATUS LINE on a
+    cadence, not by burn-down itself
+
+    THE DEFECT, reported by the owner: 20% of the weekly window used on its final day, an empty
+    queue, autopilot and burn-down both armed — and nothing generated. burn-down requires two
+    readings before acting, because a single sample taken across a 5h rollover was measured
+    swinging 21 points. But burn-down WROTE THAT SAMPLE ITSELF, on every evaluation. So sampling
+    happened only when evaluation happened, and evaluation happens only when the queue runs dry:
+    the first check after any gap found no recent partner, held, and nothing ever took a second
+    reading. Left alone for a week it could never start. A self-starving feedback loop.
+
+    THE SAME SELF-WRITING MADE THE GUARD THEATRE. Two evaluations 30 seconds apart satisfied it,
+    which is not independent evidence — at a rollover both samples sit on the same side of it, so
+    they agree perfectly and prove nothing. It simultaneously blocked the honest single-call path
+    and was trivially bypassed by calling twice. Both failures had one cause, and one fix.
+
+    THE FIX: the status line records a reading (companion_rl_sample_record), at most once per
+    CLAUDE_COMPANION_RL_SAMPLE_EVERY seconds. It repaints anyway and already holds the payload the
+    data comes from, so the cost is one stat plus a write every ten minutes. burn-down READS and
+    never writes, and now also requires the two readings to be at least BURNDOWN_SAMPLE_MIN_GAP
+    apart — a clock it does not control is the only kind that can corroborate anything.
+
+    WHAT REMAINS TRUE AND IS NOT A REGRESSION: if the status line is not wired, no readings are
+    recorded and burn-down holds, saying so and naming /companion:setup. That is not a new
+    dependency — the rate-limit snapshot burn-down already forecasts from has exactly the same
+    source, because the payload carrying it exists nowhere else.
+  verified_by:
+    - "burn-down: a BURN needs TWO agreeing readings, SEPARATED IN TIME (R90/R119)"
+    - "burn-down: it must NOT write the sample itself — that is what starved it (R119)"
+    - "burn-down: two readings SECONDS apart are one sample twice, and are refused (R119b)"
+    - "rl sample: the recorder THROTTLES, so the two readings are genuinely apart (R119)"
+    - "status line: it actually RECORDS a rate-limit reading for burn-down (R119 wiring guard)"
+    - "status line: a payload with NO rate_limits records nothing, and does not error (R119/R68)"
+
+- id: R120
+  satisfies: [UN-1]
+  affirmed: 2026-08-23
+  affirmations: 0
+  requirement: >
+    the shared rate-limit snapshot rejects a payload whose windows reset EARLIER than the stored
+    one, so a stale window cannot clobber a live one
+
+    MEASURED LIVE, and it is the reason burn-down had never once fired. `~/.claude/companion/
+    ratelimit` is a single global file, and EVERY open Claude Code window's status line rewrites it
+    on every repaint. An idle window keeps repainting with its LAST payload: observed carrying 5h
+    and 7d resets 17 days old, overwriting the live reading roughly ten times a minute. burn-down
+    then drew its two corroborating samples from DIFFERENT windows — 38 from the stale one, 30 from
+    the live one — they disagreed past tolerance, and it held. Forever.
+
+    FRESHNESS IS THE RESET TIMESTAMP, NOT THE WRITE TIME. Every writer stamps `now`, so the write
+    time proves only that someone is alive; it cannot separate a live payload from a stale one.
+    Window resets only ever move FORWARD, so the newest payload is the one whose windows reset
+    latest, and a stale writer is refused by construction rather than by heuristic.
+
+    THE TWO WINDOWS ARE COMPARED SEPARATELY. A 5h rollover moves r5 while r7 stands still, and a 7d
+    rollover the reverse — compared as a pair, an ordinary rollover would read as an older payload
+    and freeze the file. Equal resets still update, so two LIVE windows keep the usage current
+    rather than the first writer winning forever.
+
+    IT ALSO GATES THE BURN-DOWN SAMPLE (R119): a payload too stale to update the snapshot is too
+    stale to be evidence. Without that, the stale window's number lands in the very history
+    burn-down corroborates against — the same defect one layer down, and invisible, because the
+    sample file would look perfectly well-formed.
+
+    DEGRADES TO HOLD. If only a stale window remains, its writes are refused, the stored timestamp
+    ages out, and burn-down's own freshness check holds. Safe direction, and an empty or unreadable
+    stored value vetoes nothing (R68) — the cost of failing closed here would be a snapshot that can
+    never be written again.
+  verified_by:
+    - "rl snapshot: a payload with OLDER window resets is refused — stale window cannot clobber (R120)"
+    - "rl snapshot: equal resets still update, and a real ROLLOVER is not a regression (R120)"
+    - "rl snapshot: an unreadable or empty stored reading vetoes nothing (R120/R68)"

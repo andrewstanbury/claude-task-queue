@@ -179,13 +179,14 @@ _bd() {  # $1=used7 $2=used5 $3=age-offset → run the forecaster against a fres
   # callers rely on stopped applying at random. Same class as "never assert an exact countdown
   # from date +%s". Two days keeps every caller's HOLD/BURN outcome and stays clear of the edge;
   # the stretch itself is covered deliberately by its own test.
-  # A BURN now needs TWO distinct agreeing readings, because one was measured swinging 21 points at
-  # a 5h rollover. So seed an earlier, identical sample first — that is what the status line does in
-  # reality by repainting. The seeding run is discarded; only the second is asserted on.
-  printf '%s %s %s %s %s\n' "$(( $(date +%s) - ${3:-0} - 5 ))" "${2:-20}" "$(( $(date +%s)+7200 ))" \
-    "${1:-10}" "$(( $(date +%s)+172800 ))" > "$BD_STATE/ratelimit"
-  env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
-      BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status >/dev/null 2>&1 || true
+  # A BURN needs TWO readings SEPARATED IN TIME, because one was measured swinging 21 points at a
+  # 5h rollover. Seed the earlier one DIRECTLY (R119). It used to be seeded by running burn-down
+  # once and discarding the result — which worked only because burn-down wrote its own samples, and
+  # that self-writing was the defect: sampling then happened only when evaluating happened, so an
+  # unattended session could never take a second reading and burn-down could never start. The
+  # status line is the sampler now, so the fixture writes what the status line would have written.
+  # 600s back, comfortably past SAMPLE_MIN — two readings closer than that are one sample twice.
+  printf '%s %s\n' "$(( $(date +%s) - ${3:-0} - 600 ))" "${1:-10}" > "$BD_STATE/burndown-lastsample"
   printf '%s %s %s %s %s\n' "$(( $(date +%s) - ${3:-0} ))" "${2:-20}" "$(( $(date +%s)+7200 ))" \
     "${1:-10}" "$(( $(date +%s)+172800 ))" > "$BD_STATE/ratelimit"
   run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \

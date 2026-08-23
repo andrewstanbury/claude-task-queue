@@ -149,6 +149,64 @@ companion_burndown_on() { companion_mode_on "${1:-}" burndown; }
 # statusLine stdin payload, so anything outside that process (like the burn-down forecaster) can
 # read it only if the status line writes it down. One short line, overwritten in place.
 companion_rl_snapshot() { printf '%s/ratelimit' "$(companion_state_dir)"; }
+# THE SNAPSHOT IS SHARED BY EVERY OPEN WINDOW, and a stale one must not win (R120).
+# ~/.claude/companion/ratelimit is a single global file, and EVERY Claude Code window's status line
+# rewrites it on every repaint. An idle window keeps repainting with its LAST payload — measured
+# live carrying resets 17 days old — so a stale window silently clobbers the live one ten times a
+# minute. burn-down then draws its two "corroborating" readings from DIFFERENT windows, they
+# disagree, and it holds forever. That is why burn-down never once fired, and why a payload that
+# looked frozen earlier was really a second writer.
+#
+# FRESHNESS IS THE RESET TIMESTAMP, not the write time. Every writer stamps `now`, so write time
+# says only that someone is alive — it cannot tell a live payload from a stale one. Window resets,
+# though, only ever move FORWARD: a window that has rolled carries a later `resets_at` than one
+# that has not. So the newest payload is the one whose windows reset latest, and a stale writer is
+# refused by construction rather than by guessing.
+#
+# Equal resets = same window period = allow, so two live windows still keep the used% current.
+# Returns 1 when refused, so the caller also skips recording a burn-down sample from that payload.
+companion_rl_snapshot_write() {  # $1 ts · $2 used5 · $3 reset5 · $4 used7 · $5 reset7
+  local f o_r5="" o_r7="" _x
+  f="$(companion_rl_snapshot)"
+  if [ -f "$f" ]; then read -r _x _x o_r5 _x o_r7 < "$f" 2>/dev/null || true; fi
+  # A non-numeric stored value carries no information, so it cannot veto anything.
+  case "${o_r5:-x}" in *[!0-9]*) o_r5="" ;; esac
+  case "${o_r7:-x}" in *[!0-9]*) o_r7="" ;; esac
+  case "${3:-x}" in *[!0-9]*) set -- "$1" "$2" "" "$4" "$5" ;; esac
+  case "${5:-x}" in *[!0-9]*) set -- "$1" "$2" "$3" "$4" "" ;; esac
+  # STRICTLY older on either window = an older payload = refuse. Checked separately, because a 5h
+  # rollover moves r5 while r7 stands still, and vice versa at a 7d rollover — comparing them as a
+  # pair would read a normal rollover as a regression.
+  if [ -n "$o_r5" ] && [ -n "${3:-}" ] && [ "$3" -lt "$o_r5" ]; then return 1; fi
+  if [ -n "$o_r7" ] && [ -n "${5:-}" ] && [ "$5" -lt "$o_r7" ]; then return 1; fi
+  mkdir -p "${f%/*}" 2>/dev/null || return 1
+  if printf '%s %s %s %s %s\n' "$1" "$2" "${3:-}" "$4" "${5:-}" > "$f.tmp$$" 2>/dev/null; then
+    mv -f "$f.tmp$$" "$f" 2>/dev/null || true
+  fi
+  rm -f "$f.tmp$$" 2>/dev/null || true
+}
+companion_rl_sample() { printf '%s/burndown-lastsample' "$(companion_state_dir)"; }
+# Record a rate-limit reading, but ONLY when the stored one is already $3 seconds old (R119).
+# THE CADENCE IS THE POINT. burn-down needs two readings separated in TIME to tell real headroom
+# from a 5h-rollover transient, and it used to write the sample itself on every evaluation — so
+# sampling happened only when evaluating happened, which happens only when the queue runs dry.
+# Left alone for a week, the first check after any gap found no recent partner, held, and nothing
+# ever took the second reading. Writing on a cadence from the status line (which repaints anyway
+# and already holds the data) makes a genuine previous reading always exist.
+# Returns 1 without writing when it is too soon — callers treat that as a non-event (R68).
+companion_rl_sample_record() {  # $1 ts · $2 used7 (integer) · $3 min seconds since the last write
+  local f prev_ts=""
+  case "${1:-}${2:-}${3:-}" in ''|*[!0-9]*) return 1 ;; esac
+  f="$(companion_rl_sample)"
+  if [ -f "$f" ]; then read -r prev_ts _ < "$f" 2>/dev/null || true; fi
+  case "${prev_ts:-x}" in *[!0-9]*) prev_ts="" ;; esac
+  if [ -n "$prev_ts" ] && [ "$(( $1 - prev_ts ))" -lt "$3" ]; then return 1; fi
+  mkdir -p "${f%/*}" 2>/dev/null || return 1
+  if printf '%s %s\n' "$1" "$2" > "$f.tmp$$" 2>/dev/null; then
+    mv -f "$f.tmp$$" "$f" 2>/dev/null || true
+  fi
+  rm -f "$f.tmp$$" 2>/dev/null || true
+}
 
 # Per-repo feature OFF flags (R50) — a single per-repo file storing only OFF overrides, one
 # `<feature>=off` line each. Absence of a line ⇒ the feature's default (secret/steering

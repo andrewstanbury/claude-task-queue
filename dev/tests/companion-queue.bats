@@ -419,7 +419,7 @@ load helper
   [[ "$output" == *"✔ #4  second finished thing"* ]]
 }
 
-@test "board: ⚑ finished-and-waiting section lists branches, and points at the WHY (R117)" {
+@test "board: 🚩 finished-and-waiting section lists branches, and points at the WHY (R117)" {
   # The lanes above are work that needs doing or deciding. This is work already DONE, sitting on a
   # branch nobody has looked at — the state that used to render identically to "nothing happening".
   local repo; repo="$(_tmpd)"
@@ -430,14 +430,14 @@ load helper
   git -C "$repo" checkout -q main
   run env BOARD_ROOT="$repo" "$BOARD"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"⚑ finished — waiting on YOU"* ]]
+  [[ "$output" == *"🚩 finished — waiting on YOU"* ]]
   [[ "$output" == *"burndown/tidy-logs"* ]]
   # The manifest lives OUTSIDE the branch (it would vanish on checkout of the default), so the
   # board must point at the command that reads it rather than pretending the reason is on screen.
   [[ "$output" == *"burndown-branch.sh show tidy-logs"* ]]
 }
 
-@test "board: the ⚑ section is silent when nothing is waiting (same rule as every section)" {
+@test "board: the 🚩 section is silent when nothing is waiting (same rule as every section)" {
   local repo; repo="$(_tmpd)"
   git -C "$repo" init -q -b main
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init

@@ -543,7 +543,7 @@ ird"; mkdir -p "$weird"
   [[ "$output" == *"⎇"* ]]
 }
 
-# ── ⚑ finished work waiting on the OWNER (R117) ────────────────────────────────────────────────
+# ── 🚩 finished work waiting on the OWNER (R117) ────────────────────────────────────────────────
 _ar() { "$ROOT/bin/awaiting-review.sh" "$@"; }
 
 # A repo with a default branch, an unmerged burndown branch, an unmerged PUSHED branch (via a real
@@ -606,7 +606,7 @@ _ar_repo() {
   [ "$status" -eq 0 ]; [ "$output" = "0" ]
 }
 
-@test "status line: ⚑ lane shows finished work waiting on YOU, with an EMPTY queue (R117)" {
+@test "status line: 🚩 lane shows finished work waiting on YOU, with an EMPTY queue (R117)" {
   local repo rem; repo="$(_tmpd)"; rem="$(_tmpd)"
   _ar_repo "$repo" "$rem"
   # No tasks at all — this is exactly the state that used to render as "nothing happening" while
@@ -614,18 +614,18 @@ _ar_repo() {
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"claude-opus-4-8"},session_id:"sNone",cwd:$c,context_window:{total_input_tokens:1,total_output_tokens:1}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"⚑2"* ]]
+  [[ "$output" == *"🚩2"* ]]
   [[ "$output" == *"📋"* ]]            # the section marker returns even though no TASK exists
   [[ "$output" != *"◻"* ]]             # ...and it is not faking an open-task count to do it
 }
 
-@test "status line: the ⚑ lane is absent when nothing waits (R34 show-only-when-relevant)" {
+@test "status line: the 🚩 lane is absent when nothing waits (R34 show-only-when-relevant)" {
   local repo; repo="$(_tmpd)"; git -C "$repo" init -q -b main
   git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
   local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sQ",cwd:$c,context_window:{total_input_tokens:1,total_output_tokens:1}}')"
   run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
   [ "$status" -eq 0 ]
-  [[ "$output" != *"⚑"* ]]
+  [[ "$output" != *"🚩"* ]]
 }
 
 @test "status line: a STALE v1 cache line can never be read as v2 and blank the branch (R117)" {
@@ -649,4 +649,101 @@ _ar_repo() {
   # The branch must still render. Under the bug the v1 line is a HIT with an empty branch, so the
   # assertion that fails is the presence of the real one — not the absence of the poison.
   [[ "$output" == *"main"* ]]
+}
+
+@test "status line: it actually RECORDS a rate-limit reading for burn-down (R119 wiring guard)" {
+  # THE HOLE THE MUTATION GATE FOUND. The recorder had a unit test and burn-down had a read test,
+  # and NOTHING asserted the status line calls it — so stubbing the call out left the whole suite
+  # green while the defect the owner reported (nothing ever burns unattended) came straight back.
+  # Exactly the trap this repo's other wiring guards exist for: extracting logic makes it testable
+  # and creates a new untested failure mode, the CALL.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  local n; n="$(date +%s)"
+  local payload; payload="$(jq -nc --arg c "$repo" --arg r5 "$(( n + 7200 ))" --arg r7 "$(( n + 172800 ))" \
+    '{model:{display_name:"m"},session_id:"sRL",cwd:$c,
+      context_window:{total_input_tokens:1,total_output_tokens:1},
+      rate_limits:{five_hour:{used_percentage:20,resets_at:$r5},
+                   seven_day:{used_percentage:28,resets_at:$r7}}}')"
+  [ ! -f "$CLAUDE_COMPANION_STATE_DIR/burndown-lastsample" ]
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [ "$status" -eq 0 ]
+  [ -f "$CLAUDE_COMPANION_STATE_DIR/burndown-lastsample" ]
+  # The 7d figure arrives as a FLOAT from the API (28.000000000000004 observed live); burn-down
+  # does integer arithmetic on it, so the recorded value must already be an integer.
+  run cat "$CLAUDE_COMPANION_STATE_DIR/burndown-lastsample"
+  [[ "$output" == *" 28" ]]
+  [[ "$output" != *"."* ]]
+}
+
+@test "status line: a payload with NO rate_limits records nothing, and does not error (R119/R68)" {
+  # The field only exists on Claude.ai Pro/Max and only after the first API response, so "absent"
+  # is the normal case on an API key and on the very first render. Recording an empty or zero
+  # reading there would feed burn-down a fabricated sample — worse than having none.
+  local repo; repo="$(_tmpd)"; git -C "$repo" init -q -b main
+  git -C "$repo" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+  local payload; payload="$(jq -nc --arg c "$repo" '{model:{display_name:"m"},session_id:"sNo",cwd:$c,
+      context_window:{total_input_tokens:1,total_output_tokens:1}}')"
+  run bash -c 'printf "%s" "$1" | NO_COLOR=1 "$2"' _ "$payload" "$SL"
+  [ "$status" -eq 0 ]
+  [ ! -f "$CLAUDE_COMPANION_STATE_DIR/burndown-lastsample" ]
+}
+
+# ── the shared snapshot: a STALE window must not clobber a live one (R120) ─────────────────────
+
+@test "rl snapshot: a payload with OLDER window resets is refused — stale window cannot clobber (R120)" {
+  # MEASURED LIVE, and it is why burn-down had never once fired. ~/.claude/companion/ratelimit is a
+  # single global file and EVERY open window's status line rewrites it on every repaint. An idle
+  # window keeps repainting with its LAST payload — observed carrying resets 17 days old — so it
+  # clobbered the live reading ten times a minute. burn-down then drew its two "corroborating"
+  # samples from DIFFERENT windows, they disagreed by 8 points, and it held forever.
+  local sd; sd="$(_tmpd)"
+  local live5=1787523000 live7=1787641200      # the live window observed 2026-08-23
+  local old5=1786060800  old7=1786464000       # the stale window observed alongside it (Aug 6/11)
+  _w() { env CLAUDE_COMPANION_STATE_DIR="$sd" bash -c \
+           '. "$1/lib/companion.sh"; companion_rl_snapshot_write "$2" "$3" "$4" "$5" "$6"' \
+           _ "$ROOT" "$@"; }
+  _w 1000 69 "$live5" 31 "$live7"
+  [ "$(cat "$sd/ratelimit")" = "1000 69 $live5 31 $live7" ]
+  # the stale window tries to win, as it does today
+  run _w 1010 30 "$old5" 38 "$old7"
+  [ "$status" -ne 0 ]                                   # refused...
+  [ "$(cat "$sd/ratelimit")" = "1000 69 $live5 31 $live7" ]   # ...and the live reading survives
+}
+
+@test "rl snapshot: equal resets still update, and a real ROLLOVER is not a regression (R120)" {
+  # The guard must not freeze the file. Two LIVE windows share a window period, so equal resets
+  # have to keep the used% current — otherwise the first writer wins forever and the reading goes
+  # stale in a different way. And a genuine 5h rollover moves r5 while r7 stands still, so the two
+  # are compared SEPARATELY: as a pair, an ordinary rollover would read as an older payload.
+  local sd; sd="$(_tmpd)"
+  local live5=1787523000 live7=1787641200
+  _w() { env CLAUDE_COMPANION_STATE_DIR="$sd" bash -c \
+           '. "$1/lib/companion.sh"; companion_rl_snapshot_write "$2" "$3" "$4" "$5" "$6"' \
+           _ "$ROOT" "$@"; }
+  _w 1000 69 "$live5" 31 "$live7"
+  run _w 1020 70 "$live5" 31 "$live7"                   # same window, newer usage
+  [ "$status" -eq 0 ]
+  [ "$(cat "$sd/ratelimit")" = "1020 70 $live5 31 $live7" ]
+  # 4321s, deliberately NOT the 18000s window length: all this case needs is a reset that moved
+  # FORWARD, and pinning the fixture to the real threshold is what the boundary lint exists to stop
+  # (a fixture sitting exactly on a bound reddens CI at random when the clock ticks mid-run).
+  run _w 1030 2 "$(( live5 + 4321 ))" 31 "$live7"       # 5h rolled; 7d did not
+  [ "$status" -eq 0 ]
+  [[ "$(cat "$sd/ratelimit")" == "1030 2 $(( live5 + 4321 )) 31 $live7" ]]
+}
+
+@test "rl snapshot: an unreadable or empty stored reading vetoes nothing (R120/R68)" {
+  # First run ever, a truncated write, a hand-edited file: a stored value that carries no
+  # information must not be able to block every future write. Fail-open here is right — the cost is
+  # one stale-ish reading, and burn-down's own age check catches that; the cost of failing closed
+  # is a snapshot that can never be written again and a mode that can never run.
+  local sd; sd="$(_tmpd)"; mkdir -p "$sd"
+  _w() { env CLAUDE_COMPANION_STATE_DIR="$sd" bash -c \
+           '. "$1/lib/companion.sh"; companion_rl_snapshot_write "$2" "$3" "$4" "$5" "$6"' \
+           _ "$ROOT" "$@"; }
+  printf 'garbage\n' > "$sd/ratelimit"
+  run _w 1000 69 1787523000 31 1787641200
+  [ "$status" -eq 0 ]
+  [ "$(cat "$sd/ratelimit")" = "1000 69 1787523000 31 1787641200" ]
 }

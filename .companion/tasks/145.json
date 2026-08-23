@@ -1,0 +1,15 @@
+{
+  "id": "145",
+  "subject": "❓ [parked] decision: Which glyph should the \"finished, waiting on you\" lane use? (⚑ is U+2691, the newest addition and the one with the patchiest monospace-font coverage — so it's my prime suspect. The previews render in your terminal, so pick whichever actually looks right.) — options: 🚩 emoji flag (Recommended) (Same family as the lanes either side of it — ❓ and ⏳ are already emoji, as are 🛡️ ✈️ 📦 🔥 🧹. Emoji are font-independent (the terminal falls back to a colour emoji font), so this is the option least likely to break on any machine, which matters because the whole point of the lane is that you SEE it. Cost: double-width, so the line gets one column wider.) · ⇧ upward arrow (Geometric, single-width, matches ▸ and ◻ tonally. U+21E7 has much wider font coverage than U+2691. Reads as \"pushed up / handed over\", which is literally what the lane means. Cost: ↑↓ are already used on the line for git ahead/behind, so there's a small risk of visual confusion with a different concept.) · ★ filled star (U+2605 — among the best-covered symbols in any monospace font, single-width, visually loud. Cost: \"star\" carries no meaning about waiting or review; it reads as favourite/important, so it's the least self-explanatory of the three.) · It's a different icon (⚑ renders fine and something else is broken — the ⠏ spinner, ✈️, 🔥, 🛡️, or one of ▸ ◻. Pick this and tell me which one looks wrong; I'll swap that one instead and leave ⚑ alone.); rec: 🚩 emoji flag (Recommended)",
+  "status": "completed",
+  "done_when": "",
+  "context": "",
+  "blocks": [],
+  "blockedBy": [],
+  "notes": [
+    {
+      "ts": "2026-08-23T21:22:51Z",
+      "text": "decided: owner said 'do all of the things you recommended' — applying my pick, 🚩 (U+1F6A9). ⚑ is U+2691, Miscellaneous Symbols, and has patchy monospace coverage; ❓⏳🛡️✈️📦🔥🧹 are all already emoji, so emoji is the consistent AND font-independent choice for the one lane whose whole purpose is being seen."
+    }
+  ]
+}

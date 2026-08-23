@@ -194,10 +194,11 @@ load helper
   _bd_setup
   # snapshot fields: ts · used5 · reset5 · used7 · reset7
   _bd_left() {  # $1=used7 · $2=seconds left in the 7d window
-    printf '%s %s %s %s %s\n' "$(( $(date +%s) - 5 ))" 20 "$(( $(date +%s)+7200 ))" "$1" "$(( $(date +%s)+$2 ))" \
-      > "$BD_STATE/ratelimit"
-    env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
-        BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status >/dev/null 2>&1 || true
+    # Seed the earlier reading DIRECTLY, 600s back (R119). It used to be seeded by running
+    # burn-down once and discarding it, which only worked because burn-down wrote its own samples —
+    # and that self-writing was the defect being fixed: it meant sampling happened only when
+    # evaluating happened. The status line is the sampler now, so the fixture writes what it would.
+    printf '%s %s\n' "$(( $(date +%s) - 600 ))" "$1" > "$BD_STATE/burndown-lastsample"
     printf '%s %s %s %s %s\n' "$(date +%s)" 20 "$(( $(date +%s)+7200 ))" "$1" "$(( $(date +%s)+$2 ))" \
       > "$BD_STATE/ratelimit"
     run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
@@ -244,7 +245,7 @@ load helper
   _bd_left 50 90000; [[ "$output" == BURN:* ]]
 }
 
-@test "burn-down: a BURN needs TWO agreeing readings — one sample is not evidence (R90)" {
+@test "burn-down: a BURN needs TWO agreeing readings, SEPARATED IN TIME (R90/R119)" {
   _bd_setup
   # Timestamps go BACKWARDS from now, never forward: the freshness check rejects a future snapshot
   # ("-1s old") as a bad clock, which silently swallowed the first version of this test.
@@ -254,28 +255,41 @@ load helper
                 BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status; }
   local n; n="$(date +%s)"
 
-  # FIRST reading ever: the forecast says burn, but there is nothing to corroborate it.
+  # NO earlier reading at all: the forecast says burn, but there is nothing to corroborate it.
+  # The message points at the STATUS LINE, because that is what records readings now (R119) — the
+  # old text said "only one reading so far", which implied burn-down would accumulate them itself.
+  # It did, and that was the defect: it sampled only when it evaluated, so unattended it never got
+  # a second reading and never started.
+  rm -f "$BD_STATE/burndown-lastsample"
   _snap "$((n-9))" 10; _run
-  [[ "$output" == HOLD:* ]]; [[ "$output" == *"one rate-limit reading"* ]]
+  [[ "$output" == HOLD:* ]]; [[ "$output" == *"no earlier rate-limit reading"* ]]
 
-  # A second DISTINCT reading that agrees → now it may burn.
+  # An earlier reading, genuinely separated in time, that agrees → now it may burn. ONE evaluation.
+  printf '%s 10\n' "$((n-600))" > "$BD_STATE/burndown-lastsample"
   _snap "$((n-8))" 10; _run
   [[ "$output" == BURN:* ]]
 
-  # The SAME sample re-read is not a second opinion — the snapshot has not refreshed.
+  # The SAME sample re-read is not a second opinion. Still reachable after R119, and by a REAL
+  # path rather than a contrived one: the status line writes the snapshot and the cadenced reading
+  # in the same repaint, from the same NOW — so the first cadence write after a repaint carries
+  # exactly the snapshot's timestamp. Corroborating a reading against itself is the one thing the
+  # two-sample rule exists to forbid.
+  printf '%s 10\n' "$((n-8))" > "$BD_STATE/burndown-lastsample"   # == the snapshot's own ts
   _run
   [[ "$output" == HOLD:* ]]; [[ "$output" == *"not a second opinion"* ]]
+  printf '%s 10\n' "$((n-600))" > "$BD_STATE/burndown-lastsample" # restore a genuine earlier one
 
-  # Establish a settled high baseline (the jump from 10 to 82 is itself a disagreement, and holds).
-  _snap "$((n-7))" 82; _run; [[ "$output" == HOLD:* ]]
-  _snap "$((n-6))" 82; _run
-
-  # THE MEASURED TRANSIENT: 82 → 61 across a 5h rollover. The low reading must NOT be actioned —
-  # a 21-point phantom of headroom is exactly what would start generating work on nothing.
+  # THE MEASURED TRANSIENT: 82 → 61 across a 5h rollover. Both readings are now stated OUTRIGHT —
+  # the earlier one in the sample file, the current one in the snapshot — rather than accumulated
+  # by re-running burn-down, which is no longer how readings are taken (R119) and which hid WHICH
+  # two values were actually being compared. The low reading must not be actioned: a 21-point
+  # phantom of headroom is exactly what would start generating work on nothing.
+  printf '%s 82\n' "$((n-600))" > "$BD_STATE/burndown-lastsample"
   _snap "$((n-5))" 61; _run
   [[ "$output" == HOLD:* ]]; [[ "$output" == *"disagree by 21 points"* ]]
 
   # ...and once the reading settles, two agreeing samples let it proceed again.
+  printf '%s 61\n' "$((n-600))" > "$BD_STATE/burndown-lastsample"
   _snap "$((n-4))" 61; _run
   [[ "$output" == BURN:* ]]
 }
@@ -726,9 +740,9 @@ load helper
   touch "$(_flagpath "$st" burndown "$d")"
   local n; n="$(date +%s)"
   printf '%s 20 %s 10 %s\n' "$((n-5))" "$((n+7200))" "$((n+172800))" > "$st/ratelimit"
-  # seed the corroborating first reading (a BURN needs two distinct agreeing samples)
-  env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" CLAUDE_COMPANION_TASKS_DIR="$tk" \
-      bash "$ROOT/bin/burn-down.sh" status >/dev/null 2>&1 || true
+  # The corroborating earlier reading, written the way the STATUS LINE writes it (R119) — 600s
+  # back, past SAMPLE_MIN. burn-down no longer records its own samples; doing so is what starved it.
+  printf '%s 10\n' "$((n-600))" > "$st/burndown-lastsample"
   printf '%s 20 %s 10 %s\n' "$n" "$((n+7200))" "$((n+172800))" > "$st/ratelimit"
   _bd2() { run env BURNDOWN_ROOT="$d" CLAUDE_COMPANION_STATE_DIR="$st" CLAUDE_COMPANION_TASKS_DIR="$tk" bash "$ROOT/bin/burn-down.sh" status; }
   jq -n '{id:"1",subject:"❓ [parked] a decision; rec: A",status:"pending"}'    > "$tk/s1/1.json"
@@ -908,12 +922,12 @@ load helper
   ( cd "$repo" && "$AP" burndown on ) >/dev/null
   _stop; [ -z "$output" ]
 
-  # Now a snapshot that genuinely forecasts underspend, seeded twice so the R90 two-sample rule is
-  # satisfied — the same thing the status line does by repainting.
+  # Now a snapshot that genuinely forecasts underspend, with the corroborating earlier reading
+  # written the way the STATUS LINE writes it (R119). It used to be seeded by running burn-down
+  # once — which only worked while burn-down recorded its own samples, and that self-writing is
+  # exactly what stopped an unattended session ever taking a second reading.
   local n; n="$(date +%s)"
-  printf '%s %s %s %s %s\n' "$(( n - 30 ))" 10 "$(( n + 7200 ))" 5 "$(( n + 172800 ))" \
-    > "$CLAUDE_COMPANION_STATE_DIR/ratelimit"
-  ( cd "$repo" && BURNDOWN_ROOT="$repo" bash "$ROOT/bin/burn-down.sh" should-burn ) >/dev/null 2>&1 || true
+  printf '%s 5\n' "$(( n - 600 ))" > "$CLAUDE_COMPANION_STATE_DIR/burndown-lastsample"
   printf '%s %s %s %s %s\n' "$n" 10 "$(( n + 7200 ))" 5 "$(( n + 172800 ))" \
     > "$CLAUDE_COMPANION_STATE_DIR/ratelimit"
   _stop
@@ -1153,4 +1167,54 @@ load helper
   run bash -c 'printf "%s" "$1" | "$2"' _ "$p2" "$AG"
   run bash -c 'printf "%s" "$1" | "$2"' _ '{"cwd":"'"$repo2"'","session_id":"sD","tool_input":{'"$qs"'},"tool_response":{}}' "$AC"
   [ "$(jq -rs '[.[]|select(.status=="pending")]|length' "$CLAUDE_COMPANION_TASKS_DIR/sD"/*.json)" -eq 2 ]
+}
+
+# ── the sampler is the STATUS LINE, not burn-down itself (R119) ───────────────────────────────
+
+@test "burn-down: it must NOT write the sample itself — that is what starved it (R119)" {
+  _bd_setup
+  # Structural, and deliberately so: if burn-down ever records its own reading again, the
+  # self-starvation and the rapid-call bypass both come straight back, and BOTH are invisible in
+  # any single-run assertion. The file must be untouched by an evaluation.
+  printf '%s %s\n' "$(( $(date +%s) - 600 ))" 10 > "$BD_STATE/burndown-lastsample"
+  printf '%s %s %s %s %s\n' "$(date +%s)" 20 "$(( $(date +%s)+7200 ))" 10 "$(( $(date +%s)+172800 ))" \
+    > "$BD_STATE/ratelimit"
+  local before; before="$(cat "$BD_STATE/burndown-lastsample")"
+  run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+      BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
+  [ "$(cat "$BD_STATE/burndown-lastsample")" = "$before" ]
+}
+
+@test "burn-down: two readings SECONDS apart are one sample twice, and are refused (R119b)" {
+  _bd_setup
+  # The half that made the old guard theatre. Two evaluations 30s apart used to satisfy it — but at
+  # a 5h rollover both land on the same side of it, so they agree perfectly and prove nothing. It
+  # blocked the honest single-call path while being trivially bypassable by running twice.
+  printf '%s %s\n' "$(( $(date +%s) - 5 ))" 10 > "$BD_STATE/burndown-lastsample"
+  printf '%s %s %s %s %s\n' "$(date +%s)" 20 "$(( $(date +%s)+7200 ))" 10 "$(( $(date +%s)+172800 ))" \
+    > "$BD_STATE/ratelimit"
+  run env CLAUDE_COMPANION_STATE_DIR="$BD_STATE" CLAUDE_COMPANION_TASKS_DIR="$BD_TASKS" \
+      BURNDOWN_ROOT="$BD_REPO" bash "$ROOT/bin/burn-down.sh" status
+  [[ "$output" == HOLD:* ]]
+  [[ "$output" == *"one sample written twice"* ]]
+}
+
+@test "rl sample: the recorder THROTTLES, so the two readings are genuinely apart (R119)" {
+  # The cadence is the whole mechanism: without throttling, a status line repainting every 10s
+  # would overwrite the history constantly and the previous reading would never be old enough to
+  # corroborate anything — the same "one sample twice" failure, arriving from the other side.
+  local sd; sd="$(_tmpd)"
+  run env CLAUDE_COMPANION_STATE_DIR="$sd" bash -c \
+    '. "$1/lib/companion.sh"; companion_rl_sample_record 1000 42 600 && echo FIRST-WROTE' _ "$ROOT"
+  [[ "$output" == *"FIRST-WROTE"* ]]
+  # 60s later, well inside the 600s cadence → refused, and the ORIGINAL reading survives
+  run env CLAUDE_COMPANION_STATE_DIR="$sd" bash -c \
+    '. "$1/lib/companion.sh"; companion_rl_sample_record 1060 99 600 || echo THROTTLED' _ "$ROOT"
+  [[ "$output" == *"THROTTLED"* ]]
+  [ "$(cat "$sd/burndown-lastsample")" = "1000 42" ]
+  # ...and past the cadence it does write, or the history would freeze forever
+  run env CLAUDE_COMPANION_STATE_DIR="$sd" bash -c \
+    '. "$1/lib/companion.sh"; companion_rl_sample_record 1700 51 600 && echo WROTE' _ "$ROOT"
+  [[ "$output" == *"WROTE"* ]]
+  [ "$(cat "$sd/burndown-lastsample")" = "1700 51" ]
 }

@@ -203,8 +203,8 @@ if [ -f "$BIN/stop-autopilot.sh" ]; then
   printf '  %-22s %7sms %9s %8s   %s\n' "stop-autopilot(dry+🔥)" "$d" "-" "-" "$verdict"
 fi
 
-# THE ⚑ AWAITING-REVIEW LANE (R117) — measured against BRANCH COUNT, which nothing else here varies.
-# Every measurement above scales the STORE. The ⚑ lane is the first thing on the status line whose
+# THE 🚩 AWAITING-REVIEW LANE (R117) — measured against BRANCH COUNT, which nothing else here varies.
+# Every measurement above scales the STORE. The 🚩 lane is the first thing on the status line whose
 # cost tracks the number of BRANCHES instead, via a `git branch --no-merged` walk — so the existing
 # 8x-store harness would have reported it as free while it grew on an axis nobody was watching.
 # That is the same "budget that measures nothing" this file was caught doing twice before, which is
@@ -238,7 +238,7 @@ if [ -f "$BIN/statusline.sh" ] && [ -f "$BIN/awaiting-review.sh" ]; then
   ratio=$(( b * 100 / base ))
   verdict="ok"
   if [ "$b" -gt "$ABSCAP" ]; then
-    verdict="FAIL >${ABSCAP}ms on ${MULT}x branches — the ⚑ lane stalls the status line"; rc=1
+    verdict="FAIL >${ABSCAP}ms on ${MULT}x branches — the 🚩 lane stalls the status line"; rc=1
   elif [ "$a" -ge "$NOISE_MS" ] && [ "$ratio" -gt $((MAXRATIO * 100)) ]; then
     verdict="FAIL pathological scaling (>${MAXRATIO}x over ${MULT}x branches)"; rc=1
   fi

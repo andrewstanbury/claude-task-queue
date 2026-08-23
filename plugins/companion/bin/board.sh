@@ -132,27 +132,27 @@ if [ -n "$_bd_changed" ]; then
   fi
 fi
 
-# ⚑ FINISHED AND WAITING ON YOU (R117). The lanes above are work that needs DOING or DECIDING; this
+# 🚩 FINISHED AND WAITING ON YOU (R117). The lanes above are work that needs DOING or DECIDING; this
 # is work already done, sitting on a branch nobody has looked at — a burn-down branch built
 # unattended, or a feature-class change ship pushed and deliberately declined to merge. It was
 # invisible on every surface, so "done, waiting on you" read exactly like "nothing happening",
 # which is the most expensive silence here: the work is already paid for.
 #
-# One implementation, three surfaces: the status line's ⚑ lane, any MCP client, and this — all call
+# One implementation, three surfaces: the status line's 🚩 lane, any MCP client, and this — all call
 # awaiting-review.sh rather than each re-deriving "unmerged and handed over" (that second copy is
 # what let default_branch drift three ways). Quiet when empty, like every section above.
 _ar_rows="$(AWAITING_ROOT="$root" "$PLUGIN_DIR/bin/awaiting-review.sh" list 2>/dev/null || true)"
 if [ -n "$_ar_rows" ]; then
   echo
-  echo "── ⚑ finished — waiting on YOU ──"
+  echo "── 🚩 finished — waiting on YOU ──"
   while IFS="$(printf '\t')" read -r kind br; do
     [ -n "$br" ] || continue
     case "$kind" in
-      burndown) printf '  ⚑ %s — built unattended; review, then merge or discard\n' "$br"
+      burndown) printf '  🚩 %s — built unattended; review, then merge or discard\n' "$br"
                 # The manifest is the WHY, and it lives outside the branch on purpose (it would
                 # vanish on checkout of the default). Point at it rather than reprinting it here.
                 printf '      why: burndown-branch.sh show %s\n' "${br#burndown/}" ;;
-      *)        printf '  ⚑ %s — pushed and unmerged; merge when you are happy with it\n' "$br" ;;
+      *)        printf '  🚩 %s — pushed and unmerged; merge when you are happy with it\n' "$br" ;;
     esac
   done <<< "$_ar_rows"
 fi

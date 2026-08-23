@@ -1,0 +1,9 @@
+{
+  "id": "146",
+  "subject": "THE REAL BURN BLOCKER (R120): the rate-limit snapshot is ONE global file at ~/.claude/companion/ratelimit, written by EVERY open window's status line. An idle window repaints every 10s with its LAST payload — measured live carrying Aug 6 resets, 17 days stale — and clobbers the live window's reading. burn-down's two samples then come from different windows and disagree by 8 points, so it holds forever. This is why nothing has ever burned, and why the 'frozen payload' appeared earlier",
+  "status": "completed",
+  "done_when": "a write is refused when its window resets are OLDER than the stored ones, so a stale window cannot clobber a live one; verified by a test with two competing writers",
+  "context": "",
+  "blocks": [],
+  "blockedBy": []
+}

@@ -1021,7 +1021,7 @@ knowingly done.
   deny — so forced continuation cannot be ported no matter how good the adapter is. What remains is
   real but partial: `secret-guard` and `contract-guard` blocking.
 - **A permanently-blocked item is worse than an absent one.** It trains the owner to skim past the
-  ⏳ lane, which is precisely the indicator decay the ⚑ lane (R117) was just built to avoid. An
+  ⏳ lane, which is precisely the indicator decay the 🚩 lane (R117) was just built to avoid. An
   indicator that is always non-zero for a reason nobody can act on stops being read.
 
 **Cheap to reverse, which is what makes dropping honest rather than giving up:** this entry is the

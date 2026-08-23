@@ -144,7 +144,13 @@ load helper
   _fsnap() { printf '%s 20 %s %s %s\n' "$1" "$((n+7200))" "$2" "$((n+172800))" > "$st/ratelimit"; }
   _fbd()   { run env CLAUDE_COMPANION_STATE_DIR="$st" CLAUDE_COMPANION_TASKS_DIR="$tk" \
                  BURNDOWN_ROOT="$r" bash "$ROOT/bin/burn-down.sh" status; }
+  # No earlier reading yet → HOLD. Readings are recorded by the STATUS LINE on a cadence (R119),
+  # not by burn-down itself; it used to write its own, which meant it only sampled when it
+  # evaluated and so could never accumulate a second reading unattended.
+  rm -f "$st/burndown-lastsample"
   _fsnap "$((n-9))" 10; _fbd; [[ "$output" == HOLD:* ]]
+  # With a genuine earlier reading in place, ONE evaluation is enough — in a foreign repo too.
+  printf '%s 10\n' "$((n-600))" > "$st/burndown-lastsample"
   _fsnap "$((n-8))" 10; _fbd; [[ "$output" == BURN:* ]]
 
   # The dirty-tree refusal must hold in a foreign repo too — package.json is untracked here, and
