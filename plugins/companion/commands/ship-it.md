@@ -85,7 +85,20 @@ proposal, the commit message, the history curation.
      renamed a doc — so a GitHub reviewer reaches the docs in one click. Keep it a plain link list;
      don't copy the docs' content into the README (that just makes a second thing to drift).
 4. **Write the message + right-size (R40) — then curate if needed.** Preflight's status/diff-stat
-   tells you the shape. **Right-size first:** if the diff mixes unrelated concerns or is large, say
+   tells you the shape.
+   - **A COSMETIC-ONLY change is BATCHED, never shipped alone (owner-asked 2026-08-22).** If the
+     diff changes no executable line — comments, prose, doc numbers, typos — it does not earn a CI
+     run of its own. `git commit` it **locally** and stop: the next substantive ship re-runs the
+     gate on the whole tree and carries it (`land`'s retry path already ships existing unmerged
+     commits). The trigger was three ships in a row where the third was comment-only; the honest
+     cost of batching is that the fix sits unpushed until real work follows it, so if the text is
+     *actively misleading about something someone will act on today*, say that in one line and ask
+     rather than deciding for them. **This is judgment, not a gate** — `ship.sh` cannot classify
+     "cosmetic" for you, because deciding which lines are comments means knowing each language's
+     comment syntax, and that is the hardcoded-allowlist trap R9 exists to prevent (markdown, where
+     most of these changes land, has no comment syntax at all). Naming it here rather than pretending
+     it is enforced.
+   **Right-size next:** if the diff mixes unrelated concerns or is large, say
    so in one line and offer to split it into separate logical commits — commit those units by hand
    (each with a full message), then let `land` ship them via its retry path (it ships existing
    unmerged commits when nothing is staged). On an **`autopilot/*` or `wip/*` (handoff, R72) branch**, curate the checkpoint

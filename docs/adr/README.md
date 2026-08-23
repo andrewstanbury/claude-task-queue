@@ -973,3 +973,34 @@ not a smaller margin, it is a broken one** — it reports headroom that does not
 same defect as the ceiling it replaced, only harder to notice.
 
 | 2026-08-22 — found by a ship reporting UNWATCHED, i.e. by the system telling on itself.
+
+### R116·f — cosmetic changes are batched, not shipped
+
+**Owner directive, 2026-08-22: "batch cosmetic changes from now on."** Asked after three
+consecutive ships in which the third (3.94.2) changed no executable line — a comment and an ADR
+paragraph — and still spent a full ~24 min CI run. I had flagged that cost myself and shipped
+anyway, which is the part worth noticing: the classification was correct, the restraint was not.
+
+**The rule.** A diff that changes no executable line does not earn its own ship. `git commit` it
+locally and stop; the next substantive ship re-runs the gate on the whole tree and carries it, via
+`land`'s existing retry path for unmerged commits. Lives in `ship-it.md` rather than `STEERING.md`
+deliberately: it applies precisely at the ship boundary, and a command doc is read on demand, so it
+costs **zero** injected tokens — STEERING had 116B of headroom and this would have eaten all of it
+for a rule that is irrelevant 95% of the time.
+
+**Named cost, stated so it is a decision and not a discovery:** a batched fix sits **unpushed**
+until real work follows it. For prose that is merely stale that is fine. For prose that is
+*actively misleading about something someone will act on today* it is not — so that case asks
+rather than assuming. This entry's own change is the first application: doc-only, committed
+locally, unpushed.
+
+**NOT enforced, and this is not laziness.** `ship.sh` cannot classify "cosmetic" for you. Deciding
+which changed lines are comments requires knowing each language's comment syntax, which is exactly
+the hardcoded-allowlist trap **R9** exists to prevent — and markdown, where most of these changes
+land, has no comment syntax at all, so the files most in scope are the ones the heuristic cannot
+read. A gate that is wrong in the blocking direction costs a refused real ship, which is far more
+expensive than the CI run it saves. The judgment stays with the model; what changed is the default,
+not the ability to decide.
+
+| 2026-08-22, owner directive. Composes **R40** (right-sizing, same step), **R9** (why no gate),
+**R69** (why `ship-it.md` and not STEERING).
