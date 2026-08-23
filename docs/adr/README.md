@@ -954,4 +954,15 @@ shape.
 correctness — the ceiling fix already removed the pressure. Free on a public repo, trivially
 reversible, and the shard partition is gated by a test that is not pinned to any particular count.
 
+**Corrected the same day, by the first run that used it.** The projection rounds the shard count
+UP because the slowest shard sets wall-clock — then multiplied it by a constant derived from the
+AVERAGE. It predicted 1275s; the median shard came in at 1276s and the **slowest at 1458s**, so the
+guard was systematically optimistic by 14%. Worst-case rounding paired with an average-case
+constant is the thin margin this entry is *about*, reproduced inside the fix for it. Now calibrated
+on the slowest shard (97s measured, 100s carried).
+
+Worth keeping as the general point: **a safety margin that is wrong in the optimistic direction is
+not a smaller margin, it is a broken one** — it reports headroom that does not exist, which is the
+same defect as the ceiling it replaced, only harder to notice.
+
 | 2026-08-22 — found by a ship reporting UNWATCHED, i.e. by the system telling on itself.

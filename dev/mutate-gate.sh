@@ -24,9 +24,10 @@ mfile="dev/tests/mutations.txt"
 # which is what made every local filtered run look like a hang. CI never noticed: it passes no
 # filter, so the bug was invisible to the one place that runs this gate on every push.
 # --shard N/M: run every Mth declared mutation, offset N. Measured 2026-08-22: 144 mutations x
-# ~85s on CI is ~3.4 HOURS serially, and on GitHub a long job ALSO blocks `gh run view --log-failed`
+# ~100s on CI is ~4 HOURS serially, and on GitHub a long job ALSO blocks `gh run view --log-failed`
 # for the whole run — so a red check lane could not be read until this one finished, which cost real
-# time. CI matrixes 10 shards (was 6, raised 2026-08-22 when the slowest shard hit 33 min).
+# time. CI matrixes 10 shards (was 6, raised 2026-08-22 when the slowest shard hit 33 min; the
+# raise took the whole run 33 min -> 24, slowest shard 1458s).
 # These numbers go stale by simply being written down, which is why the ONE that matters — whether
 # the slowest shard still fits inside R74's watch ceiling — is computed on every run instead of
 # recorded here. See ci_wallclock_warn below.
@@ -119,7 +120,12 @@ fi
 # Both operands are read from their real homes, never restated here: restating either is precisely
 # how the pair silently diverges. Best-effort — a fixture tree has neither file, and a projection
 # is never grounds to fail a gate about mutation coverage.
-sec_per_mut="${MUTGATE_SEC_PER_MUT:-85}"   # measured on CI 2026-08-22: slowest shard 1980s / 24 mutations
+# Calibrated on the SLOWEST shard, never the average — the slowest is what sets wall-clock, which is
+# the only quantity this projection claims to bound. The first value (85s) came from an average and
+# under-predicted the real slowest shard by 14%: worst-case rounding above (ceil) paired with an
+# average-case constant, which quietly re-introduced the thin margin this whole check exists to stop.
+# Measured 2026-08-22 across 10 shards: slowest 1458s / 15 mutations = 97s; 100s carries the margin.
+sec_per_mut="${MUTGATE_SEC_PER_MUT:-100}"
 ci_wallclock_warn() {
   local n="$1" wf f shards ceiling per projected pct
   # Glob, not `ls | head` (SC2012): the loop stops at the first READABLE match, so an unreadable
