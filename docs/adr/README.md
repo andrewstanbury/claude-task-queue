@@ -1035,3 +1035,43 @@ kept it sitting: a decision parked in the blocked lane never gets asked.
 
 | 2026-08-23, owner-decided. Composes **R100** (the original decline), **R117** (indicator decay),
 **R38/R65** (the review's re-filing rule).
+
+### R116·h — what was salvaged from `claude-only-redesign`, and why the branch was discarded
+
+Surfaced by the ⚑/🚩 lane (R117) on its first day: a branch pushed 2026-07-20, **141 commits behind
+main**, invisible on every surface until the lane existed. Owner asked to salvage anything useful
+and discard it. This is the salvage.
+
+**Its headline idea already shipped.** `bin/q` was an experimental *replacement* for `tq` — its own
+header says "deliberately NOT the human-facing tq", discarding R60 export/import, R44 temp+rename,
+the status line and the glyph vocabulary. The point of it was **repo-identity, not path-identity**:
+the queue lives at `<repo>/.companion/queue.jsonl`, the repo IS the identity, git IS the transport.
+That landed as **R96 stage 2** in the mature `tq` (the `.repo` stamp, queue-as-repo-state) without
+giving up crash-safety or the tests. Nothing to take.
+
+**Its `--dep 1,2` array is already there too** — `tq` tasks carry `blockedBy`/`blocks` as structured
+fields, so the prototype's explicit dependency list adds nothing.
+
+**THE ONE REAL GAP IT EXPOSES: `tq` records no TIMESTAMPS and no TRANSITION HISTORY.** A task's JSON
+is `{id, subject, status, done_when, context, notes, blockedBy, blocks}` — current state only. There
+is no record of *when* a task moved open → doing → done, so "what did autopilot actually do
+overnight" cannot be answered from the queue. An append-only event log gets both for free, which is
+the genuinely better half of the prototype's design.
+
+**But the event log is the wrong MECHANISM for it, which is why the branch is not merged.** Reading
+current state means replaying the whole log (`jq -s` over every event ever), so read cost grows with
+HISTORY — and `tq` is read on the hot paths that **R81** exists to bound (the Stop hook, the status
+line, every resume). `tq`'s file-per-task read is bounded by the number of *open* tasks and stays
+flat as history accumulates. Atomicity is not the trade either: R44's temp+rename already provides
+it. So if the gap is ever worth closing, the answer is **per-task timestamps on the existing
+records** (`created_at`/`started_at`/`closed_at`, three fields, O(1) to read), not an event log.
+
+**Also worth naming, because it decided the merge:** the branch carried
+`plugins/companion/tests/companion-q.bats`, 54 lines of tests in a directory nothing executes —
+tests live in `dev/tests/`. Merging it would have added a file that *looks* like coverage and never
+runs, which is the exact defect three separate entries above this one were written to remove (an
+unmeasured CI ceiling, a hook budget on the wrong axis, a lint with no caller). Landing a fourth
+deliberately was the deciding argument.
+
+| 2026-08-23, owner-decided ("salvage anything useful then discard it"). Composes **R96** (where the
+idea actually shipped), **R81** (why the mechanism was rejected), **R117** (what surfaced it).
