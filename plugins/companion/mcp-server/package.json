@@ -7,6 +7,6 @@
   "main": "index.js",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "zod": "^3.24.1"
+    "zod": "^4.6.7"
   }
 }
